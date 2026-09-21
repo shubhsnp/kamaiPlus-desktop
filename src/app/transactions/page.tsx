@@ -9,6 +9,7 @@ import { Sale, Customer, Product, LedgerTransaction } from '@/types';
 import { generateTallyPrimeXML } from '@/lib/tally/tallyXmlGenerator';
 import { getNextUniqueInvoiceNumber, commitNextInvoiceNumber } from '@/lib/invoices/invoiceNumberService';
 import { exportTransactionsCSV } from '@/lib/reports/transactionsCsv';
+import { generateBulkInvoicesPDF } from '@/lib/reports/bulkInvoiceReport';
 import { 
   Receipt, 
   CheckCircle2, 
@@ -73,11 +74,31 @@ export default function TransactionsPage() {
     totalCreditPaise,
     revenueBillCount,
     clearAllFilters,
-  } = useTransactionFilters(allSales);
+  } = useTransactionFilters(allSales, customers);
 
   // Export Filtered Records to CSV
   const handleExportCSV = () => {
     exportTransactionsCSV(filteredSales);
+  };
+
+  // Bulk Multi-Invoice Continuous PDF Download
+  const handleBulkDownloadInvoices = async () => {
+    if (!business || filteredSales.length === 0) return;
+    const selectedCustomerObj = customers.find((c) => c.id === selectedCustomerId);
+    const dateLabel = datePreset === 'custom'
+      ? `${startDate || 'Start'} to ${endDate || 'End'}`
+      : datePreset.toUpperCase();
+    const res = await generateBulkInvoicesPDF({
+      sales: filteredSales,
+      business,
+      dateRangeLabel: dateLabel,
+      customerName: selectedCustomerObj?.name,
+    });
+    if (res.ok) {
+      showTxToast(res.path ? 'Bulk Invoices PDF saved to Documents folder!' : 'Print/PDF dialog opened.', 'success');
+    } else {
+      showTxToast(res.error || 'Failed to generate bulk PDF.', 'error');
+    }
   };
 
   // 1-Tap Convert Quotation / Estimate to Official Tax Invoice
@@ -249,6 +270,7 @@ export default function TransactionsPage() {
             handleExportTallyXML();
           }
         }}
+        onBulkDownloadInvoices={handleBulkDownloadInvoices}
         onOpenClearHistory={() => setIsClearHistoryModalOpen(true)}
       />
 
@@ -293,6 +315,27 @@ export default function TransactionsPage() {
             Tap any row to view &amp; print tax invoice
           </span>
         </div>
+
+        {/* Active Customer Filter Banner */}
+        {selectedCustomerId !== 'all' && (
+          <div className="px-3.5 py-2 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-800/60 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-amber-950 dark:text-amber-200">
+                Filtered Customer: <span className="font-black underline">{selectedCustomerId === 'walk-in' ? 'Walk-in (Unregistered)' : (customers.find((c) => c.id === selectedCustomerId)?.name || selectedCustomerId)}</span>
+              </span>
+              <span className="px-2 py-0.5 rounded-full bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-100 font-bold text-[11px]">
+                {filteredSales.length} {filteredSales.length === 1 ? 'Bill' : 'Bills'} • Total: {formatINR(totalRevenuePaise)}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedCustomerId('all')}
+              className="text-xs text-amber-800 dark:text-amber-300 hover:underline font-bold cursor-pointer"
+            >
+              Clear Filter ✕
+            </button>
+          </div>
+        )}
 
         {filteredSales.length === 0 ? (
           <div className="p-12 text-center text-slate-500 space-y-2">

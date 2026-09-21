@@ -46,7 +46,7 @@ export const ProductHeaderActions: React.FC<ProductHeaderActionsProps> = ({
           <p className="text-[10.5px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">
             {isRestaurant
               ? `${totalProducts} food items with categories, custom rates & KOT instant billing`
-              : `${totalProducts} registered products with barcodes, batch expiry & instant stock tracking`}
+              : `${totalProducts} registered products with barcodes, pricing & instant stock tracking`}
           </p>
         </div>
       </div>

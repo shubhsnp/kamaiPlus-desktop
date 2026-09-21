@@ -6,7 +6,8 @@ import {
   RotateCcw, 
   Download, 
   Trash2, 
-  Lock 
+  Lock,
+  FileText
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
@@ -17,6 +18,7 @@ interface TransactionHeaderActionsProps {
   onOpenSalesReturn: () => void;
   onExportCSV: () => void;
   onExportTallyXML: () => void;
+  onBulkDownloadInvoices?: () => void;
   onOpenClearHistory: () => void;
 }
 
@@ -27,6 +29,7 @@ export const TransactionHeaderActions: React.FC<TransactionHeaderActionsProps> =
   onOpenSalesReturn,
   onExportCSV,
   onExportTallyXML,
+  onBulkDownloadInvoices,
   onOpenClearHistory,
 }) => {
   return (
@@ -66,6 +69,21 @@ export const TransactionHeaderActions: React.FC<TransactionHeaderActionsProps> =
           <Download className="w-3.5 h-3.5" />
           <span>Export CSV</span>
         </Button>
+
+        {/* Bulk Invoices PDF */}
+        {onBulkDownloadInvoices && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onBulkDownloadInvoices}
+            className="text-xs font-bold gap-1.5 whitespace-nowrap shrink-0 rounded-xl border-slate-200 dark:border-slate-700 bg-white hover:bg-slate-50 text-slate-800"
+            disabled={filteredCount === 0}
+            title="Download continuous consolidated PDF of all filtered invoices"
+          >
+            <FileText className="w-3.5 h-3.5 text-indigo-600" />
+            <span>Bulk Invoices PDF</span>
+          </Button>
+        )}
 
         {/* Tally Prime XML */}
         <Button

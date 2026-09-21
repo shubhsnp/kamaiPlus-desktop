@@ -64,7 +64,7 @@ export const QuickAddKhataCustomerModal: React.FC<QuickAddKhataCustomerModalProp
 
         <div>
           <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-            Phone Number (For WhatsApp Statement &amp; Reminders)
+            Phone Number (For Account Statement &amp; Reminders)
           </label>
           <Input
             value={newCustPhone}

@@ -56,8 +56,8 @@ export const MobileMenuCardsModal: React.FC<MobileMenuCardsModalProps> = ({ isOp
   const ProductsIcon = Package;
   const productsBg = 'bg-blue-100 text-blue-900';
   const productsBorder = 'border-blue-300';
-  const inventoryTitle = 'Inventory & Expiry';
-  const inventoryDesc = 'Batches & Low Stock';
+  const inventoryTitle = 'Inventory & Stock';
+  const inventoryDesc = 'Stock Alerts & Audit';
   const purchasesTitle = 'Purchases';
   const purchasesDesc = 'Supplier Invoices';
 

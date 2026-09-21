@@ -176,6 +176,24 @@ export function TermsFooterSection({ config, onChange }: { config: InvoiceThemeC
           placeholder="Thank you for shopping with us! Visit again."
         />
       </label>
+      <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+        <span className="text-[10.5px] font-bold text-slate-400">Presets:</span>
+        {[
+          'Thank You! Visit Again 🙏',
+          'Goods once sold cannot be returned',
+          'Sunday Closed • Open 9AM - 10PM',
+          'Fixed Rate Shop • No Bargaining',
+        ].map((tagline) => (
+          <button
+            key={tagline}
+            type="button"
+            onClick={() => onChange({ custom_footer: tagline })}
+            className="px-2 py-0.5 rounded text-[10.5px] font-semibold bg-slate-100 text-slate-700 hover:bg-amber-100 hover:text-amber-900 border border-slate-200 cursor-pointer transition"
+          >
+            {tagline}
+          </button>
+        ))}
+      </div>
     </Card>
   );
 }

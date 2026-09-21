@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Sale } from '@/types';
+import { Customer, Sale } from '@/types';
 import { getNetPaymentBreakdown, getSaleNetTotal, getSalePaymentBreakdown, isRevenueSale } from '@/lib/sales/saleMath';
 
 // Local calendar-day helpers (created_at is UTC; the shop's day is local).
@@ -14,7 +14,7 @@ export type DatePreset = 'all' | 'today' | 'yesterday' | 'week' | 'month' | 'cus
 export type PaymentFilter = 'all' | 'cash' | 'upi' | 'credit';
 export type SortOption = 'date-desc' | 'date-asc' | 'amount-desc' | 'amount-asc';
 
-export function useTransactionFilters(allSales: Sale[]) {
+export function useTransactionFilters(allSales: Sale[], customers?: Customer[]) {
   const [searchQuery, setSearchQuery] = useState('');
   const [datePreset, setDatePreset] = useState<DatePreset>('all');
   const [startDate, setStartDate] = useState('');
@@ -64,7 +64,12 @@ export function useTransactionFilters(allSales: Sale[]) {
       if (selectedCustomerId === 'walk-in') {
         if (sale.customer_id) return false;
       } else if (selectedCustomerId !== 'all') {
-        if (sale.customer_id !== selectedCustomerId) return false;
+        const targetCust = customers?.find((c) => c.id === selectedCustomerId);
+        const matchId = sale.customer_id === selectedCustomerId;
+        const matchName = Boolean(targetCust && sale.customer_name && sale.customer_name.toLowerCase().trim() === targetCust.name.toLowerCase().trim());
+        const cleanPhone = targetCust?.phone?.replace(/\D/g, '').slice(-10);
+        const matchPhone = Boolean(cleanPhone && sale.customer_phone && sale.customer_phone.includes(cleanPhone));
+        if (!matchId && !matchName && !matchPhone) return false;
       }
 
       // 4. Search Query

@@ -65,6 +65,11 @@ import { getFirestoreDb } from '@/lib/firebase/config';
 import { doc, setDoc } from 'firebase/firestore';
 import { sanitizeForFirestore } from '@/lib/firebase/firestoreSync';
 import { triggerBackgroundSync } from '@/lib/firebase/backgroundSync';
+import { getDesktopApi } from '@/lib/desktop/desktopBridge';
+import { resolveInvoiceConfig } from '@/lib/invoices/themeDefaults';
+import { getPrimaryUpiVpa, buildInvoiceDocument } from '@/lib/invoices/invoiceDocument';
+import { renderInvoiceHtml } from '@/lib/invoices/invoiceOutput';
+import { getPrintSettings, printerForFormat } from '@/lib/hardware/printSettings';
 
 // Lazy-load non-critical heavy modals
 const BarcodeScannerModal = dynamic(
@@ -179,6 +184,14 @@ export default function BillingPage() {
     setBillingToast({ message, type });
     setTimeout(() => setBillingToast(null), 4000);
   };
+
+  // Silent Instant Thermal Print State
+  const [silentPrint, setSilentPrint] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('kamai_silent_print') === 'true';
+    }
+    return false;
+  });
 
   // Multi-Bill Tabs State
   const [tabs, setTabs] = useState<BillTab[]>(() => getInitialTabs().tabs);
@@ -1161,7 +1174,7 @@ export default function BillingPage() {
         }
       }
 
-      // 5. Open detailed Invoice & thermal receipt modal
+      // 5. Open detailed Invoice & thermal receipt modal (or Silent Print directly)
       setActiveSaleForInvoice(newSale);
       setCompletedSaleDetails({
         invoiceNumber,
@@ -1172,7 +1185,30 @@ export default function BillingPage() {
         items: [...cart],
       });
 
-      setIsInvoiceModalOpen(true);
+      const desktopApi = getDesktopApi();
+      if (silentPrint && desktopApi) {
+        try {
+          const printSettings = getPrintSettings();
+          const format = printSettings.defaultFormat || 'thermal-80';
+          const vpa = getPrimaryUpiVpa(currentBiz);
+          const html = await renderInvoiceHtml(
+            { sale: newSale, business: currentBiz, customer: targetCustomer, upiVpa: vpa },
+            format
+          );
+          await desktopApi.print({
+            html,
+            paper: format,
+            deviceName: printerForFormat(printSettings, format) || undefined,
+            silent: true,
+          });
+          showBillingToast(`⚡ Silent Printed Invoice #${invoiceNumber}`, 'success');
+        } catch (silentErr) {
+          console.warn('Silent print notice, opening modal:', silentErr);
+          setIsInvoiceModalOpen(true);
+        }
+      } else {
+        setIsInvoiceModalOpen(true);
+      }
       setIsMobileCartOpen(false);
 
       // 7. Remove completed tab or reset if single
@@ -1363,115 +1399,55 @@ export default function BillingPage() {
         <button
           type="button"
           onClick={handleCreateNewTab}
-          className="p-1.5 rounded-lg text-slate-600 hover:text-slate-950 hover:bg-slate-200 text-xs font-bold flex items-center gap-1 flex-shrink-0 transition-colors"
+          className="p-1.5 rounded-lg text-slate-600 hover:text-slate-950 hover:bg-slate-200 text-xs font-bold flex items-center gap-1 flex-shrink-0 transition-colors cursor-pointer"
           title="Open New Parallel Bill Cart"
         >
           <Plus className="w-3.5 h-3.5" />
           <span className="text-[11px] hidden sm:inline">New</span>
         </button>
+
+        {/* Silent Instant Print Quick Toggle */}
+        <div className="ml-auto flex items-center gap-1 flex-shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              const next = !silentPrint;
+              setSilentPrint(next);
+              if (typeof window !== 'undefined') localStorage.setItem('kamai_silent_print', String(next));
+              showBillingToast(next ? '⚡ Silent Print: Active (Direct Thermal)' : 'Silent Print: Off (Preview Dialog)', 'info');
+            }}
+            className={cn(
+              "px-2 py-1 rounded-lg text-[10.5px] font-bold flex items-center gap-1 transition-all cursor-pointer border",
+              silentPrint
+                ? "bg-emerald-600 text-white border-emerald-600 shadow-2xs"
+                : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
+            )}
+            title="Toggle Instant Silent Print (Direct Thermal Print without preview dialog)"
+          >
+            <Printer className="w-3 h-3" />
+            <span>{silentPrint ? '⚡ Silent: ON' : 'Silent: OFF'}</span>
+          </button>
+        </div>
       </div>
-
-
-
-      {/* Restaurant Dynamic Controls: Dine-In / Parcel / Delivery & Tables */}
-      {storeProfile.featureToggles.showTableOrderType && (
-        <div className="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
-              <span>🍽️</span>
-              <span>Order Type &amp; Table</span>
-            </span>
-            <span className="text-[10px] font-mono font-bold text-amber-900 bg-amber-200/70 px-2 py-0.5 rounded">
-              KOT Token #{100 + ((business?.next_invoice_number || 1) % 900)}
-            </span>
-          </div>
-
-          {/* Order Type Toggle */}
-          <div className="grid grid-cols-3 gap-1.5">
-            {[
-              { id: 'dine_in', label: 'Dine-In', icon: '🍽️' },
-              { id: 'takeaway', label: 'Parcel / Takeaway', icon: '🥡' },
-              { id: 'delivery', label: 'Delivery', icon: '🛵' },
-            ].map((ot) => (
-              <button
-                key={ot.id}
-                type="button"
-                onClick={() => setOrderType(ot.id as any)}
-                className={cn(
-                  'py-1.5 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all',
-                  orderType === ot.id
-                    ? 'bg-amber-500 text-slate-950 shadow-xs'
-                    : 'bg-white/80 border border-amber-200 text-slate-700 hover:bg-white'
-                )}
-              >
-                <span>{ot.icon}</span>
-                <span className="truncate">{ot.label}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Table Selector (if Dine-in) */}
-          {orderType === 'dine_in' && (
-            <div className="flex items-center gap-1.5 overflow-x-auto pt-1 pb-0.5">
-              <span className="text-[10px] font-bold text-slate-500 uppercase flex-shrink-0">Table:</span>
-              {['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10'].map((tbl) => (
-                <button
-                  key={tbl}
-                  type="button"
-                  onClick={() => setTableNo(tableNo === tbl ? '' : tbl)}
-                  className={cn(
-                    'px-2.5 py-1 rounded-md text-xs font-bold whitespace-nowrap transition-all',
-                    tableNo === tbl
-                      ? 'bg-slate-900 text-white shadow-xs'
-                      : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
-                  )}
-                >
-                  {tbl}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Pharmacy Dynamic Controls: Doctor & Patient details */}
-      {storeProfile.featureToggles.showBatchExpiry && (
-        <div className="p-2.5 bg-blue-50/60 border border-blue-200/80 rounded-xl space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-blue-950 uppercase tracking-wider flex items-center gap-1.5">
-              <span>🩺</span>
-              <span>Doctor &amp; Patient (Medical)</span>
-            </span>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <input
-              type="text"
-              placeholder="Doctor Name (e.g. Dr. Patil)"
-              value={doctorName}
-              onChange={(e) => setDoctorName(e.target.value)}
-              className="w-full bg-white border border-slate-300 text-slate-900 text-xs rounded-lg p-2 focus:outline-none focus:border-slate-900"
-            />
-            <input
-              type="text"
-              placeholder="Patient Name"
-              value={patientName}
-              onChange={(e) => setPatientName(e.target.value)}
-              className="w-full bg-white border border-slate-300 text-slate-900 text-xs rounded-lg p-2 focus:outline-none focus:border-slate-900"
-            />
-          </div>
-        </div>
-      )}
 
       {/* Customer Picker & Quick Add */}
       <div>
         <div className="flex items-center justify-between mb-1">
-          <label className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-            Customer
-          </label>
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+              Customer
+            </label>
+            {selectedCustomer && (selectedCustomer.current_balance || 0) > 0 && (
+              <span className="px-2 py-0.5 rounded-full bg-rose-100 border border-rose-300 text-rose-700 text-[10px] font-black flex items-center gap-1 shadow-2xs animate-pulse">
+                <span>⚠️ Old Khata:</span>
+                <span className="font-mono">{formatINR(selectedCustomer.current_balance)}</span>
+              </span>
+            )}
+          </div>
           <button
             type="button"
             onClick={() => setIsAddCustomerModalOpen(true)}
-            className="text-[11px] font-bold text-slate-700 hover:text-slate-950 flex items-center gap-1"
+            className="text-[11px] font-bold text-slate-700 hover:text-slate-950 flex items-center gap-1 cursor-pointer"
           >
             <UserPlus className="w-3.5 h-3.5" />
             <span>+ New Customer</span>
@@ -2209,6 +2185,19 @@ export default function BillingPage() {
             >
               📝 Estimate / Quotation
             </button>
+          </div>
+        )}
+
+        {/* Customer Balance Warning Banner if Selected Customer has Pending Udhar */}
+        {selectedCustomer && (selectedCustomer.current_balance || 0) > 0 && (
+          <div className="p-2 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between text-xs text-rose-950 font-bold shadow-2xs">
+            <span className="flex items-center gap-1.5">
+              <span>⚠️ Previous Udhar Due:</span>
+              <span className="text-slate-600 font-normal">({selectedCustomer.name})</span>
+            </span>
+            <span className="font-mono font-black text-rose-700 text-sm">
+              {formatINR(selectedCustomer.current_balance)}
+            </span>
           </div>
         )}
 

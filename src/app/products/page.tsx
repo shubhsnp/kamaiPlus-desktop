@@ -20,6 +20,8 @@ import { ProductHeaderActions } from '@/components/products/ProductHeaderActions
 import { ProductMetricsRibbon } from '@/components/products/ProductMetricsRibbon';
 import { ProductFilterToolbar } from '@/components/products/ProductFilterToolbar';
 import { ProductCard } from '@/components/products/ProductCard';
+import { ProductTableView } from '@/components/products/ProductTableView';
+import { QuickBarcodePrintModal } from '@/components/products/QuickBarcodePrintModal';
 import { AddEditProductModal } from '@/components/products/AddEditProductModal';
 
 // Lazy-load heavy sheets & modals
@@ -51,6 +53,25 @@ export default function ProductsPage() {
   const [isPurchaseSheetOpen, setIsPurchaseSheetOpen] = useState(false);
   const [isExcelImporterOpen, setIsExcelImporterOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+
+  // Desktop Switcher: Dense Excel Table vs Cards Grid (default 'table')
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+  const [isBarcodePrintOpen, setIsBarcodePrintOpen] = useState(false);
+  const [barcodePrintProduct, setBarcodePrintProduct] = useState<Product | null>(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('kamai_products_view_mode') as 'table' | 'cards';
+      if (saved === 'table' || saved === 'cards') setViewMode(saved);
+    } catch {}
+  }, []);
+
+  const handleViewModeChange = (mode: 'table' | 'cards') => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem('kamai_products_view_mode', mode);
+    } catch {}
+  };
 
   // Quick Add Category State
   const [isAddCategoryModalOpen, setIsAddCategoryModalOpen] = useState(false);
@@ -314,6 +335,18 @@ export default function ProductsPage() {
     });
   };
 
+  const handleQuickPriceChange = async (p: Product, newPricePaise: number) => {
+    await db.products.update(p.id, {
+      selling_price: newPricePaise,
+      updated_at: new Date().toISOString(),
+    });
+  };
+
+  const handle1ClickBarcodePrint = (p: Product) => {
+    setBarcodePrintProduct(p);
+    setIsBarcodePrintOpen(true);
+  };
+
   const handleBarcodeScanned = async (code: string) => {
     setIsScannerOpen(false);
     setFormBarcode(code);
@@ -375,30 +408,52 @@ export default function ProductsPage() {
         showLowStockOnly={showLowStockOnly}
         onToggleLowStock={setShowLowStockOnly}
         onOpenScanner={() => setIsScannerOpen(true)}
+        viewMode={viewMode}
+        onViewModeChange={handleViewModeChange}
       />
 
-      {/* 4. Products Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        {filteredProducts.map((p) => (
-          <ProductCard
-            key={p.id}
-            product={p}
-            categoryName={p.category_id ? categoryMap.get(p.category_id) : undefined}
+      {/* 4. Products View: Dense Excel Table or Cards Grid */}
+      {viewMode === 'table' ? (
+        filteredProducts.length > 0 ? (
+          <ProductTableView
+            products={filteredProducts}
+            categoryMap={categoryMap}
             onEdit={handleOpenEditModal}
             onDelete={(prod) => handleDeleteProduct(prod.id, prod.name)}
-            onToggleFavorite={handleToggleFavorite}
             onQuickStockChange={handleQuickStockChange}
+            onQuickPriceChange={handleQuickPriceChange}
+            on1ClickBarcodePrint={handle1ClickBarcodePrint}
           />
-        ))}
-
-        {filteredProducts.length === 0 && (
-          <div className="col-span-full py-12 text-center text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+        ) : (
+          <div className="py-12 text-center text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
             <Package className="w-8 h-8 mx-auto mb-2 text-slate-300 dark:text-slate-600" />
             <div className="font-bold text-slate-700 dark:text-slate-300 text-sm">No products found</div>
             <p className="text-xs text-slate-400 mt-1">Try adjusting your filters or click "Add Product".</p>
           </div>
-        )}
-      </div>
+        )
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {filteredProducts.map((p) => (
+            <ProductCard
+              key={p.id}
+              product={p}
+              categoryName={p.category_id ? categoryMap.get(p.category_id) : undefined}
+              onEdit={handleOpenEditModal}
+              onDelete={(prod) => handleDeleteProduct(prod.id, prod.name)}
+              onToggleFavorite={handleToggleFavorite}
+              onQuickStockChange={handleQuickStockChange}
+            />
+          ))}
+
+          {filteredProducts.length === 0 && (
+            <div className="col-span-full py-12 text-center text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+              <Package className="w-8 h-8 mx-auto mb-2 text-slate-300 dark:text-slate-600" />
+              <div className="font-bold text-slate-700 dark:text-slate-300 text-sm">No products found</div>
+              <p className="text-xs text-slate-400 mt-1">Try adjusting your filters or click "Add Product".</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ---------------- MODALS ---------------- */}
       <AddEditProductModal
@@ -503,6 +558,14 @@ export default function ProductsPage() {
         isOpen={isUpgradeModalOpen}
         onClose={() => setIsUpgradeModalOpen(false)}
         businessName={business?.name || 'Your Store'}
+      />
+
+      {/* 1-Click Barcode Print Modal */}
+      <QuickBarcodePrintModal
+        isOpen={isBarcodePrintOpen}
+        onClose={() => setIsBarcodePrintOpen(false)}
+        product={barcodePrintProduct}
+        storeName={business?.name}
       />
     </div>
   );

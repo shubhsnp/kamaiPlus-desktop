@@ -32,7 +32,6 @@ export const DashboardRecentSales: React.FC<DashboardRecentSalesProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'yesterday' | '7days'>('all');
   const [paymentFilter, setPaymentFilter] = useState<'all' | 'cash' | 'upi' | 'credit'>('all');
-  const [sendingWhatsappId, setSendingWhatsappId] = useState<string | null>(null);
 
   // Filter Sales
   const filteredSales = sales.filter((s) => {
@@ -92,7 +91,7 @@ export const DashboardRecentSales: React.FC<DashboardRecentSalesProps> = ({
               </span>
             </div>
             <p className="text-[10.5px] text-slate-400">
-              {isCollapsed ? 'Click to expand bills stream' : 'Tap any invoice to view, print, or share WhatsApp bill'}
+              {isCollapsed ? 'Click to expand bills stream' : 'Tap any invoice to view, print, or reprint bill'}
             </p>
           </div>
         </div>

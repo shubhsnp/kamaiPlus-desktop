@@ -39,6 +39,7 @@ import { CustomerLedgerTimelineTab } from '@/components/khata/CustomerLedgerTime
 import { ManualEntryModal } from '@/components/khata/ManualEntryModal';
 import { EditLedgerEntryModal } from '@/components/khata/EditLedgerEntryModal';
 import { QuickAddKhataCustomerModal } from '@/components/khata/QuickAddKhataCustomerModal';
+import { generateBulkMonthEndStatementPDF } from '@/lib/reports/bulkMonthEndStatement';
 
 const InvoiceModal = dynamic(
   () => import('@/components/invoices/InvoiceModal').then((m) => m.InvoiceModal),
@@ -234,6 +235,20 @@ function KhataContent() {
     setEntryDate(localDateKey(new Date()));
     setEntryPaymentMode('cash');
     setIsEntryModalOpen(true);
+  };
+
+  // Generate Bulk Month-End Khata Statement PDF for All Customers
+  const handleBulkMonthEndStatement = async () => {
+    if (!business || allCustomers.length === 0) return;
+    const res = await generateBulkMonthEndStatementPDF({
+      customers: allCustomers,
+      business,
+    });
+    if (res.ok) {
+      showToast(res.path ? 'Bulk Month-End Statement saved to Documents!' : 'Statement opened in print/PDF dialog.');
+    } else {
+      showToast(res.error || 'Failed to generate statement.');
+    }
   };
 
   // Save New Khata Transaction
@@ -456,6 +471,17 @@ function KhataContent() {
         </div>
 
         <div className="flex items-center gap-1.5 flex-shrink-0">
+          <Button 
+            size="sm"
+            variant="outline" 
+            onClick={handleBulkMonthEndStatement}
+            className="font-bold border-indigo-200 text-indigo-900 bg-indigo-50 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300 text-xs px-2.5 py-1.5 shadow-2xs cursor-pointer gap-1.5"
+            title="Download consolidated month-end udhar ledger statement PDF for all customer accounts"
+          >
+            <FileText className="w-3.5 h-3.5 text-indigo-700 dark:text-indigo-400" />
+            <span className="hidden sm:inline">Bulk Month-End Statement</span>
+            <span className="sm:hidden">Statement</span>
+          </Button>
           <Link href="/customers">
             <Button 
               size="sm"

@@ -38,7 +38,7 @@ export const InventoryHeaderActions: React.FC<InventoryHeaderActionsProps> = ({
             <CashierPrivacyToggleButton />
           </div>
           <p className="text-[10.5px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">
-            Real-time stock valuation, near-expiry radar, supplier re-order alerts &amp; audit trails
+            Real-time stock valuation, supplier re-order alerts &amp; audit trails
           </p>
         </div>
       </div>

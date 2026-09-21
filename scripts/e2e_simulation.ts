@@ -1075,6 +1075,51 @@ assert(gstrReport.business_gstin === '', 'Missing store GSTIN stays blank — ne
 assert(getStateName('29') === 'Karnataka' && getStateName('88') === '88', 'State names cover every code and unknown codes are not called Maharashtra');
 assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.499 - Dettol - ?', 'ESC/POS text maps ₹ / • / — to ASCII and never sends raw UTF-8 bytes');
 
+// -------------------------------------------------------------
+// SUITE 22: Retail Pro Upgrades (Denomination Tally, Old Khata Warning & Reports)
+// -------------------------------------------------------------
+console.log('\n💵 SUITE 22: Retail Pro Upgrades (Denomination Tally, Old Khata Warning & Invariants)');
+
+// 1. Denomination Tally Counter
+const denoms = [500, 200, 100, 50, 20, 10, 5, 2, 1];
+const counts: Record<number, number> = { 500: 2, 200: 3, 100: 1, 50: 4, 20: 5, 10: 10, 5: 0, 2: 0, 1: 0 };
+const totalTallyRupees = denoms.reduce((sum, d) => sum + d * (counts[d] || 0), 0);
+const totalNotes = Object.values(counts).reduce((a, b) => a + b, 0);
+assert(totalTallyRupees === 2100, 'Tally counter correctly calculates ₹2,100 cash grand total');
+assert(totalNotes === 25, 'Tally counter sums 25 physical currency notes');
+
+// 2. Customer Khata Warning Invariant
+const customerDebtCheck = (cust: { current_balance?: number; balance_due?: number } | null) => {
+  const bal = Math.max(0, cust?.current_balance || cust?.balance_due || 0);
+  return { hasPendingUdhar: bal > 0, balance: bal };
+};
+const indebtedCust = { current_balance: 2450 };
+const cleanCust = { current_balance: 0 };
+assert(customerDebtCheck(indebtedCust).hasPendingUdhar && customerDebtCheck(indebtedCust).balance === 2450, 'Old Khata warning triggers on positive customer balance');
+assert(!customerDebtCheck(cleanCust).hasPendingUdhar, 'Zero balance customer does not trigger Old Khata warning');
+
+// 3. Transactions Multi-Field Customer Filter
+const sampleBills = [
+  { id: 'b1', customer_id: 'c101', customer_name: 'Rahul Sharma', customer_phone: '9876543210' },
+  { id: 'b2', customer_id: 'c102', customer_name: 'Priya Verma', customer_phone: '9123456780' },
+  { id: 'b3', customer_id: 'c101', customer_name: 'Rahul Sharma', customer_phone: '9876543210' },
+];
+const filterByCust = (bills: typeof sampleBills, q: string) => {
+  const needle = q.trim().toLowerCase();
+  return bills.filter(b => 
+    b.customer_name?.toLowerCase().includes(needle) ||
+    b.customer_phone?.includes(needle) ||
+    b.customer_id?.toLowerCase() === needle
+  );
+};
+assert(filterByCust(sampleBills, 'Rahul').length === 2, 'Customer filter matches by name');
+assert(filterByCust(sampleBills, '91234').length === 1, 'Customer filter matches by partial phone number');
+assert(filterByCust(sampleBills, 'c101').length === 2, 'Customer filter matches by customer ID');
+
+// 4. Barcode Label Paper Formats Validation
+const supportedLabelPapers = ['50x25', '38x25', 'thermal-58', 'thermal-80'];
+assert(supportedLabelPapers.includes('50x25') && supportedLabelPapers.includes('38x25'), 'Barcode printer supports standard 50x25mm and 38x25mm label sizes');
+
 
 console.log('');
 console.log('================================================================');

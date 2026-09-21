@@ -87,7 +87,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const productsLabel = t('nav.products') || 'Products';
   const ProductsIcon = Package;
   const productsBg = 'bg-blue-100 text-blue-800';
-  const inventoryLabel = 'Inventory & Expiry';
+  const inventoryLabel = 'Inventory & Stock';
   const purchasesLabel = 'Purchases & Bills';
   const stockSectionTitle = 'Stock & Sourcing';
 

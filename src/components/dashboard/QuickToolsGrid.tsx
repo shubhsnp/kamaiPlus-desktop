@@ -46,6 +46,14 @@ export const QuickToolsGrid: React.FC<QuickToolsGridProps> = ({
           bg: 'bg-amber-50 dark:bg-amber-950/60 border-amber-200 dark:border-amber-800',
         },
         {
+          title: 'Tally Counter',
+          subtitle: 'Notes Hisab & Draft',
+          href: '/cash-register?tally=open',
+          icon: Calculator,
+          color: 'text-purple-600 dark:text-purple-400',
+          bg: 'bg-purple-50 dark:bg-purple-950/60 border-purple-200 dark:border-purple-800',
+        },
+        {
           title: 'Transactions',
           subtitle: 'Audit & Returns',
           href: '/transactions',
@@ -68,8 +76,8 @@ export const QuickToolsGrid: React.FC<QuickToolsGridProps> = ({
           bg: 'bg-blue-50 dark:bg-blue-950/60 border-blue-200 dark:border-blue-800',
         },
         {
-          title: 'Inventory & Expiry',
-          subtitle: 'Stock Radar',
+          title: 'Inventory & Stock',
+          subtitle: 'Stock Alerts',
           href: '/inventory',
           icon: Boxes,
           color: 'text-cyan-600 dark:text-cyan-400',

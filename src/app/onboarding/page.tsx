@@ -76,7 +76,7 @@ export default function OnboardingPage() {
     }
 
     if (!cleanPhone || cleanPhone.length !== 10) {
-      setError('Please enter a valid 10-digit WhatsApp / Contact Number.');
+      setError('Please enter a valid 10-digit Store Contact Number.');
       return;
     }
 
@@ -309,10 +309,10 @@ export default function OnboardingPage() {
               </div>
             </div>
 
-            {/* 3. WhatsApp / Contact Number */}
+            {/* 3. Primary Mobile / Contact Number */}
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                WhatsApp / Contact Number *
+                Primary Contact Mobile Number *
               </label>
               <div className="flex rounded-xl overflow-hidden border border-slate-800 focus-within:border-amber-400 focus-within:ring-2 focus-within:ring-amber-400/20 transition bg-slate-950">
                 <div className="flex items-center gap-1.5 px-3.5 py-3 bg-slate-900/90 border-r border-slate-800 text-slate-200 text-xs font-bold select-none shrink-0">
@@ -331,7 +331,7 @@ export default function OnboardingPage() {
                 />
               </div>
               <p className="text-[11px] text-slate-500 mt-1">
-                Printed on invoice headers &amp; used for WhatsApp bill dispatches.
+                Printed on thermal receipt headers &amp; customer invoices.
               </p>
             </div>
 
@@ -355,7 +355,7 @@ export default function OnboardingPage() {
                 />
               </div>
               <p className="text-[11px] text-slate-500 mt-1">
-                Printed as dynamic NPCI UPI QR code on all bills &amp; WhatsApp payment links.
+                Printed as dynamic NPCI UPI QR code on all bills &amp; thermal slips.
               </p>
             </div>
 

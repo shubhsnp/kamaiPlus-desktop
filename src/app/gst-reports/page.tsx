@@ -87,6 +87,12 @@ export default function GSTReportsPage() {
     return generateGSTR1Report(sales, customers, business || ({} as any), periodPreset);
   }, [sales, customers, business, periodPreset]);
 
+  // B2B rows are one per invoice *and* tax rate; the count shown is distinct invoices.
+  const b2bInvoiceCount = useMemo(
+    () => new Set(gstr1Data.b2b_invoices.map((b) => b.invoice_number)).size,
+    [gstr1Data]
+  );
+
   // Export Handlers
   const handleExportCSV = () => {
     const { csv, filename } = generateCASalesRegisterCSV({
@@ -150,7 +156,7 @@ export default function GSTReportsPage() {
         totalGstTaxPaise={gstr1Data.total_cgst + gstr1Data.total_sgst + gstr1Data.total_igst}
         totalCgstPaise={gstr1Data.total_cgst}
         totalSgstPaise={gstr1Data.total_sgst}
-        b2bInvoicesCount={gstr1Data.b2b_invoices.length}
+        b2bInvoicesCount={b2bInvoiceCount}
       />
 
       {/* 3. Navigation Tabs */}
@@ -158,7 +164,7 @@ export default function GSTReportsPage() {
         activeTab={activeTab}
         onTabChange={setActiveTab}
         hsnCount={gstr1Data.hsn_summary.length}
-        b2bCount={gstr1Data.b2b_invoices.length}
+        b2bCount={b2bInvoiceCount}
         b2csCount={gstr1Data.b2cs_summary.length}
       />
 
@@ -178,7 +184,7 @@ export default function GSTReportsPage() {
               Table 4: B2B Tax Invoices (GSTIN Registered Buyers)
             </h3>
             <span className="text-xs font-mono text-slate-400">
-              {gstr1Data.b2b_invoices.length} Invoices
+              {b2bInvoiceCount} Invoices
             </span>
           </div>
 

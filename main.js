@@ -20,6 +20,10 @@ const DEV_URL = 'http://localhost:3000';
 const hasExport = fs.existsSync(path.join(OUT_DIR, 'index.html'));
 const isDevServer = process.argv.includes('--dev') || !hasExport;
 
+// A POS window partly covered by another app must keep rendering (Windows occlusion
+// tracking otherwise pauses it, which also stalls hidden print jobs).
+app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
+
 protocol.registerSchemesAsPrivileged([
   { scheme: SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } },
 ]);
@@ -101,9 +105,13 @@ function createWindow() {
     // Warm up the hidden print window so the first "Print" / "Save PDF" is instant.
     setTimeout(() => {
       enqueuePrintJob(async () => {
-        const win = getPrintWindow();
-        await win.loadURL('about:blank');
-        await win.webContents.printToPDF({}); // initialises the PDF engine; output discarded
+        try {
+          const win = getPrintWindow();
+          await withTimeout(win.loadURL('about:blank'), 10000);
+          await withTimeout(win.webContents.printToPDF({}), 15000); // initialises the PDF engine; output discarded
+        } catch {
+          resetPrintWindow();
+        }
       }).catch(() => {});
     }, 1500);
   });
@@ -156,21 +164,68 @@ function getPrintWindow() {
   return printWindow;
 }
 
+function resetPrintWindow() {
+  if (printWindow && !printWindow.isDestroyed()) printWindow.destroy();
+  printWindow = null;
+}
+
 function enqueuePrintJob(job) {
   const run = printQueue.then(job, job);
   printQueue = run.catch(() => {});
   return run;
 }
 
+class StepTimeout extends Error {}
+
+function withTimeout(promise, ms) {
+  let timer;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new StepTimeout('timeout')), ms);
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
+
+/**
+ * Runs a print / PDF step on the shared window. A step that never answers must
+ * not block every later bill: the window is recreated and the step retried once.
+ */
+async function withPrintRecovery(step) {
+  try {
+    return await step();
+  } catch (err) {
+    if (!(err instanceof StepTimeout)) throw err;
+    resetPrintWindow();
+    try {
+      return await step();
+    } catch (retryErr) {
+      if (retryErr instanceof StepTimeout) {
+        resetPrintWindow();
+        throw new Error('The print / PDF engine did not respond. Please try again.');
+      }
+      throw retryErr;
+    }
+  }
+}
+
 async function loadHtmlOffscreen(html) {
   const tmpFile = path.join(os.tmpdir(), `kamaiplus-print-${Date.now()}-${Math.random().toString(36).slice(2)}.html`);
   fs.writeFileSync(tmpFile, html, 'utf8');
   const win = getPrintWindow();
-  await win.loadFile(tmpFile);
-  // Let embedded data-URL images decode before the page is captured.
-  await win.webContents.executeJavaScript(
-    'Promise.all(Array.from(document.images).map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; }))).then(() => document.fonts ? document.fonts.ready : 0).then(() => true)'
-  );
+  try {
+    await withTimeout(win.loadFile(tmpFile), 15000);
+    // Let embedded data-URL images decode before the page is captured.
+    await withTimeout(
+      win.webContents.executeJavaScript(
+        'Promise.all(Array.from(document.images).map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; }))).then(() => document.fonts ? document.fonts.ready : 0).then(() => true)'
+      ),
+      10000
+    );
+  } catch (err) {
+    fs.unlink(tmpFile, () => {});
+    throw err;
+  }
   const cleanup = () => {
     fs.unlink(tmpFile, () => {});
   };
@@ -193,12 +248,18 @@ async function printToPdfJob(opts) {
   const safeName = String(fileName || 'document.pdf').replace(/[^A-Za-z0-9_.-]+/g, '_');
   let job;
   try {
-    job = await loadHtmlOffscreen(html);
-    const pdf = await job.win.webContents.printToPDF({
-      pageSize: 'A4',
-      printBackground: true,
-      preferCSSPageSize: true,
-      margins: { top: 0, bottom: 0, left: 0, right: 0 },
+    const pdf = await withPrintRecovery(async () => {
+      if (job) job.cleanup();
+      job = await loadHtmlOffscreen(html);
+      return withTimeout(
+        job.win.webContents.printToPDF({
+          pageSize: 'A4',
+          printBackground: true,
+          preferCSSPageSize: true,
+          margins: { top: 0, bottom: 0, left: 0, right: 0 },
+        }),
+        20000
+      );
     });
     const dir = path.join(documentsRoot(), safeFolder);
     fs.mkdirSync(dir, { recursive: true });
@@ -219,7 +280,7 @@ async function printJob(opts) {
   if (typeof html !== 'string' || !html) return { ok: false, error: 'Nothing to print.' };
   let job;
   try {
-    job = await loadHtmlOffscreen(html);
+    job = await withPrintRecovery(() => loadHtmlOffscreen(html));
     const pageSize = paper === 'thermal-80' || paper === 'thermal-58'
       ? await thermalPageSize(job.win, paper === 'thermal-80' ? 80 : 58)
       : 'A4';

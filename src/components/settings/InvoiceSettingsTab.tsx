@@ -181,6 +181,24 @@ export const InvoiceSettingsTab: React.FC<InvoiceSettingsTabProps> = ({
             onChange={(e) => setFooterMessage(e.target.value)}
             className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
           />
+          <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+            <span className="text-[10.5px] font-bold text-slate-400">Quick Taglines:</span>
+            {[
+              'Thank You! Visit Again 🙏',
+              'Goods once sold cannot be returned',
+              'Sunday Closed • Open 9AM - 10PM',
+              'Fixed Rate Shop • No Bargaining',
+            ].map((tagline) => (
+              <button
+                key={tagline}
+                type="button"
+                onClick={() => setFooterMessage(tagline)}
+                className="px-2 py-0.5 rounded-md text-[10.5px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-amber-100 hover:text-amber-900 border border-slate-200 dark:border-slate-700 cursor-pointer transition"
+              >
+                {tagline}
+              </button>
+            ))}
+          </div>
         </div>
       </Card>
 

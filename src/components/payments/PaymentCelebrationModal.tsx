@@ -166,19 +166,6 @@ export function PaymentCelebrationModal({
               <span>Print Slip</span>
             </Button>
           )}
-
-          {onShareWhatsApp && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onShareWhatsApp}
-              className="border-emerald-300 text-emerald-900 bg-emerald-50 hover:bg-emerald-100 font-bold text-xs flex items-center justify-center gap-1.5"
-            >
-              <Share2 className="w-4 h-4 text-emerald-700" />
-              <span>WhatsApp</span>
-            </Button>
-          )}
         </div>
 
         {/* Dismiss Button with Auto-Close Countdown */}

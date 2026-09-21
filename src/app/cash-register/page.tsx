@@ -54,10 +54,22 @@ export default function CashRegisterPage() {
   const [isClosingReportModalOpen, setIsClosingReportModalOpen] = useState<boolean>(false);
   const [isSubmittingClose, setIsSubmittingClose] = useState<boolean>(false);
 
-  // Denominations
+  // Denominations (including ₹2)
   const [denominations, setDenominations] = useState<{ [key: number]: number }>({
-    500: 0, 200: 0, 100: 0, 50: 0, 20: 0, 10: 0, 5: 0, 1: 0,
+    500: 0, 200: 0, 100: 0, 50: 0, 20: 0, 10: 0, 5: 0, 2: 0, 1: 0,
   });
+
+  // Auto-launch Tally Counter modal if routed with ?tally=open
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('tally') === 'open') {
+        setIsClosingModalOpen(true);
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, '', cleanUrl);
+      }
+    }
+  }, []);
 
   // Calculations
   const openingBalancePaise = activeShift?.opening_cash || 0;
