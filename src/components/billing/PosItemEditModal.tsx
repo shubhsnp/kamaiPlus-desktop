@@ -1,0 +1,544 @@
+import React from 'react';
+import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { CartItem, Business, ProductUnit } from '@/types';
+import { cn } from '@/lib/utils';
+
+export function getQuantityConfigForUnit(unit?: ProductUnit, businessType?: string) {
+  const normUnit = (unit || '').toLowerCase() || 'piece';
+
+  if (normUnit === 'kg') {
+    return {
+      unitLabel: 'Weight (Kilograms - kg)',
+      step: 'any',
+      placeholder: 'e.g. 0.05, 0.25, 0.5, 1',
+      decimalNotice: 'Decimals supported (Grams / Kg)',
+      chips: [
+        { label: '10g', val: '0.01' },
+        { label: '25g', val: '0.025' },
+        { label: '50g', val: '0.05' },
+        { label: '100g', val: '0.1' },
+        { label: '250g', val: '0.25' },
+        { label: '500g', val: '0.5' },
+        { label: '1 kg', val: '1' },
+        { label: '2 kg', val: '2' },
+        { label: '5 kg', val: '5' },
+      ],
+    };
+  }
+
+  if (normUnit === 'gram') {
+    return {
+      unitLabel: 'Weight (Grams - g)',
+      step: 'any',
+      placeholder: 'e.g. 10, 25, 50, 100, 250, 500',
+      decimalNotice: 'Grams count',
+      chips: [
+        { label: '10g', val: '10' },
+        { label: '25g', val: '25' },
+        { label: '50g', val: '50' },
+        { label: '100g', val: '100' },
+        { label: '250g', val: '250' },
+        { label: '500g', val: '500' },
+        { label: '1000g', val: '1000' },
+      ],
+    };
+  }
+
+  if (normUnit === 'litre') {
+    return {
+      unitLabel: 'Volume (Litres - L)',
+      step: 'any',
+      placeholder: 'e.g. 0.25, 0.5, 1, 2',
+      decimalNotice: 'Decimals supported (ml / Litres)',
+      chips: [
+        { label: '100ml', val: '0.1' },
+        { label: '250ml', val: '0.25' },
+        { label: '500ml', val: '0.5' },
+        { label: '1 L', val: '1' },
+        { label: '2 L', val: '2' },
+        { label: '5 L', val: '5' },
+      ],
+    };
+  }
+
+  if (normUnit === 'ml') {
+    return {
+      unitLabel: 'Volume (Millilitres - ml)',
+      step: '1',
+      placeholder: 'e.g. 50, 100, 250, 500',
+      decimalNotice: 'Millilitres count',
+      chips: [
+        { label: '50 ml', val: '50' },
+        { label: '100 ml', val: '100' },
+        { label: '200 ml', val: '200' },
+        { label: '250 ml', val: '250' },
+        { label: '500 ml', val: '500' },
+        { label: '1000 ml', val: '1000' },
+      ],
+    };
+  }
+
+  if (normUnit === 'strip') {
+    return {
+      unitLabel: 'Quantity (Strips)',
+      step: 'any',
+      placeholder: 'e.g. 1, 2, 3 or 0.5 (half strip)',
+      decimalNotice: 'Strip counts (0.5 for loose/half strip)',
+      chips: [
+        { label: '1 Strip', val: '1' },
+        { label: '2 Strips', val: '2' },
+        { label: '3 Strips', val: '3' },
+        { label: '4 Strips', val: '4' },
+        { label: '5 Strips', val: '5' },
+        { label: '10 Strips', val: '10' },
+        { label: '½ Strip (Loose)', val: '0.5' },
+      ],
+    };
+  }
+
+  if (normUnit === 'dozen') {
+    return {
+      unitLabel: 'Quantity (Dozen)',
+      step: 'any',
+      placeholder: 'e.g. 0.5, 1, 1.5, 2',
+      decimalNotice: 'Dozen count (0.5 = 6 pcs)',
+      chips: [
+        { label: '½ Dozen (6)', val: '0.5' },
+        { label: '1 Dozen (12)', val: '1' },
+        { label: '1.5 Dozen (18)', val: '1.5' },
+        { label: '2 Dozen (24)', val: '2' },
+        { label: '3 Dozen (36)', val: '3' },
+        { label: '5 Dozen (60)', val: '5' },
+      ],
+    };
+  }
+
+  if (normUnit === 'meter' || normUnit === 'foot' || normUnit === 'sqft') {
+    return {
+      unitLabel: `Length / Area (${normUnit.toUpperCase()})`,
+      step: 'any',
+      placeholder: 'e.g. 0.5, 1, 2.5, 5',
+      decimalNotice: 'Decimals supported',
+      chips: [
+        { label: '0.5', val: '0.5' },
+        { label: '1', val: '1' },
+        { label: '2', val: '2' },
+        { label: '2.5', val: '2.5' },
+        { label: '3', val: '3' },
+        { label: '5', val: '5' },
+        { label: '10', val: '10' },
+      ],
+    };
+  }
+
+  if (normUnit === 'plate' || normUnit === 'portion') {
+    return {
+      unitLabel: `Order Quantity (${normUnit === 'plate' ? 'Plates' : 'Portions'})`,
+      step: 'any',
+      placeholder: 'e.g. 0.5 (half), 1 (full), 2',
+      decimalNotice: 'Plates / Portions (0.5 for Half)',
+      chips: [
+        { label: '½ (Half)', val: '0.5' },
+        { label: '1 (Full)', val: '1' },
+        { label: '2', val: '2' },
+        { label: '3', val: '3' },
+        { label: '4', val: '4' },
+        { label: '5', val: '5' },
+      ],
+    };
+  }
+
+  return {
+    unitLabel: `Quantity (${normUnit.charAt(0).toUpperCase() + normUnit.slice(1)})`,
+    step: '1',
+    placeholder: 'e.g. 1, 2, 3, 5',
+    decimalNotice: 'Whole count / Units',
+    chips: [
+      { label: '1', val: '1' },
+      { label: '2', val: '2' },
+      { label: '3', val: '3' },
+      { label: '4', val: '4' },
+      { label: '5', val: '5' },
+      { label: '6', val: '6' },
+      { label: '10', val: '10' },
+      { label: '12', val: '12' },
+      { label: '24', val: '24' },
+    ],
+  };
+}
+
+export interface PosItemEditModalProps {
+  editingCartItem: CartItem | null;
+  setEditingCartItem: (item: CartItem | null) => void;
+  business: Business | null | undefined;
+  editItemQty: string;
+  setEditItemQty: (val: string) => void;
+  editItemPrice: string;
+  setEditItemPrice: (val: string) => void;
+  editItemDiscountType: "flat" | "percentage";
+  setEditItemDiscountType: (type: "flat" | "percentage") => void;
+  editItemDiscount: string;
+  setEditItemDiscount: (val: string) => void;
+  looseTabsInput: string;
+  setLooseTabsInput: (val: string) => void;
+  selectedPackSize: number;
+  setSelectedPackSize: (val: number) => void;
+  pharmacySellMode: "tablets" | "strips";
+  setPharmacySellMode: (mode: "tablets" | "strips") => void;
+  handleSaveEditItem: () => void;
+}
+
+export const PosItemEditModal: React.FC<PosItemEditModalProps> = ({
+  editingCartItem,
+  setEditingCartItem,
+  business,
+  editItemQty,
+  setEditItemQty,
+  editItemPrice,
+  setEditItemPrice,
+  editItemDiscountType,
+  setEditItemDiscountType,
+  editItemDiscount,
+  setEditItemDiscount,
+  looseTabsInput,
+  setLooseTabsInput,
+  selectedPackSize,
+  setSelectedPackSize,
+  pharmacySellMode,
+  setPharmacySellMode,
+  handleSaveEditItem
+}) => {
+  if (!editingCartItem) return null;
+
+  const qtyConfig = getQuantityConfigForUnit(editingCartItem.unit, business?.business_type);
+  const isStripUnit = (editingCartItem.unit || '').toLowerCase() === 'strip';
+
+  return (
+    <Modal
+      isOpen={Boolean(editingCartItem)}
+      onClose={() => setEditingCartItem(null)}
+      title={`Edit Item: ${editingCartItem.product_name || ''}`}
+      size="sm"
+    >
+      <div className="space-y-3 p-2">
+        {isStripUnit ? (
+          <div className="bg-blue-50/80 p-2.5 rounded-xl border border-blue-200 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black text-blue-950 flex items-center gap-1.5">
+                <span>💊</span>
+                <span>Pharmacy Selling Mode</span>
+              </span>
+              <div className="flex items-center gap-1 text-[11px] font-bold text-blue-900">
+                <span>Pack of:</span>
+                <select
+                  value={selectedPackSize}
+                  onChange={(e) => {
+                    const newPack = Number(e.target.value);
+                    setSelectedPackSize(newPack);
+                    if (pharmacySellMode === 'tablets') {
+                      const tabs = parseFloat(looseTabsInput) || 1;
+                      setEditItemQty(String(Math.round((tabs / newPack) * 1000) / 1000));
+                    }
+                  }}
+                  className="bg-white border border-blue-300 rounded px-1.5 py-0.5 text-[11px] font-bold cursor-pointer"
+                >
+                  <option value={4}>4 Tabs</option>
+                  <option value={6}>6 Tabs</option>
+                  <option value={10}>10 Tabs</option>
+                  <option value={15}>15 Tabs</option>
+                  <option value={20}>20 Tabs</option>
+                  <option value={30}>30 Tabs</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setPharmacySellMode('tablets');
+                  const tabs = parseFloat(looseTabsInput) || 1;
+                  setEditItemQty(String(Math.round((tabs / selectedPackSize) * 1000) / 1000));
+                }}
+                className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  pharmacySellMode === 'tablets'
+                    ? 'bg-blue-600 text-white shadow-xs font-black'
+                    : 'bg-white border border-blue-200 text-blue-900 hover:bg-blue-100'
+                }`}
+              >
+                <span>💊 Loose Tablets</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setPharmacySellMode('strips');
+                  setEditItemQty(String(Math.max(1, Math.round(parseFloat(editItemQty) || 1))));
+                }}
+                className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  pharmacySellMode === 'strips'
+                    ? 'bg-blue-600 text-white shadow-xs font-black'
+                    : 'bg-white border border-blue-200 text-blue-900 hover:bg-blue-100'
+                }`}
+              >
+                <span>📦 Full Strips</span>
+              </button>
+            </div>
+
+            {pharmacySellMode === 'tablets' ? (
+              <div className="space-y-2 pt-0.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-800">
+                    Number of Tablets to Sell:
+                  </label>
+                  <span className="text-[10px] text-blue-700 font-bold font-mono bg-blue-100/70 px-1.5 py-0.5 rounded">
+                    = {(parseFloat(editItemQty) || 0).toFixed(2)} Strip
+                  </span>
+                </div>
+
+                <Input
+                  type="number"
+                  min="1"
+                  step="1"
+                  placeholder="e.g. 2, 4, 6, 8 tablets"
+                  value={looseTabsInput}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setLooseTabsInput(val);
+                    const num = parseFloat(val) || 0;
+                    setEditItemQty(String(Math.round((num / selectedPackSize) * 1000) / 1000));
+                  }}
+                  autoFocus
+                />
+
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {[1, 2, 3, 4, 5, 6, 8, 10, selectedPackSize, selectedPackSize * 2]
+                    .filter((v, i, a) => a.indexOf(v) === i)
+                    .map((tCount) => (
+                      <button
+                        key={tCount}
+                        type="button"
+                        onClick={() => {
+                          setLooseTabsInput(String(tCount));
+                          setEditItemQty(String(Math.round((tCount / selectedPackSize) * 1000) / 1000));
+                        }}
+                        className={`px-2 py-1 rounded text-[11px] font-bold transition-all cursor-pointer ${
+                          looseTabsInput === String(tCount)
+                            ? 'bg-blue-600 text-white shadow-xs font-black'
+                            : 'bg-white hover:bg-blue-100 border border-blue-200 text-blue-900'
+                        }`}
+                      >
+                        {tCount === selectedPackSize
+                          ? `${tCount} Tabs (1 Strip)`
+                          : `${tCount} Tab${tCount > 1 ? 's' : ''}`}
+                      </button>
+                    ))}
+                </div>
+
+                <div className="p-2 bg-blue-100/70 rounded-lg text-xs font-mono text-blue-950 flex items-center justify-between">
+                  <span>Rate: ₹{((parseFloat(editItemPrice) || 0) / selectedPackSize).toFixed(2)} / tab</span>
+                  <span className="font-bold text-blue-900">
+                    Total: ₹{(((parseFloat(editItemPrice) || 0) / selectedPackSize) * (parseFloat(looseTabsInput) || 0)).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2 pt-0.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-800">
+                    Number of Full Strips:
+                  </label>
+                  <span className="text-[10px] text-slate-500 font-mono">
+                    {Math.round((parseFloat(editItemQty) || 0) * selectedPackSize)} Total Tablets
+                  </span>
+                </div>
+
+                <Input
+                  type="number"
+                  step="any"
+                  placeholder="e.g. 1, 2, 3"
+                  value={editItemQty}
+                  onChange={(e) => {
+                    setEditItemQty(e.target.value);
+                    const num = parseFloat(e.target.value) || 0;
+                    setLooseTabsInput(String(Math.round(num * selectedPackSize)));
+                  }}
+                  autoFocus
+                />
+
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {[
+                    { label: '1 Strip', val: '1' },
+                    { label: '2 Strips', val: '2' },
+                    { label: '3 Strips', val: '3' },
+                    { label: '4 Strips', val: '4' },
+                    { label: '5 Strips', val: '5' },
+                    { label: '10 Strips', val: '10' },
+                    { label: '½ Strip (Loose)', val: '0.5' },
+                  ].map((chip) => (
+                    <button
+                      key={chip.val}
+                      type="button"
+                      onClick={() => {
+                        setEditItemQty(chip.val);
+                        setLooseTabsInput(String(Math.round(parseFloat(chip.val) * selectedPackSize)));
+                      }}
+                      className={`px-2 py-1 rounded text-[11px] font-bold transition-all cursor-pointer ${
+                        editItemQty === chip.val
+                          ? 'bg-blue-600 text-white shadow-xs font-black'
+                          : 'bg-white hover:bg-blue-100 border border-blue-200 text-blue-900'
+                      }`}
+                    >
+                      {chip.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                <span>{qtyConfig.unitLabel}</span>
+                <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 font-mono text-[10px] font-black uppercase">
+                  {editingCartItem.unit || 'Unit'}
+                </span>
+              </label>
+              <span className="text-[10px] text-slate-500 font-semibold">{qtyConfig.decimalNotice}</span>
+            </div>
+            <Input
+              type="number"
+              step={qtyConfig.step}
+              placeholder={qtyConfig.placeholder}
+              value={editItemQty}
+              onChange={(e) => setEditItemQty(e.target.value)}
+              autoFocus
+            />
+            <div className="flex flex-wrap items-center gap-1.5 mt-2">
+              {qtyConfig.chips.map((chip) => (
+                <button
+                  key={chip.val}
+                  type="button"
+                  onClick={() => setEditItemQty(chip.val)}
+                  className={`px-2 py-1 rounded text-[11px] font-bold transition-all cursor-pointer ${
+                    editItemQty === chip.val
+                      ? 'bg-amber-400 text-slate-950 font-black shadow-xs ring-1 ring-amber-500'
+                      : 'bg-slate-100 hover:bg-amber-100 hover:text-amber-950 border border-slate-200 text-slate-700'
+                  }`}
+                >
+                  {chip.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div>
+          <label className="text-xs font-bold text-slate-700 block mb-1">Unit Price (₹)</label>
+          <Input
+            type="number"
+            step="0.01"
+            value={editItemPrice}
+            onChange={(e) => setEditItemPrice(e.target.value)}
+          />
+        </div>
+
+        <div className="space-y-1.5 p-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-slate-700">Line Item Discount</label>
+            <div className="flex items-center p-0.5 bg-slate-200/80 rounded-lg">
+              <button
+                type="button"
+                onClick={() => setEditItemDiscountType('flat')}
+                className={cn(
+                  'px-2 py-0.5 rounded text-[10.5px] font-bold transition-all cursor-pointer',
+                  editItemDiscountType === 'flat'
+                    ? 'bg-white text-slate-900 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                )}
+              >
+                ₹ Flat
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditItemDiscountType('percentage')}
+                className={cn(
+                  'px-2 py-0.5 rounded text-[10.5px] font-bold transition-all cursor-pointer',
+                  editItemDiscountType === 'percentage'
+                    ? 'bg-white text-slate-900 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                )}
+              >
+                % Percent
+              </button>
+            </div>
+          </div>
+
+          <div className="relative">
+            <Input
+              type="number"
+              step={editItemDiscountType === 'percentage' ? '1' : '0.01'}
+              min="0"
+              max={editItemDiscountType === 'percentage' ? 100 : undefined}
+              placeholder={editItemDiscountType === 'percentage' ? 'e.g. 10 for 10%' : '0.00'}
+              value={editItemDiscount}
+              onChange={(e) => setEditItemDiscount(e.target.value)}
+              leftIcon={<span className="text-xs font-bold text-slate-500">{editItemDiscountType === 'percentage' ? '%' : '₹'}</span>}
+            />
+          </div>
+
+          {editItemDiscountType === 'percentage' && (
+            <div className="flex items-center gap-1.5 pt-1">
+              {['5', '10', '15', '20', '50'].map((chipPct) => (
+                <button
+                  key={chipPct}
+                  type="button"
+                  onClick={() => setEditItemDiscount(chipPct)}
+                  className={cn(
+                    'px-2 py-0.5 rounded text-[10.5px] font-bold transition-all border cursor-pointer',
+                    editItemDiscount === chipPct
+                      ? 'bg-emerald-600 text-white border-emerald-600'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                  )}
+                >
+                  {chipPct}%
+                </button>
+              ))}
+            </div>
+          )}
+
+          {(() => {
+            const qty = parseFloat(editItemQty) || 0;
+            const unitPrice = parseFloat(editItemPrice) || 0;
+            const val = parseFloat(editItemDiscount) || 0;
+            if (val > 0 && qty > 0 && unitPrice > 0) {
+              const discountRupees = editItemDiscountType === 'percentage'
+                ? ((qty * unitPrice) * Math.min(100, val)) / 100
+                : Math.min(qty * unitPrice, val);
+              const netRupees = Math.max(0, qty * unitPrice - discountRupees);
+              return (
+                <div className="flex items-center justify-between text-[11px] font-bold text-emerald-800 pt-1">
+                  <span>Savings: -₹{discountRupees.toFixed(2)}</span>
+                  <span>Net Total: ₹{netRupees.toFixed(2)}</span>
+                </div>
+              );
+            }
+            return null;
+          })()}
+        </div>
+
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="outline" size="sm" onClick={() => setEditingCartItem(null)}>
+            Cancel
+          </Button>
+          <Button size="sm" onClick={handleSaveEditItem} className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold">
+            Update Line Item
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+};

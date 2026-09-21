@@ -1,0 +1,29 @@
+{
+  "hosting": {
+    "source": ".",
+    "cleanUrls": true,
+    "trailingSlash": false,
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "redirects": [
+      {
+        "source": "/login",
+        "destination": "/auth",
+        "type": 301
+      },
+      {
+        "source": "/privacy",
+        "destination": "/privacy-policy",
+        "type": 301
+      },
+      {
+        "source": "/terms",
+        "destination": "/terms-of-service",
+        "type": 301
+      }
+    ]
+  }
+}
