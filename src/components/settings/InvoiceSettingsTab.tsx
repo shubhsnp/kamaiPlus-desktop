@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
-import { PWAInstallSettingsCard } from '@/components/pwa/PWAInstallSettingsCard';
+import { PrintSettingsCard } from '@/components/settings/PrintSettingsCard';
 
 import { formatInvoiceNumber } from '@/lib/invoices/invoiceNumberService';
 
@@ -183,8 +183,8 @@ export const InvoiceSettingsTab: React.FC<InvoiceSettingsTabProps> = ({
         </div>
       </Card>
 
-      {/* 3. Offline PWA & App Version */}
-      <PWAInstallSettingsCard />
+      {/* 3. Printer Setup (per computer) */}
+      <PrintSettingsCard />
     </div>
   );
 };

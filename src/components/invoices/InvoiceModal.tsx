@@ -1,47 +1,37 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import QRCode from 'qrcode';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
+import { useLiveQuery } from 'dexie-react-hooks';
+import {
+  Bluetooth,
+  CheckCircle2,
+  Download,
+  Edit3,
+  ExternalLink,
+  FileText,
+  FolderOpen,
+  Palette,
+  Printer,
+  Receipt,
+  RotateCcw,
+} from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
-import { Business, Sale, CartItem, UpiAccount } from '@/types';
-import { formatINR, generateUPILink } from '@/lib/utils';
-import { calculateGstSummary, numberToWordsINR } from '@/lib/invoices/gstCalculator';
-
-import { usePlatformPromoConfig } from '@/lib/firebase/remoteConfig';
-import Link from 'next/link';
-import { 
-  Printer, 
-  Share2, 
-  Download, 
-  FileText, 
-  QrCode, 
-  CheckCircle2, 
-  Receipt,
-  Phone,
-  Sparkles, 
-  Palette, 
-  Edit3, 
-  Lock,
-  ChevronDown,
-  ChevronUp,
-  Bluetooth,
-  Zap,
-  Store,
-  Clock,
-  Calendar,
-  CreditCard,
-  Check
-} from 'lucide-react';
-import { downloadInvoicePdfFromElement, shareInvoicePdfDirect, generateInvoicePdfBlobFromElement } from '@/lib/invoices/pdfGenerator';
+import { db } from '@/lib/db';
+import { Business, Sale } from '@/types';
+import { formatINR, cn } from '@/lib/utils';
+import { InvoiceDocument, getPrimaryUpiVpa } from '@/lib/invoices/invoiceDocument';
+import { prepareInvoiceDocument, printInvoice, saveInvoicePdf } from '@/lib/invoices/invoiceOutput';
+import { getBrandLogoDataUrl } from '@/lib/print/printDocument';
+import { getDesktopApi, PaperFormat } from '@/lib/desktop/desktopBridge';
+import { getPrintSettings } from '@/lib/hardware/printSettings';
 import { bluetoothPrinter } from '@/lib/hardware/bluetoothPrinter';
+import { getSalePaymentBreakdown, isEstimate } from '@/lib/sales/saleMath';
 import { EditInvoiceModal } from '@/components/invoices/EditInvoiceModal';
-import { DEFAULT_INVOICE_THEME_CONFIG } from '@/lib/invoices/themeDefaults';
-import { useProSubscription } from '@/components/subscription/ProFeatureGate';
-import { UpgradeModal } from '@/components/subscription/UpgradeModal';
+import { InvoicePreview } from '@/components/invoices/InvoicePreview';
 
-
-export type InvoiceFormat = 'thermal-58' | 'thermal-80' | 'a4';
+export type InvoiceFormat = PaperFormat;
 
 export interface InvoiceModalProps {
   isOpen: boolean;
@@ -49,1014 +39,314 @@ export interface InvoiceModalProps {
   onNewBill?: () => void;
   sale: Sale | null;
   business?: Business | null;
-  format?: 'a4' | 'thermal-80' | 'thermal-58';
+  format?: InvoiceFormat;
   initialPhone?: string;
   onInvoiceUpdated?: (updatedSale: Sale) => void;
+  /** Opened right after checkout: shows the "Sale Completed" summary and + New Bill. */
   isPostSaleSuccess?: boolean;
+  /** When given, a Return button opens the caller's Sales Return flow for this bill. */
+  onRequestReturn?: (sale: Sale) => void;
 }
 
+type Notice = { tone: 'success' | 'error'; text: string; pdfPath?: string } | null;
+
+const FORMAT_TABS: { id: InvoiceFormat; label: string }[] = [
+  { id: 'a4', label: 'A4 Bill' },
+  { id: 'thermal-80', label: '80mm' },
+  { id: 'thermal-58', label: '58mm' },
+];
+
+/**
+ * Invoice / sale detail — desktop port of the Android SaleDetailModal and
+ * SaleCompletedModal: live preview of the exact printed bill, one Print Bill
+ * button (format and printer from Print Settings), A4 PDF saved to
+ * Documents\KamaiPlus\Invoices, Edit, Return and Theme shortcuts.
+ */
 export function InvoiceModal({
   isOpen,
   onClose,
   onNewBill,
   sale: initialSale,
   business,
-  format: initialFormat = 'a4',
-  initialPhone = '',
+  format: initialFormat,
   onInvoiceUpdated,
   isPostSaleSuccess = false,
+  onRequestReturn,
 }: InvoiceModalProps) {
-  const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
-  const [format, setFormat] = useState<InvoiceFormat>(initialFormat);
   const [sale, setSale] = useState<Sale | null>(initialSale);
-  const [qrDataUrl, setQrDataUrl] = useState<string>('');
-  const [recipientPhone, setRecipientPhone] = useState<string>(initialPhone);
+  const [format, setFormat] = useState<InvoiceFormat>(initialFormat || 'a4');
+  const [doc, setDoc] = useState<InvoiceDocument | null>(null);
+  const [brandLogo, setBrandLogo] = useState('');
+  const [upiIndex, setUpiIndex] = useState(0);
+  const [busy, setBusy] = useState<'print' | 'pdf' | 'bt' | null>(null);
+  const [notice, setNotice] = useState<Notice>(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const autoPrinted = useRef<string | null>(null);
 
-  const [shareSuccessMsg, setShareSuccessMsg] = useState<string>('');
-  const [isBluetoothPrinting, setIsBluetoothPrinting] = useState<boolean>(false);
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState<boolean>(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
-  const [selectedUpiIndex, setSelectedUpiIndex] = useState<number>(0);
-  const [isPdfPreviewExpanded, setIsPdfPreviewExpanded] = useState<boolean>(!isPostSaleSuccess);
-  
-
-
-  // Responsive Mobile & Desktop Preview View Mode ('fit' vs 'full')
-  const [viewMode, setViewMode] = useState<'fit' | 'full'>('fit');
-  const previewContainerRef = useRef<HTMLDivElement>(null);
-  const [scaleFactor, setScaleFactor] = useState<number>(1);
-
-  const platformPromo = usePlatformPromoConfig();
+  useEffect(() => setSale(initialSale), [initialSale]);
 
   useEffect(() => {
-    const calculateScale = () => {
-      if (previewContainerRef.current) {
-        const containerWidth = previewContainerRef.current.clientWidth - 24;
-        const targetWidth = format === 'a4' ? 680 : format === 'thermal-80' ? 320 : 260;
-        if (containerWidth > 0) {
-          if (viewMode === 'fit') {
-            const factor = containerWidth < targetWidth ? containerWidth / targetWidth : 1;
-            setScaleFactor(factor);
-          } else {
-            setScaleFactor(1);
-          }
-        }
-      }
-    };
-
-    calculateScale();
-    const t1 = setTimeout(calculateScale, 60);
-    const t2 = setTimeout(calculateScale, 200);
-    const t3 = setTimeout(calculateScale, 400);
-    window.addEventListener('resize', calculateScale);
-
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-      window.removeEventListener('resize', calculateScale);
-    };
-  }, [format, viewMode, isOpen, isPdfPreviewExpanded]);
-
-  useEffect(() => {
-    setSale(initialSale);
-  }, [initialSale, business, isPro]);
-
-  const activeUpi: UpiAccount | null = business?.upi_ids && business.upi_ids.length > 0
-    ? (business.upi_ids[selectedUpiIndex] || business.upi_ids[0])
-    : business?.upi_id
-    ? { id: 'def', label: 'Primary Shop QR', upi_id: business.upi_id, is_default: true }
-    : null;
-
-  useEffect(() => {
-    if (isOpen && sale && business && activeUpi?.upi_id) {
-      if (initialPhone) {
-        setRecipientPhone(initialPhone);
-      } else if (sale.customer_phone) {
-        setRecipientPhone(sale.customer_phone);
-      }
-
-      setIsPdfPreviewExpanded(!isPostSaleSuccess);
-
-      const upiTarget = activeUpi.upi_id;
-      if (upiTarget) {
-        const upiUrl = generateUPILink(
-          upiTarget,
-          business.name,
-          sale.balance_due > 0 ? sale.balance_due : sale.grand_total,
-          sale.invoice_number
-        );
-        QRCode.toDataURL(upiUrl, {
-          width: 180,
-          margin: 1,
-          color: { dark: '#0f172a', light: '#ffffff' },
-        })
-          .then(setQrDataUrl)
-          .catch(() => {});
-      }
+    if (isOpen) {
+      setFormat(initialFormat || getPrintSettings().defaultFormat);
+      setNotice(null);
     }
-  }, [isOpen, sale, business, activeUpi?.upi_id, isPostSaleSuccess, initialPhone]);
+  }, [isOpen, initialFormat]);
+
+  const customer = useLiveQuery(
+    async () => (sale?.customer_id ? db.customers.get(sale.customer_id) : undefined),
+    [sale?.customer_id]
+  );
+
+  const upiOptions = useMemo(() => {
+    if (!business) return [];
+    const list = (business.upi_ids || []).filter((u) => u.upi_id);
+    if (list.length > 0) return list;
+    return business.upi_id ? [{ id: 'default', label: 'Primary UPI', upi_id: business.upi_id, is_default: true }] : [];
+  }, [business]);
+  const selectedVpa = upiOptions[upiIndex]?.upi_id || getPrimaryUpiVpa(business);
+
+  useEffect(() => {
+    let cancelled = false;
+    getBrandLogoDataUrl().then((url) => !cancelled && setBrandLogo(url));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen || !sale || !business) return;
+    let cancelled = false;
+    prepareInvoiceDocument({ sale, business, customer, upiVpa: selectedVpa }).then((d) => !cancelled && setDoc(d));
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, sale, business, customer, selectedVpa]);
+
+  // Optional auto-print straight after checkout (Print Settings → "Print after every sale").
+  useEffect(() => {
+    if (!isOpen || !isPostSaleSuccess || !sale || !business) return;
+    if (autoPrinted.current === sale.id || !getPrintSettings().autoPrintAfterSale) return;
+    autoPrinted.current = sale.id;
+    printInvoice({ sale, business, customer, upiVpa: selectedVpa }).catch(() => {});
+  }, [isOpen, isPostSaleSuccess, sale, business, customer, selectedVpa]);
 
   if (!sale || !business) return null;
 
-  // Calculate GST Breakdown for A4 Tax Invoice
-  const hasTax = (sale.tax_total || 0) > 0;
-  const theme = business.invoice_theme_config || DEFAULT_INVOICE_THEME_CONFIG;
+  const estimate = isEstimate(sale);
+  const returned = sale.status === 'returned' || sale.status === 'partial_return';
+  const pay = getSalePaymentBreakdown(sale);
+  const input = { sale, business, customer, upiVpa: selectedVpa };
 
-  const handlePrint = () => {
-    const el = document.getElementById('modal-printable-invoice');
-    if (!el) {
-      window.print();
-      return;
-    }
-    const printFrame = document.createElement('iframe');
-    printFrame.style.position = 'fixed';
-    printFrame.style.right = '0';
-    printFrame.style.bottom = '0';
-    printFrame.style.width = '0';
-    printFrame.style.height = '0';
-    printFrame.style.border = '0';
-    document.body.appendChild(printFrame);
-
-    const doc = printFrame.contentWindow?.document;
-    if (doc) {
-      doc.open();
-      doc.write(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>Invoice #${sale.invoice_number}</title>
-            <style>
-              @page {
-                size: ${format === 'a4' ? 'A4 portrait' : format === 'thermal-80' ? '80mm auto' : '58mm auto'};
-                margin: ${format === 'a4' ? '10mm' : '0mm'};
-              }
-              body {
-                font-family: ${format === 'a4' ? "'Mukta', 'Noto Sans Devanagari', 'Inter', system-ui, sans-serif" : 'monospace'};
-                margin: 0;
-                padding: ${format === 'a4' ? '0' : '4px'};
-                background: #fff;
-                color: #000;
-                font-size: ${format === 'a4' ? '12px' : '11px'};
-              }
-              * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-              table { width: 100%; border-collapse: collapse; }
-              .text-right { text-align: right; }
-              .text-center { text-align: center; }
-              .font-bold { font-weight: bold; }
-              .font-black { font-weight: 900; }
-            </style>
-          </head>
-          <body>
-            ${el.outerHTML}
-          </body>
-        </html>
-      `);
-      doc.close();
-      printFrame.contentWindow?.focus();
-      setTimeout(() => {
-        printFrame.contentWindow?.print();
-        document.body.removeChild(printFrame);
-      }, 350);
-    }
+  const flash = (n: Notice) => {
+    setNotice(n);
+    if (n && n.tone === 'success' && !n.pdfPath) setTimeout(() => setNotice((cur) => (cur === n ? null : cur)), 3500);
   };
 
-  const handleDownloadPdf = async () => {
-    const el = document.getElementById('modal-printable-invoice');
-    if (!el) return;
-    setIsGeneratingPdf(true);
-    const prevMode = viewMode;
-    const scrollContainer = previewContainerRef.current;
-    const prevScrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
-
+  const handlePrint = async () => {
+    setBusy('print');
     try {
-      if (prevMode !== 'full') {
-        setViewMode('full');
-      }
-      if (scrollContainer) {
-        scrollContainer.scrollTop = 0;
-      }
-      await new Promise((r) => setTimeout(r, 60));
-      const targetEl = document.getElementById('modal-printable-invoice') || el;
-      await downloadInvoicePdfFromElement(targetEl, `Invoice_${sale.invoice_number}.pdf`);
-      setShareSuccessMsg('PDF Invoice downloaded successfully!');
-      setTimeout(() => setShareSuccessMsg(''), 4000);
-    } catch (err) {
-      console.error('PDF generation error:', err);
-      alert('Could not generate PDF directly. Please use the Print button to Save as PDF.');
+      const res = await printInvoice(input, format);
+      if (res.ok) flash({ tone: 'success', text: res.method === 'desktop' ? 'Bill sent to printer.' : 'Print dialog opened.' });
+      else if (res.error && !/cancel/i.test(res.error)) flash({ tone: 'error', text: `Print failed: ${res.error}` });
     } finally {
-      if (prevMode !== 'full') {
-        setViewMode(prevMode);
-      }
-      if (scrollContainer) {
-        scrollContainer.scrollTop = prevScrollTop;
-      }
-      setIsGeneratingPdf(false);
+      setBusy(null);
     }
   };
 
-  const handleBluetoothEscPosPrint = async () => {
-    setIsBluetoothPrinting(true);
+  const handleSavePdf = async () => {
+    setBusy('pdf');
     try {
-      await bluetoothPrinter.printSaleReceipt(
-        sale,
-        business,
-        format === 'thermal-80' ? 80 : 58
-      );
-      setShareSuccessMsg('Receipt printed over Bluetooth!');
-      setTimeout(() => setShareSuccessMsg(''), 4000);
+      const res = await saveInvoicePdf(input);
+      if (res.ok && res.path) flash({ tone: 'success', text: 'Tax Invoice PDF saved.', pdfPath: res.path });
+      else if (res.ok) flash({ tone: 'success', text: 'Choose "Save as PDF" in the print dialog.' });
+      else flash({ tone: 'error', text: res.error || 'Could not create the PDF.' });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleBluetooth = async () => {
+    setBusy('bt');
+    try {
+      await bluetoothPrinter.printSaleReceipt(sale, business, format === 'thermal-80' ? 80 : 58);
+      flash({ tone: 'success', text: 'Receipt printed on the Bluetooth printer.' });
     } catch (err: any) {
-      console.warn('Bluetooth print failed:', err);
-      alert(err.message || 'Bluetooth printing failed. Make sure printer is turned on.');
+      flash({ tone: 'error', text: err?.message || 'Bluetooth printing failed. Check that the printer is on and paired.' });
     } finally {
-      setIsBluetoothPrinting(false);
+      setBusy(null);
     }
   };
 
-
-  const handleInvoiceSaved = (updatedSale: Sale) => {
-    setSale(updatedSale);
-    setShareSuccessMsg('Invoice updated successfully! Changes saved.');
-    setTimeout(() => setShareSuccessMsg(''), 4000);
-    if (onInvoiceUpdated) {
-      onInvoiceUpdated(updatedSale);
-    }
+  const handleSaved = (updated: Sale) => {
+    setSale(updated);
+    flash({ tone: 'success', text: 'Invoice updated.' });
+    onInvoiceUpdated?.(updated);
   };
 
-  // Render Printable Invoice Elements (A4 & Thermal)
-  const renderPrintableCanvas = () => {
-    const targetWidth = format === 'a4' ? 680 : format === 'thermal-80' ? 320 : 260;
-    const isScaled = scaleFactor < 1 && viewMode === 'fit';
-    const estimatedHeight = format === 'a4' ? 950 : 620;
-
-    return (
-      <div 
-        style={
-          isScaled
-            ? {
-                transform: `scale(${scaleFactor})`,
-                transformOrigin: 'top center',
-                width: `${targetWidth}px`,
-                marginBottom: `-${Math.round((1 - scaleFactor) * estimatedHeight)}px`,
-              }
-            : {
-                width: `${targetWidth}px`,
-                maxWidth: '100%',
-              }
-        }
-        className="transition-all duration-150 flex justify-center shrink-0"
-      >
-        {format === 'a4' ? (
-          /* A4 Full Invoice Format */
-          <div
-            id="modal-printable-invoice"
-            data-format="a4"
-            className="w-full max-w-[700px] mx-auto bg-white p-6 sm:p-7 pb-6 rounded-2xl text-slate-900 text-xs space-y-4 border border-slate-200 shadow-lg box-border"
-            style={{ fontFamily: "'Mukta', 'Noto Sans Devanagari', 'Nirmala UI', 'Inter', system-ui, sans-serif" }}
-          >
-            {/* 1. Header Banner Styled with Theme Color */}
-            <div 
-              className="p-4 sm:p-5 rounded-2xl text-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm"
-              style={{ backgroundColor: theme.primary_color }}
-            >
-              <div className="flex items-start gap-3.5 min-w-0">
-                {theme.show_logo && (
-                  business.logo_url ? (
-                    <img
-                      src={business.logo_url}
-                      alt={business.name}
-                      className="w-14 h-14 rounded-xl object-contain bg-white p-1 border border-white/20 shadow-xs shrink-0"
-                    />
-                  ) : (
-                    <div className="w-14 h-14 rounded-xl bg-white/20 backdrop-blur-xs border border-white/30 flex flex-col items-center justify-center text-white shrink-0 shadow-xs">
-                      <Store className="w-6 h-6 text-white" />
-                      <span className="text-[9px] font-black uppercase tracking-wider mt-0.5">{business.name?.slice(0, 2) || 'KP'}</span>
-                    </div>
-                  )
-                )}
-                <div className="min-w-0 space-y-0.5">
-                  <h1 className="text-xl sm:text-2xl font-black truncate leading-tight tracking-tight">{business.name}</h1>
-                  {business.address && (
-                    <p className="text-white/85 text-[11px] truncate leading-tight">{business.address}</p>
-                  )}
-                  <div className="flex items-center gap-3 text-white/85 text-[11px] pt-0.5 flex-wrap">
-                    {business.phone && (
-                      <span className="flex items-center gap-1 font-mono">
-                        <Phone className="w-3 h-3 text-white/70" />
-                        {business.phone}
-                      </span>
-                    )}
-                    {business.email && <span className="opacity-90">• {business.email}</span>}
-                  </div>
-                  {business.gstin && (
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-white/20 backdrop-blur-xs text-amber-300 font-mono text-[11px] font-bold mt-1 border border-white/20">
-                      <span className="text-white/80 font-sans text-[9.5px] uppercase font-bold">GSTIN:</span>
-                      <span>{business.gstin}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="text-left sm:text-right shrink-0 space-y-1 sm:self-center">
-                <div className="inline-block px-3 py-1 rounded-lg bg-white/20 backdrop-blur-xs text-white text-xs font-black uppercase tracking-wider border border-white/20 shadow-2xs">
-                  {sale.status === 'draft' || sale.invoice_number.startsWith('EST-')
-                    ? 'ESTIMATE / QUOTATION'
-                    : business.gstin
-                    ? 'TAX INVOICE'
-                    : 'RETAIL INVOICE'}
-                </div>
-                <div className="font-mono text-base font-black text-amber-300">
-                  #{sale.invoice_number}
-                </div>
-                <div className="text-white/90 text-[11px] font-medium flex sm:justify-end items-center gap-1.5">
-                  <Calendar className="w-3 h-3 text-white/70 inline" />
-                  <span>
-                    {new Date(sale.created_at).toLocaleDateString('en-IN', {
-                      day: '2-digit',
-                      month: 'short',
-                      year: 'numeric',
-                    })}
-                  </span>
-                  <span className="text-white/60">•</span>
-                  <span className="text-white/80 font-mono text-[10.5px]">
-                    {new Date(sale.created_at).toLocaleTimeString('en-IN', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* 2. Restaurant Order & KOT Bar */}
-            {(sale.table_no || sale.token_number || (sale.order_type && sale.order_type !== 'counter')) && (
-              <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 flex items-center justify-between text-[11px] shadow-2xs">
-                <div className="flex items-center gap-2">
-                  <span className="font-black px-2 py-0.5 bg-amber-500 text-slate-950 rounded-md text-[10px] uppercase">
-                    {sale.order_type === 'takeaway' ? '🥡 Takeaway / Parcel' : sale.order_type === 'delivery' ? '🛵 Delivery' : '🍽️ Dine-In'}
-                  </span>
-                  {sale.table_no && <span>Table: <b>{sale.table_no}</b></span>}
-                </div>
-                {sale.token_number && (
-                  <div className="font-mono font-black text-[11px] text-amber-900">
-                    KOT Token #{sale.token_number}
-                  </div>
-                )}
-              </div>
-            )}
-
-
-
-            {/* 3. Customer Details & Payment Mode Card */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 p-3.5 sm:p-4 bg-slate-50/90 rounded-xl border border-slate-200/90 shadow-2xs">
-              <div className="space-y-0.5">
-                <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Bill To</div>
-                <div className="text-sm sm:text-base font-black text-slate-900">{sale.customer_name || 'Cash Customer'}</div>
-                {sale.customer_phone && (
-                  <div className="text-slate-600 font-mono text-xs flex items-center gap-1">
-                    <Phone className="w-3 h-3 text-slate-400 inline" />
-                    <span>{sale.customer_phone}</span>
-                  </div>
-                )}
-              </div>
-              <div className="text-left sm:text-right space-y-1">
-                <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Payment Mode</div>
-                <div className="flex items-center sm:justify-end gap-2">
-                  <span className="font-black text-slate-900 uppercase text-xs tracking-wide">{sale.payment_method}</span>
-                  {sale.payment_status === 'paid' ? (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-2xs">
-                      <Check className="w-2.5 h-2.5 stroke-[3]" />
-                      PAID
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs">
-                      {sale.payment_status?.toUpperCase() || 'UNPAID'}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* 4. Items Table */}
-            <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-slate-100/90 text-slate-700 font-black text-[10.5px] uppercase tracking-wider border-b border-slate-200">
-                    <th className="py-2.5 px-3 w-10 text-center text-slate-400">#</th>
-                    <th className="py-2.5 px-3.5">Item Description</th>
-                    <th className="py-2.5 px-3 text-center w-24 whitespace-nowrap">Qty</th>
-                    <th className="py-2.5 px-3 text-right w-24 whitespace-nowrap">Rate</th>
-                    {sale.items.some((i) => i.discount_amount && i.discount_amount > 0) && (
-                      <th className="py-2.5 px-2.5 text-right w-20 whitespace-nowrap">Disc</th>
-                    )}
-                    {hasTax && (
-                      <th className="py-2.5 px-3 text-right w-16 whitespace-nowrap">GST%</th>
-                    )}
-                    <th className="py-2.5 px-3.5 text-right w-28 whitespace-nowrap">Amount</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {sale.items.map((item, idx) => (
-                    <tr key={idx} className="even:bg-slate-50/50 hover:bg-slate-50 transition-colors">
-                      <td className="py-2.5 px-3 text-center text-slate-400 font-mono text-[11px]">{idx + 1}</td>
-                      <td className="py-2.5 px-3.5">
-                        <div className="font-black text-slate-900 text-xs">{item.product_name}</div>
-
-                        {(item.size || item.color) && (
-                          <div className="text-[10px] text-purple-700 font-medium pt-0.5">
-                            {[item.size ? `Size: ${item.size}` : '', item.color ? `Color: ${item.color}` : ''].filter(Boolean).join(' • ')}
-                          </div>
-                        )}
-                        {item.warranty_period_months ? (
-                          <div className="text-[10px] text-slate-600 font-medium pt-0.5">
-                            Warranty: {item.warranty_period_months} Months
-                          </div>
-                        ) : null}
-                      </td>
-                      <td className="py-2.5 px-3 text-center font-bold font-mono text-slate-800 whitespace-nowrap">
-                        {item.quantity} <span className="text-[10px] text-slate-500 font-normal">{item.unit || 'pcs'}</span>
-                      </td>
-                      <td className="py-2.5 px-3 text-right font-mono font-medium text-slate-700 whitespace-nowrap">
-                        {formatINR(item.unit_price)}
-                      </td>
-                      {sale.items.some((i) => i.discount_amount && i.discount_amount > 0) && (
-                        <td className="py-2.5 px-2.5 text-right font-mono font-bold text-rose-600 whitespace-nowrap">
-                          {item.discount_amount ? `-${formatINR(item.discount_amount)}` : '—'}
-                        </td>
-                      )}
-                      {hasTax && (
-                        <td className="py-2.5 px-3 text-right font-mono text-slate-600 whitespace-nowrap">
-                          {item.tax_rate ? `${item.tax_rate}%` : '0%'}
-                        </td>
-                      )}
-                      <td className="py-2.5 px-3.5 text-right font-black font-mono text-slate-950 whitespace-nowrap text-sm">
-                        {formatINR(item.total_amount)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* 5. Bill Totals & Dynamic UPI QR Code */}
-            <div className="flex flex-col sm:flex-row justify-between items-start gap-4 pt-1">
-              <div className="flex-1 space-y-3 w-full">
-                {/* Amount in Words Card */}
-                <div className="space-y-1">
-                  <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Amount in Words:</div>
-                  <div className="italic font-semibold text-slate-800 text-[11px] bg-slate-50/90 p-2.5 rounded-xl border border-slate-200/90 leading-relaxed shadow-2xs">
-                    {numberToWordsINR(sale.grand_total)}
-                  </div>
-                </div>
-
-                {/* Scannable Dynamic UPI QR Box */}
-                {activeUpi && (
-                  <div className="p-3 bg-slate-50/90 rounded-xl border border-slate-200/90 flex items-center gap-3.5 shadow-2xs">
-                    {qrDataUrl ? (
-                      <img
-                        src={qrDataUrl}
-                        alt="UPI Payment QR Code"
-                        className="w-20 h-20 sm:w-22 sm:h-22 rounded-xl border border-slate-200 bg-white p-1 shadow-2xs shrink-0"
-                      />
-                    ) : (
-                      <div className="w-20 h-20 rounded-xl bg-slate-200 flex flex-col items-center justify-center text-slate-500 text-[10px] font-bold shrink-0">
-                        <QrCode className="w-6 h-6 text-slate-400 mb-1" />
-                        <span>UPI QR</span>
-                      </div>
-                    )}
-                    <div className="min-w-0 space-y-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-black text-slate-900 text-xs">Scan &amp; Pay via UPI</span>
-                        <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800">0% Fee</span>
-                      </div>
-                      <div className="font-mono text-xs font-bold text-slate-800 truncate select-all bg-white px-2 py-0.5 rounded border border-slate-200 inline-block">
-                        VPA: {activeUpi.upi_id}
-                      </div>
-                      <div className="text-[10px] text-slate-500 flex items-center gap-1">
-                        <span>Accepted:</span>
-                        <span className="font-semibold text-slate-600">GPay • PhonePe • Paytm • BHIM</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Financial Totals Breakdown Box */}
-              <div className="w-full sm:w-72 bg-slate-50/90 p-4 rounded-xl border border-slate-200/90 space-y-2 text-xs shadow-2xs shrink-0">
-                <div className="flex justify-between text-slate-600">
-                  <span>Subtotal:</span>
-                  <span className="font-mono font-bold text-slate-800">{formatINR(sale.subtotal)}</span>
-                </div>
-                {sale.discount_total > 0 && (
-                  <div className="flex justify-between text-rose-600">
-                    <span>Discount:</span>
-                    <span className="font-mono font-bold">-{formatINR(sale.discount_total)}</span>
-                  </div>
-                )}
-                {sale.tax_total > 0 && (
-                  <div className="flex justify-between text-slate-600">
-                    <span>GST / Tax:</span>
-                    <span className="font-mono font-bold text-slate-800">{formatINR(sale.tax_total)}</span>
-                  </div>
-                )}
-
-                {/* Prominent Grand Total Banner */}
-                <div 
-                  className="flex justify-between items-center p-3 rounded-xl text-white my-2 shadow-xs"
-                  style={{ backgroundColor: theme.primary_color }}
-                >
-                  <span className="uppercase tracking-wider text-xs font-black">Grand Total:</span>
-                  <span className="font-mono text-base sm:text-lg font-black">{formatINR(sale.grand_total)}</span>
-                </div>
-
-                {sale.balance_due > 0 && (
-                  <div className="flex justify-between items-center p-2 rounded-lg bg-amber-100/80 border border-amber-300 font-bold text-amber-950 text-xs shadow-2xs">
-                    <span>Balance Due (Udhar):</span>
-                    <span className="font-mono font-black">{formatINR(sale.balance_due)}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* 6. Footer Message */}
-            <div className="text-center text-[11px] font-semibold text-slate-600 pt-3.5 border-t border-slate-200">
-              {business.footer_message || 'Thank you for shopping with us! Please visit again.'}
-            </div>
-          </div>
-      ) : (
-        /* Thermal Format */
-        <div
-          id="modal-printable-invoice"
-          data-format={format}
-          className={`bg-white p-3 sm:p-4 text-slate-950 font-mono text-[11px] space-y-2 border border-slate-200 shadow-md ${
-            format === 'thermal-80' ? 'w-[300px]' : 'w-[250px]'
-          }`}
-        >
-          <div className="text-center space-y-0.5 pb-2 border-b border-dashed border-slate-300">
-            <h2 className="font-black text-sm">{business.name}</h2>
-            {business.address && <p className="text-[10px] text-slate-600">{business.address}</p>}
-            {business.phone && <p className="text-[10px] text-slate-600">Ph: {business.phone}</p>}
-            {business.gstin && <p className="text-[10px] font-bold">GSTIN: {business.gstin}</p>}
-            <div className="text-[10px] font-bold mt-1">
-              {sale.status === 'draft' || sale.invoice_number.startsWith('EST-') ? 'ESTIMATE' : 'TAX INVOICE'} #{sale.invoice_number} • {new Date(sale.created_at).toLocaleDateString('en-IN')}
-            </div>
-            {(sale.table_no || sale.token_number || (sale.order_type && sale.order_type !== 'counter')) && (
-              <div className="text-[10px] font-bold text-amber-900 bg-amber-50 rounded px-1 py-0.5 mt-0.5">
-                {sale.order_type ? `[${sale.order_type.toUpperCase()}] ` : ''}
-                {sale.table_no ? `Table: ${sale.table_no} ` : ''}
-                {sale.token_number ? `• Token #${sale.token_number}` : ''}
-              </div>
-            )}
-            {sale.doctor_name && (
-              <div className="text-[9.5px] font-bold text-sky-900 bg-sky-50 rounded px-1 py-0.5 mt-0.5">
-                Rx: Dr. {sale.doctor_name}
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-1 py-1 border-b border-dashed border-slate-300">
-            {sale.items.map((item, i) => (
-              <div key={i} className="flex justify-between items-start text-[10.5px]">
-                <div className="flex-1 pr-1 truncate">
-                  <div>{item.product_name} x {item.quantity} {item.unit || ''}</div>
-                  {(item.size || item.color || item.warranty_period_months) && (
-                    <div className="text-[9px] text-slate-500">
-                      {[
-
-                        item.size ? `Size:${item.size}` : '',
-                        item.color ? item.color : '',
-                        item.warranty_period_months ? `War:${item.warranty_period_months}m` : '',
-                      ].filter(Boolean).join(' ')}
-                    </div>
-                  )}
-                </div>
-                <div className="font-bold">{formatINR(item.total_amount)}</div>
-              </div>
-            ))}
-          </div>
-
-          <div className="space-y-1 pt-1 text-[11px]">
-            <div className="flex justify-between">
-              <span>Subtotal:</span>
-              <span>{formatINR(sale.subtotal)}</span>
-            </div>
-            {sale.discount_total > 0 && (
-              <div className="flex justify-between text-rose-600">
-                <span>Disc:</span>
-                <span>-{formatINR(sale.discount_total)}</span>
-              </div>
-            )}
-            <div className="flex justify-between font-black text-xs pt-1 border-t border-slate-400">
-              <span>TOTAL:</span>
-              <span>{formatINR(sale.grand_total)}</span>
-            </div>
-            <div className="flex justify-between text-[10px] text-slate-600">
-              <span>Mode:</span>
-              <span className="uppercase">{sale.payment_method}</span>
-            </div>
-          </div>
-
-          {/* Dynamic UPI QR inside Thermal */}
-          {qrDataUrl && activeUpi && (
-            <div className="flex flex-col items-center py-1 border-t border-dashed border-slate-300">
-              <img src={qrDataUrl} alt="UPI QR" className="w-24 h-24" />
-              <div className="text-[9px] font-bold text-slate-700 mt-1">{activeUpi.label || 'Scan to Pay'}</div>
-              <div className="text-[8px] font-mono text-slate-500">{activeUpi.upi_id}</div>
-            </div>
-          )}
-
-          <div className="text-center text-[10px] text-slate-500 pt-2 border-t border-dashed border-slate-300">
-            {business.footer_message || 'Thank you! Visit again.'}
-          </div>
-        </div>
-      )}
-    </div>
+  const desktop = getDesktopApi();
+  const title = isPostSaleSuccess ? (
+    <span className="flex items-center gap-2">
+      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+      {estimate ? 'Estimate Created' : 'Sale Completed'}
+    </span>
+  ) : (
+    <span className="flex items-center gap-2">
+      <FileText className="w-4 h-4 text-slate-700" />
+      {estimate ? 'Estimate / Quotation' : 'Tax Invoice'} #{sale.invoice_number}
+    </span>
   );
-  };
 
   return (
     <>
-      <Modal
-        isOpen={isOpen}
-        onClose={onClose}
-        title={
-          isPostSaleSuccess ? (
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center flex-shrink-0 shadow-2xs">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm sm:text-base font-black text-slate-900">
-                  {sale.status === 'draft' || sale.invoice_number.startsWith('EST-')
-                    ? 'Estimate / Quotation Created!'
-                    : 'Sale Completed Successfully!'}
-                </span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-600 text-white uppercase shadow-2xs">
-                  {sale.status === 'draft' || sale.invoice_number.startsWith('EST-')
-                    ? 'Quotation'
-                    : sale.balance_due && sale.balance_due > 0
-                    ? 'Credit Sale'
-                    : 'Paid in Full'}
-                </span>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4 text-slate-700" />
-              <span>
-                {sale.status === 'draft' || sale.invoice_number.startsWith('EST-')
-                  ? 'Estimate & Quotation'
-                  : 'Tax Invoice & Receipt'}
-              </span>
-            </div>
-          )
-        }
-        description={`${sale.status === 'draft' || sale.invoice_number.startsWith('EST-') ? 'Estimate' : 'Invoice'} #${sale.invoice_number} • ${sale.customer_name || 'Cash Customer'}`}
-        size="xl"
-      >
-        <div className="space-y-3.5">
-          {/* Success / Notification Toast */}
-          {shareSuccessMsg && (
-            <div className="p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold rounded-xl flex items-center gap-2 animate-in fade-in shadow-2xs">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>{shareSuccessMsg}</span>
-            </div>
-          )}
-
-          {/* ---------------- POST-SALE CELEBRATION & ACTIONS ---------------- */}
+      <Modal isOpen={isOpen} onClose={onClose} title={title} description={`${sale.customer_name || 'Cash Customer'} • ${doc?.dateText || ''}`} size="xl">
+        <div className="space-y-3">
           {isPostSaleSuccess && (
-            <>
-              {/* Top Celebration & Amount Summary Card */}
-              <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border border-emerald-200/90 rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-                <div className="space-y-1">
-                  <div className="text-[10.5px] font-black uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
-                    <span>Total Amount Billed</span>
-                    <span className="font-mono bg-emerald-200/80 text-emerald-950 px-1.5 py-0.2 rounded font-bold">
-                      #{sale.invoice_number}
-                    </span>
-                  </div>
-                  <div className="text-2xl sm:text-3xl font-black text-slate-900 font-mono tracking-tight">
-                    {formatINR(sale.grand_total)}
-                  </div>
-                  <div className="text-xs text-slate-600 flex items-center gap-2 flex-wrap">
-                    <span>Customer: <b className="text-slate-900">{sale.customer_name || 'Cash Customer'}</b></span>
-                    {sale.customer_phone && <span className="font-mono text-slate-500">({sale.customer_phone})</span>}
-                    <span className="text-slate-300">•</span>
-                    <span>Payment: <b className="uppercase text-slate-800 font-bold">{sale.payment_method}</b></span>
-                  </div>
-                  {sale.balance_due && sale.balance_due > 0 ? (
-                    <div className="text-xs font-bold text-amber-800 bg-amber-100/90 px-2 py-0.5 rounded-md inline-block mt-1">
-                      ⚠️ ₹{formatINR(sale.balance_due)} recorded in Customer Udhar Khata
-                    </div>
-                  ) : null}
-                </div>
-
-                {/* + New Bill Action Button */}
-                <div className="flex items-center gap-2 self-start sm:self-center">
-                  <Button
-                    size="lg"
-                    onClick={() => {
-                      if (onNewBill) {
-                        onNewBill();
-                      } else {
-                        onClose();
-                      }
-                    }}
-                    className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-sm gap-2 rounded-xl h-11 px-5 shadow-sm cursor-pointer border border-amber-400 active:scale-95 transition"
-                    title="Finish current bill and start a new order immediately"
-                  >
-                    <Receipt className="w-4 h-4 text-slate-950" />
-                    <span>+ New Bill</span>
-                  </Button>
-                </div>
+            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-3.5 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-[10.5px] font-black uppercase tracking-wider text-emerald-800">Total Billed • #{sale.invoice_number}</div>
+                <div className="text-2xl font-black text-slate-900 font-mono">{formatINR(sale.grand_total)}</div>
+                {sale.balance_due > 0 && !estimate && (
+                  <div className="text-xs font-bold text-amber-800">{formatINR(sale.balance_due)} added to {sale.customer_name}&apos;s Khata</div>
+                )}
               </div>
-
-              {/* Main Actions Panel: Direct WhatsApp Dispatch + Print & PDF Options */}
-              <div className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 space-y-3 shadow-xs">
-                <div className="text-[11px] font-black uppercase tracking-wider text-slate-400">
-                  Dispatch &amp; Receipt Actions
-                </div>
-
-                {/* Print & PDF Action Buttons Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handlePrint}
-                    className="text-xs font-bold gap-1.5 rounded-xl h-10 text-slate-800 hover:bg-slate-100 border-slate-300 cursor-pointer shadow-2xs"
-                  >
-                    <Printer className="w-4 h-4 text-slate-700" />
-                    <span>Print Receipt</span>
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleBluetoothEscPosPrint}
-                    disabled={isBluetoothPrinting}
-                    className="text-xs font-bold gap-1.5 rounded-xl h-10 text-sky-800 bg-sky-50/60 border-sky-200 hover:bg-sky-100 cursor-pointer shadow-2xs"
-                    title="Direct Thermal Bluetooth POS Printing"
-                  >
-                    <Bluetooth className="w-4 h-4 text-sky-600" />
-                    <span>Bluetooth Print</span>
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleDownloadPdf}
-                    disabled={isGeneratingPdf}
-                    className="text-xs font-bold gap-1.5 rounded-xl h-10 bg-slate-900 text-white hover:bg-slate-800 border-slate-900 cursor-pointer shadow-2xs"
-                  >
-                    <Download className="w-4 h-4 text-amber-400" />
-                    <span>{isGeneratingPdf ? 'Saving...' : 'Download PDF'}</span>
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsEditModalOpen(true)}
-                    className="text-xs font-bold gap-1.5 rounded-xl h-10 text-slate-700 hover:bg-slate-50 border-slate-300 cursor-pointer shadow-2xs"
-                  >
-                    <Edit3 className="w-4 h-4 text-amber-600" />
-                    <span>Edit Bill</span>
-                  </Button>
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* ---------------- REGULAR INVOICE MODE HEADER ---------------- */}
-          {!isPostSaleSuccess && (
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pb-2 border-b border-slate-200">
-              {/* Format Tabs & Zoom View Modes */}
-              <div className="flex flex-wrap items-center gap-1.5 self-start sm:self-auto">
-                <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200/80">
-                  <button
-                    onClick={() => setFormat('a4')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                      format === 'a4'
-                        ? 'bg-white text-slate-950 shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    A4 Bill
-                  </button>
-                  <button
-                    onClick={() => setFormat('thermal-80')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                      format === 'thermal-80'
-                        ? 'bg-white text-slate-950 shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    80mm Thermal
-                  </button>
-                  <button
-                    onClick={() => setFormat('thermal-58')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                      format === 'thermal-58'
-                        ? 'bg-white text-slate-950 shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    58mm
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-1.5 justify-end">
-
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsEditModalOpen(true)}
-                  className="text-xs font-bold gap-1 rounded-xl h-8 text-slate-700 hover:bg-slate-50 border-slate-300 cursor-pointer"
-                  title="Edit past invoice items or payment"
-                >
-                  <Edit3 className="w-3.5 h-3.5 text-amber-600" />
-                  <span>Edit</span>
-                </Button>
-
-                <Link href="/invoice-designer">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-xs font-bold gap-1 rounded-xl h-8 text-slate-700 hover:bg-slate-50 border-slate-300 cursor-pointer"
-                    title="Customize Invoice Theme & Colors"
-                  >
-                    <Palette className="w-3.5 h-3.5 text-purple-600" />
-                    <span className="hidden sm:inline">Theme</span>
-                  </Button>
-                </Link>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleBluetoothEscPosPrint}
-                  disabled={isBluetoothPrinting}
-                  className="text-xs font-bold gap-1 rounded-xl h-8 text-sky-800 bg-sky-50 border-sky-200 hover:bg-sky-100 cursor-pointer"
-                  title="Direct Bluetooth POS Printing"
-                >
-                  <Bluetooth className="w-3.5 h-3.5 text-sky-600" />
-                  <span className="hidden sm:inline">BT</span>
-                </Button>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handlePrint}
-                  className="text-xs font-bold gap-1 rounded-xl h-8 text-slate-800 hover:bg-slate-50 border-slate-300 cursor-pointer"
-                >
-                  <Printer className="w-3.5 h-3.5 text-slate-600" />
-                  <span>Print</span>
-                </Button>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleDownloadPdf}
-                  disabled={isGeneratingPdf}
-                  className="text-xs font-bold gap-1 rounded-xl h-8 bg-slate-900 text-white hover:bg-slate-800 border-slate-900 cursor-pointer shadow-xs"
-                >
-                  <Download className="w-3.5 h-3.5 text-amber-400" />
-                  <span>{isGeneratingPdf ? 'Saving...' : 'PDF'}</span>
-                </Button>
-
-              </div>
+              <Button size="lg" onClick={() => (onNewBill ? onNewBill() : onClose())} className="bg-amber-400 hover:bg-amber-500 text-slate-950 border-amber-400">
+                <Receipt className="w-4 h-4" /> + New Bill
+              </Button>
             </div>
           )}
 
-          {/* ---------------- COLLAPSIBLE PDF / INVOICE PREVIEW DROPDOWN ---------------- */}
-          {isPostSaleSuccess ? (
-            <div className="bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden transition-all duration-200">
-              <div
-                onClick={() => setIsPdfPreviewExpanded(!isPdfPreviewExpanded)}
-                className="p-3 sm:p-3.5 flex items-center justify-between gap-2 cursor-pointer hover:bg-slate-100/90 transition select-none bg-slate-50"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-slate-200 text-slate-700 flex items-center justify-center flex-shrink-0">
-                    <FileText className="w-4 h-4 text-slate-700" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs sm:text-sm font-bold text-slate-900">
-                      {isPdfPreviewExpanded ? 'Tax Invoice & Print Preview' : 'View Full Invoice PDF & Receipt'}
-                    </h4>
-                    <p className="text-[10.5px] text-slate-500">
-                      {isPdfPreviewExpanded ? 'A4, 80mm & 58mm canvas layout' : 'Click to inspect itemized breakdown, tax details & themes'}
-                    </p>
-                  </div>
-                </div>
+          <SummaryStrip sale={sale} pay={pay} estimate={estimate} />
 
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-slate-700 bg-white border border-slate-200 px-2 py-0.5 rounded-lg shadow-2xs">
-                    {isPdfPreviewExpanded ? 'Hide Preview' : 'Show PDF Preview'}
-                  </span>
-                  {isPdfPreviewExpanded ? (
-                    <ChevronUp className="w-4 h-4 text-slate-700" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4 text-slate-700" />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200">
+              {FORMAT_TABS.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setFormat(t.id)}
+                  className={cn(
+                    'px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer',
+                    format === t.id ? 'bg-white text-slate-950 shadow-xs' : 'text-slate-600 hover:text-slate-900'
                   )}
-                </div>
-              </div>
-
-              {/* Expanded Dropdown Content */}
-              {isPdfPreviewExpanded && (
-                <div className="p-3 sm:p-4 border-t border-slate-200 space-y-3 animate-in fade-in">
-                  {/* Format Tabs inside dropdown */}
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center p-1 bg-white rounded-xl border border-slate-200 shadow-2xs">
-                      <button
-                        onClick={() => setFormat('a4')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                          format === 'a4'
-                            ? 'bg-slate-900 text-white shadow-xs'
-                            : 'text-slate-600 hover:text-slate-900'
-                        }`}
-                      >
-                        A4 Bill
-                      </button>
-                      <button
-                        onClick={() => setFormat('thermal-80')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                          format === 'thermal-80'
-                            ? 'bg-slate-900 text-white shadow-xs'
-                            : 'text-slate-600 hover:text-slate-900'
-                        }`}
-                      >
-                        80mm Thermal
-                      </button>
-                      <button
-                        onClick={() => setFormat('thermal-58')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                          format === 'thermal-58'
-                            ? 'bg-slate-900 text-white shadow-xs'
-                            : 'text-slate-600 hover:text-slate-900'
-                        }`}
-                      >
-                        58mm
-                      </button>
-                    </div>
-
-                    <div className="flex items-center gap-1.5">
-                      <Link href="/invoice-designer">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-xs font-bold gap-1 rounded-xl h-8 text-slate-700 hover:bg-slate-50 border-slate-300 cursor-pointer"
-                          title="Customize Invoice Theme & Colors"
-                        >
-                          <Palette className="w-3.5 h-3.5 text-purple-600" />
-                          <span>Theme</span>
-                        </Button>
-                      </Link>
-                    </div>
-                  </div>
-
-                  {/* Printable Invoice Container */}
-                  <div 
-                    ref={previewContainerRef}
-                    className="bg-slate-100/70 p-2 sm:p-5 rounded-2xl border border-slate-200/80 max-h-[52vh] overflow-auto shadow-inner flex flex-col items-center"
-                  >
-                    {renderPrintableCanvas()}
-                  </div>
-                </div>
-              )}
-
-              {/* Hidden copy mounted in DOM when collapsed so PDF generation and WhatsApp dispatch always find element */}
-              {!isPdfPreviewExpanded && (
-                <div className="hidden" aria-hidden="true">
-                  {renderPrintableCanvas()}
-                </div>
-              )}
+                >
+                  {t.label}
+                </button>
+              ))}
             </div>
-          ) : (
-            /* Non-Success Regular Preview Canvas (Directly Visible) */
-            <div 
-              ref={previewContainerRef}
-              className="bg-slate-100/70 p-2 sm:p-5 rounded-2xl border border-slate-200/80 max-h-[62vh] overflow-auto shadow-inner flex flex-col items-center"
+            {upiOptions.length > 1 && (
+              <select
+                value={upiIndex}
+                onChange={(e) => setUpiIndex(Number(e.target.value))}
+                className="text-xs font-semibold border border-slate-300 rounded-lg px-2 py-1.5 bg-white"
+                title="UPI ID printed on this bill"
+              >
+                {upiOptions.map((u, i) => (
+                  <option key={u.id || i} value={i}>
+                    {u.label || 'UPI'} — {u.upi_id}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <Button onClick={handlePrint} isLoading={busy === 'print'} className="h-10">
+              <Printer className="w-4 h-4 text-amber-300" /> Print Bill
+            </Button>
+            <Button variant="outline" onClick={handleSavePdf} isLoading={busy === 'pdf'} className="h-10">
+              <Download className="w-4 h-4" /> Save PDF
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setIsEditOpen(true)}
+              disabled={returned}
+              title={returned ? 'Bills with a return cannot be edited — the return already adjusted stock and khata.' : 'Edit items, prices or payment'}
+              className="h-10"
             >
-              {renderPrintableCanvas()}
+              <Edit3 className="w-4 h-4 text-amber-600" /> {estimate ? 'Edit Estimate' : 'Edit Bill'}
+            </Button>
+            {onRequestReturn && !estimate && sale.status !== 'returned' ? (
+              <Button variant="outline" onClick={() => onRequestReturn(sale)} className="h-10 text-rose-700 border-rose-200 hover:bg-rose-50">
+                <RotateCcw className="w-4 h-4" /> Return
+              </Button>
+            ) : (
+              <Link href="/invoice-designer" className="contents">
+                <Button variant="outline" className="h-10 w-full">
+                  <Palette className="w-4 h-4 text-purple-600" /> Theme
+                </Button>
+              </Link>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
+            {format !== 'a4' && (
+              <button type="button" onClick={handleBluetooth} disabled={busy === 'bt'} className="inline-flex items-center gap-1 font-bold text-sky-700 hover:underline cursor-pointer disabled:opacity-50">
+                <Bluetooth className="w-3.5 h-3.5" /> {busy === 'bt' ? 'Printing…' : 'Print on Bluetooth printer'}
+              </button>
+            )}
+            {onRequestReturn && (
+              <Link href="/invoice-designer" className="inline-flex items-center gap-1 font-bold text-purple-700 hover:underline">
+                <Palette className="w-3.5 h-3.5" /> Invoice theme
+              </Link>
+            )}
+            <span>PDF is always the full A4 Tax Invoice.</span>
+          </div>
+
+          {notice && (
+            <div
+              className={cn(
+                'p-2.5 rounded-xl text-xs font-bold flex flex-wrap items-center gap-2 border',
+                notice.tone === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-rose-50 border-rose-200 text-rose-800'
+              )}
+            >
+              <span className="flex-1 min-w-0">{notice.text}</span>
+              {notice.pdfPath && desktop && (
+                <>
+                  <button type="button" onClick={() => desktop.openPath(notice.pdfPath!)} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white border border-emerald-300 cursor-pointer">
+                    <ExternalLink className="w-3.5 h-3.5" /> Open
+                  </button>
+                  <button type="button" onClick={() => desktop.showItemInFolder(notice.pdfPath!)} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white border border-emerald-300 cursor-pointer">
+                    <FolderOpen className="w-3.5 h-3.5" /> Show in folder
+                  </button>
+                </>
+              )}
             </div>
           )}
+
+          <InvoicePreview doc={doc} sale={sale} business={business} format={format} brandLogoUrl={brandLogo} className="max-h-[58vh]" />
         </div>
       </Modal>
 
-      {/* Edit Invoice Submodal */}
-      <EditInvoiceModal
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        sale={sale}
-        onSaved={handleInvoiceSaved}
-      />
-
-      {/* Razorpay Pro Upgrade Modal */}
-      <UpgradeModal
-        isOpen={isUpgradeModalOpen}
-        onClose={() => setIsUpgradeModalOpen(false)}
-        businessName={business?.name || 'Your Store'}
-      />
+      <EditInvoiceModal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} sale={sale} onSaved={handleSaved} />
     </>
+  );
+}
+
+function SummaryStrip({ sale, pay, estimate }: { sale: Sale; pay: ReturnType<typeof getSalePaymentBreakdown>; estimate: boolean }) {
+  const chips: { label: string; value: number; tone: string }[] = [
+    { label: 'Cash', value: pay.cash, tone: 'bg-emerald-50 text-emerald-800 border-emerald-200' },
+    { label: 'UPI', value: pay.upi, tone: 'bg-sky-50 text-sky-800 border-sky-200' },
+    { label: 'Card', value: pay.card, tone: 'bg-indigo-50 text-indigo-800 border-indigo-200' },
+    { label: 'Udhar', value: pay.credit, tone: 'bg-amber-50 text-amber-900 border-amber-200' },
+  ].filter((c) => c.value > 0);
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-xs">
+      <span className="font-mono font-black text-slate-900 text-sm">{formatINR(sale.grand_total)}</span>
+      <span className="text-slate-400">•</span>
+      <span className="text-slate-600">{sale.items.length} item{sale.items.length === 1 ? '' : 's'}</span>
+      {estimate && <span className="px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 font-bold text-slate-700">ESTIMATE</span>}
+      {!estimate && chips.map((c) => (
+        <span key={c.label} className={cn('px-2 py-0.5 rounded-full border font-bold', c.tone)}>
+          {c.label}: {formatINR(c.value)}
+        </span>
+      ))}
+      {sale.status === 'returned' && <span className="px-2 py-0.5 rounded-full bg-rose-50 border border-rose-200 font-black text-rose-700">RETURNED</span>}
+      {sale.status === 'partial_return' && (
+        <span className="px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 font-black text-amber-800">
+          PARTIAL RETURN • {formatINR(sale.returned_amount || 0)}
+        </span>
+      )}
+    </div>
   );
 }

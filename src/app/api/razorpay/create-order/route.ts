@@ -2,7 +2,10 @@ import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { verifySessionToken, SESSION_COOKIE_NAME } from '@/lib/auth/session';
-import { getLivePlatformConfig } from '@/app/api/admin/config/route';
+const DEFAULT_PLATFORM_CONFIG = {
+  proAnnualPrice: 1499,
+  proMonthlyPrice: 199,
+};
 
 export const dynamic = 'force-dynamic';
 
@@ -31,7 +34,7 @@ export async function POST(req: NextRequest) {
     const plan = (body.plan as string) || 'pro';
     const billingCycle = body.billingCycle === 'monthly' ? 'monthly' : 'annual';
 
-    const config = await getLivePlatformConfig();
+    const config = DEFAULT_PLATFORM_CONFIG;
     const annualPrice = config.proAnnualPrice || 1499;
     const monthlyPrice = config.proMonthlyPrice || 199;
     const amountInPaise = (billingCycle === 'monthly' ? monthlyPrice : annualPrice) * 100;

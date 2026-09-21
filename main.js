@@ -1,32 +1,242 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain, net, protocol, shell } = require('electron');
+const fs = require('fs');
+const os = require('os');
 const path = require('path');
+const { pathToFileURL } = require('url');
 
-let mainWindow;
+/**
+ * KamaiPlus desktop shell.
+ *
+ * The UI is the static Next.js export in ./out, served from a private
+ * `app://kamaiplus` origin (a fixed, secure origin keeps IndexedDB and
+ * localStorage — i.e. the shop's data — stable across launches and updates).
+ * `electron . --dev` loads the Next dev server instead.
+ */
+
+const SCHEME = 'app';
+const HOST = 'kamaiplus';
+const OUT_DIR = path.join(__dirname, 'out');
+const DEV_URL = 'http://localhost:3000';
+const isDevServer = process.argv.includes('--dev');
+
+protocol.registerSchemesAsPrivileged([
+  { scheme: SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } },
+]);
+
+let mainWindow = null;
+
+function resolveExportFile(urlPath) {
+  const rel = decodeURIComponent(urlPath).replace(/^\/+/, '').replace(/\/+$/, '');
+  const candidates = rel === '' ? ['index.html'] : [rel, `${rel}.html`, path.join(rel, 'index.html')];
+  for (const candidate of candidates) {
+    const full = path.normalize(path.join(OUT_DIR, candidate));
+    if (!full.startsWith(OUT_DIR)) continue;
+    try {
+      if (fs.statSync(full).isFile()) return full;
+    } catch {}
+  }
+  const notFound = path.join(OUT_DIR, '404.html');
+  return fs.existsSync(notFound) ? notFound : path.join(OUT_DIR, 'index.html');
+}
+
+function registerAppProtocol() {
+  protocol.handle(SCHEME, (request) => {
+    const { pathname } = new URL(request.url);
+    return net.fetch(pathToFileURL(resolveExportFile(pathname)).toString());
+  });
+}
+
+function appOrigin() {
+  return isDevServer ? DEV_URL : `${SCHEME}://${HOST}`;
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 800,
+    width: 1366,
+    height: 860,
     minWidth: 1024,
-    minHeight: 768,
-    webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
-    },
+    minHeight: 680,
+    show: false,
+    backgroundColor: '#0f172a',
     title: 'Retail POS',
     autoHideMenuBar: true,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      spellcheck: false,
+    },
   });
 
-  const isDev = !app.isPackaged;
-  if (isDev) {
-    mainWindow.loadURL('http://localhost:3000');
-  } else {
-    mainWindow.loadFile(path.join(__dirname, 'out', 'index.html'));
-  }
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.maximize();
+    mainWindow.show();
+  });
+
+  // Links to the web (help pages, UPI apps, etc.) open in the system browser.
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//i.test(url)) shell.openExternal(url);
+    return { action: 'deny' };
+  });
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (!url.startsWith(appOrigin())) {
+      event.preventDefault();
+      if (/^https?:\/\//i.test(url)) shell.openExternal(url);
+    }
+  });
+
+  mainWindow.loadURL(isDevServer ? DEV_URL : `${appOrigin()}/`);
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
 }
 
-app.whenReady().then(createWindow);
+// ---------------------------------------------------------------------------
+// Printing & PDF (invoices, statements, reports)
+// ---------------------------------------------------------------------------
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+const MICRONS_PER_PX = 264.5833;
+
+function documentsRoot() {
+  return path.join(app.getPath('documents'), 'KamaiPlus');
+}
+
+async function loadHtmlOffscreen(html) {
+  const tmpFile = path.join(os.tmpdir(), `kamaiplus-print-${Date.now()}-${Math.random().toString(36).slice(2)}.html`);
+  fs.writeFileSync(tmpFile, html, 'utf8');
+  const win = new BrowserWindow({
+    show: false,
+    width: 900,
+    height: 1200,
+    webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, javascript: true },
+  });
+  await win.loadFile(tmpFile);
+  // Let embedded data-URL images decode before the page is captured.
+  await win.webContents.executeJavaScript(
+    'Promise.all(Array.from(document.images).map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; }))).then(() => document.fonts ? document.fonts.ready : 0).then(() => true)'
+  );
+  const cleanup = () => {
+    if (!win.isDestroyed()) win.destroy();
+    fs.unlink(tmpFile, () => {});
+  };
+  return { win, cleanup };
+}
+
+async function thermalPageSize(win, widthMm) {
+  const heightPx = await win.webContents.executeJavaScript('Math.ceil(document.documentElement.scrollHeight)');
+  const widthMicrons = widthMm * 1000;
+  const heightMicrons = Math.max(80000, Math.ceil(heightPx * MICRONS_PER_PX) + 8000);
+  return { width: widthMicrons, height: heightMicrons };
+}
+
+ipcMain.handle('kp:print-to-pdf', async (_event, opts) => {
+  const { html, fileName, folder } = opts || {};
+  if (typeof html !== 'string' || !html) return { ok: false, error: 'Nothing to save.' };
+  const safeFolder = ['Invoices', 'Reports', 'Statements'].includes(folder) ? folder : 'Invoices';
+  const safeName = String(fileName || 'document.pdf').replace(/[^A-Za-z0-9_.-]+/g, '_');
+  let job;
+  try {
+    job = await loadHtmlOffscreen(html);
+    const pdf = await job.win.webContents.printToPDF({
+      pageSize: 'A4',
+      printBackground: true,
+      preferCSSPageSize: true,
+      margins: { top: 0, bottom: 0, left: 0, right: 0 },
+    });
+    const dir = path.join(documentsRoot(), safeFolder);
+    fs.mkdirSync(dir, { recursive: true });
+    const target = path.join(dir, safeName.toLowerCase().endsWith('.pdf') ? safeName : `${safeName}.pdf`);
+    fs.writeFileSync(target, pdf);
+    return { ok: true, path: target };
+  } catch (err) {
+    return { ok: false, error: err && err.message ? err.message : 'PDF could not be created.' };
+  } finally {
+    if (job) job.cleanup();
+  }
 });
+
+ipcMain.handle('kp:print', async (_event, opts) => {
+  const { html, paper, deviceName, silent } = opts || {};
+  if (typeof html !== 'string' || !html) return { ok: false, error: 'Nothing to print.' };
+  let job;
+  try {
+    job = await loadHtmlOffscreen(html);
+    const pageSize = paper === 'thermal-80' || paper === 'thermal-58'
+      ? await thermalPageSize(job.win, paper === 'thermal-80' ? 80 : 58)
+      : 'A4';
+    const result = await new Promise((resolve) => {
+      job.win.webContents.print(
+        {
+          silent: Boolean(silent),
+          deviceName: deviceName || undefined,
+          printBackground: true,
+          margins: { marginType: 'none' },
+          pageSize,
+        },
+        (success, failureReason) => resolve({ ok: success, error: success ? undefined : failureReason })
+      );
+    });
+    return result;
+  } catch (err) {
+    return { ok: false, error: err && err.message ? err.message : 'Printing failed.' };
+  } finally {
+    if (job) job.cleanup();
+  }
+});
+
+ipcMain.handle('kp:get-printers', async () => {
+  if (!mainWindow) return [];
+  try {
+    const printers = await mainWindow.webContents.getPrintersAsync();
+    return printers.map((p) => ({ name: p.name, displayName: p.displayName || p.name, isDefault: Boolean(p.isDefault) }));
+  } catch {
+    return [];
+  }
+});
+
+function insideDocuments(target) {
+  const full = path.normalize(String(target || ''));
+  return full.startsWith(documentsRoot());
+}
+
+ipcMain.handle('kp:open-path', async (_event, target) => {
+  if (!insideDocuments(target)) return { ok: false, error: 'Path not allowed.' };
+  const error = await shell.openPath(path.normalize(target));
+  return error ? { ok: false, error } : { ok: true };
+});
+
+ipcMain.handle('kp:show-in-folder', async (_event, target) => {
+  if (!insideDocuments(target)) return { ok: false, error: 'Path not allowed.' };
+  shell.showItemInFolder(path.normalize(target));
+  return { ok: true };
+});
+
+ipcMain.handle('kp:app-info', async () => ({ version: app.getVersion(), documentsDir: documentsRoot() }));
+
+// ---------------------------------------------------------------------------
+// Lifecycle — one instance only, so two windows never fight over the local database.
+// ---------------------------------------------------------------------------
+
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+
+  app.whenReady().then(() => {
+    if (!isDevServer) registerAppProtocol();
+    createWindow();
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
+  });
+
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') app.quit();
+  });
+}

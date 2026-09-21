@@ -7,7 +7,7 @@ import QRCode from 'qrcode';
 import { generateUPILink } from '@/lib/utils';
 import { UpiAccount, BusinessType } from '@/types';
 import { compressImageFile } from '@/lib/utils/imageCompressor';
-import { uploadStoreLogoToStorage } from '@/lib/firebase/storage';
+import { resolveInvoiceConfig } from '@/lib/invoices/themeDefaults';
 import { MerchantQRModal } from '@/components/paytm/MerchantQRModal';
 import { 
   SettingsChangeBar, 
@@ -78,38 +78,74 @@ export default function SettingsPage() {
 
 
 
+  // The saved values every form field starts from (and is compared against).
+  const initial = useMemo(() => {
+    if (!business) return null;
+    const invoiceConfig = resolveInvoiceConfig(business);
+    const upis: UpiAccount[] = business.upi_ids && business.upi_ids.length > 0
+      ? business.upi_ids
+      : business.upi_id
+      ? [{ id: 'upi_def', label: 'Shop Primary QR', upi_id: business.upi_id, is_default: true }]
+      : [];
+    return {
+      name: business.name || '',
+      tagline: business.tagline || '',
+      logoUrl: business.logo_url || '',
+      ownerName: business.owner_name || '',
+      phone: business.phone || '',
+      email: business.email || '',
+      address: business.address || '',
+      pincode: business.pincode || '',
+      gstin: business.gstin || '',
+      upiList: upis,
+      bankName: business.bank_name || '',
+      bankAccountNo: business.bank_account_no || '',
+      bankIfsc: business.bank_ifsc || '',
+      bankAccountName: business.bank_account_name || '',
+      invoicePrefix: business.invoice_prefix || 'INV-',
+      nextInvoiceNumber: (business.next_invoice_number || 1).toString(),
+      gstPricingMode: (business.gst_pricing_mode || 'inclusive') as 'exclusive' | 'inclusive',
+      terms: invoiceConfig.custom_terms || '',
+      footerMessage: invoiceConfig.custom_footer || '',
+    };
+  }, [business]);
+
+  const applyInitial = useCallback(() => {
+    if (!initial) return;
+    setName(initial.name);
+    setTagline(initial.tagline);
+    setLogoUrl(initial.logoUrl);
+    setOwnerName(initial.ownerName);
+    setPhone(initial.phone);
+    setEmail(initial.email);
+    setAddress(initial.address);
+    setPincode(initial.pincode);
+    setGstin(initial.gstin);
+    setUpiList(initial.upiList);
+    setBankName(initial.bankName);
+    setBankAccountNo(initial.bankAccountNo);
+    setBankIfsc(initial.bankIfsc);
+    setBankAccountName(initial.bankAccountName);
+    setInvoicePrefix(initial.invoicePrefix);
+    setNextInvoiceNumber(initial.nextInvoiceNumber);
+    setGstPricingMode(initial.gstPricingMode);
+    setTerms(initial.terms);
+    setFooterMessage(initial.footerMessage);
+  }, [initial]);
+
   // Load business data into form
   useEffect(() => {
-    if (business) {
-      setName(business.name || '');
-      setTagline(business.tagline || '');
-      setLogoUrl(business.logo_url || '');
-      setOwnerName(business.owner_name || '');
-      setPhone(business.phone || '');
-      setEmail(business.email || '');
-      setAddress(business.address || '');
-      setPincode(business.pincode || '');
-      setGstin(business.gstin || '');
-      
-      const initialUpiList: UpiAccount[] = business.upi_ids && business.upi_ids.length > 0
-        ? business.upi_ids
-        : business.upi_id
-        ? [{ id: 'upi_def', label: 'Shop Primary QR', upi_id: business.upi_id, is_default: true }]
-        : [];
+    applyInitial();
+  }, [applyInitial]);
 
-      setUpiList(initialUpiList);
-
-      setBankName(business.bank_name || '');
-      setBankAccountNo(business.bank_account_no || '');
-      setBankIfsc(business.bank_ifsc || '');
-      setBankAccountName(business.bank_account_name || '');
-      setInvoicePrefix(business.invoice_prefix || 'INV-');
-      setNextInvoiceNumber((business.next_invoice_number || 1).toString());
-      setGstPricingMode(business.gst_pricing_mode || (business.business_type === 'restaurant' ? 'exclusive' : 'inclusive'));
-      setTerms(business.terms_conditions || 'Goods once sold will not be returned after 3 days. Thank you for shopping with us!');
-      setFooterMessage(business.footer_message || 'Thank you for your business! Please visit again.');
-    }
-  }, [business]);
+  // Deep link: /settings?tab=invoice opens the invoice & printer tab.
+  useEffect(() => {
+    try {
+      const tab = new URLSearchParams(window.location.search).get('tab');
+      if (tab === 'invoice' || tab === 'invoicing') setActiveTab('invoicing');
+      else if (tab === 'upi') setActiveTab('upi');
+    } catch {}
+  }, []);
 
   // Generate dynamic QR Code for preview
   const generateQrPreview = useCallback(async () => {
@@ -141,13 +177,15 @@ export default function SettingsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    e.target.value = '';
     try {
-      const res = await uploadStoreLogoToStorage(file, business?.id || 'biz_default');
-      if (res?.url) {
-        setLogoUrl(res.url);
-      }
+      // Stored with the store profile as a compressed data URL, so it works
+      // offline and prints on every invoice without any cloud storage.
+      const { dataUrl } = await compressImageFile(file, { maxWidth: 400, maxHeight: 400, quality: 0.85, mimeType: 'image/png' });
+      setLogoUrl(dataUrl);
     } catch (err) {
       console.error('Logo upload error:', err);
+      setSettingsError('Could not read that image. Please choose a PNG or JPG logo.');
     }
   };
 
@@ -219,8 +257,33 @@ export default function SettingsPage() {
       changes.push({ key: 'gst_pricing_mode', label: 'GST Pricing Mode', category: 'invoicing', categoryLabel: 'Invoices', oldValue: business.gst_pricing_mode || 'inclusive', newValue: gstPricingMode });
     }
 
+    if (initial) {
+      const simple: ChangedField[] = [
+        { key: 'tagline', label: 'Tagline', category: 'profile', categoryLabel: 'Store Profile', oldValue: initial.tagline, newValue: tagline.trim() },
+        { key: 'email', label: 'Email', category: 'profile', categoryLabel: 'Store Profile', oldValue: initial.email, newValue: email.trim() },
+        { key: 'pincode', label: 'Pincode', category: 'profile', categoryLabel: 'Store Profile', oldValue: initial.pincode, newValue: pincode.trim() },
+        { key: 'bank_name', label: 'Bank Name', category: 'upi', categoryLabel: 'UPI & Banking', oldValue: initial.bankName, newValue: bankName.trim() },
+        { key: 'bank_account_no', label: 'Bank Account No', category: 'upi', categoryLabel: 'UPI & Banking', oldValue: initial.bankAccountNo, newValue: bankAccountNo.trim() },
+        { key: 'bank_ifsc', label: 'Bank IFSC', category: 'upi', categoryLabel: 'UPI & Banking', oldValue: initial.bankIfsc, newValue: bankIfsc.trim().toUpperCase() },
+        { key: 'bank_account_name', label: 'Account Holder Name', category: 'upi', categoryLabel: 'UPI & Banking', oldValue: initial.bankAccountName, newValue: bankAccountName.trim() },
+        { key: 'next_invoice_number', label: 'Next Invoice Number', category: 'invoicing', categoryLabel: 'Invoices', oldValue: initial.nextInvoiceNumber, newValue: String(parseInt(nextInvoiceNumber, 10) || 1) },
+        { key: 'terms_conditions', label: 'Bill Terms & Conditions', category: 'invoicing', categoryLabel: 'Invoices', oldValue: initial.terms, newValue: terms.trim() },
+        { key: 'footer_message', label: 'Bill Footer Note', category: 'invoicing', categoryLabel: 'Invoices', oldValue: initial.footerMessage, newValue: footerMessage.trim() },
+      ];
+      simple.forEach((f) => {
+        if (String(f.oldValue).trim() !== f.newValue) changes.push(f);
+      });
+      if (logoUrl !== initial.logoUrl) {
+        changes.push({ key: 'logo_url', label: 'Store Logo', category: 'profile', categoryLabel: 'Store Profile', oldValue: initial.logoUrl ? 'Logo set' : 'No logo', newValue: logoUrl ? 'New logo' : 'Logo removed' });
+      }
+      const upiKey = (list: UpiAccount[]) => JSON.stringify(list.map((u) => [u.upi_id, u.label, Boolean(u.is_default)]));
+      if (upiKey(upiList) !== upiKey(initial.upiList)) {
+        changes.push({ key: 'upi_ids', label: 'UPI IDs', category: 'upi', categoryLabel: 'UPI & Banking', oldValue: `${initial.upiList.length} UPI ID(s)`, newValue: `${upiList.length} UPI ID(s)` });
+      }
+    }
+
     return changes;
-  }, [business, name, ownerName, phone, address, gstin, invoicePrefix, gstPricingMode]);
+  }, [business, initial, name, ownerName, phone, address, gstin, invoicePrefix, gstPricingMode, tagline, email, pincode, bankName, bankAccountNo, bankIfsc, bankAccountName, nextInvoiceNumber, terms, footerMessage, logoUrl, upiList]);
 
   const changedCategories = useMemo(() => Array.from(new Set(changedFields.map((c) => c.category))), [changedFields]);
 
@@ -319,6 +382,12 @@ export default function SettingsPage() {
         gst_pricing_mode: gstPricingMode,
         terms_conditions: terms.trim() || undefined,
         footer_message: footerMessage.trim() || undefined,
+        // Invoice Themes reads terms / footer from its own config first, so both are kept in step.
+        invoice_theme_config: {
+          ...resolveInvoiceConfig(business),
+          custom_terms: terms.trim(),
+          custom_footer: footerMessage.trim(),
+        },
         updated_at: new Date().toISOString(),
       });
 
@@ -352,18 +421,7 @@ export default function SettingsPage() {
   };
 
   const handleDiscardAll = () => {
-    if (!business) return;
-    setName(business.name || '');
-    setTagline(business.tagline || '');
-    setLogoUrl(business.logo_url || '');
-    setOwnerName(business.owner_name || '');
-    setPhone(business.phone || '');
-    setEmail(business.email || '');
-    setAddress(business.address || '');
-    setPincode(business.pincode || '');
-    setGstin(business.gstin || '');
-    setInvoicePrefix(business.invoice_prefix || 'INV-');
-    setGstPricingMode(business.gst_pricing_mode || 'inclusive');
+    applyInitial();
   };
 
   return (

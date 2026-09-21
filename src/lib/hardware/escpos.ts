@@ -55,14 +55,36 @@ export class EscPosEncoder {
   }
 
   public text(str: string): this {
-    // Replace Indian Rupee Symbol ₹ with Rs.
-    const normalized = (str || '').replace(/₹/g, 'Rs.');
-    // Encode with TextEncoder for full UTF-8 / Unicode support (Devanagari, Marathi, Hindi, English)
-    const bytes = new TextEncoder().encode(normalized);
-    for (let i = 0; i < bytes.length; i++) {
-      this.buffer.push(bytes[i]);
+    const safe = EscPosEncoder.toPrinterText(str);
+    for (let i = 0; i < safe.length; i++) {
+      this.buffer.push(safe.charCodeAt(i));
     }
     return this;
+  }
+
+  /**
+   * Thermal printers run a single-byte code page, not UTF-8: multi-byte text
+   * (the rupee sign, bullets, Hindi) arrives as stray bytes that print garbage
+   * or even act as control codes mid-receipt. Typographic characters get ASCII
+   * stand-ins and anything else outside printable ASCII becomes "?".
+   */
+  public static toPrinterText(str: string): string {
+    const mapped = (str || '')
+      .replace(/₹/g, 'Rs.')
+      .replace(/[‘’‚′]/g, "'")
+      .replace(/[“”„″]/g, '"')
+      .replace(/[‐-―−]/g, '-')
+      .replace(/[•·●]/g, '-')
+      .replace(/…/g, '...')
+      .replace(/×/g, 'x')
+      .replace(/[✓✔]/g, 'v')
+      .replace(/\t/g, ' ');
+    let out = '';
+    for (const ch of mapped) {
+      const code = ch.codePointAt(0) || 0;
+      out += code === 0x0a || (code >= 0x20 && code <= 0x7e) ? ch : '?';
+    }
+    return out.replace(/\?{2,}/g, '?');
   }
 
   public textLine(str: string = ''): this {

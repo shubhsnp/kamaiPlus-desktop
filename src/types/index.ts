@@ -240,6 +240,9 @@ export interface CartItem {
   total_amount: number; // in paise
   is_tax_inclusive?: boolean;
   notes?: string;
+  cost_price?: number; // in paise per unit — buying rate frozen at sale time (0/undefined = unknown)
+  bill_discount_amount?: number; // in paise — this line's share of a bill-level discount (already inside discount_amount)
+  returned_quantity?: number; // quantity taken back through Sales Return
 }
 
 export type PaymentMethod = 'cash' | 'upi' | 'card' | 'bank_transfer' | 'credit' | 'split';
@@ -294,7 +297,7 @@ export interface Sale {
 export interface CashExpense {
   id: string;
   business_id: string;
-  category: 'tea_snacks' | 'shop_maintenance' | 'staff_salary' | 'transport' | 'supplier_payout' | 'electricity' | 'other';
+  category: 'tea_snacks' | 'shop_maintenance' | 'staff_salary' | 'transport' | 'supplier_payout' | 'electricity' | 'refund' | 'other';
   title: string;
   amount: number; // in paise
   paid_to?: string;

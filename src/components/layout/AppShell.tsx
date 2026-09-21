@@ -6,7 +6,7 @@ import { ensureStarterBusinessIfEmpty, db as localDb } from '@/lib/db';
 import { AuthUser, getStoredUser, setStoredUser } from '@/lib/auth';
 import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
-import { BottomNav } from './BottomNav';
+import { DesktopStatusBar } from './DesktopStatusBar';
 import { DailyDigestAutoWatcher } from '@/components/common/DailyDigestAutoWatcher';
 import { subscriptionService } from '@/lib/subscription/subscriptionService';
 import { APP_VERSION } from '@/lib/constants/version';
@@ -196,7 +196,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col text-slate-900">
+    <div className="h-screen w-screen overflow-hidden bg-slate-50 flex flex-col text-slate-900">
       {/* Account Freeze / Delete Lockout Modal */}
       {accountLockout && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md animate-in fade-in">
@@ -264,13 +264,13 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
       <DailyDigestAutoWatcher />
       <Navbar />
-      <div className="flex-1 flex w-full max-w-7xl mx-auto">
+      <div className="flex-1 flex w-full overflow-hidden min-h-0">
         <Sidebar />
-        <main className="flex-1 p-4 sm:p-6 pb-24 md:pb-6 overflow-y-auto max-w-full">
+        <main className="flex-1 p-3 sm:p-5 overflow-y-auto w-full min-h-0 bg-slate-50/40">
           {children}
         </main>
       </div>
-      <BottomNav />
+      <DesktopStatusBar />
     </div>
   );
 };

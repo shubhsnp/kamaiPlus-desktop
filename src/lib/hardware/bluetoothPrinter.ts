@@ -2,7 +2,10 @@
 
 import { EscPosEncoder, ThermalPaperWidth } from './escpos';
 import { Sale, Business } from '@/types';
-import { formatINR } from '@/lib/utils';
+import { generateUPILink } from '@/lib/utils';
+import { resolveInvoiceConfig } from '@/lib/invoices/themeDefaults';
+import { buildInvoiceDocument, getPrimaryUpiVpa } from '@/lib/invoices/invoiceDocument';
+import { getLineGrossPaise, getSalePaymentBreakdown } from '@/lib/sales/saleMath';
 
 // Standard Bluetooth Serial Port Profile (SPP) and Printer UUIDs
 const BLUETOOTH_PRINTER_SERVICES = [
@@ -275,126 +278,92 @@ class BluetoothPrinterService {
   ): Promise<void> {
     const width = customWidth || this.getSavedPaperWidth();
     const enc = new EscPosEncoder(width);
+    const config = resolveInvoiceConfig(business);
+    const upiVpa = getPrimaryUpiVpa(business);
+    const doc = buildInvoiceDocument(sale, business, { config, upiVpa });
+    const rs = (paise: number) => `Rs. ${(paise / 100).toFixed(2)}`;
 
-    // 1. Kick Cash Drawer at start if enabled and cash involved
-    const isCashTx = sale.payment_method === 'cash' || sale.payment_method === 'split';
-    if (isCashTx && this.isCashDrawerEnabled()) {
+    // 1. Kick cash drawer when cash changed hands
+    const pay = getSalePaymentBreakdown(sale);
+    if (pay.cash > 0 && this.isCashDrawerEnabled()) {
       enc.openCashDrawer();
     }
 
-    // 2. Header (Centered, Double Height Store Name)
+    // 2. Header — honours Invoice Themes (tagline / owner phone toggles, heading)
     enc.alignCenter();
     enc.doubleHeight(true).bold(true).textLine(business.name).bold(false).doubleHeight(false);
-    if (business.tagline) enc.textLine(business.tagline);
+    if (config.show_tagline && business.tagline) enc.textLine(business.tagline);
     if (business.address) enc.textLine(business.address);
-    if (business.phone) enc.textLine(`Phone: ${business.phone}`);
+    if (config.show_owner && business.phone) enc.textLine(`Ph: ${business.phone}`);
     if (business.gstin) enc.textLine(`GSTIN: ${business.gstin}`);
-    if (business.drug_license_no) enc.textLine(`D.L. No: ${business.drug_license_no}`);
-    if (business.fssai_license_no) enc.textLine(`FSSAI Lic: ${business.fssai_license_no}`);
+    if (doc.store.licenseLine) enc.textLine(doc.store.licenseLine);
+    enc.bold(true).textLine(doc.heading).bold(false);
     enc.hr();
 
-    // 3. Invoice Meta
+    // 3. Invoice meta
     enc.alignLeft();
-    enc.bold(true).row(`INV: #${sale.invoice_number}`, sale.payment_status.toUpperCase()).bold(false);
-    const dateStr = new Date(sale.created_at).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' });
-    enc.row(`Date: ${dateStr}`, `Mode: ${sale.payment_method.toUpperCase()}`);
-    if (sale.customer_name) {
-      enc.textLine(`Customer: ${sale.customer_name} ${sale.customer_phone ? `(${sale.customer_phone})` : ''}`);
+    enc.bold(true).textLine(`Invoice: ${sale.invoice_number}`).bold(false);
+    enc.textLine(`Date: ${doc.dateText}`);
+    if (sale.customer_name && sale.customer_name !== 'Cash Customer') {
+      enc.textLine(`Customer: ${sale.customer_name}${sale.customer_phone ? ` (${sale.customer_phone})` : ''}`);
     }
-    if ((sale as any).doctor_name) {
-      enc.textLine(`Doctor: Dr. ${(sale as any).doctor_name}`);
-    }
-    if (business?.business_type === 'restaurant') {
-      if ((sale as any).table_no) {
-        enc.textLine(`Table: #${(sale as any).table_no} | ${((sale as any).order_type || 'Dine-In').toUpperCase()}`);
-      }
-      if ((sale as any).token_number || (sale as any).kot_token_no) {
-        enc.textLine(`Token No: #${(sale as any).token_number || (sale as any).kot_token_no}`);
-      }
-    }
+    if (doc.billedTo.details) enc.textLine(doc.billedTo.details);
+    if (doc.isB2B) enc.textLine(doc.billedTo.gstinLine);
+    enc.textLine(`Payment: ${doc.payment.label.replace('● ', '')}`);
     enc.hr();
 
-    // 4. Table Header
+    // 4. Items
     enc.bold(true);
     if (width === 80) {
-      enc.itemRow('ITEM', 'QTY x PRICE', 'TOTAL');
+      enc.itemRow('ITEM', 'QTY x RATE', 'TOTAL');
     } else {
       enc.row('ITEM / QTY x RATE', 'TOTAL (Rs)');
     }
     enc.bold(false);
     enc.hr('-');
-
-    // 5. Line Items
-    sale.items.forEach((item) => {
-      const priceStr = `${item.quantity} ${item.unit} x ${(item.unit_price / 100).toFixed(2)}`;
-      const totalStr = (item.total_amount / 100).toFixed(2);
-      enc.itemRow(item.product_name, priceStr, totalStr);
-
-      // Print category specific line attributes if present
-      const metaTokens: string[] = [];
-
-      if (item.size) metaTokens.push(`Size:${item.size}`);
-      if (item.color) metaTokens.push(`${item.color}`);
-      if (item.imei_serial) metaTokens.push(`SN:${item.imei_serial}`);
-
-      if (metaTokens.length > 0) {
-        enc.textLine(`  [${metaTokens.join(' ')}]`);
-      }
+    sale.items.forEach((item, idx) => {
+      const row = doc.rows[idx];
+      const priceStr = `${row ? row.qty : item.quantity} x ${(item.unit_price / 100).toFixed(2)}`;
+      enc.itemRow(item.product_name, priceStr, (getLineGrossPaise(item) / 100).toFixed(2));
+      const meta = [item.size ? `Size:${item.size}` : '', item.color || '', item.imei_serial ? `SN:${item.imei_serial}` : '']
+        .filter(Boolean)
+        .join(' ');
+      if (meta) enc.textLine(`  [${meta}]`);
+      if ((item.discount_amount || 0) > 0) enc.textLine(`  Disc -${(item.discount_amount / 100).toFixed(2)}`);
     });
     enc.hr('-');
 
-    // 6. Calculations Summary
-    enc.alignRight();
-    enc.row('Subtotal:', (sale.subtotal / 100).toFixed(2));
-    if (sale.discount_total > 0) {
-      enc.row('Discount:', `-${(sale.discount_total / 100).toFixed(2)}`);
-    }
-    if (sale.tax_total > 0) {
-      enc.row('GST Tax:', (sale.tax_total / 100).toFixed(2));
-    }
+    // 5. Totals
+    doc.totals.forEach((t) => enc.row(t.label, t.value));
     enc.doubleHr();
-
-    // Grand Total (Bold Double Height)
     enc.bold(true).doubleHeight(true);
-    enc.row('GRAND TOTAL:', `Rs. ${(sale.grand_total / 100).toFixed(2)}`);
+    enc.row('TOTAL:', rs(sale.grand_total));
     enc.doubleHeight(false).bold(false);
     enc.doubleHr();
+    doc.afterTotals.forEach((t) => enc.row(t.label, t.value));
+    if (doc.payment.splitText) enc.textLine(doc.payment.splitText);
+    if (doc.savingsText) enc.alignCenter().bold(true).textLine(doc.savingsText).bold(false).alignLeft();
 
-    // Payment & Balance Due
-    enc.row('Paid Amount:', `Rs. ${(sale.amount_received / 100).toFixed(2)}`);
-    if (sale.balance_due > 0) {
-      enc.bold(true).row('UDHAR / BALANCE DUE:', `Rs. ${(sale.balance_due / 100).toFixed(2)}`).bold(false);
-    }
-
-    // 7. Dynamic UPI QR Code (Scannable with GPay / PhonePe / Paytm)
-    const upiTarget = business.upi_id || (business.upi_ids && business.upi_ids[0]?.upi_id) || (business.phone ? `${business.phone.replace(/\D/g, '')}@upi` : '');
-    if (upiTarget && this.isUpiQrEnabled() && sale.grand_total > 0) {
+    // 6. Dynamic UPI QR — only for the shop's own saved UPI ID, never a guessed one
+    if (doc.upi.show && this.isUpiQrEnabled() && sale.grand_total > 0) {
+      const payable = sale.balance_due > 0 ? sale.balance_due : sale.grand_total;
       enc.feed(1);
       enc.alignCenter();
       enc.bold(true).textLine('* Scan & Pay with any UPI App *').bold(false);
-      
-      const payableAmount = (sale.grand_total / 100).toFixed(2);
-      const cleanStoreName = (business.name || 'Store').trim();
-      const upiIntentUri = `upi://pay?pa=${encodeURIComponent(upiTarget)}&pn=${encodeURIComponent(cleanStoreName)}&am=${payableAmount}&cu=INR&tn=${encodeURIComponent(`Invoice ${sale.invoice_number}`)}`;
-
-      // Native ESC/POS 2D QR Code Generation
-      enc.qrcode(upiIntentUri, width === 80 ? 6 : 5);
-      enc.textLine(`UPI ID: ${upiTarget}`);
-      enc.textLine(`Amount: Rs. ${payableAmount}`);
+      enc.qrcode(generateUPILink(doc.upi.vpa, business.name, payable, sale.invoice_number), width === 80 ? 6 : 5);
+      enc.textLine(`UPI ID: ${doc.upi.vpa}`);
+      enc.textLine(`Amount: ${rs(payable)}`);
     }
 
-    // 8. Footer Thank You & Terms
+    // 7. Terms & footer
     enc.feed(1);
     enc.alignCenter();
-    if (business.terms_conditions) {
-      enc.textLine(business.terms_conditions);
-    }
-    enc.bold(true).textLine(business.footer_message || 'Thank you for shopping with us!').bold(false);
+    doc.terms.forEach((t) => enc.textLine(t));
+    enc.bold(true).textLine(doc.footerNote || 'Thank you for your visit!').bold(false);
+    enc.textLine('KamaiPlus Smart POS');
 
-    // 9. Auto Paper Cut
+    // 8. Auto paper cut
     enc.cut();
-
-    // Send bytecode to Bluetooth printer
     await this.sendRawBytes(enc.getBytes());
   }
 }

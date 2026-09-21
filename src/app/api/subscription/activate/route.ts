@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServerClient, isSupabaseServerConfigured } from '@/lib/supabase/server';
 import { verifySessionToken, SESSION_COOKIE_NAME } from '@/lib/auth/session';
-import { verifyAdminRequest } from '@/lib/admin/adminAuth';
-
+ 
 export const dynamic = 'force-dynamic';
-
+ 
 export async function POST(req: NextRequest) {
   try {
     let businessId: string | undefined;
-    const isAdmin = verifyAdminRequest(req);
+    const isAdmin = false;
 
     // Verify session token from cookie
     const sessionCookie = req.cookies.get(SESSION_COOKIE_NAME)?.value;
