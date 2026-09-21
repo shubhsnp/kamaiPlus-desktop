@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Download, X, Laptop, Smartphone, Check, Share } from 'lucide-react';
 import { usePWAInstall } from '@/lib/pwa/usePWAInstall';
+import { isDesktopApp } from '@/lib/desktop/desktopBridge';
 
 export const PWAInstallBanner: React.FC = () => {
   const { isInstalled, isIOS, showIOSModal, setShowIOSModal, triggerInstall } = usePWAInstall();
@@ -25,7 +26,8 @@ export const PWAInstallBanner: React.FC = () => {
     }
   };
 
-  if (isInstalled || isDismissed) {
+  // The desktop app is already installed software — no "Install app" prompt.
+  if (isInstalled || isDismissed || isDesktopApp()) {
     return null;
   }
 

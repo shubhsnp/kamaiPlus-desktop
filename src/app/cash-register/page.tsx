@@ -9,9 +9,9 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { DayEndClosingReportModal } from '@/components/reports/DayEndClosingReportModal';
-import { useProSubscription } from '@/components/subscription/ProFeatureGate';
-import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 import { Unlock } from 'lucide-react';
+import { getLocalDayRange } from '@/lib/sales/saleMath';
+import { computeDrawerSummary, localDateKey } from '@/lib/reports/cashDrawer';
 
 // Modular Sub-components
 import { CashRegisterHeaderActions } from '@/components/cash-register/CashRegisterHeaderActions';
@@ -21,7 +21,6 @@ import { AddExpenseModal } from '@/components/cash-register/AddExpenseModal';
 import { DenominationCalculatorModal } from '@/components/cash-register/DenominationCalculatorModal';
 
 export default function CashRegisterPage() {
-  const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
 
   // Active Open Shift Query
@@ -29,21 +28,23 @@ export default function CashRegisterPage() {
     return await db.cash_registers.where('status').equals('open').first();
   });
 
-  // All sales for today
-  const todayDatePrefix = new Date().toISOString().split('T')[0];
+  // Today = the shop's local calendar day (the UTC date used before started the day at 5:30 AM IST).
+  const todayDatePrefix = localDateKey(new Date());
+  const { start: todayStart, end: todayEnd } = getLocalDayRange();
   const todaySales = useLiveQuery(async () => {
-    const todayStart = `${todayDatePrefix}T00:00:00.000Z`;
-    const todayEnd = `${todayDatePrefix}T23:59:59.999Z`;
-    const sales = await db.sales.where('created_at').between(todayStart, todayEnd, true, true).toArray();
+    const sales = await db.sales.where('created_at').between(todayStart, todayEnd, true, false).toArray();
     return sales.filter((s) => s.status !== 'cancelled');
-  }, [todayDatePrefix]) || [];
+  }, [todayStart, todayEnd]) || [];
 
-  // All expenses for today
+  // All expenses for today (refunds included)
   const todayExpenses = useLiveQuery(async () => {
-    const todayStart = `${todayDatePrefix}T00:00:00.000Z`;
-    const todayEnd = `${todayDatePrefix}T23:59:59.999Z`;
-    return await db.cash_expenses.where('created_at').between(todayStart, todayEnd, true, true).toArray();
-  }, [todayDatePrefix]) || [];
+    return await db.cash_expenses.where('created_at').between(todayStart, todayEnd, true, false).toArray();
+  }, [todayStart, todayEnd]) || [];
+
+  // Khata payments received today (cash ones are drawer money)
+  const todayLedger = useLiveQuery(async () => {
+    return await db.ledger_transactions.where('created_at').between(todayStart, todayEnd, true, false).toArray();
+  }, [todayStart, todayEnd]) || [];
 
   // State
   const [openingCashInput, setOpeningCashInput] = useState<string>('2000');
@@ -60,15 +61,15 @@ export default function CashRegisterPage() {
 
   // Calculations
   const openingBalancePaise = activeShift?.opening_cash || 0;
-  const cashSalesPaise = useMemo(() => {
-    return todaySales.reduce((acc, s) => acc + (s.payment_method === 'cash' ? s.amount_received || s.grand_total : 0), 0);
-  }, [todaySales]);
-
-  const cashExpensesPaise = useMemo(() => {
-    return todayExpenses.reduce((acc, e) => acc + e.amount, 0);
-  }, [todayExpenses]);
-
-  const expectedDrawerCashPaise = openingBalancePaise + cashSalesPaise - cashExpensesPaise;
+  // Cash kept from sales (change excluded, split cash included, estimates excluded)
+  // plus khata cash collected, minus cash expenses and cash refunds.
+  const drawer = useMemo(
+    () => computeDrawerSummary({ sales: todaySales, expenses: todayExpenses, ledger: todayLedger, openingCash: openingBalancePaise }),
+    [todaySales, todayExpenses, todayLedger, openingBalancePaise]
+  );
+  const cashSalesPaise = drawer.cashSales + drawer.khataCashCollected;
+  const cashExpensesPaise = drawer.cashExpenses;
+  const expectedDrawerCashPaise = drawer.expectedCash;
 
   // Handlers
   const handleOpenShift = async (e: React.FormEvent) => {
@@ -135,7 +136,10 @@ export default function CashRegisterPage() {
         actual_closing_cash: physicalCashPaise,
         expected_closing_cash: expectedDrawerCashPaise,
         difference: discrepancyPaise,
-        cash_sales: cashSalesPaise,
+        cash_sales: drawer.cashSales,
+        upi_sales: drawer.upiSales + drawer.cardSales,
+        credit_sales: drawer.creditSales,
+        cash_in: drawer.khataCashCollected,
         cash_out: cashExpensesPaise,
         closed_at: now,
         closed_by: 'owner',
@@ -237,15 +241,10 @@ export default function CashRegisterPage() {
         business={business}
         sales={todaySales}
         expenses={todayExpenses}
+        ledger={todayLedger}
         selectedDate={todayDatePrefix}
       />
 
-      {/* Pro Upgrade Modal */}
-      <UpgradeModal
-        isOpen={isUpgradeModalOpen}
-        onClose={() => setIsUpgradeModalOpen(false)}
-        businessName={business?.name || 'Your Store'}
-      />
     </div>
   );
 }

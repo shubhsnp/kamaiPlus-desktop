@@ -17,13 +17,29 @@ const SCHEME = 'app';
 const HOST = 'kamaiplus';
 const OUT_DIR = path.join(__dirname, 'out');
 const DEV_URL = 'http://localhost:3000';
-const isDevServer = process.argv.includes('--dev');
+const hasExport = fs.existsSync(path.join(OUT_DIR, 'index.html'));
+const isDevServer = process.argv.includes('--dev') || !hasExport;
 
 protocol.registerSchemesAsPrivileged([
   { scheme: SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } },
 ]);
 
 let mainWindow = null;
+
+const MIME_TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+};
 
 function resolveExportFile(urlPath) {
   const rel = decodeURIComponent(urlPath).replace(/^\/+/, '').replace(/\/+$/, '');
@@ -40,9 +56,19 @@ function resolveExportFile(urlPath) {
 }
 
 function registerAppProtocol() {
-  protocol.handle(SCHEME, (request) => {
-    const { pathname } = new URL(request.url);
-    return net.fetch(pathToFileURL(resolveExportFile(pathname)).toString());
+  protocol.handle(SCHEME, async (request) => {
+    try {
+      const { pathname } = new URL(request.url);
+      const filePath = resolveExportFile(pathname);
+      const ext = path.extname(filePath).toLowerCase();
+      const mime = MIME_TYPES[ext] || 'application/octet-stream';
+      const data = await fs.promises.readFile(filePath);
+      return new Response(data, {
+        headers: { 'content-type': mime },
+      });
+    } catch {
+      return new Response('Not Found', { status: 404 });
+    }
   });
 }
 
@@ -72,6 +98,14 @@ function createWindow() {
   mainWindow.once('ready-to-show', () => {
     mainWindow.maximize();
     mainWindow.show();
+    // Warm up the hidden print window so the first "Print" / "Save PDF" is instant.
+    setTimeout(() => {
+      enqueuePrintJob(async () => {
+        const win = getPrintWindow();
+        await win.loadURL('about:blank');
+        await win.webContents.printToPDF({}); // initialises the PDF engine; output discarded
+      }).catch(() => {});
+    }, 1500);
   });
 
   // Links to the web (help pages, UPI apps, etc.) open in the system browser.
@@ -89,6 +123,9 @@ function createWindow() {
   mainWindow.loadURL(isDevServer ? DEV_URL : `${appOrigin()}/`);
   mainWindow.on('closed', () => {
     mainWindow = null;
+    // The hidden print window must not keep the app alive after the shop closes it.
+    if (printWindow && !printWindow.isDestroyed()) printWindow.destroy();
+    printWindow = null;
   });
 }
 
@@ -102,22 +139,39 @@ function documentsRoot() {
   return path.join(app.getPath('documents'), 'KamaiPlus');
 }
 
+// One hidden window, reused for every print / PDF job. Creating a fresh renderer
+// per job cost ~5 s on the first bill of the day; jobs run one at a time.
+let printWindow = null;
+let printQueue = Promise.resolve();
+
+function getPrintWindow() {
+  if (!printWindow || printWindow.isDestroyed()) {
+    printWindow = new BrowserWindow({
+      show: false,
+      width: 900,
+      height: 1200,
+      webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, backgroundThrottling: false },
+    });
+  }
+  return printWindow;
+}
+
+function enqueuePrintJob(job) {
+  const run = printQueue.then(job, job);
+  printQueue = run.catch(() => {});
+  return run;
+}
+
 async function loadHtmlOffscreen(html) {
   const tmpFile = path.join(os.tmpdir(), `kamaiplus-print-${Date.now()}-${Math.random().toString(36).slice(2)}.html`);
   fs.writeFileSync(tmpFile, html, 'utf8');
-  const win = new BrowserWindow({
-    show: false,
-    width: 900,
-    height: 1200,
-    webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, javascript: true },
-  });
+  const win = getPrintWindow();
   await win.loadFile(tmpFile);
   // Let embedded data-URL images decode before the page is captured.
   await win.webContents.executeJavaScript(
     'Promise.all(Array.from(document.images).map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; }))).then(() => document.fonts ? document.fonts.ready : 0).then(() => true)'
   );
   const cleanup = () => {
-    if (!win.isDestroyed()) win.destroy();
     fs.unlink(tmpFile, () => {});
   };
   return { win, cleanup };
@@ -130,7 +184,9 @@ async function thermalPageSize(win, widthMm) {
   return { width: widthMicrons, height: heightMicrons };
 }
 
-ipcMain.handle('kp:print-to-pdf', async (_event, opts) => {
+ipcMain.handle('kp:print-to-pdf', (_event, opts) => enqueuePrintJob(() => printToPdfJob(opts)));
+
+async function printToPdfJob(opts) {
   const { html, fileName, folder } = opts || {};
   if (typeof html !== 'string' || !html) return { ok: false, error: 'Nothing to save.' };
   const safeFolder = ['Invoices', 'Reports', 'Statements'].includes(folder) ? folder : 'Invoices';
@@ -154,9 +210,11 @@ ipcMain.handle('kp:print-to-pdf', async (_event, opts) => {
   } finally {
     if (job) job.cleanup();
   }
-});
+}
 
-ipcMain.handle('kp:print', async (_event, opts) => {
+ipcMain.handle('kp:print', (_event, opts) => enqueuePrintJob(() => printJob(opts)));
+
+async function printJob(opts) {
   const { html, paper, deviceName, silent } = opts || {};
   if (typeof html !== 'string' || !html) return { ok: false, error: 'Nothing to print.' };
   let job;
@@ -183,7 +241,7 @@ ipcMain.handle('kp:print', async (_event, opts) => {
   } finally {
     if (job) job.cleanup();
   }
-});
+}
 
 ipcMain.handle('kp:get-printers', async () => {
   if (!mainWindow) return [];

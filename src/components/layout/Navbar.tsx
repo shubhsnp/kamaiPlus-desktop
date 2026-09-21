@@ -23,7 +23,6 @@ import {
 } from 'lucide-react';
 import { MerchantQRModal } from '@/components/paytm/MerchantQRModal';
 
-import { subscriptionService } from '@/lib/subscription/subscriptionService';
 import { AuthUser, getStoredUser, setStoredUser, logoutUser } from '@/lib/auth';
 
 
@@ -33,7 +32,6 @@ export const Navbar: React.FC = () => {
   const [isOnline, setIsOnline] = useState<boolean>(true);
   const [showStoreMenu, setShowStoreMenu] = useState<boolean>(false);
   const [isQrModalOpen, setIsQrModalOpen] = useState<boolean>(false);
-  const [subscriptionTier, setSubscriptionTier] = useState<string>('free');
 
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
 
@@ -47,7 +45,6 @@ export const Navbar: React.FC = () => {
     setCurrentUser(getStoredUser());
 
     setIsOnline(navigator.onLine);
-    setSubscriptionTier(subscriptionService.getSubscription().tier);
 
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -56,9 +53,6 @@ export const Navbar: React.FC = () => {
       setCurrentUser(getStoredUser());
     };
 
-    const handleSubChange = () => {
-      setSubscriptionTier(subscriptionService.getSubscription().tier);
-    };
 
     // Close menu when clicking outside
     const handleClickOutside = (e: MouseEvent) => {
@@ -70,14 +64,12 @@ export const Navbar: React.FC = () => {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     window.addEventListener('auth_changed', handleAuthChange);
-    window.addEventListener('subscription_changed', handleSubChange);
     document.addEventListener('mousedown', handleClickOutside);
 
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('auth_changed', handleAuthChange);
-      window.removeEventListener('subscription_changed', handleSubChange);
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
@@ -187,12 +179,10 @@ export const Navbar: React.FC = () => {
                   </span>
                 </div>
                 <div className="text-[11px] text-slate-500 mt-0.5">
-                  {displayOwnerName} • {currentUser?.phone || business?.phone || '9876543210'}
+                  {displayOwnerName}
+                  {(currentUser?.phone || business?.phone) ? ` • ${currentUser?.phone || business?.phone}` : ''}
                 </div>
                 <div className="flex items-center gap-2 mt-1.5">
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-slate-200 text-slate-700`}>
-                    FREE TIER
-                  </span>
                   {business?.gstin && (
                     <span className="text-[10px] font-mono text-slate-500">
                       GST: {business.gstin}

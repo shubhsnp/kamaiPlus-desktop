@@ -1,5 +1,8 @@
 // Comprehensive GSTR-1 & HSN Tax Engine for Indian GST Portal Compliance
 import { Sale, Business, Customer } from '@/types';
+import { isEstimate, isRevenueSale, getLineTaxablePaise, getReturnedQtyByLine, getSaleNetTotal } from '@/lib/sales/saleMath';
+import { stateCodeFromGstin, stateNameFromCode } from '@/lib/gst/stateCodes';
+import { localDateKey } from '@/lib/reports/cashDrawer';
 
 export interface HSNRecord {
   hsn_code: string;
@@ -86,9 +89,12 @@ export function generateGSTR1Report(
   const customerMap = new Map<string, Customer>();
   customers.forEach((c) => customerMap.set(c.id, c));
 
-  const validSales = sales.filter((s) => s.status !== 'cancelled');
-  const businessGstin = business.gstin || '27AAAAA0000A1Z5';
-  const businessStateCode = businessGstin.slice(0, 2) || '27';
+  // Outward supplies only: estimates are not supplies and fully returned bills are
+  // excluded (Android parity); partially returned bills count what the customer kept.
+  const validSales = sales.filter(isRevenueSale);
+  // Never a made-up GSTIN: a report for a store without one shows it as missing.
+  const businessGstin = (business.gstin || '').trim().toUpperCase();
+  const businessStateCode = stateCodeFromGstin(businessGstin);
 
   // 1. Process HSN Summary (Table 12)
   const hsnMap = new Map<string, HSNRecord>();
@@ -104,25 +110,26 @@ export function generateGSTR1Report(
 
   validSales.forEach((sale) => {
     const cust = sale.customer_id ? customerMap.get(sale.customer_id) : null;
-    const hasGstin = Boolean(cust?.gstin && cust.gstin.trim().length >= 15);
-    const customerGstin = hasGstin ? cust!.gstin!.trim().toUpperCase() : '';
-    const custStateCode = hasGstin ? customerGstin.slice(0, 2) : businessStateCode;
-    const isInterState = custStateCode !== businessStateCode;
-    const pos = `${custStateCode}-${getStateName(custStateCode)}`;
+    const buyerGstin = (sale.customer_gstin || cust?.gstin || '').trim().toUpperCase();
+    const hasGstin = buyerGstin.length >= 15;
+    const customerGstin = hasGstin ? buyerGstin : '';
+    const custStateCode = (hasGstin ? stateCodeFromGstin(customerGstin) : '') || businessStateCode;
+    const isInterState = Boolean(custStateCode && businessStateCode && custStateCode !== businessStateCode);
+    const pos = custStateCode ? `${custStateCode}-${getStateName(custStateCode)}` : '';
+    const returnedByLine = getReturnedQtyByLine(sale);
 
-    sale.items.forEach((item) => {
-      const hsn = item.hsn_code || '1905'; // Default FMCG HSN if not specified
-      const rate = item.tax_rate ?? 5;
-      const totalAmount = item.total_amount;
-      
-      // Calculate taxable base & tax splits
-      let taxable = totalAmount;
-      let tax = 0;
-      if (rate > 0) {
-        // Price is tax-inclusive by default in Kirana POS
-        taxable = Math.round((totalAmount * 100) / (100 + rate));
-        tax = totalAmount - taxable;
-      } else {
+    sale.items.forEach((item, lineIdx) => {
+      const hsn = (item.hsn_code || '').trim(); // left blank rather than guessed — fix it on the product
+      const rate = item.tax_rate || 0;
+      // Share of the line the customer kept (partial returns).
+      const kept = item.quantity > 0 ? Math.max(0, item.quantity - (returnedByLine[lineIdx] || 0)) / item.quantity : 1;
+      if (kept <= 0) return;
+
+      // Taxable value and GST exactly as billed (inclusive or exclusive pricing, discounts applied).
+      const taxable = Math.round(getLineTaxablePaise(item) * kept);
+      const tax = Math.round((item.tax_amount || 0) * kept);
+      const totalAmount = taxable + tax;
+      if (rate <= 0) {
         nilRatedPaise += totalAmount;
       }
 
@@ -139,7 +146,7 @@ export function generateGSTR1Report(
       const hsnKey = `${hsn}_${rate}`;
       if (hsnMap.has(hsnKey)) {
         const existing = hsnMap.get(hsnKey)!;
-        existing.total_qty += item.quantity;
+        existing.total_qty += item.quantity * kept;
         existing.total_value += totalAmount;
         existing.taxable_value += taxable;
         existing.cgst_amount += cgst;
@@ -150,7 +157,7 @@ export function generateGSTR1Report(
           hsn_code: hsn,
           description: item.product_name,
           uqc: getGSTUQC(item.unit),
-          total_qty: item.quantity,
+          total_qty: item.quantity * kept,
           total_value: totalAmount,
           taxable_value: taxable,
           tax_rate: rate,
@@ -167,8 +174,8 @@ export function generateGSTR1Report(
           customer_gstin: customerGstin,
           customer_name: cust!.name,
           invoice_number: sale.invoice_number,
-          invoice_date: sale.created_at.split('T')[0],
-          invoice_value: sale.grand_total,
+          invoice_date: localDateKey(new Date(sale.created_at)),
+          invoice_value: getSaleNetTotal(sale),
           place_of_supply: pos,
           reverse_charge: 'N',
           tax_rate: rate,
@@ -203,9 +210,12 @@ export function generateGSTR1Report(
     });
   });
 
-  const sortedSales = [...sales].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-  const docFrom = sortedSales.length > 0 ? sortedSales[0].invoice_number : 'INV-001';
-  const docTo = sortedSales.length > 0 ? sortedSales[sortedSales.length - 1].invoice_number : 'INV-001';
+  // Documents issued: real tax invoices only (estimates are not documents under GST).
+  const sortedSales = sales
+    .filter((s) => !isEstimate(s))
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  const docFrom = sortedSales.length > 0 ? sortedSales[0].invoice_number : '';
+  const docTo = sortedSales.length > 0 ? sortedSales[sortedSales.length - 1].invoice_number : '';
   const cancelledCount = sales.filter((s) => s.status === 'cancelled').length;
 
   return {
@@ -228,14 +238,8 @@ export function generateGSTR1Report(
 }
 
 export function getStateName(code: string): string {
-  const states: { [key: string]: string } = {
-    '01': 'Jammu & Kashmir', '02': 'Himachal Pradesh', '03': 'Punjab', '04': 'Chandigarh',
-    '05': 'Uttarakhand', '06': 'Haryana', '07': 'Delhi', '08': 'Rajasthan',
-    '09': 'Uttar Pradesh', '10': 'Bihar', '19': 'West Bengal', '24': 'Gujarat',
-    '27': 'Maharashtra', '29': 'Karnataka', '32': 'Kerala', '33': 'Tamil Nadu',
-    '36': 'Telangana', '37': 'Andhra Pradesh',
-  };
-  return states[code] || 'Maharashtra';
+  // Full official list; an unknown code is shown as-is instead of being called Maharashtra.
+  return stateNameFromCode(code) || code;
 }
 
 /**

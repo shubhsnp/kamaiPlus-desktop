@@ -6,7 +6,6 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslation } from '@/lib/i18n';
 import { formatINR } from '@/lib/utils';
 import { Sale, Customer, Product, LedgerTransaction } from '@/types';
-import { sendInvoiceViaOfficialCloudApi, sendInvoiceViaWhatsApp } from '@/lib/invoices/whatsappInvoice';
 import { generateTallyPrimeXML } from '@/lib/tally/tallyXmlGenerator';
 import { getNextUniqueInvoiceNumber, commitNextInvoiceNumber } from '@/lib/invoices/invoiceNumberService';
 import { exportTransactionsCSV } from '@/lib/reports/transactionsCsv';
@@ -47,7 +46,8 @@ export default function TransactionsPage() {
   const customers = useLiveQuery(async () => db.customers.toArray()) || [];
 
   const allSales = useLiveQuery(async () => {
-    return await db.sales.orderBy('created_at').reverse().limit(500).toArray();
+    // Every bill: date filters used to silently miss anything older than the latest 500.
+    return await db.sales.orderBy('created_at').reverse().toArray();
   }) || [];
 
   // Filter & KPI Logic
@@ -71,6 +71,7 @@ export default function TransactionsPage() {
     totalCashPaise,
     totalUpiPaise,
     totalCreditPaise,
+    revenueBillCount,
     clearAllFilters,
   } = useTransactionFilters(allSales);
 
@@ -151,11 +152,21 @@ export default function TransactionsPage() {
         }
       }
 
-      // Update sale status to completed with official Tax Invoice #
+      // Update sale status to completed with official Tax Invoice #. An estimate
+      // carried no payment, so the converted bill is recorded as paid in full.
+      const productsNow = await db.products.bulkGet((sale.items || []).map((i) => i.product_id));
       const updatedSale: Sale = {
         ...sale,
         invoice_number: invoiceNumber,
         status: 'completed',
+        items: (sale.items || []).map((item, idx) => {
+          const cost = productsNow[idx]?.purchase_price || 0;
+          return item.cost_price || cost <= 0 ? item : { ...item, cost_price: cost };
+        }),
+        amount_received: sale.grand_total - (sale.balance_due || 0),
+        payment_status: (sale.balance_due || 0) > 0 ? 'partial' : 'paid',
+        notes: sale.notes === 'ESTIMATE / QUOTATION' ? undefined : sale.notes,
+        created_at: now,
         updated_at: now,
       };
       await db.sales.put(updatedSale);
@@ -202,17 +213,12 @@ export default function TransactionsPage() {
     URL.revokeObjectURL(url);
   };
 
-  // Clear All Transaction History
+  // Clear All Transaction History. The invoice counter is deliberately NOT reset:
+  // restarting at INV-001 would reissue numbers already given to customers / filed in GST.
   const handleClearAllHistory = async () => {
     try {
       await db.sales.clear();
       await db.sales_returns.clear();
-      if (business) {
-        await db.businesses.update(business.id, {
-          next_invoice_number: 1,
-          updated_at: new Date().toISOString(),
-        });
-      }
       showTxToast('All transaction history cleared successfully.', 'success');
     } catch (err) {
       console.error('Failed to clear history:', err);
@@ -252,7 +258,7 @@ export default function TransactionsPage() {
         totalCashPaise={totalCashPaise}
         totalUpiPaise={totalUpiPaise}
         totalCreditPaise={totalCreditPaise}
-        salesCount={filteredSales.length}
+        salesCount={revenueBillCount}
       />
 
       {/* 3. Filter & Search Toolbar */}

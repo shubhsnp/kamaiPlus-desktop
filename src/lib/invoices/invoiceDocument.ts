@@ -2,7 +2,7 @@ import { Business, CartItem, Customer, InvoiceThemeConfig, Sale } from '@/types'
 import { formatINR } from '@/lib/utils';
 import { numberToWordsINR } from '@/lib/invoices/gstCalculator';
 import { resolveInvoiceConfig } from '@/lib/invoices/themeDefaults';
-import { placeOfSupplyLabel, stateCodeFromGstin } from '@/lib/gst/stateCodes';
+import { placeOfSupplyLabel, stateCodeFromGstin, stateNameFromCode } from '@/lib/gst/stateCodes';
 import {
   getLineGrossPaise,
   getLineTaxablePaise,
@@ -211,10 +211,12 @@ export function paginateInvoiceRows(rows: InvoiceRow[]): InvoiceRow[][] {
     if (remaining <= 14) {
       pages.push(rows.slice(idx));
       idx = rows.length;
+    } else if (remaining <= 26 + 14) {
+      // Split what is left so the last page (which also carries the tax summary,
+      // totals and signatory) never gets more than 14 rows — nor only a couple.
+      pages.push(take(remaining - Math.min(14, Math.max(4, Math.ceil(remaining / 2)))));
     } else {
-      // Never leave a last page with only a couple of rows under the summary.
-      const cap = remaining - 26 > 0 && remaining - 26 <= 3 ? 23 : 26;
-      pages.push(take(cap));
+      pages.push(take(26));
     }
   }
   return pages;
@@ -240,7 +242,7 @@ export function buildInvoiceDocument(sale: Sale, business: Business, options: Bu
   // Store block
   const contactParts: string[] = [];
   if (config.show_owner && business.phone) contactParts.push(`Ph: ${business.phone}`);
-  if (storeGstin) contactParts.push(`GSTIN: ${storeGstin}${storeState ? ` (${placeOfSupplyLabel(storeState)})` : ''}`);
+  if (storeGstin) contactParts.push(`GSTIN: ${storeGstin}${stateNameFromCode(storeState) ? ` (${stateNameFromCode(storeState)})` : ''}`);
   const licenseParts: string[] = [];
   if (config.show_pharmacy_rx) {
     if (config.drug_license_no) licenseParts.push(`D.L. No: ${config.drug_license_no}`);
@@ -383,7 +385,7 @@ export function buildInvoiceDocument(sale: Sale, business: Business, options: Bu
       name: business.name || 'My Store',
       tagline: config.show_tagline ? (business.tagline || '').trim() : '',
       address: [business.address, business.pincode].filter((p) => p && String(p).trim()).join(' - '),
-      contactLine: [ownerLine, ...contactParts].filter(Boolean).join('   '),
+      contactLine: [ownerLine, ...contactParts].filter(Boolean).join('  •  '),
       licenseLine: licenseParts.join('   '),
       logoUrl: config.show_logo ? business.logo_url || '' : '',
     },

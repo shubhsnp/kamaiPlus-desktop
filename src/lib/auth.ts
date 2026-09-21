@@ -91,8 +91,6 @@ export const logoutUser = async () => {
         // This is an offline app now, purging data would delete their entire business!
         localStorage.removeItem('kamai_user');
         localStorage.removeItem('kamai_session_timestamp');
-        
-        await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
     } catch (e) {
         console.warn('Logout notice:', e);
     }

@@ -68,6 +68,11 @@ export const TransactionModals: React.FC<TransactionModalsProps> = ({
         onClose={() => setIsInvoiceModalOpen(false)}
         sale={activeSaleForInvoice}
         business={business || null}
+        onRequestReturn={(s) => {
+          setIsInvoiceModalOpen(false);
+          setReturnSaleId(s.id);
+          setIsReturnModalOpen(true);
+        }}
       />
 
       {/* Edit Invoice Modal */}

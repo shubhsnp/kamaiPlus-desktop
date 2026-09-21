@@ -7,7 +7,6 @@ import { AuthUser, getStoredUser, setStoredUser } from '@/lib/auth';
 import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
 import { DesktopStatusBar } from './DesktopStatusBar';
-import { DailyDigestAutoWatcher } from '@/components/common/DailyDigestAutoWatcher';
 import { subscriptionService } from '@/lib/subscription/subscriptionService';
 import { APP_VERSION } from '@/lib/constants/version';
 
@@ -262,7 +261,6 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         </div>
       )}
 
-      <DailyDigestAutoWatcher />
       <Navbar />
       <div className="flex-1 flex w-full overflow-hidden min-h-0">
         <Sidebar />

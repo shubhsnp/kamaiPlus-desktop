@@ -22,8 +22,7 @@ import { matchExtractedItemsWithProducts } from '@/lib/purchases/matchProductByN
 import { BillScanReviewModal } from './BillScanReviewModal';
 import { useProSubscription, ProFeatureBadge } from '@/components/subscription/ProFeatureGate';
 import { UpgradeModal } from '@/components/subscription/UpgradeModal';
-import { getStoredUser } from '@/lib/auth';
-import { getFirebaseAuth } from '@/lib/firebase/config';
+import { scanPurchaseBill } from '@/lib/ai/geminiClient';
 
 interface PurchaseInwardOptionsSheetProps {
   isOpen: boolean;
@@ -127,52 +126,10 @@ export function PurchaseInwardOptionsSheet({
       const compressedBase64 = await compressImageFile(file, 1600, 0.82);
       setProcessingStatus('AI Vision extracting items & prices...');
 
-      const user = getStoredUser();
-      const auth = getFirebaseAuth();
-      let idToken = '';
-      try {
-        if (auth?.currentUser) {
-          idToken = await auth.currentUser.getIdToken();
-        }
-      } catch (e) {}
-
-      const res = await fetch('/api/purchases/scan-bill', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
-          'x-business-id': businessId || user?.business_id || '',
-          'x-user-id': user?.uid || user?.id || '',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          imageBase64: compressedBase64,
-          mimeType: 'image/jpeg',
-          businessType: businessType || 'grocery',
-          businessId: businessId || user?.business_id || '',
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        if (data.code === 'UPGRADE_REQUIRED') {
-          setIsUpgradeModalOpen(true);
-          return;
-        }
-        if (data.code === 'UNAUTHENTICATED' || data.code === 'INVALID_SESSION') {
-          alert('Please log in to your store account to use the AI Bill OCR Scanner.');
-          return;
-        }
-        throw new Error(data.message || 'Failed to extract items from invoice.');
-      }
-
-      const rawLineItems: PurchaseBillLineItem[] = data.data.line_items || [];
-      const enrichedLineItems = matchExtractedItemsWithProducts(rawLineItems, existingProducts);
-
+      const scanned = await scanPurchaseBill(compressedBase64, 'image/jpeg');
       setReviewData({
-        ...data.data,
-        line_items: enrichedLineItems,
+        ...scanned,
+        line_items: matchExtractedItemsWithProducts(scanned.line_items, existingProducts),
       });
       onClose();
     } catch (err: any) {
@@ -197,52 +154,10 @@ export function PurchaseInwardOptionsSheet({
       const pdfBase64 = await readPdfAsBase64(file);
       setProcessingStatus('AI Vision parsing PDF tables & tax invoice...');
 
-      const user = getStoredUser();
-      const auth = getFirebaseAuth();
-      let idToken = '';
-      try {
-        if (auth?.currentUser) {
-          idToken = await auth.currentUser.getIdToken();
-        }
-      } catch (e) {}
-
-      const res = await fetch('/api/purchases/scan-bill', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
-          'x-business-id': businessId || user?.business_id || '',
-          'x-user-id': user?.uid || user?.id || '',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          imageBase64: pdfBase64,
-          mimeType: 'application/pdf',
-          businessType: businessType || 'grocery',
-          businessId: businessId || user?.business_id || '',
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        if (data.code === 'UPGRADE_REQUIRED') {
-          setIsUpgradeModalOpen(true);
-          return;
-        }
-        if (data.code === 'UNAUTHENTICATED' || data.code === 'INVALID_SESSION') {
-          alert('Please log in to your store account to use the AI Bill OCR Scanner.');
-          return;
-        }
-        throw new Error(data.message || 'Failed to parse PDF invoice.');
-      }
-
-      const rawLineItems: PurchaseBillLineItem[] = data.data.line_items || [];
-      const enrichedLineItems = matchExtractedItemsWithProducts(rawLineItems, existingProducts);
-
+      const scanned = await scanPurchaseBill(pdfBase64, 'application/pdf');
       setReviewData({
-        ...data.data,
-        line_items: enrichedLineItems,
+        ...scanned,
+        line_items: matchExtractedItemsWithProducts(scanned.line_items, existingProducts),
       });
       onClose();
     } catch (err: any) {

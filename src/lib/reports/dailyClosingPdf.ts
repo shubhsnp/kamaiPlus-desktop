@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import { Business, Sale, CashExpense } from '@/types';
 import { formatINR } from '@/lib/utils';
+import { localDateKey, summarizeDay } from '@/lib/reports/cashDrawer';
 
 export interface DailyClosingData {
   business: Business | null | undefined;
@@ -27,51 +28,21 @@ export function generateDailyClosingPDF(data: DailyClosingData): { blob: Blob; f
     hour12: true,
   });
 
-  // Calculations
-  const daysSales = sales.filter((s) => s.created_at.startsWith(dateStr) && s.status !== 'cancelled');
-  const daysExpenses = expenses.filter((e) => e.created_at.startsWith(dateStr));
-
-  let totalSalesPaise = 0;
-  let cashSalesPaise = 0;
-  let upiSalesPaise = 0;
-  let creditSalesPaise = 0;
-  let totalItemsCount = 0;
-  const productFrequency: { [name: string]: { qty: number; totalPaise: number } } = {};
-
-  daysSales.forEach((s) => {
-    totalSalesPaise += s.grand_total;
-    s.items.forEach((item) => {
-      totalItemsCount += item.quantity;
-      if (!productFrequency[item.product_name]) {
-        productFrequency[item.product_name] = { qty: 0, totalPaise: 0 };
-      }
-      productFrequency[item.product_name].qty += item.quantity;
-      productFrequency[item.product_name].totalPaise += item.total_amount;
-    });
-
-    if (s.payment_method === 'cash') {
-      cashSalesPaise += s.amount_received;
-    } else if (s.payment_method === 'upi') {
-      upiSalesPaise += s.amount_received;
-    } else if (s.payment_method === 'credit') {
-      creditSalesPaise += s.grand_total;
-    } else if (s.payment_method === 'split' && s.payment_split) {
-      cashSalesPaise += s.payment_split.cash_amount || 0;
-      upiSalesPaise += s.payment_split.upi_amount || 0;
-      creditSalesPaise += s.payment_split.credit_amount || 0;
-    }
-  });
-
-  const totalExpensePaise = daysExpenses.reduce((sum, e) => sum + e.amount, 0);
-  const cashExpensePaise = daysExpenses
-    .filter((e) => e.payment_mode === 'cash')
-    .reduce((sum, e) => sum + e.amount, 0);
-
-  const netCashInTillPaise = Math.max(0, cashSalesPaise - cashExpensePaise);
-
-  const topItems = Object.entries(productFrequency)
-    .sort((a, b) => b[1].qty - a[1].qty)
-    .slice(0, 5);
+  // Calculations — same local-day and drawer rules as the Cash Register screen
+  const day = summarizeDay({ sales, expenses, dateKey: dateStr });
+  const daysSales = day.sales;
+  const daysExpenses = expenses.filter((e) => localDateKey(new Date(e.created_at)) === dateStr);
+  const totalSalesPaise = day.netSalesPaise;
+  const cashSalesPaise = day.cashSales;
+  const upiSalesPaise = day.upiSales + day.cardSales;
+  const creditSalesPaise = day.creditSales;
+  const totalItemsCount = day.itemsCount;
+  const totalExpensePaise = day.totalExpensePaise;
+  const cashExpensePaise = day.cashExpenses;
+  const netCashInTillPaise = day.netCashInTillPaise;
+  const topItems: [string, { qty: number; totalPaise: number }][] = day.topItems
+    .slice(0, 5)
+    .map((t) => [t.name, { qty: t.qty, totalPaise: t.totalPaise }]);
 
   // Initialize PDF (A4 Portrait, 210 x 297 mm)
   const doc = new jsPDF({

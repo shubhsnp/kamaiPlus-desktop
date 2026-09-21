@@ -3,7 +3,6 @@
 
 import React from 'react';
 import { AuthForm } from '@/components/auth/AuthForm';
-import Link from 'next/link';
 import { ShieldCheck } from 'lucide-react';
 
 export default function AuthPage() {
@@ -37,22 +36,11 @@ export default function AuthPage() {
           </p>
         </div>
 
-        {/* Unified Authentication Card (Google OAuth + WhatsApp OTP) */}
+        {/* Local master-password lock for this computer */}
         <AuthForm />
 
-        {/* Footer legal links */}
-        <div className="mt-6 flex items-center justify-center gap-4 text-xs text-slate-500 font-medium">
-          <Link href="/terms-of-service" className="hover:text-slate-300 transition-colors">
-            Terms of Service
-          </Link>
-          <span>•</span>
-          <Link href="/privacy-policy" className="hover:text-slate-300 transition-colors">
-            Privacy Policy
-          </Link>
-          <span>•</span>
-          <Link href="/contact-us" className="hover:text-slate-300 transition-colors">
-            Support
-          </Link>
+        <div className="mt-6 text-center text-xs text-slate-500 font-medium">
+          Your store data stays on this computer.
         </div>
       </div>
     </main>

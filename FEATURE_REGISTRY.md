@@ -18,7 +18,9 @@
 | **`/transactions` (Sales Ledger)** | • `src/app/transactions/page.tsx`<br>• `InvoiceModal`<br>• `ReceiptPrintSheet`<br>• `ReturnRefundModal` | `sales`<br>`products`<br>`customers`<br>`ledger_transactions` | ⚠️ **Side-Effect Risk: MEDIUM**<br>Processing a return/refund here re-credits product stock and customer balance. |
 | **`/purchases` (Sourcing & Bills)** | • `src/app/purchases/page.tsx`<br>• `SupplierModal`<br>• `PurchaseBillModal` | `purchases`<br>`suppliers`<br>`products`<br>`cash_expenses` | ⚠️ **Side-Effect Risk: MEDIUM**<br>Vendor purchase inward increments product stock and logs cash outflow in `/cash-register`. |
 | **`/cash-register` (Cash Drawer)** | • `src/app/cash-register/page.tsx`<br>• `DenominationCounter`<br>• `CashInflowOutflowModal`<br>• `DayEndReportModal` | `cash_registers`<br>`cash_expenses`<br>`sales` | ⚠️ **Side-Effect Risk: LOW**<br>Reconciles daily physical cash against system sales from `/billing`. |
-| **`/growth` (WhatsApp Marketing)** | • `src/app/growth/page.tsx`<br>• `CampaignCard`<br>• `AudienceSegmentModal` | `customers` | ⚠️ **Side-Effect Risk: LOW**<br>Broadcasts WhatsApp campaign templates to customer lists. |
+| **`/reports` (Sales Analytics)** | • `src/app/reports/page.tsx`<br>• `src/lib/reports/advancedReports.ts`<br>• `components/reports/analytics/*`<br>• `components/reports/print/ReportDocuments.tsx` | `sales`<br>`sales_returns`<br>`products`<br>`categories` | ⚠️ **Side-Effect Risk: LOW** (read-only)<br>Android ReportsRepository port: net of returns, profit only on lines with frozen `cost_price`, owner-PIN mask, period report + customer statement PDFs. Dashboard's today profit uses the same rules. |
+| **Invoice engine (all bills)** | • `src/lib/invoices/invoiceDocument.ts`<br>• `components/invoices/print/*` (A4 + thermal)<br>• `src/lib/invoices/invoiceOutput.tsx`<br>• `components/invoices/InvoiceModal.tsx` | `businesses` (`invoice_theme_config`)<br>`sales`<br>`customers` | 🚨 **Side-Effect Risk: HIGH**<br>One document model feeds the A4 page, thermal slip, ESC/POS and the Invoice Themes preview. A setting that has a preview must change every bill. |
+| **Desktop shell (Electron)** | • `main.js` (`app://kamaiplus`, print / PDF IPC)<br>• `preload.js` (`window.kamaiDesktop`)<br>• `src/lib/print/printDocument.ts`<br>• `src/lib/hardware/printSettings.ts` | localStorage (per-computer printers) | 🚨 **Side-Effect Risk: CRITICAL**<br>The app origin must stay `app://kamaiplus` — changing it orphans every shop's IndexedDB data. PDFs go to `Documents/KamaiPlus/{Invoices,Reports,Statements}`. |
 | **`/gst-reports` (Tax Compliance)** | • `src/app/gst-reports/page.tsx`<br>• `Gstr1SummaryTable`<br>• `HsnSummaryTable`<br>• `ExcelExportButton` | `sales` | ⚠️ **Side-Effect Risk: LOW**<br>Read-only aggregation of tax rates, HSN codes, and invoice amounts. |
 | **`/barcode-generator` (Studio)** | • `src/app/barcode-generator/page.tsx`<br>• `BarcodeDesigner`<br>• `PrintPreviewSheet` | `products` | ⚠️ **Side-Effect Risk: LOW**<br>Renders printable barcode labels for existing items in catalog. |
 | **`/invoice-designer` (Themes)** | • `src/app/invoice-designer/page.tsx`<br>• `ThemeSelector`<br>• `ReceiptPreview` | `businesses` | ⚠️ **Side-Effect Risk: MEDIUM**<br>Updates invoice layout settings, header, footer, and logo used across `/billing` and `/transactions`. |
@@ -42,7 +44,7 @@ graph TD
     
     Customers["Customers CRM (/customers)"] -->|Autocomplete| Billing
     Customers -->|Balance & History| Khata
-    Customers -->|Audiences| Growth["WhatsApp Marketing (/growth)"]
+    Billing -->|Sales & Returns| Analytics["Sales Analytics (/reports)"]
     
     Purchases["Purchases (/purchases)"] -->|Stock Inward| Products
     Purchases -->|Expenses| CashRegister
@@ -52,6 +54,6 @@ graph TD
 
 ## ⚡ Golden Rules for Safe Modification
 
-1. **Changing a Product's price or tax rate?** Verify how it displays in `src/app/billing/page.tsx` and computes in `src/lib/invoices/gstCalculator.ts`.
+1. **Changing a Product's price or tax rate?** Verify how it displays in `src/app/billing/page.tsx` and computes in `src/lib/sales/saleMath.ts` (line tax, bill-discount allocation, payment breakdown — shared by POS, invoices, cash drawer, GSTR-1 and analytics).
 2. **Changing a Customer's balance?** Verify that both `src/app/khata/page.tsx` and `src/app/customers/page.tsx` reflect the exact same integer paise.
 3. **Changing an Invoice Theme?** Test both 58mm thermal output and A4 desktop print preview.

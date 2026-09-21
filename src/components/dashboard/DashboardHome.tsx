@@ -216,6 +216,7 @@ export default function DashboardHome() {
         business={business}
         sales={todaysSales}
         expenses={todaysExpenses}
+        ledger={todaysLedger}
       />
 
       {/* Tax Invoice Full Bill Preview Modal */}

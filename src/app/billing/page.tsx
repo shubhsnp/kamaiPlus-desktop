@@ -172,6 +172,7 @@ export default function BillingPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const searchInputRef = React.useRef<HTMLInputElement>(null);
+  const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
   const [billingToast, setBillingToast] = useState<{ message: string; type?: 'success' | 'info' | 'error' } | null>(null);
 
   const showBillingToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
@@ -1189,15 +1190,69 @@ export default function BillingPage() {
     }
   };
 
-  // Desktop POS Keyboard Shortcuts Handler
+  // Desktop POS High-Speed Keyboard Shortcuts Handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.altKey || e.metaKey) return;
+      // Tab switching via Ctrl + 1..9
+      if ((e.ctrlKey || e.metaKey) && e.key >= '1' && e.key <= '9') {
+        const tabIdx = parseInt(e.key, 10) - 1;
+        if (tabs[tabIdx]) {
+          e.preventDefault();
+          setActiveTabId(tabs[tabIdx].id);
+          showBillingToast(`Switched to Bill #${tabs[tabIdx].tabNumber}`, 'info');
+          return;
+        }
+      }
 
       const target = e.target as HTMLElement;
+      const isSearchActive = searchInputRef.current && (target === searchInputRef.current || document.activeElement === searchInputRef.current);
       const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
 
-      if (e.key === 'F2') {
+      // Arrow navigation inside product search bar
+      if (isSearchActive && products.length > 0) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          setHighlightedIndex((prev) => (prev < products.length - 1 ? prev + 1 : 0));
+          return;
+        }
+
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : products.length - 1));
+          return;
+        }
+
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const targetProd = (highlightedIndex >= 0 && products[highlightedIndex]) || (products.length > 0 ? products[0] : null);
+          if (targetProd) {
+            const stockNum = Number(targetProd.current_stock ?? 0);
+            const isOutOfStock = !targetProd.is_unlimited_stock && stockNum <= 0;
+            if (isOutOfStock) {
+              playBeepSound('alert');
+              showBillingToast(`Out of Stock: "${targetProd.name}"`, 'error');
+            } else {
+              addToCart(targetProd, 1);
+              playBeepSound('success');
+              showBillingToast(`Added: ${targetProd.name}`, 'success');
+              setSearchQuery('');
+              setHighlightedIndex(-1);
+            }
+          }
+          return;
+        }
+      }
+
+      if (e.ctrlKey || e.altKey || e.metaKey) return;
+
+      if (e.key === 'F1') {
+        e.preventDefault();
+        handleCreateNewTab();
+        showBillingToast('Created New Bill Tab [F1]', 'info');
+        return;
+      }
+
+      if (e.key === 'F2' || (e.key === '/' && !isInput)) {
         e.preventDefault();
         searchInputRef.current?.focus();
         return;
@@ -1217,10 +1272,27 @@ export default function BillingPage() {
         return;
       }
 
+      if (e.key === 'F9') {
+        e.preventDefault();
+        setPaymentMethod('credit');
+        showBillingToast('Selected Credit (Udhar) [F9]', 'info');
+        return;
+      }
+
+      if (e.key === 'F10') {
+        e.preventDefault();
+        if (cart.length > 0) {
+          handleCompleteSale();
+        }
+        return;
+      }
+
       if (e.key === 'Escape') {
         if (searchQuery) {
           e.preventDefault();
           setSearchQuery('');
+          setHighlightedIndex(-1);
+          searchInputRef.current?.blur();
         }
         return;
       }
@@ -1235,7 +1307,7 @@ export default function BillingPage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cart, searchQuery, handleCompleteSale]);
+  }, [cart, searchQuery, handleCompleteSale, products, highlightedIndex, tabs]);
 
   // Reusable Checkout Panel Component for Desktop side-panel and Mobile Bottom Drawer
   const renderCheckoutPanel = () => (
@@ -2239,12 +2311,13 @@ export default function BillingPage() {
                   )}
                 </div>
               ) : (
-                products.map((p) => {
+                products.map((p, idx) => {
                   const inCart = cart.find((i) => i.product_id === p.id);
                   const availableStock = getAvailableStockForProduct(p);
                   const stockNum = Number(p.current_stock ?? 0);
                   const isOutOfStock = !p.is_unlimited_stock && (stockNum <= 0 || availableStock <= 0);
                   const isLowStock = !p.is_unlimited_stock && !isOutOfStock && availableStock <= (p.min_stock_level || 5);
+                  const isHighlighted = highlightedIndex === idx;
 
                   return (
                     <button
@@ -2262,15 +2335,20 @@ export default function BillingPage() {
                         'p-2 sm:p-2.5 rounded-xl border text-left flex flex-col justify-between relative overflow-hidden transition-all min-h-[76px] sm:min-h-[82px]',
                         isOutOfStock
                           ? 'border-rose-300/80 bg-rose-50/40 opacity-70 hover:border-rose-400 cursor-not-allowed select-none'
-                          : 'cursor-pointer bg-white hover:border-slate-400 shadow-2xs active:scale-[0.98]',
-                        inCart && !isOutOfStock
-                          ? 'border-amber-400 ring-1.5 ring-amber-400/50 bg-amber-50/35'
-                          : !isOutOfStock && 'border-slate-200'
+                          : isHighlighted
+                          ? 'cursor-pointer bg-emerald-50/80 border-emerald-500 ring-2 ring-emerald-500 shadow-md scale-[1.01]'
+                          : inCart && !isOutOfStock
+                          ? 'cursor-pointer bg-white border-amber-400 ring-1.5 ring-amber-400/50 bg-amber-50/35 shadow-2xs active:scale-[0.98]'
+                          : 'cursor-pointer bg-white hover:border-slate-400 border-slate-200 shadow-2xs active:scale-[0.98]'
                       )}
                     >
                       {isOutOfStock ? (
                         <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-rose-600 text-white text-[9px] font-black uppercase tracking-wider shadow-xs">
                           Out of Stock
+                        </div>
+                      ) : isHighlighted ? (
+                        <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-emerald-600 text-white text-[9px] font-black font-mono shadow-xs animate-pulse">
+                          ↵ Enter
                         </div>
                       ) : inCart ? (
                         <div className="absolute top-1.5 right-1.5 px-1.5 py-0.2 rounded-md bg-amber-400 text-slate-950 text-[9px] font-black shadow-xs">

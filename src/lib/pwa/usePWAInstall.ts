@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { isDesktopApp } from '@/lib/desktop/desktopBridge';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -96,8 +97,8 @@ export function usePWAInstall() {
       standaloneMedia.addEventListener('change', handleDisplayModeChange);
     }
 
-    // Register service worker if supported
-    if ('serviceWorker' in navigator && process.env.NODE_ENV !== 'development') {
+    // Register service worker if supported (not inside the desktop app, which is already offline-first)
+    if ('serviceWorker' in navigator && process.env.NODE_ENV !== 'development' && !isDesktopApp()) {
       navigator.serviceWorker
         .register('/sw.js')
         .catch((err) => console.warn('SW registration:', err));

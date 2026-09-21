@@ -1,8 +1,5 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { Sale, Business } from '@/types';
-import { formatINR } from '@/lib/utils';
-import { sendInvoiceViaOfficialCloudApi } from './whatsappInvoice';
 
 /**
  * Renders an HTML element to a full, un-cropped high-resolution PDF Blob
@@ -216,61 +213,4 @@ export async function downloadInvoicePdfFromElement(
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-}
-
-/**
- * Shares the PDF directly via Web Share API (native WhatsApp file attachment on Mobile)
- * Or falls back to Meta WhatsApp Cloud API silent dispatch
- */
-export async function shareInvoicePdfDirect(
-  element: HTMLElement | null,
-  sale: Sale,
-  business: Business,
-  recipientPhone?: string
-): Promise<{ shared: boolean; method: 'native-share' | 'cloud-api' | 'whatsapp-link'; messageId?: string }> {
-  const filename = `Invoice_${sale.invoice_number || 'bill'}.pdf`;
-  const targetPhone = recipientPhone || sale.customer_phone || '';
-
-  // 1. Check if native Web Share with Files is supported (Android Chrome / iOS Safari)
-  if (element && typeof navigator !== 'undefined' && navigator.share && navigator.canShare) {
-    try {
-      const { file } = await generateInvoicePdfBlobFromElement(element, filename);
-      if (navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: `Invoice ${sale.invoice_number} from ${business.name}`,
-          text: `Here is your tax invoice #${sale.invoice_number} from ${business.name}. Total: ${formatINR(sale.grand_total)}. Thank you for your business!`,
-        });
-        return { shared: true, method: 'native-share' };
-      }
-    } catch (shareErr: any) {
-      if (shareErr.name === 'AbortError') {
-        return { shared: false, method: 'native-share' }; // User cancelled the share dialog
-      }
-      console.warn('Web Share API failed, attempting Cloud API dispatch:', shareErr);
-    }
-  }
-
-  // 2. Dispatch silently via Meta WhatsApp Cloud API
-  if (targetPhone) {
-    let pdfBase64: string | undefined;
-    if (element) {
-      try {
-        const { blob } = await generateInvoicePdfBlobFromElement(element, filename);
-        pdfBase64 = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.readAsDataURL(blob);
-        });
-      } catch {}
-    }
-
-    const cloudRes = await sendInvoiceViaOfficialCloudApi(targetPhone, sale, business, pdfBase64);
-    if (cloudRes.sent) {
-      return { shared: true, method: 'cloud-api', messageId: cloudRes.messageId };
-    }
-    return { shared: false, method: 'cloud-api' };
-  }
-
-  return { shared: false, method: 'cloud-api' };
 }

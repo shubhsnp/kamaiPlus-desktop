@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { setStoredUser, AuthUser } from '@/lib/auth';
 import { db as localDb } from '@/lib/db';
+import { hasMasterPassword, setMasterPassword, verifyMasterPassword } from '@/lib/auth/masterPassword';
 import { 
   CheckCircle2, 
   AlertCircle, 
@@ -26,8 +27,7 @@ export const AuthForm: React.FC = () => {
 
   // Check if a master password already exists
   useEffect(() => {
-    const existing = localStorage.getItem('kamai_master_password');
-    setHasPassword(!!existing);
+    setHasPassword(hasMasterPassword());
   }, []);
 
   const handleUnlock = async (e: React.FormEvent) => {
@@ -36,8 +36,7 @@ export const AuthForm: React.FC = () => {
     setLoading(true);
 
     try {
-      const savedPassword = localStorage.getItem('kamai_master_password');
-      if (password !== savedPassword) {
+      if (!(await verifyMasterPassword(password))) {
         throw new Error('Incorrect Password. Please try again.');
       }
 
@@ -67,8 +66,8 @@ export const AuthForm: React.FC = () => {
         throw new Error('Passwords do not match.');
       }
 
-      // Save password locally
-      localStorage.setItem('kamai_master_password', password);
+      // Save only a salted hash of the password on this computer
+      await setMasterPassword(password);
       
       setWelcomeMessage('Master Password Set Successfully!');
       

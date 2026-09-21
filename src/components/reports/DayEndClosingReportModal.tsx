@@ -13,9 +13,10 @@ import {
   RefreshCw,
   Send
 } from 'lucide-react';
-import { Business, Sale, CashExpense } from '@/types';
+import { Business, Sale, CashExpense, LedgerTransaction } from '@/types';
 import { formatINR } from '@/lib/utils';
 import { generateDailyClosingPDF } from '@/lib/reports/dailyClosingPdf';
+import { localDateKey, summarizeDay } from '@/lib/reports/cashDrawer';
 
 interface DayEndClosingReportModalProps {
   isOpen: boolean;
@@ -23,6 +24,8 @@ interface DayEndClosingReportModalProps {
   business: Business | null | undefined;
   sales: Sale[];
   expenses: CashExpense[];
+  /** That day's khata entries — cash collections count as drawer money. */
+  ledger?: LedgerTransaction[];
   selectedDate?: string; // YYYY-MM-DD
 }
 
@@ -32,53 +35,27 @@ export const DayEndClosingReportModal: React.FC<DayEndClosingReportModalProps> =
   business,
   sales,
   expenses,
+  ledger,
   selectedDate,
 }) => {
   const [copied, setCopied] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const targetPhone = business?.phone || '';
-  const datePrefix = selectedDate || new Date().toISOString().slice(0, 10);
+  // Local calendar day (the old UTC date put 12–5:30 AM bills on the previous day).
+  const datePrefix = selectedDate || localDateKey(new Date());
+  const day = summarizeDay({ sales, expenses, ledger, dateKey: datePrefix });
 
-  // Filter for the specified date and non-cancelled sales
-  const daysSales = sales.filter((s) => s.created_at.startsWith(datePrefix) && s.status !== 'cancelled');
-  const daysExpenses = expenses.filter((e) => e.created_at.startsWith(datePrefix));
-
-  let totalSalesPaise = 0;
-  let cashSalesPaise = 0;
-  let upiSalesPaise = 0;
-  let creditSalesPaise = 0;
-  let totalItemsCount = 0;
-  const productFrequency: { [name: string]: number } = {};
-
-  daysSales.forEach((s) => {
-    totalSalesPaise += s.grand_total;
-    s.items.forEach((item) => {
-      totalItemsCount += item.quantity;
-      productFrequency[item.product_name] = (productFrequency[item.product_name] || 0) + item.quantity;
-    });
-
-    if (s.payment_method === 'cash') {
-      cashSalesPaise += s.amount_received;
-    } else if (s.payment_method === 'upi') {
-      upiSalesPaise += s.amount_received;
-    } else if (s.payment_method === 'credit') {
-      creditSalesPaise += s.grand_total;
-    } else if (s.payment_method === 'split' && s.payment_split) {
-      cashSalesPaise += s.payment_split.cash_amount || 0;
-      upiSalesPaise += s.payment_split.upi_amount || 0;
-    }
-  });
-
-  const totalExpensePaise = daysExpenses.reduce((acc, curr) => acc + curr.amount, 0);
-  const cashExpensePaise = daysExpenses
-    .filter((e) => e.payment_mode === 'cash')
-    .reduce((acc, curr) => acc + curr.amount, 0);
-
-  const netCashInTillPaise = Math.max(0, cashSalesPaise - cashExpensePaise);
-
-  const topItems = Object.entries(productFrequency)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3);
+  // Estimates, cancelled and fully returned bills are not sales; change handed back is not cash kept.
+  const daysSales = day.sales;
+  const totalSalesPaise = day.netSalesPaise;
+  const cashSalesPaise = day.cashSales;
+  const upiSalesPaise = day.upiSales + day.cardSales;
+  const creditSalesPaise = day.creditSales;
+  const totalItemsCount = day.itemsCount;
+  const totalExpensePaise = day.totalExpensePaise;
+  const cashExpensePaise = day.cashExpenses;
+  const netCashInTillPaise = day.netCashInTillPaise;
+  const topItems: [string, number][] = day.topItems.slice(0, 3).map((t) => [t.name, t.qty]);
 
   const dateFormatted = new Date(datePrefix).toLocaleDateString('en-IN', {
     day: '2-digit',

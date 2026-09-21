@@ -2,6 +2,13 @@
 
 import { useState } from 'react';
 import { Sale } from '@/types';
+import { getNetPaymentBreakdown, getSaleNetTotal, getSalePaymentBreakdown, isRevenueSale } from '@/lib/sales/saleMath';
+
+// Local calendar-day helpers (created_at is UTC; the shop's day is local).
+const dayStart = (offsetDays = 0) => {
+  const n = new Date();
+  return new Date(n.getFullYear(), n.getMonth(), n.getDate() + offsetDays);
+};
 
 export type DatePreset = 'all' | 'today' | 'yesterday' | 'week' | 'month' | 'custom';
 export type PaymentFilter = 'all' | 'cash' | 'upi' | 'credit';
@@ -23,17 +30,12 @@ export function useTransactionFilters(allSales: Sale[]) {
 
       // 1. Date Range Filter
       if (datePreset === 'today') {
-        const todayStr = now.toISOString().split('T')[0];
-        if (!sale.created_at.startsWith(todayStr)) return false;
+        if (saleDate < dayStart(0) || saleDate >= dayStart(1)) return false;
       } else if (datePreset === 'yesterday') {
-        const yesterday = new Date(now);
-        yesterday.setDate(now.getDate() - 1);
-        const yestStr = yesterday.toISOString().split('T')[0];
-        if (!sale.created_at.startsWith(yestStr)) return false;
+        if (saleDate < dayStart(-1) || saleDate >= dayStart(0)) return false;
       } else if (datePreset === 'week') {
-        const sevenDaysAgo = new Date(now);
-        sevenDaysAgo.setDate(now.getDate() - 7);
-        if (saleDate < sevenDaysAgo) return false;
+        // Today plus the six days before it.
+        if (saleDate < dayStart(-6)) return false;
       } else if (datePreset === 'month') {
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
         if (saleDate < monthStart) return false;
@@ -52,8 +54,9 @@ export function useTransactionFilters(allSales: Sale[]) {
 
       // 2. Transaction Type (Cash vs Credit vs UPI)
       if (paymentFilter !== 'all') {
-        if (paymentFilter === 'cash' && sale.payment_method !== 'cash') return false;
-        if (paymentFilter === 'upi' && sale.payment_method !== 'upi') return false;
+        const pay = getSalePaymentBreakdown(sale);
+        if (paymentFilter === 'cash' && pay.cash <= 0) return false;
+        if (paymentFilter === 'upi' && pay.upi <= 0) return false;
         if (paymentFilter === 'credit' && sale.payment_method !== 'credit' && (sale.balance_due || 0) <= 0) return false;
       }
 
@@ -90,11 +93,15 @@ export function useTransactionFilters(allSales: Sale[]) {
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
 
-  // KPI Calculations on filtered subset
-  const totalRevenuePaise = filteredSales.reduce((acc, s) => acc + s.grand_total, 0);
-  const totalCashPaise = filteredSales.filter((s) => s.payment_method === 'cash').reduce((acc, s) => acc + s.amount_received, 0);
-  const totalUpiPaise = filteredSales.filter((s) => s.payment_method === 'upi').reduce((acc, s) => acc + s.amount_received, 0);
-  const totalCreditPaise = filteredSales.reduce((acc, s) => acc + (s.balance_due || 0), 0);
+  // KPI Calculations on filtered subset. Estimates and fully returned bills are not
+  // revenue; cash counts only money kept (no change handed back), splits by their parts.
+  const revenueSales = filteredSales.filter(isRevenueSale);
+  const totalRevenuePaise = revenueSales.reduce((acc, s) => acc + getSaleNetTotal(s), 0);
+  // Net of refunds, like the revenue figure (a cash refund comes out of cash).
+  const breakdowns = revenueSales.map((s) => getNetPaymentBreakdown(s));
+  const totalCashPaise = breakdowns.reduce((acc, p) => acc + p.cash, 0);
+  const totalUpiPaise = breakdowns.reduce((acc, p) => acc + p.upi + p.card, 0);
+  const totalCreditPaise = breakdowns.reduce((acc, p) => acc + p.credit, 0);
 
   const clearAllFilters = () => {
     setSearchQuery('');
@@ -126,6 +133,7 @@ export function useTransactionFilters(allSales: Sale[]) {
     totalCashPaise,
     totalUpiPaise,
     totalCreditPaise,
+    revenueBillCount: revenueSales.length,
     clearAllFilters,
   };
 }
