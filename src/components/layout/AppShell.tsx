@@ -264,7 +264,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       <Navbar />
       <div className="flex-1 flex w-full overflow-hidden min-h-0">
         <Sidebar />
-        <main className="flex-1 p-3 sm:p-5 overflow-y-auto w-full min-h-0 bg-slate-50/40">
+        <main className="flex-1 p-3 sm:p-5 overflow-y-auto w-full min-h-0 bg-slate-50/40 animate-in fade-in duration-300">
           {children}
         </main>
       </div>

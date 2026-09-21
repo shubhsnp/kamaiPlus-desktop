@@ -201,35 +201,60 @@ export const DenominationCalculatorModal: React.FC<DenominationCalculatorModalPr
     >
       <div className="space-y-4">
         {/* Notes Grid with Steppers */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
           {noteDenominations.map((denom) => {
             const count = denominations[denom] || 0;
             const subtotalRupees = denom * count;
+            const isCoin = denom <= 5;
+            
+            // Indian Currency Colors
+            const getNoteStyles = (val: number) => {
+              switch (val) {
+                case 500: return 'from-stone-400 to-stone-500 text-stone-950 border-stone-300';
+                case 200: return 'from-orange-400 to-amber-500 text-orange-950 border-orange-300';
+                case 100: return 'from-violet-400 to-purple-500 text-white border-violet-300';
+                case 50: return 'from-cyan-300 to-cyan-500 text-cyan-950 border-cyan-200';
+                case 20: return 'from-lime-400 to-emerald-400 text-emerald-950 border-lime-200';
+                case 10: return 'from-amber-600 to-amber-800 text-white border-amber-500';
+                case 5: return 'from-yellow-300 to-amber-400 text-yellow-950 border-yellow-200';
+                case 2: return 'from-slate-300 to-slate-400 text-slate-900 border-slate-200';
+                case 1: return 'from-slate-300 to-slate-400 text-slate-900 border-slate-200';
+                default: return 'from-slate-100 to-slate-200 text-slate-800';
+              }
+            };
+            
+            const styles = getNoteStyles(denom);
 
             return (
               <div
                 key={denom}
                 className={cn(
-                  'p-2 rounded-xl border transition-all space-y-1',
+                  'p-2.5 rounded-2xl border transition-all duration-200 shadow-sm flex flex-col gap-2.5',
                   count > 0
-                    ? 'border-purple-300 dark:border-purple-800 bg-purple-50/40 dark:bg-purple-950/20 ring-1 ring-purple-300/40'
-                    : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900'
+                    ? 'border-emerald-300 bg-emerald-50/50 ring-2 ring-emerald-400/20 scale-[1.02]'
+                    : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-md'
                 )}
               >
-                <div className="flex items-center justify-between text-xs font-black text-slate-900 dark:text-slate-100 font-mono">
-                  <span className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-[11px]">
-                    ₹{denom}
-                  </span>
-                  <span className="text-[11px] text-purple-700 dark:text-purple-300 font-bold">
+                <div className="flex items-center justify-between">
+                  {isCoin ? (
+                    <div className={cn('w-10 h-10 rounded-full bg-gradient-to-br flex items-center justify-center font-black text-sm shadow-inner border-2', styles)}>
+                      ₹{denom}
+                    </div>
+                  ) : (
+                    <div className={cn('w-16 h-9 rounded bg-gradient-to-br flex items-center justify-center font-black text-sm shadow-inner border opacity-90', styles)}>
+                      ₹{denom}
+                    </div>
+                  )}
+                  <span className={cn("text-xs font-black font-mono transition-colors", count > 0 ? "text-emerald-700" : "text-slate-400")}>
                     = ₹{subtotalRupees}
                   </span>
                 </div>
 
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5 bg-slate-50 p-1 rounded-xl border border-slate-200">
                   <button
                     type="button"
                     onClick={() => handleCountChange(denom, Math.max(0, count - 1))}
-                    className="w-6 h-7 rounded bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs flex items-center justify-center cursor-pointer active:scale-95 transition"
+                    className="w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-700 font-bold text-lg flex items-center justify-center cursor-pointer active:scale-95 hover:bg-slate-100 transition-all shadow-2xs"
                   >
                     -
                   </button>
@@ -244,21 +269,21 @@ export const DenominationCalculatorModal: React.FC<DenominationCalculatorModalPr
                       const parsed = parseInt(e.target.value, 10);
                       handleCountChange(denom, isNaN(parsed) || parsed < 0 ? 0 : parsed);
                     }}
-                    className="flex-1 w-full py-1 text-xs bg-white dark:bg-slate-800 rounded border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-black font-mono focus:outline-none focus:ring-1 focus:ring-purple-500 text-center"
+                    className="flex-1 w-full h-8 bg-transparent text-slate-900 font-black font-mono focus:outline-none text-center text-sm"
                   />
 
                   <button
                     type="button"
                     onClick={() => handleCountChange(denom, count + 1)}
-                    className="w-6 h-7 rounded bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs flex items-center justify-center cursor-pointer active:scale-95 transition"
+                    className="w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-700 font-bold text-lg flex items-center justify-center cursor-pointer active:scale-95 hover:bg-slate-100 transition-all shadow-2xs"
                   >
                     +
                   </button>
                   <button
                     type="button"
                     onClick={() => handleCountChange(denom, count + 5)}
-                    className="px-1.5 h-7 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-[10px] flex items-center justify-center cursor-pointer active:scale-95 transition"
-                    title="Add 5 notes"
+                    className="px-2 h-8 rounded-lg bg-emerald-100 border border-emerald-200 text-emerald-800 font-black text-[10px] flex items-center justify-center cursor-pointer active:scale-95 hover:bg-emerald-200 transition-all shadow-2xs"
+                    title="Add 5"
                   >
                     +5
                   </button>

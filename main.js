@@ -87,7 +87,7 @@ function createWindow() {
     minWidth: 1024,
     minHeight: 680,
     show: false,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#f8fafc',
     title: 'Retail POS',
     autoHideMenuBar: true,
     webPreferences: {

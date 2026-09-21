@@ -2231,8 +2231,8 @@ export default function BillingPage() {
   );
 
   return (
-    <div className="relative pb-40 lg:pb-2">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 lg:h-[calc(100vh-125px)]">
+    <div className="relative pb-40 lg:pb-2 h-full flex flex-col animate-in fade-in duration-300">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 h-full flex-1 min-h-0">
         {/* Left: Product Selection Catalog */}
         <div className="lg:col-span-7 flex flex-col h-full min-h-0">
           <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col h-full min-h-0 space-y-3">
