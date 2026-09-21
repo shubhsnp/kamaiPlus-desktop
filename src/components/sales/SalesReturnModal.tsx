@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/db';
-import { Sale, SalesReturn, ReturnItem, Product } from '@/types';
+import { Sale, SalesReturn, ReturnItem, CashExpense } from '@/types';
 import { formatINR } from '@/lib/utils';
+import { getLineRefundPaise, getReturnedQtyByLine, isEstimate } from '@/lib/sales/saleMath';
 import { 
   RotateCcw, 
   Search, 
@@ -35,8 +36,10 @@ export const SalesReturnModal: React.FC<SalesReturnModalProps> = ({
 }) => {
   const [searchInvoice, setSearchInvoice] = useState('');
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
-  const [returnQuantities, setReturnQuantities] = useState<{ [productId: string]: number }>({});
-  const [restockFlags, setRestockFlags] = useState<{ [productId: string]: boolean }>({});
+  // Keyed by line index: the same product can appear on two lines of a bill.
+  const [returnQuantities, setReturnQuantities] = useState<{ [line: number]: number }>({});
+  const [restockFlags, setRestockFlags] = useState<{ [line: number]: boolean }>({});
+  const [alreadyReturned, setAlreadyReturned] = useState<number[]>([]);
   const [refundMethod, setRefundMethod] = useState<'cash' | 'upi' | 'store_credit' | 'khata_deduction'>('cash');
   const [returnReason, setReturnReason] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -63,141 +66,177 @@ export const SalesReturnModal: React.FC<SalesReturnModalProps> = ({
     }
   };
 
-  const handleSelectSale = (sale: Sale) => {
+  const handleSelectSale = async (sale: Sale) => {
+    if (isEstimate(sale)) {
+      alert('This is an estimate / quotation — nothing was sold, so there is nothing to return.');
+      return;
+    }
+    const previous = await db.sales_returns.where('original_sale_id').equals(sale.id).toArray();
+    setAlreadyReturned(getReturnedQtyByLine(sale, previous));
     setSelectedSale(sale);
-    const initialQty: { [key: string]: number } = {};
-    const initialRestock: { [key: string]: boolean } = {};
-    sale.items.forEach((item) => {
-      initialQty[item.product_id] = 0;
-      initialRestock[item.product_id] = true;
+    const initialQty: { [line: number]: number } = {};
+    const initialRestock: { [line: number]: boolean } = {};
+    sale.items.forEach((_, idx) => {
+      initialQty[idx] = 0;
+      initialRestock[idx] = true;
     });
     setReturnQuantities(initialQty);
     setRestockFlags(initialRestock);
   };
 
-  // Calculate total refund amount
+  const maxReturnable = (idx: number) =>
+    selectedSale ? Math.max(0, (selectedSale.items[idx]?.quantity || 0) - (alreadyReturned[idx] || 0)) : 0;
+
+  // Refund = what was actually charged for those units (discounts and GST included).
   const totalRefundPaise = selectedSale
-    ? selectedSale.items.reduce((acc, item) => {
-        const qty = returnQuantities[item.product_id] || 0;
-        return acc + qty * item.unit_price;
-      }, 0)
+    ? selectedSale.items.reduce((acc, item, idx) => acc + getLineRefundPaise(item, returnQuantities[idx] || 0), 0)
     : 0;
 
   const totalReturnItemCount = Object.values(returnQuantities).reduce((acc, q) => acc + q, 0);
 
   const handleProcessReturn = async () => {
     if (!selectedSale || totalRefundPaise <= 0) return;
+    const needsCustomer = refundMethod === 'khata_deduction' || refundMethod === 'store_credit';
+    if (needsCustomer && !selectedSale.customer_id) {
+      alert('Store credit / khata adjustment needs a customer on the bill. Choose Cash or UPI refund for a walk-in sale.');
+      return;
+    }
 
     setIsProcessing(true);
     try {
-      const returnId = `ret_${Date.now()}`;
+      const sale = selectedSale;
       const now = new Date().toISOString();
-      const returnNumber = `RET-${Date.now().toString().slice(-4)}`;
-
+      const stamp = Date.now();
+      const returnId = `ret_${stamp}`;
+      const priorCount = await db.sales_returns.count();
+      const returnNumber = `RET-${String(priorCount + 1).padStart(4, '0')}-${stamp.toString(36).slice(-3).toUpperCase()}`;
       const returnItems: ReturnItem[] = [];
+      const newReturned = sale.items.map((_, idx) => (alreadyReturned[idx] || 0) + (returnQuantities[idx] || 0));
+      let saved: SalesReturn | null = null;
 
-      for (const item of selectedSale.items) {
-        const qty = returnQuantities[item.product_id] || 0;
-        if (qty > 0) {
-          const restock = restockFlags[item.product_id] ?? true;
-          returnItems.push({
-            product_id: item.product_id,
-            product_name: item.product_name,
-            quantity: qty,
-            unit: item.unit,
-            unit_price: item.unit_price,
-            tax_rate: item.tax_rate,
-            total_amount: qty * item.unit_price,
-            restock_to_inventory: restock,
-            reason: returnReason,
-          });
+      await db.transaction(
+        'rw',
+        [db.products, db.inventory_movements, db.customers, db.ledger_transactions, db.sales_returns, db.sales, db.cash_expenses],
+        async () => {
+          for (let idx = 0; idx < sale.items.length; idx++) {
+            const item = sale.items[idx];
+            const qty = Math.min(returnQuantities[idx] || 0, maxReturnable(idx));
+            if (qty <= 0) continue;
+            const restock = restockFlags[idx] ?? true;
+            returnItems.push({
+              product_id: item.product_id,
+              product_name: item.product_name,
+              quantity: qty,
+              unit: item.unit,
+              unit_price: item.unit_price,
+              tax_rate: item.tax_rate,
+              total_amount: getLineRefundPaise(item, qty),
+              restock_to_inventory: restock,
+              reason: returnReason,
+            });
 
-          // 1. Restock to inventory if selected
-          if (restock) {
-            const prod = await db.products.get(item.product_id);
-            if (prod) {
-              const prev = prod.current_stock;
-              const next = prev + qty;
-              await db.products.update(prod.id, { current_stock: next, updated_at: now });
+            // 1. Restock to inventory if selected
+            if (restock) {
+              const prod = await db.products.get(item.product_id);
+              if (prod && !prod.is_unlimited_stock) {
+                const prev = Number(prod.current_stock ?? 0);
+                const next = prev + qty;
+                await db.products.update(prod.id, { current_stock: next, updated_at: now });
+                await db.inventory_movements.put({
+                  id: `mov_${stamp}_${idx}_${prod.id}`,
+                  business_id: sale.business_id,
+                  product_id: prod.id,
+                  product_name: prod.name,
+                  movement_type: 'RETURN',
+                  quantity: qty,
+                  previous_stock: prev,
+                  new_stock: next,
+                  reference_id: returnNumber,
+                  reason: `Sales Return on Inv #${sale.invoice_number}`,
+                  created_by: 'owner',
+                  created_at: now,
+                });
+              }
+            }
+          }
 
-              await db.inventory_movements.put({
-                id: `mov_${Date.now()}_${prod.id}`,
-                business_id: selectedSale.business_id,
-                product_id: prod.id,
-                product_name: prod.name,
-                movement_type: 'RETURN',
-                quantity: qty,
-                previous_stock: prev,
-                new_stock: next,
+          // 2. Money back: khata / store credit reduce what the customer owes (may go into advance);
+          //    cash and UPI refunds are recorded as refund outflows (cash ones leave the drawer).
+          if (needsCustomer && sale.customer_id) {
+            const cust = await db.customers.get(sale.customer_id);
+            if (cust) {
+              const updatedBal = (cust.current_balance || 0) - totalRefundPaise;
+              await db.customers.update(cust.id, { current_balance: updatedBal, updated_at: now });
+              await db.ledger_transactions.put({
+                id: `ledg_${stamp}`,
+                business_id: sale.business_id,
+                party_type: 'customer',
+                party_id: cust.id,
+                party_name: cust.name,
+                transaction_type: 'PAYMENT_RECEIVED',
+                amount: totalRefundPaise,
+                balance_after: updatedBal,
                 reference_id: returnNumber,
-                reason: `Sales Return on Inv #${selectedSale.invoice_number}`,
-                created_by: 'owner',
+                notes: `Credit Note ${returnNumber} / Return on Inv #${sale.invoice_number}`,
                 created_at: now,
               });
             }
+          } else {
+            const refund: CashExpense = {
+              id: `exp_refund_${stamp}`,
+              business_id: sale.business_id,
+              category: 'refund',
+              title: `${refundMethod === 'upi' ? 'UPI' : 'Cash'} Refund: ${returnNumber} (Inv #${sale.invoice_number})`,
+              amount: totalRefundPaise,
+              paid_to: sale.customer_name,
+              payment_mode: refundMethod === 'upi' ? 'upi' : 'cash',
+              created_by: 'owner',
+              created_at: now,
+              notes: returnReason || undefined,
+            };
+            await db.cash_expenses.put(refund);
           }
-        }
-      }
 
-      // 2. If Khata Deduction, reduce customer's Udhar balance
-      if ((refundMethod === 'khata_deduction' || refundMethod === 'store_credit') && selectedSale.customer_id) {
-        const cust = await db.customers.get(selectedSale.customer_id);
-        if (cust) {
-          const updatedBal = Math.max(0, cust.current_balance - totalRefundPaise);
-          await db.customers.update(cust.id, { current_balance: updatedBal, updated_at: now });
-
-          await db.ledger_transactions.put({
-            id: `ledg_${Date.now()}`,
-            business_id: selectedSale.business_id,
-            party_type: 'customer',
-            party_id: cust.id,
-            party_name: cust.name,
-            transaction_type: 'PAYMENT_RECEIVED',
-            amount: totalRefundPaise,
-            balance_after: updatedBal,
-            reference_id: returnNumber,
-            notes: `Credit Note / Return on Inv #${selectedSale.invoice_number}`,
+          // 3. Save the return record
+          const newReturn: SalesReturn = {
+            id: returnId,
+            business_id: sale.business_id,
+            return_number: returnNumber,
+            original_sale_id: sale.id,
+            original_invoice_number: sale.invoice_number,
+            customer_id: sale.customer_id,
+            customer_name: sale.customer_name,
+            customer_phone: sale.customer_phone,
+            items: returnItems,
+            refund_amount: totalRefundPaise,
+            refund_method: refundMethod,
+            notes: returnReason,
+            created_by: 'owner',
             created_at: now,
+          };
+          await db.sales_returns.put(newReturn);
+
+          // 4. Mark the bill: per-line returned quantity, total refunded, full / partial status
+          const isFullReturn = sale.items.every((item, idx) => newReturned[idx] >= item.quantity);
+          await db.sales.update(sale.id, {
+            items: sale.items.map((item, idx) => ({ ...item, returned_quantity: newReturned[idx] || undefined })),
+            has_return: true,
+            returned_amount: (sale.returned_amount || 0) + totalRefundPaise,
+            status: isFullReturn ? 'returned' : 'partial_return',
+            return_id: returnId,
+            updated_at: now,
           });
+
+          saved = newReturn;
         }
+      );
+      if (saved) {
+        setCompletedReturn(saved);
+        onReturnCompleted?.(saved);
       }
-
-      // 3. Save Sales Return
-      const newReturn: SalesReturn = {
-        id: returnId,
-        business_id: selectedSale.business_id,
-        return_number: returnNumber,
-        original_sale_id: selectedSale.id,
-        original_invoice_number: selectedSale.invoice_number,
-        customer_id: selectedSale.customer_id,
-        customer_name: selectedSale.customer_name,
-        customer_phone: selectedSale.customer_phone,
-        items: returnItems,
-        refund_amount: totalRefundPaise,
-        refund_method: refundMethod,
-        notes: returnReason,
-        created_by: 'owner',
-        created_at: now,
-      };
-
-      await db.sales_returns.put(newReturn);
-
-      // 4. Update Original Sale status & mark return metadata
-      const newTotalReturned = (selectedSale.returned_amount || 0) + totalRefundPaise;
-      const isFullReturn = newTotalReturned >= selectedSale.grand_total;
-      await db.sales.update(selectedSale.id, {
-        has_return: true,
-        returned_amount: newTotalReturned,
-        status: isFullReturn ? 'returned' : 'partial_return',
-        return_id: returnId,
-        updated_at: now,
-      });
-
-      setCompletedReturn(newReturn);
-      if (onReturnCompleted) onReturnCompleted(newReturn);
     } catch (err) {
       console.error('Failed to process sales return:', err);
-      alert('Return processing failed.');
+      alert('Return processing failed. Nothing was changed.');
     } finally {
       setIsProcessing(false);
     }
@@ -300,12 +339,13 @@ export const SalesReturnModal: React.FC<SalesReturnModalProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">
-                  {selectedSale.items.map((item) => {
-                    const retQty = returnQuantities[item.product_id] || 0;
-                    const isRestock = restockFlags[item.product_id] ?? true;
+                  {selectedSale.items.map((item, idx) => {
+                    const retQty = returnQuantities[idx] || 0;
+                    const isRestock = restockFlags[idx] ?? true;
+                    const maxQty = maxReturnable(idx);
 
                     return (
-                      <tr key={item.product_id}>
+                      <tr key={idx} className={maxQty <= 0 ? 'opacity-50' : undefined}>
                         <td className="py-2.5 px-3 font-semibold text-slate-900">
                           {item.product_name}
                           <div className="text-[10px] text-slate-500 font-mono">
@@ -314,6 +354,9 @@ export const SalesReturnModal: React.FC<SalesReturnModalProps> = ({
                         </td>
                         <td className="py-2.5 px-2 text-center font-bold text-slate-500">
                           {item.quantity}
+                          {(alreadyReturned[idx] || 0) > 0 && (
+                            <div className="text-[9.5px] text-rose-600 font-bold">{alreadyReturned[idx]} returned</div>
+                          )}
                         </td>
                         <td className="py-2.5 px-2 text-center">
                           <div className="flex items-center justify-center gap-1">
@@ -322,7 +365,7 @@ export const SalesReturnModal: React.FC<SalesReturnModalProps> = ({
                               onClick={() =>
                                 setReturnQuantities((prev) => ({
                                   ...prev,
-                                  [item.product_id]: Math.max(0, retQty - 1),
+                                  [idx]: Math.max(0, retQty - 1),
                                 }))
                               }
                               className="w-5 h-5 rounded bg-slate-200 font-bold flex items-center justify-center text-slate-700"
@@ -335,7 +378,7 @@ export const SalesReturnModal: React.FC<SalesReturnModalProps> = ({
                               onClick={() =>
                                 setReturnQuantities((prev) => ({
                                   ...prev,
-                                  [item.product_id]: Math.min(item.quantity, retQty + 1),
+                                  [idx]: Math.min(maxQty, retQty + 1),
                                 }))
                               }
                               className="w-5 h-5 rounded bg-slate-200 font-bold flex items-center justify-center text-slate-700"
@@ -351,14 +394,14 @@ export const SalesReturnModal: React.FC<SalesReturnModalProps> = ({
                             onChange={(e) =>
                               setRestockFlags((prev) => ({
                                 ...prev,
-                                [item.product_id]: e.target.checked,
+                                [idx]: e.target.checked,
                               }))
                             }
                             className="rounded text-emerald-600 cursor-pointer"
                           />
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
-                          {formatINR(retQty * item.unit_price)}
+                          {formatINR(getLineRefundPaise(item, retQty))}
                         </td>
                       </tr>
                     );

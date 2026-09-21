@@ -6,10 +6,11 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslation } from '@/lib/i18n';
 import { Sale, Product } from '@/types';
 import { triggerBackgroundSync } from '@/lib/firebase/backgroundSync';
-import { subscriptionService } from '@/lib/subscription/subscriptionService';
-import { useProSubscription } from '@/components/subscription/ProFeatureGate';
-import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 import { InvoiceModal } from '@/components/invoices/InvoiceModal';
+import { AdvancedAnalyticsBanner } from '@/components/dashboard/AdvancedAnalyticsBanner';
+import { getLocalDayRange, getSaleNetTotal, isRevenueSale } from '@/lib/sales/saleMath';
+import { computeDrawerSummary } from '@/lib/reports/cashDrawer';
+import { buildAdvancedReport, isProfitPartial } from '@/lib/reports/advancedReports';
 import { DayEndClosingReportModal } from '@/components/reports/DayEndClosingReportModal';
 
 // Modular Dashboard Sub-components
@@ -20,17 +21,9 @@ import { QuickToolsGrid } from '@/components/dashboard/QuickToolsGrid';
 import { DashboardStockWatchlist } from '@/components/dashboard/DashboardStockWatchlist';
 import { DashboardRecentSales } from '@/components/dashboard/DashboardRecentSales';
 
-const getTodayISORange = () => {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-  const end = new Date();
-  end.setHours(23, 59, 59, 999);
-  return { start: start.toISOString(), end: end.toISOString() };
-};
 
 export default function DashboardHome() {
   const { t } = useTranslation();
-  const { isPro, isUpgradeModalOpen: isUpgradeOpen, setIsUpgradeModalOpen: setIsUpgradeOpen } = useProSubscription();
   const [selectedSaleForInvoice, setSelectedSaleForInvoice] = useState<Sale | null>(null);
   const [isClosingReportOpen, setIsClosingReportOpen] = useState<boolean>(false);
   const [restockToast, setRestockToast] = useState<string | null>(null);
@@ -42,45 +35,48 @@ export default function DashboardHome() {
   const products = useLiveQuery(async () => db.products.toArray()) || [];
   const activeProducts = useMemo(() => products.filter((p) => p.is_active !== false), [products]);
 
-  // Today's Sales
+  // Today's Sales (local calendar day, half-open)
   const todaysSales = useLiveQuery(async () => {
-    const { start, end } = getTodayISORange();
-    return db.sales.where('created_at').between(start, end, true, true).toArray();
+    const { start, end } = getLocalDayRange();
+    return db.sales.where('created_at').between(start, end, true, false).toArray();
   }) || [];
+  const todaysReturns = useLiveQuery(async () => {
+    const { start } = getLocalDayRange();
+    // Returns of today's bills can only have been made today or later.
+    return db.sales_returns.where('created_at').aboveOrEqual(start).toArray();
+  }) || [];
+  const todaysLedger = useLiveQuery(async () => {
+    const { start, end } = getLocalDayRange();
+    return db.ledger_transactions.where('created_at').between(start, end, true, false).toArray();
+  }) || [];
+
+  // Revenue bills only: estimates and fully returned bills are not sales; partial returns count net.
+  const todaysRevenueSales = useMemo(() => todaysSales.filter(isRevenueSale), [todaysSales]);
   const todaysSalesTotal = useMemo(() => {
-    return todaysSales.reduce((acc, s) => acc + s.grand_total, 0);
-  }, [todaysSales]);
+    return todaysRevenueSales.reduce(
+      (acc, s) => acc + getSaleNetTotal(s, todaysReturns.filter((r) => r.original_sale_id === s.id)),
+      0
+    );
+  }, [todaysRevenueSales, todaysReturns]);
 
   // Today's Cash Expenses
   const todaysExpenses = useLiveQuery(async () => {
-    const { start, end } = getTodayISORange();
-    return db.cash_expenses.where('created_at').between(start, end, true, true).toArray();
+    const { start, end } = getLocalDayRange();
+    return db.cash_expenses.where('created_at').between(start, end, true, false).toArray();
   }) || [];
 
-  // Cash in Hand calculation (Cash Sales - Expenses)
+  // Cash in hand: cash kept from sales (no change, split cash included) + khata cash − cash expenses & refunds
   const netCashInHand = useMemo(() => {
-    const cashSales = todaysSales.reduce((sum, s) => {
-      if (s.payment_method === 'cash') return sum + (s.amount_received || s.grand_total);
-      if (s.payment_split?.cash_amount) return sum + s.payment_split.cash_amount;
-      return sum;
-    }, 0);
-    const cashExp = todaysExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-    return Math.max(0, cashSales - cashExp);
-  }, [todaysSales, todaysExpenses]);
+    const drawer = computeDrawerSummary({ sales: todaysSales, expenses: todaysExpenses, ledger: todaysLedger });
+    return Math.max(0, drawer.expectedCash);
+  }, [todaysSales, todaysExpenses, todaysLedger]);
 
-  // Estimated Gross Profit
-  const todaysGrossProfit = useMemo(() => {
-    const productCostMap = new Map(products.map((p) => [p.id, p.purchase_price || 0]));
-    let profit = 0;
-    for (const sale of todaysSales) {
-      for (const item of sale.items || []) {
-        const purchasePrice = productCostMap.get(item.product_id) || Math.round(item.unit_price * 0.75);
-        const margin = item.unit_price - purchasePrice;
-        profit += Math.max(0, margin * (item.quantity || 1));
-      }
-    }
-    return profit;
-  }, [todaysSales, products]);
+  // Profit only over lines with a frozen buying price — same rule as Sales Analytics.
+  const todaysProfit = useMemo(
+    () => buildAdvancedReport({ sales: todaysSales, returns: todaysReturns, products, categories: [] }),
+    [todaysSales, todaysReturns, products]
+  );
+  const todaysGrossProfit = todaysProfit.totalProfitPaise;
 
   // Outstanding Khata Debtors
   const customersWithCredit = useLiveQuery(async () => {
@@ -161,16 +157,6 @@ export default function DashboardHome() {
     }
   };
 
-  useEffect(() => {
-    fetch('/api/auth/me')
-      .then((r) => r.json())
-      .then((data) => {
-        if (data?.business?.subscription_tier) {
-          subscriptionService.setTierFromCloud(data.business.subscription_tier);
-        }
-      })
-      .catch(() => {});
-  }, []);
 
   return (
     <div className="space-y-4 pb-20 sm:pb-6 animate-in fade-in duration-150">
@@ -181,19 +167,14 @@ export default function DashboardHome() {
         </div>
       )}
 
-      {/* Upgrade Modal */}
-      <UpgradeModal
-        isOpen={isUpgradeOpen}
-        onClose={() => setIsUpgradeOpen(false)}
-        currentTier={isPro ? 'pro' : 'free'}
-        businessName={business?.name}
-      />
 
       {/* 1. TODAY'S BUSINESS PULSE (4-Stat Realtime Metric Ribbon) */}
       <TodayBusinessPulse
         todaysSalesTotal={todaysSalesTotal}
-        todaysSalesCount={todaysSales.length}
+        todaysSalesCount={todaysRevenueSales.length}
         todaysGrossProfit={todaysGrossProfit}
+        profitCoveredRevenue={todaysProfit.costedRevenuePaise}
+        isProfitPartial={isProfitPartial(todaysProfit)}
         netCashInHand={netCashInHand}
         totalOutstandingCredit={totalOutstandingCredit}
         customersWithCreditCount={customersWithCredit.length}
@@ -203,6 +184,9 @@ export default function DashboardHome() {
       <QuickActionDock
         onOpenClosingReport={() => setIsClosingReportOpen(true)}
       />
+
+      {/* 3. ADVANCED ANALYTICS BANNER (Android Home parity) */}
+      <AdvancedAnalyticsBanner />
 
 
 

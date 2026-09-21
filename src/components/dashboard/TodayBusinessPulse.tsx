@@ -18,6 +18,10 @@ interface TodayBusinessPulseProps {
   todaysSalesTotal: number;
   todaysSalesCount: number;
   todaysGrossProfit: number;
+  /** Revenue of the lines that have a buying price — the base the margin is measured on. */
+  profitCoveredRevenue?: number;
+  /** Some sold lines had no buying price, so profit is partial. */
+  isProfitPartial?: boolean;
   netCashInHand: number;
   totalOutstandingCredit: number;
   customersWithCreditCount: number;
@@ -27,13 +31,14 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
   todaysSalesTotal,
   todaysSalesCount,
   todaysGrossProfit,
+  profitCoveredRevenue,
+  isProfitPartial = false,
   netCashInHand,
   totalOutstandingCredit,
   customersWithCreditCount,
 }) => {
-  const profitMarginPercent = todaysSalesTotal > 0 
-    ? Math.round((todaysGrossProfit / todaysSalesTotal) * 100) 
-    : 0;
+  const marginBase = profitCoveredRevenue ?? todaysSalesTotal;
+  const profitMarginPercent = marginBase > 0 ? Math.round((todaysGrossProfit / marginBase) * 100) : 0;
 
   return (
     <div className="space-y-2.5">
@@ -90,7 +95,7 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
                   <CircleDollarSign className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 dark:text-blue-400 shrink-0" />
                   <span className="truncate">Today's Profit</span>
                 </div>
-                {todaysSalesTotal > 0 && (
+                {marginBase > 0 && (
                   <span className="px-1.5 py-0.2 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-900 dark:text-blue-200 text-[9px] font-black font-mono">
                     ~{profitMarginPercent}% Margin
                   </span>
@@ -103,8 +108,8 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
             </div>
 
             <div className="pt-1.5 mt-1.5 border-t border-blue-100/80 dark:border-blue-900/40 flex items-center justify-between text-[10px] sm:text-[11px]">
-              <span className="text-slate-500 dark:text-slate-400 font-semibold truncate">
-                Gross Margin
+              <span className="text-slate-500 dark:text-slate-400 font-semibold truncate" title={isProfitPartial ? 'Some items sold today have no buying price, so they are left out of profit.' : undefined}>
+                {isProfitPartial ? 'Partial • items without buying price skipped' : 'Gross Margin'}
               </span>
               <span className="text-blue-700 dark:text-blue-400 font-bold text-[10px]">
                 Owner Only

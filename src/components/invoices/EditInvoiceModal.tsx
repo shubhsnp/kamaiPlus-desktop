@@ -5,6 +5,7 @@ import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Sale, CartItem, Product, PaymentMethod } from '@/types';
 import { formatINR } from '@/lib/utils';
+import { getLineGrossPaise, getLineTaxablePaise, isEstimate } from '@/lib/sales/saleMath';
 import { 
   Modal 
 } from '@/components/ui/Modal';
@@ -102,7 +103,7 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
     setItems((prev) =>
       prev.map((item, i) => {
         if (i !== index) return item;
-        const lineTotal = Math.max(0, newQty * item.unit_price - (item.discount_amount || 0));
+        const lineTotal = Math.max(0, Math.round(newQty * item.unit_price) - (item.discount_amount || 0));
         const taxRate = item.tax_rate || 0;
         const taxAmt = calculateItemTax(lineTotal, taxRate, item.is_tax_inclusive);
         return {
@@ -120,7 +121,7 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
     setItems((prev) =>
       prev.map((item, i) => {
         if (i !== index) return item;
-        const lineTotal = Math.max(0, item.quantity * unitPricePaise - (item.discount_amount || 0));
+        const lineTotal = Math.max(0, Math.round(item.quantity * unitPricePaise) - (item.discount_amount || 0));
         const taxRate = item.tax_rate || 0;
         const taxAmt = calculateItemTax(lineTotal, taxRate, item.is_tax_inclusive);
         return {
@@ -138,7 +139,7 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
     setItems((prev) =>
       prev.map((item, i) => {
         if (i !== index) return item;
-        const lineTotal = Math.max(0, item.quantity * item.unit_price - discPaise);
+        const lineTotal = Math.max(0, Math.round(item.quantity * item.unit_price) - discPaise);
         const taxRate = item.tax_rate || 0;
         const taxAmt = calculateItemTax(lineTotal, taxRate, item.is_tax_inclusive);
         return {
@@ -179,6 +180,7 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
           tax_amount: taxAmt,
           total_amount: lineTotal,
           is_tax_inclusive: product.is_tax_inclusive,
+          cost_price: product.purchase_price > 0 ? product.purchase_price : undefined,
         },
       ]);
     }
@@ -186,25 +188,25 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
     setProductSearch('');
   };
 
-  // Calculations
-  const discountTotalPaise = items.reduce((acc, i) => acc + (i.discount_amount || 0), 0);
+  // Calculations. Bills saved before bill discounts were spread over the lines
+  // carry that discount at bill level; it is kept, never silently dropped.
+  const estimate = isEstimate(sale);
+  const legacyBillDiscountPaise = Math.max(
+    0,
+    (sale.items || []).reduce((acc, i) => acc + getLineGrossPaise(i), 0) - (sale.grand_total || 0)
+  );
+  const discountTotalPaise = items.reduce((acc, i) => acc + (i.discount_amount || 0), 0) + legacyBillDiscountPaise;
   const taxTotalPaise = items.reduce((acc, i) => acc + (i.tax_amount || 0), 0);
-  const subtotalPaise = items.reduce((acc, item) => {
-    const itemIsInclusive = item.is_tax_inclusive !== undefined ? item.is_tax_inclusive : !isBusinessGstExclusive;
-    if (itemIsInclusive && item.tax_rate > 0) {
-      return acc + (item.total_amount - (item.tax_amount || 0));
-    }
-    return acc + item.total_amount;
-  }, 0);
+  const subtotalPaise = Math.max(0, items.reduce((acc, item) => acc + getLineTaxablePaise(item), 0) - legacyBillDiscountPaise);
   const grandTotalPaise = subtotalPaise + taxTotalPaise;
 
   const enteredReceivedPaise = amountReceivedInput
     ? Math.round(parseFloat(amountReceivedInput) * 100)
     : grandTotalPaise;
 
-  const isCredit = paymentMethod === 'credit' || enteredReceivedPaise < grandTotalPaise;
+  const isCredit = !estimate && (paymentMethod === 'credit' || enteredReceivedPaise < grandTotalPaise);
   const balanceDuePaise = isCredit ? Math.max(0, grandTotalPaise - enteredReceivedPaise) : 0;
-  const changeReturnedPaise = !isCredit && enteredReceivedPaise > grandTotalPaise ? enteredReceivedPaise - grandTotalPaise : 0;
+  const changeReturnedPaise = !estimate && !isCredit && enteredReceivedPaise > grandTotalPaise ? enteredReceivedPaise - grandTotalPaise : 0;
 
   // Save changes handler with inventory & ledger reconciliation
   const handleSaveInvoice = async (e: React.FormEvent) => {
@@ -213,11 +215,25 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
       alert('Invoice must have at least 1 item.');
       return;
     }
+    if (sale.status === 'returned' || sale.status === 'partial_return') {
+      alert('This bill has a sales return against it, so it cannot be edited. The return already adjusted stock and khata.');
+      return;
+    }
+    const requestedNumber = invoiceNumber.trim();
+    if (requestedNumber && requestedNumber !== sale.invoice_number) {
+      const clash = await db.sales.where('invoice_number').equals(requestedNumber).first();
+      if (clash && clash.id !== sale.id) {
+        alert(`Invoice number ${requestedNumber} is already used by another bill.`);
+        return;
+      }
+    }
 
     setIsSaving(true);
     try {
       const now = new Date().toISOString();
 
+      // Estimates never moved stock or khata, so editing one must not either.
+      if (!estimate) {
       // 1. Inventory Stock Reconciliation:
       // Compare old items vs new items and adjust stock accordingly
       const oldQtyMap = new Map<string, number>();
@@ -240,7 +256,7 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
 
         if (diff !== 0) {
           const prod = await db.products.get(prodId);
-          if (prod) {
+          if (prod && !prod.is_unlimited_stock) {
             const prevStock = prod.current_stock;
             const updatedStock = Math.max(0, prevStock - diff);
 
@@ -296,6 +312,7 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
           });
         }
       }
+      }
 
       // 3. Update Sale Record in Dexie DB
       const finalInvoiceNumber = invoiceNumber.trim() || sale.invoice_number;
@@ -311,10 +328,18 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
         tax_total: taxTotalPaise,
         grand_total: grandTotalPaise,
         payment_method: paymentMethod,
-        amount_received: enteredReceivedPaise,
+        payment_split:
+          paymentMethod === 'split' && sale.payment_split
+            ? {
+                ...sale.payment_split,
+                cash_amount: Math.max(0, grandTotalPaise - balanceDuePaise - (sale.payment_split.upi_amount || 0) - (sale.payment_split.card_amount || 0)),
+                credit_amount: balanceDuePaise,
+              }
+            : undefined,
+        amount_received: estimate ? 0 : enteredReceivedPaise,
         balance_due: balanceDuePaise,
         change_returned: changeReturnedPaise,
-        payment_status: balanceDuePaise === 0 ? 'paid' : balanceDuePaise < grandTotalPaise ? 'partial' : 'unpaid',
+        payment_status: estimate ? 'unpaid' : balanceDuePaise === 0 ? 'paid' : balanceDuePaise < grandTotalPaise ? 'partial' : 'unpaid',
         notes: notes.trim() || undefined,
         updated_at: now,
       };

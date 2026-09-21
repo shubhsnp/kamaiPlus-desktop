@@ -6,7 +6,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslation } from '@/lib/i18n';
 import { Product, Customer, CartItem, PaymentMethod, ProductUnit, LedgerTransaction } from '@/types';
 import { formatINR, parseRupeesToPaise, generateUPILink, cn } from '@/lib/utils';
-import { sendInvoiceViaOfficialCloudApi } from '@/lib/invoices/whatsappInvoice';
+import { allocateBillDiscount, computeBillTotals, isLineTaxInclusive } from '@/lib/sales/saleMath';
 import QRCode from 'qrcode';
 import { playBeepSound } from '@/lib/voice/speechParser';
 import { PlatformAnalytics } from '@/lib/firebase/analytics';
@@ -171,6 +171,7 @@ export default function BillingPage() {
   const { language, t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
   const [billingToast, setBillingToast] = useState<{ message: string; type?: 'success' | 'info' | 'error' } | null>(null);
 
   const showBillingToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
@@ -579,7 +580,7 @@ export default function BillingPage() {
       if (existing) {
         const newQty = existing.quantity + allowedQty;
         const price = product.selling_price;
-        const lineTotal = Math.max(0, newQty * price - (existing.discount_amount || 0));
+        const lineTotal = Math.max(0, Math.round(newQty * price) - (existing.discount_amount || 0));
         const taxRate = existing.tax_rate || 0;
         const taxAmt = calculateItemTax(lineTotal, taxRate, product.is_tax_inclusive);
         return prev.map((item) =>
@@ -596,7 +597,7 @@ export default function BillingPage() {
         );
       } else {
         const price = product.selling_price;
-        const lineTotal = price * allowedQty;
+        const lineTotal = Math.round(price * allowedQty);
         const taxRate = product.tax_rate || 0;
         const taxAmt = calculateItemTax(lineTotal, taxRate, product.is_tax_inclusive);
         return [
@@ -615,6 +616,8 @@ export default function BillingPage() {
             tax_amount: taxAmt,
             total_amount: lineTotal,
             is_tax_inclusive: product.is_tax_inclusive,
+            // Buying rate frozen on the bill, so later price edits never rewrite past profit.
+            cost_price: product.purchase_price > 0 ? product.purchase_price : undefined,
 
             size: product.size,
             color: product.color,
@@ -647,7 +650,7 @@ export default function BillingPage() {
             const newQty = item.quantity + delta;
             if (newQty <= 0) return null;
             const price = product.selling_price;
-            const lineTotal = Math.max(0, newQty * price - (item.discount_amount || 0));
+            const lineTotal = Math.max(0, Math.round(newQty * price) - (item.discount_amount || 0));
             const taxRate = item.tax_rate || 0;
             const taxAmt = calculateItemTax(lineTotal, taxRate, item.is_tax_inclusive ?? product.is_tax_inclusive);
             return { 
@@ -694,7 +697,7 @@ export default function BillingPage() {
       return;
     }
 
-    const rawTotal = qty * unitPricePaise;
+    const rawTotal = Math.round(qty * unitPricePaise);
     let discountPaise = 0;
     const discountVal = parseFloat(editItemDiscount) || 0;
     if (editItemDiscountType === 'percentage') {
@@ -806,7 +809,7 @@ export default function BillingPage() {
       category_id: 'cat_general',
       category_name: 'General Store',
       unit: 'packet',
-      purchase_price: Math.round(pricePaise * 0.85),
+      purchase_price: 0, // unknown until the shopkeeper enters it — never guessed
       selling_price: pricePaise,
       mrp: pricePaise,
       tax_rate: 0,
@@ -833,34 +836,32 @@ export default function BillingPage() {
 
   // Calculations
   const totalItemCount = cart.reduce((acc, item) => acc + item.quantity, 0);
-  const lineItemsDiscountPaise = cart.reduce((acc, item) => acc + (item.discount_amount || 0), 0);
 
-  // In exclusive mode (standard for restaurants & services), line total is base price and GST is added on top.
-  // In inclusive mode (standard for MRP retail), line total includes tax, so taxable base is (total_amount - tax_amount).
-  const rawBaseSubtotalPaise = cart.reduce((acc, item) => {
-    const itemIsInclusive = item.is_tax_inclusive !== undefined ? item.is_tax_inclusive : !isBusinessGstExclusive;
-    if (itemIsInclusive && item.tax_rate > 0) {
-      return acc + (item.total_amount - (item.tax_amount || 0));
-    }
-    return acc + item.total_amount;
-  }, 0);
-
-  // Bill-Level Discount calculation
+  // Bill-level discount: a % or flat amount off the lines' own amounts (MRP for
+  // tax-inclusive items, base rate for tax-exclusive ones), like a line discount.
+  const linesAmountPaise = cart.reduce((acc, item) => acc + Math.max(0, item.total_amount), 0);
   let billDiscountPaise = 0;
   if (billDiscountValue && parseFloat(billDiscountValue) > 0) {
     if (billDiscountType === 'percentage') {
       const pct = Math.min(100, Math.max(0, parseFloat(billDiscountValue) || 0));
-      billDiscountPaise = Math.round((rawBaseSubtotalPaise * pct) / 100);
+      billDiscountPaise = Math.round((linesAmountPaise * pct) / 100);
     } else {
       const flat = Math.max(0, parseFloat(billDiscountValue) || 0);
-      billDiscountPaise = Math.min(rawBaseSubtotalPaise, Math.round(flat * 100));
+      billDiscountPaise = Math.min(linesAmountPaise, Math.round(flat * 100));
     }
   }
 
-  const discountTotalPaise = lineItemsDiscountPaise + billDiscountPaise;
-  const subtotalPaise = Math.max(0, rawBaseSubtotalPaise - billDiscountPaise);
-  const taxTotalPaise = cart.reduce((acc, item) => acc + (item.tax_amount || 0), 0);
-  const grandTotalPaise = subtotalPaise + taxTotalPaise;
+  // The bill discount is spread over the lines and GST recomputed on what is
+  // actually charged, so the totals shown, the saved bill and the GST report agree.
+  const billLines = allocateBillDiscount(cart, billDiscountPaise);
+  const billTotals = computeBillTotals(billLines);
+  const itemsValuePaise = billLines.reduce((acc, item) => acc + Math.round(item.quantity * item.unit_price), 0);
+  const discountTotalPaise = billTotals.discountTotal;
+  const subtotalPaise = billTotals.subtotal;
+  const taxTotalPaise = billTotals.taxTotal;
+  const grandTotalPaise = billTotals.grandTotal;
+  const addedGstPaise = billLines.filter((i) => !isLineTaxInclusive(i)).reduce((acc, i) => acc + (i.tax_amount || 0), 0);
+  const includedGstPaise = taxTotalPaise - addedGstPaise;
 
   // Real-Time Dynamic Amount UPI QR Generation (e.g. ₹848.00 auto-fills in GPay / PhonePe / Paytm)
   useEffect(() => {
@@ -1004,7 +1005,9 @@ export default function BillingPage() {
         customer_id: targetCustomer?.id,
         customer_name: targetCustomer?.name || 'Cash Customer',
         customer_phone: targetCustomer?.phone,
-        items: [...cart],
+        customer_address: targetCustomer?.address,
+        customer_gstin: targetCustomer?.gstin,
+        items: billLines,
         subtotal: subtotalPaise,
         discount_total: discountTotalPaise,
         tax_total: taxTotalPaise,
@@ -1185,6 +1188,54 @@ export default function BillingPage() {
       alert('Encountered an unexpected error completing the sale. Please verify inventory.');
     }
   };
+
+  // Desktop POS Keyboard Shortcuts Handler
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.altKey || e.metaKey) return;
+
+      const target = e.target as HTMLElement;
+      const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+
+      if (e.key === 'F2') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        return;
+      }
+
+      if (e.key === 'F4') {
+        e.preventDefault();
+        setPaymentMethod('cash');
+        showBillingToast('Selected Cash Payment [F4]', 'info');
+        return;
+      }
+
+      if (e.key === 'F8') {
+        e.preventDefault();
+        setPaymentMethod('upi');
+        showBillingToast('Selected UPI Payment [F8]', 'info');
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        if (searchQuery) {
+          e.preventDefault();
+          setSearchQuery('');
+        }
+        return;
+      }
+
+      if (e.key === 'Enter' && !isInput) {
+        if (cart.length > 0) {
+          e.preventDefault();
+          handleCompleteSale();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [cart, searchQuery, handleCompleteSale]);
 
   // Reusable Checkout Panel Component for Desktop side-panel and Mobile Bottom Drawer
   const renderCheckoutPanel = () => (
@@ -1404,7 +1455,7 @@ export default function BillingPage() {
       </div>
 
       {/* Cart Items List with Inline / Popover Edit */}
-      <div className="border-t border-b border-slate-100 py-2 space-y-2 max-h-56 overflow-y-auto">
+      <div className="border-t border-b border-slate-100 py-2 space-y-2 max-h-[calc(100vh-420px)] min-h-[140px] overflow-y-auto pr-0.5">
         {cart.length === 0 ? (
           <div className="text-center py-6 text-xs text-slate-400 font-medium">
             Cart is empty. Tap products on the left to add items to bill.
@@ -1507,8 +1558,8 @@ export default function BillingPage() {
         </label>
         <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
           {[
-            { id: 'cash', label: 'Cash', icon: Banknote },
-            { id: 'upi', label: 'UPI / QR', icon: QrCode },
+            { id: 'cash', label: 'Cash', icon: Banknote, shortcut: 'F4' },
+            { id: 'upi', label: 'UPI / QR', icon: QrCode, shortcut: 'F8' },
             { id: 'credit', label: 'Credit', icon: BookOpen },
             { id: 'split', label: 'Split', icon: CreditCard },
           ].map((m) => {
@@ -1529,7 +1580,7 @@ export default function BillingPage() {
                   }
                 }}
                 className={cn(
-                  'py-2 px-1 rounded-lg border text-xs font-bold flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 transition-all text-center cursor-pointer',
+                  'py-2 px-1 rounded-lg border text-xs font-bold flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 transition-all text-center cursor-pointer relative',
                   isSelected
                     ? 'bg-slate-900 border-slate-900 text-white shadow-xs'
                     : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
@@ -1537,6 +1588,14 @@ export default function BillingPage() {
               >
                 <Icon className="w-3.5 h-3.5 flex-shrink-0" />
                 <span className="truncate">{m.label}</span>
+                {m.shortcut && (
+                  <span className={cn(
+                    "text-[9px] font-mono px-1 py-0.2 rounded font-bold hidden sm:inline-block",
+                    isSelected ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
+                  )}>
+                    {m.shortcut}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -1946,8 +2005,8 @@ export default function BillingPage() {
       {/* Bottom Total & Checkout Button */}
       <div className="pt-2.5 border-t border-slate-200 space-y-1.5">
         <div className="flex items-center justify-between text-xs text-slate-600">
-          <span>Subtotal</span>
-          <span className="font-semibold text-slate-800 font-mono">{formatINR(rawBaseSubtotalPaise)}</span>
+          <span>Items Total</span>
+          <span className="font-semibold text-slate-800 font-mono">{formatINR(itemsValuePaise)}</span>
         </div>
         {discountTotalPaise > 0 && (
           <div className="flex items-center justify-between text-xs text-emerald-700">
@@ -1962,17 +2021,34 @@ export default function BillingPage() {
             <span className="font-semibold font-mono">-{formatINR(discountTotalPaise)}</span>
           </div>
         )}
-        {taxTotalPaise > 0 && (
+        {addedGstPaise > 0 && (
           <div className="flex items-center justify-between text-xs text-slate-600">
-            <span>Total GST</span>
-            <span className="font-semibold text-slate-800 font-mono">+{formatINR(taxTotalPaise)}</span>
+            <span>GST (added)</span>
+            <span className="font-semibold text-slate-800 font-mono">+{formatINR(addedGstPaise)}</span>
           </div>
         )}
-        <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-200">
-          <span className="font-bold text-slate-900 uppercase tracking-wider">Grand Total</span>
-          <span className="text-xl font-extrabold text-slate-900 font-mono">
-            {formatINR(grandTotalPaise)}
-          </span>
+        {includedGstPaise > 0 && (
+          <div className="flex items-center justify-between text-[11px] text-slate-400">
+            <span>Incl. GST in prices</span>
+            <span className="font-mono">{formatINR(includedGstPaise)}</span>
+          </div>
+        )}
+        {/* High-Contrast POS Grand Total Card */}
+        <div className="p-3 bg-slate-900 text-white rounded-xl shadow-xs space-y-1">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Payable</span>
+            <span className="text-2xl font-black font-mono text-emerald-400 tracking-tight">
+              {formatINR(grandTotalPaise)}
+            </span>
+          </div>
+          {amountReceivedInput && parseFloat(amountReceivedInput) * 100 > grandTotalPaise && (
+            <div className="pt-1.5 mt-1 border-t border-slate-800 flex items-center justify-between text-xs">
+              <span className="text-amber-300 font-medium">Return Change:</span>
+              <span className="font-mono font-black text-amber-300 text-sm">
+                {formatINR(Math.round(parseFloat(amountReceivedInput) * 100 - grandTotalPaise))}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Hardware & Sanitary Only: Quotation / Estimate Toggle */}
@@ -2006,21 +2082,23 @@ export default function BillingPage() {
           disabled={cart.length === 0}
           onClick={() => handleCompleteSale()}
           className={cn(
-            'w-full text-xs font-bold py-3 shadow-sm cursor-pointer transition-all',
+            'w-full text-xs font-black py-3 shadow-md cursor-pointer transition-all flex items-center justify-center gap-2',
             isQuotation
-              ? 'bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 border-amber-400'
-              : 'bg-amber-400 hover:bg-amber-500 text-slate-950 border-amber-400'
+              ? 'bg-amber-500 hover:bg-amber-600 text-slate-950 border-amber-500'
+              : 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600'
           )}
         >
           {isQuotation ? (
             <>
-              <FileText className="w-4 h-4 mr-1.5 text-slate-950" />
-              <span>Save &amp; Print Estimate / Quotation</span>
+              <FileText className="w-4 h-4 mr-1 text-slate-950" />
+              <span>Save &amp; Print Estimate</span>
+              <kbd className="ml-1 px-1.5 py-0.5 rounded bg-amber-400 text-slate-950 font-mono text-[10px] font-bold border border-amber-300">Enter ↵</kbd>
             </>
           ) : (
             <>
-              <Receipt className="w-4 h-4 mr-1.5 text-slate-950" />
-              <span>Complete Sale &amp; Generate Bill</span>
+              <Receipt className="w-4 h-4 mr-1 text-white" />
+              <span>Complete Sale &amp; Print</span>
+              <kbd className="ml-1 px-1.5 py-0.5 rounded bg-emerald-700 text-emerald-100 font-mono text-[10px] font-bold border border-emerald-500">Enter ↵</kbd>
             </>
           )}
         </Button>
@@ -2036,14 +2114,18 @@ export default function BillingPage() {
           <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-3">
             {/* Search & Actions Bar */}
             <div className="flex items-center gap-2">
-              <div className="flex-1">
+              <div className="relative flex-1">
                 <Input
-                  placeholder={storeProfile.placeholders.searchProduct || "Search products by name, barcode or category..."}
+                  ref={searchInputRef}
+                  placeholder={storeProfile.placeholders.searchProduct || "Search products by name, barcode or category... [F2]"}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   leftIcon={<Search className="w-4 h-4 text-slate-400" />}
                   autoFocus
                 />
+                <div className="absolute right-2.5 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-1 pointer-events-none">
+                  <kbd className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-500 font-mono text-[10px] font-bold">F2</kbd>
+                </div>
               </div>
 
               {/* Barcode Camera Scanner Button (Shown if BARCODE module enabled) */}
@@ -2132,7 +2214,7 @@ export default function BillingPage() {
             </div>
 
             {/* Products Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[calc(100vh-270px)] overflow-y-auto pr-1">
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2 max-h-[calc(100vh-240px)] overflow-y-auto pr-1">
               {products.length === 0 ? (
                 <div className="col-span-full py-8 text-center text-xs text-slate-500 border border-dashed border-slate-300 rounded-2xl bg-white p-6 space-y-2.5">
                   <div className="font-bold text-slate-800">
@@ -2516,28 +2598,6 @@ export default function BillingPage() {
           onPrintReceipt={() => {
             if (activeSaleForInvoice) {
               setIsInvoiceModalOpen(true);
-            }
-          }}
-          onShareWhatsApp={async () => {
-            if (activeSaleForInvoice && activeSaleForInvoice.customer_phone && business) {
-              const cleanPhone = activeSaleForInvoice.customer_phone.replace(/\D/g, '').slice(-10);
-              showBillingToast(`📲 Dispatching WhatsApp bill to +91${cleanPhone}...`, 'info');
-              try {
-                const res = await sendInvoiceViaOfficialCloudApi(
-                  activeSaleForInvoice.customer_phone,
-                  activeSaleForInvoice,
-                  business
-                );
-                if (res.sent) {
-                  showBillingToast(`✅ WhatsApp bill sent to +91${cleanPhone}!`, 'success');
-                } else {
-                  showBillingToast(`⚠️ ${res.error || 'WhatsApp delivery failed'}`, 'error');
-                }
-              } catch (err: any) {
-                showBillingToast(`⚠️ ${err?.message || 'Failed to dispatch WhatsApp bill'}`, 'error');
-              }
-            } else if (!activeSaleForInvoice?.customer_phone) {
-              showBillingToast('⚠️ No customer phone number attached to this bill.', 'error');
             }
           }}
         />

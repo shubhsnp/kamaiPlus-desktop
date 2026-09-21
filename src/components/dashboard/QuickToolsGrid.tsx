@@ -95,7 +95,7 @@ export const QuickToolsGrid: React.FC<QuickToolsGridProps> = ({
       ],
     },
     {
-      title: 'Ledger, Growth & GST',
+      title: 'Ledger, Analytics & GST',
       dotColor: 'bg-purple-500',
       tools: [
         {
@@ -115,13 +115,12 @@ export const QuickToolsGrid: React.FC<QuickToolsGridProps> = ({
           bg: 'bg-sky-50 dark:bg-sky-950/60 border-sky-200 dark:border-sky-800',
         },
         {
-          title: 'WhatsApp Growth',
-          subtitle: 'Festival Offers',
-          href: '/growth',
+          title: 'Sales Analytics',
+          subtitle: 'Parties • Items • Profit',
+          href: '/reports',
           icon: TrendingUp,
-          color: 'text-rose-600 dark:text-rose-400',
-          bg: 'bg-rose-50 dark:bg-rose-950/60 border-rose-200 dark:border-rose-800',
-          isPro: true,
+          color: 'text-indigo-600 dark:text-indigo-400',
+          bg: 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800',
         },
         {
           title: 'GST & Accounting',

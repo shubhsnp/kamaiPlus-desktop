@@ -19,6 +19,7 @@ import {
   Barcode, 
   FileSpreadsheet, 
   HardDrive,
+  LineChart,
   PanelLeftClose,
   PanelLeftOpen,
   ChevronLeft,
@@ -100,6 +101,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { href: '/cash-register', label: 'Cash Register', icon: Calculator, iconBg: 'bg-amber-100 text-amber-900', activeIcon: 'text-amber-300' },
         { href: '/barcode-generator', label: 'Barcode Studio', icon: Barcode, iconBg: 'bg-purple-100 text-purple-800', activeIcon: 'text-purple-300' },
         { href: '/transactions', label: 'Transactions', icon: ShieldCheck, iconBg: 'bg-teal-100 text-teal-800', activeIcon: 'text-teal-300' },
+        { href: '/reports', label: 'Sales Analytics', icon: LineChart, iconBg: 'bg-indigo-100 text-indigo-800', activeIcon: 'text-indigo-300' },
       ],
     },
     {
