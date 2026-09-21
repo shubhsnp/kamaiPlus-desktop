@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { ensureStarterBusinessIfEmpty, db as localDb } from '@/lib/db';
+import { AuthUser, getStoredUser, setStoredUser } from '@/lib/auth';
 import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
 import { BottomNav } from './BottomNav';
