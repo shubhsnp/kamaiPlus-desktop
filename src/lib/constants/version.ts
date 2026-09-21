@@ -4,6 +4,6 @@
  * Auto-incremented on every git commit & push.
  */
 
-export const APP_VERSION = '4.27.0';
+export const APP_VERSION = '4.28.0';
 export const APP_RELEASE_DATE = '2026-09-21';
 export const APP_BUILD_NAME = 'Retail POS Free Forever';

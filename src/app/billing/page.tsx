@@ -1311,7 +1311,7 @@ export default function BillingPage() {
 
   // Reusable Checkout Panel Component for Desktop side-panel and Mobile Bottom Drawer
   const renderCheckoutPanel = () => (
-    <div className="space-y-3">
+    <div className="flex flex-col h-full min-h-0 space-y-3">
       {/* Multi-Bill Tab Bar */}
       <div className="bg-slate-100 p-1 rounded-xl flex items-center gap-1 overflow-x-auto border border-slate-200">
         {tabs.map((tab) => {
@@ -1492,7 +1492,7 @@ export default function BillingPage() {
       </div>
 
       {/* Cart Header with Hold Bill Button */}
-      <div className="flex items-center justify-between pt-1">
+      <div className="flex items-center justify-between pt-1 flex-shrink-0">
         <span className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
           <span>Cart Items ({totalItemCount})</span>
           {activeTab.isHeld && (
@@ -1507,7 +1507,7 @@ export default function BillingPage() {
             <button
               type="button"
               onClick={handleHoldActiveTab}
-              className="text-[11px] font-bold text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded border border-amber-200 flex items-center gap-1"
+              className="text-[11px] font-bold text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded border border-amber-200 flex items-center gap-1 cursor-pointer transition-colors"
               title="Park / Hold this bill and start a new one"
             >
               <PauseCircle className="w-3 h-3" />
@@ -1518,7 +1518,7 @@ export default function BillingPage() {
           {cart.length > 0 && (
             <button
               onClick={() => setCart([])}
-              className="text-[11px] font-bold text-rose-600 hover:text-rose-700"
+              className="text-[11px] font-bold text-rose-600 hover:text-rose-700 cursor-pointer transition-colors"
             >
               Clear
             </button>
@@ -1526,17 +1526,28 @@ export default function BillingPage() {
         </div>
       </div>
 
+      {/* Cart Column Header Bar for Spacious Table View */}
+      {cart.length > 0 && (
+        <div className="grid grid-cols-12 text-[10px] uppercase font-extrabold tracking-wider text-slate-400 px-2.5 py-1 bg-slate-100/90 rounded-lg flex-shrink-0 select-none">
+          <span className="col-span-6">Item &amp; Details</span>
+          <span className="col-span-3 text-center">Qty</span>
+          <span className="col-span-3 text-right">Total (₹)</span>
+        </div>
+      )}
+
       {/* Cart Items List with Inline / Popover Edit */}
-      <div className="border-t border-b border-slate-100 py-2 space-y-2 max-h-[calc(100vh-420px)] min-h-[140px] overflow-y-auto pr-0.5">
+      <div className="border-t border-b border-slate-100 py-2 space-y-2 flex-1 min-h-[140px] max-h-[calc(100vh-420px)] lg:max-h-none overflow-y-auto pr-1">
         {cart.length === 0 ? (
-          <div className="text-center py-6 text-xs text-slate-400 font-medium">
-            Cart is empty. Tap products on the left to add items to bill.
+          <div className="text-center py-8 text-xs text-slate-400 font-medium space-y-1.5">
+            <ShoppingCart className="w-8 h-8 text-slate-300 mx-auto" />
+            <p className="font-semibold text-slate-600">Cart is empty</p>
+            <p className="text-[11px] text-slate-400">Tap products on the left or scan barcode to add</p>
           </div>
         ) : (
           cart.map((item) => (
             <div 
               key={item.product_id} 
-              className="p-2 rounded-lg border border-slate-200 bg-slate-50/70 hover:bg-slate-50 flex items-center justify-between gap-2 text-xs"
+              className="p-2 sm:p-2.5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-2xs transition-all flex items-center justify-between gap-2 text-xs"
             >
               <div className="flex-1 min-w-0">
                 <div className="font-bold text-slate-900 truncate">
@@ -1585,14 +1596,14 @@ export default function BillingPage() {
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => updateQuantity(item.product_id, -1)}
-                  className="w-6 h-6 rounded bg-white border border-slate-300 flex items-center justify-center text-slate-700 hover:bg-slate-100"
+                  className="w-6 h-6 rounded bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700 hover:bg-slate-200 cursor-pointer active:scale-95 transition-all"
                 >
                   <Minus className="w-3 h-3" />
                 </button>
                 <span className="font-bold font-mono text-xs w-6 text-center text-slate-900">{item.quantity}</span>
                 <button
                   onClick={() => updateQuantity(item.product_id, 1)}
-                  className="w-6 h-6 rounded bg-white border border-slate-300 flex items-center justify-center text-slate-700 hover:bg-slate-100"
+                  className="w-6 h-6 rounded bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700 hover:bg-slate-200 cursor-pointer active:scale-95 transition-all"
                 >
                   <Plus className="w-3 h-3" />
                 </button>
@@ -1601,7 +1612,7 @@ export default function BillingPage() {
                 <button
                   onClick={() => handleOpenEditItem(item)}
                   title="Edit Price, Quantity or Item Discount"
-                  className="p-1 rounded text-slate-500 hover:text-slate-900 hover:bg-white ml-0.5"
+                  className="p-1 rounded text-slate-500 hover:text-slate-900 hover:bg-slate-100 ml-0.5 cursor-pointer transition-colors"
                 >
                   <Edit2 className="w-3.5 h-3.5 text-slate-700" />
                 </button>
@@ -1609,7 +1620,7 @@ export default function BillingPage() {
                 {/* Remove Button */}
                 <button
                   onClick={() => removeFromCart(item.product_id)}
-                  className="p-1 rounded text-slate-400 hover:text-rose-600 ml-0.5"
+                  className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 ml-0.5 cursor-pointer transition-colors"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -2075,52 +2086,104 @@ export default function BillingPage() {
       )}
 
       {/* Bottom Total & Checkout Button */}
-      <div className="pt-2.5 border-t border-slate-200 space-y-1.5">
-        <div className="flex items-center justify-between text-xs text-slate-600">
-          <span>Items Total</span>
-          <span className="font-semibold text-slate-800 font-mono">{formatINR(itemsValuePaise)}</span>
-        </div>
-        {discountTotalPaise > 0 && (
-          <div className="flex items-center justify-between text-xs text-emerald-700">
-            <span>
-              Total Discount
-              {billDiscountPaise > 0 && (
-                <span className="text-[10px] ml-1 font-mono text-emerald-600">
-                  (Bill: -{formatINR(billDiscountPaise)})
-                </span>
-              )}
-            </span>
-            <span className="font-semibold font-mono">-{formatINR(discountTotalPaise)}</span>
-          </div>
-        )}
-        {addedGstPaise > 0 && (
+      <div className="pt-2.5 border-t border-slate-200 space-y-2 flex-shrink-0">
+        <div className="space-y-1 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
           <div className="flex items-center justify-between text-xs text-slate-600">
-            <span>GST (added)</span>
-            <span className="font-semibold text-slate-800 font-mono">+{formatINR(addedGstPaise)}</span>
+            <span>Items Total</span>
+            <span className="font-semibold text-slate-800 font-mono">{formatINR(itemsValuePaise)}</span>
           </div>
-        )}
-        {includedGstPaise > 0 && (
-          <div className="flex items-center justify-between text-[11px] text-slate-400">
-            <span>Incl. GST in prices</span>
-            <span className="font-mono">{formatINR(includedGstPaise)}</span>
-          </div>
-        )}
-        {/* High-Contrast POS Grand Total Card */}
-        <div className="p-3 bg-slate-900 text-white rounded-xl shadow-xs space-y-1">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Payable</span>
-            <span className="text-2xl font-black font-mono text-emerald-400 tracking-tight">
-              {formatINR(grandTotalPaise)}
-            </span>
-          </div>
-          {amountReceivedInput && parseFloat(amountReceivedInput) * 100 > grandTotalPaise && (
-            <div className="pt-1.5 mt-1 border-t border-slate-800 flex items-center justify-between text-xs">
-              <span className="text-amber-300 font-medium">Return Change:</span>
-              <span className="font-mono font-black text-amber-300 text-sm">
-                {formatINR(Math.round(parseFloat(amountReceivedInput) * 100 - grandTotalPaise))}
+          {discountTotalPaise > 0 && (
+            <div className="flex items-center justify-between text-xs text-emerald-700 font-medium">
+              <span>
+                Total Discount
+                {billDiscountPaise > 0 && (
+                  <span className="text-[10px] ml-1 font-mono text-emerald-600">
+                    (Bill: -{formatINR(billDiscountPaise)})
+                  </span>
+                )}
               </span>
+              <span className="font-semibold font-mono">-{formatINR(discountTotalPaise)}</span>
             </div>
           )}
+          {addedGstPaise > 0 && (
+            <div className="flex items-center justify-between text-xs text-slate-600">
+              <span>GST (added)</span>
+              <span className="font-semibold text-slate-800 font-mono">+{formatINR(addedGstPaise)}</span>
+            </div>
+          )}
+          {includedGstPaise > 0 && (
+            <div className="flex items-center justify-between text-[11px] text-slate-400">
+              <span>Incl. GST in prices</span>
+              <span className="font-mono">{formatINR(includedGstPaise)}</span>
+            </div>
+          )}
+        </div>
+
+        {/* High-Contrast POS Grand Total & Tender Card */}
+        <div className="p-3.5 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white rounded-2xl border border-slate-800 shadow-md space-y-2">
+          <div className="flex items-baseline justify-between gap-2">
+            <div>
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
+                Total Payable
+              </span>
+              <span className="text-[11px] font-mono text-slate-400 font-medium">
+                {totalItemCount} {totalItemCount === 1 ? 'item' : 'items'} • {cart.reduce((s, i) => s + i.quantity, 0)} units
+              </span>
+            </div>
+            <div className="text-right">
+              <div className="text-3xl sm:text-4xl font-black font-mono text-emerald-400 tracking-tight leading-none drop-shadow-sm">
+                {formatINR(grandTotalPaise)}
+              </div>
+              {includedGstPaise > 0 && (
+                <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
+                  (Incl. {formatINR(includedGstPaise)} GST)
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Cash Mode Tender & Return Change Display */}
+          {paymentMethod === 'cash' && amountReceivedInput && (() => {
+            const tenderedPaise = Math.round((parseFloat(amountReceivedInput) || 0) * 100);
+            const returnChangePaise = tenderedPaise - grandTotalPaise;
+
+            if (returnChangePaise > 0) {
+              return (
+                <div className="pt-2 mt-1 border-t border-slate-800/80">
+                  <div className="p-2.5 bg-emerald-950/70 border border-emerald-500/40 rounded-xl flex items-center justify-between shadow-inner">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">💵</span>
+                      <div>
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-300 block leading-tight">
+                          Return Change
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          Tendered: {formatINR(tenderedPaise)}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="font-mono font-black text-amber-300 text-xl sm:text-2xl tracking-tight">
+                      {formatINR(returnChangePaise)}
+                    </span>
+                  </div>
+                </div>
+              );
+            } else if (returnChangePaise === 0) {
+              return (
+                <div className="pt-1.5 mt-1 border-t border-slate-800/80 flex items-center justify-between text-xs text-emerald-400 font-bold">
+                  <span>✓ Exact Cash Tendered</span>
+                  <span className="font-mono">{formatINR(tenderedPaise)}</span>
+                </div>
+              );
+            } else {
+              return (
+                <div className="pt-1.5 mt-1 border-t border-slate-800/80 flex items-center justify-between text-xs text-rose-400 font-bold">
+                  <span>⚠️ Short by:</span>
+                  <span className="font-mono">{formatINR(Math.abs(returnChangePaise))}</span>
+                </div>
+              );
+            }
+          })()}
         </div>
 
         {/* Hardware & Sanitary Only: Quotation / Estimate Toggle */}
@@ -2154,10 +2217,10 @@ export default function BillingPage() {
           disabled={cart.length === 0}
           onClick={() => handleCompleteSale()}
           className={cn(
-            'w-full text-xs font-black py-3 shadow-md cursor-pointer transition-all flex items-center justify-center gap-2',
+            'w-full text-xs sm:text-sm font-black py-3 sm:py-3.5 shadow-md cursor-pointer transition-all flex items-center justify-center gap-2 rounded-xl',
             isQuotation
-              ? 'bg-amber-500 hover:bg-amber-600 text-slate-950 border-amber-500'
-              : 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600'
+              ? 'bg-amber-500 hover:bg-amber-600 text-slate-950 border-amber-500 shadow-amber-500/20'
+              : 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-emerald-600/20'
           )}
         >
           {isQuotation ? (
@@ -2179,13 +2242,13 @@ export default function BillingPage() {
   );
 
   return (
-    <div className="relative pb-40 lg:pb-6">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+    <div className="relative pb-40 lg:pb-2">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 lg:h-[calc(100vh-125px)]">
         {/* Left: Product Selection Catalog */}
-        <div className="lg:col-span-7 space-y-3">
-          <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-3">
+        <div className="lg:col-span-7 flex flex-col h-full min-h-0">
+          <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col h-full min-h-0 space-y-3">
             {/* Search & Actions Bar */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-shrink-0">
               <div className="relative flex-1">
                 <Input
                   ref={searchInputRef}
@@ -2205,7 +2268,7 @@ export default function BillingPage() {
                 <button
                   type="button"
                   onClick={() => setIsBarcodeModalOpen(true)}
-                  className="p-2 min-h-[38px] min-w-[38px] rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 flex items-center justify-center cursor-pointer"
+                  className="p-2 min-h-[38px] min-w-[38px] rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 flex items-center justify-center cursor-pointer transition-colors"
                   title="Scan Barcode via Camera"
                 >
                   <Camera className="w-4 h-4 text-slate-800" />
@@ -2228,7 +2291,7 @@ export default function BillingPage() {
               <button
                 type="button"
                 onClick={() => setIsHardwareModalOpen(true)}
-                className="p-2 min-h-[38px] min-w-[38px] rounded-lg border border-slate-300 bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center cursor-pointer relative"
+                className="p-2 min-h-[38px] min-w-[38px] rounded-lg border border-slate-300 bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center cursor-pointer relative transition-colors"
                 title="POS Hardware (Bluetooth Printer, Laser Scanner)"
               >
                 <Sliders className="w-4 h-4 text-white" />
@@ -2241,7 +2304,7 @@ export default function BillingPage() {
             </div>
 
             {/* Category Filter Tabs */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 flex-shrink-0 scrollbar-none">
               <button
                 onClick={() => setSelectedCategory('all')}
                 className={cn(
@@ -2285,11 +2348,11 @@ export default function BillingPage() {
               })}
             </div>
 
-            {/* Products Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2 max-h-[calc(100vh-240px)] overflow-y-auto pr-1">
+            {/* Responsive Products Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2.5 flex-1 min-h-0 overflow-y-auto pr-1 content-start">
               {products.length === 0 ? (
-                <div className="col-span-full py-8 text-center text-xs text-slate-500 border border-dashed border-slate-300 rounded-2xl bg-white p-6 space-y-2.5">
-                  <div className="font-bold text-slate-800">
+                <div className="col-span-full py-12 text-center text-xs text-slate-500 border border-dashed border-slate-300 rounded-2xl bg-white p-6 space-y-2.5">
+                  <div className="font-bold text-slate-800 text-sm">
                     {allProducts.length === 0 ? 'No products in store catalog' : 'No items match your search'}
                   </div>
                   <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
@@ -2332,14 +2395,14 @@ export default function BillingPage() {
                         addToCart(p, 1);
                       }}
                       className={cn(
-                        'p-2 sm:p-2.5 rounded-xl border text-left flex flex-col justify-between relative overflow-hidden transition-all min-h-[76px] sm:min-h-[82px]',
+                        'p-2.5 rounded-xl border text-left flex flex-col justify-between relative overflow-hidden transition-all min-h-[82px] sm:min-h-[88px]',
                         isOutOfStock
                           ? 'border-rose-300/80 bg-rose-50/40 opacity-70 hover:border-rose-400 cursor-not-allowed select-none'
                           : isHighlighted
                           ? 'cursor-pointer bg-emerald-50/80 border-emerald-500 ring-2 ring-emerald-500 shadow-md scale-[1.01]'
                           : inCart && !isOutOfStock
-                          ? 'cursor-pointer bg-white border-amber-400 ring-1.5 ring-amber-400/50 bg-amber-50/35 shadow-2xs active:scale-[0.98]'
-                          : 'cursor-pointer bg-white hover:border-slate-400 border-slate-200 shadow-2xs active:scale-[0.98]'
+                          ? 'cursor-pointer bg-amber-50/40 border-amber-400 ring-1.5 ring-amber-400/50 shadow-2xs active:scale-[0.98]'
+                          : 'cursor-pointer bg-white hover:border-slate-400 hover:shadow-2xs border-slate-200 shadow-2xs active:scale-[0.98]'
                       )}
                     >
                       {isOutOfStock ? (
@@ -2361,7 +2424,7 @@ export default function BillingPage() {
                           {p.category_name || 'Item'}
                         </span>
                         <h4 className={cn(
-                          "text-xs font-bold line-clamp-1 mt-0.5 leading-snug",
+                          "text-xs sm:text-sm font-bold line-clamp-2 mt-0.5 leading-snug",
                           isOutOfStock ? "text-slate-500 line-through" : "text-slate-900"
                         )}>
                           {p.name}
@@ -2398,8 +2461,8 @@ export default function BillingPage() {
         </div>
 
         {/* Right: Checkout Side Panel (Desktop only, 5 cols) */}
-        <div className="hidden lg:block lg:col-span-5">
-          <div className="bg-white p-4 rounded-xl border border-slate-200 sticky top-4 shadow-sm">
+        <div className="hidden lg:flex lg:col-span-5 flex-col h-full min-h-0">
+          <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col h-full min-h-0 overflow-hidden">
             {renderCheckoutPanel()}
           </div>
         </div>
