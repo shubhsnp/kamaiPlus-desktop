@@ -419,7 +419,7 @@ export default function BillingPage() {
     try {
       const biz = business || (await ensureStarterBusinessIfEmpty());
       await seedBusinessStarterData(biz.id, biz.business_type || 'grocery');
-      showBillingToast('Ã¢Å“â€¦ Loaded default catalog products!', 'success');
+      showBillingToast('✅ Loaded default catalog products!', 'success');
     } catch (err: any) {
       showBillingToast(`Failed to load sample products: ${err?.message}`, 'error');
     } finally {
@@ -862,7 +862,7 @@ export default function BillingPage() {
   const taxTotalPaise = cart.reduce((acc, item) => acc + (item.tax_amount || 0), 0);
   const grandTotalPaise = subtotalPaise + taxTotalPaise;
 
-  // Real-Time Dynamic Amount UPI QR Generation (e.g. Ã¢â€šÂ¹848.00 auto-fills in GPay / PhonePe / Paytm)
+  // Real-Time Dynamic Amount UPI QR Generation (e.g. ₹848.00 auto-fills in GPay / PhonePe / Paytm)
   useEffect(() => {
     if (!business) return;
 
@@ -1133,7 +1133,7 @@ export default function BillingPage() {
           amount: balanceDuePaise,
           balance_after: updatedBalance,
           reference_id: saleId,
-          notes: `Invoice #${invoiceNumber} Ã¢â‚¬Â¢ ${itemsSummary}`,
+          notes: `Invoice #${invoiceNumber} • ${itemsSummary}`,
           created_at: now,
           sync_status: 'synced',
         };
@@ -1219,7 +1219,7 @@ export default function BillingPage() {
               )}
               {tab.isHeld && (
                 <span className="text-[10px] text-amber-600" title="Bill is on hold">
-                  Ã¢ÂÂ¸Ã¯Â¸Â
+                  ⏸️
                 </span>
               )}
               {tabs.length > 1 && (
@@ -1255,7 +1255,7 @@ export default function BillingPage() {
         <div className="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
-              <span>Ã°Å¸ÂÂ½Ã¯Â¸Â</span>
+              <span>🍽️</span>
               <span>Order Type &amp; Table</span>
             </span>
             <span className="text-[10px] font-mono font-bold text-amber-900 bg-amber-200/70 px-2 py-0.5 rounded">
@@ -1266,9 +1266,9 @@ export default function BillingPage() {
           {/* Order Type Toggle */}
           <div className="grid grid-cols-3 gap-1.5">
             {[
-              { id: 'dine_in', label: 'Dine-In', icon: 'Ã°Å¸ÂÂ½Ã¯Â¸Â' },
-              { id: 'takeaway', label: 'Parcel / Takeaway', icon: 'Ã°Å¸Â¥Â¡' },
-              { id: 'delivery', label: 'Delivery', icon: 'Ã°Å¸â€ºÂµ' },
+              { id: 'dine_in', label: 'Dine-In', icon: '🍽️' },
+              { id: 'takeaway', label: 'Parcel / Takeaway', icon: '🥡' },
+              { id: 'delivery', label: 'Delivery', icon: '🛵' },
             ].map((ot) => (
               <button
                 key={ot.id}
@@ -1316,7 +1316,7 @@ export default function BillingPage() {
         <div className="p-2.5 bg-blue-50/60 border border-blue-200/80 rounded-xl space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-blue-950 uppercase tracking-wider flex items-center gap-1.5">
-              <span>Ã°Å¸Â©Âº</span>
+              <span>🩺</span>
               <span>Doctor &amp; Patient (Medical)</span>
             </span>
           </div>
@@ -1374,7 +1374,7 @@ export default function BillingPage() {
           <span>Cart Items ({totalItemCount})</span>
           {activeTab.isHeld && (
             <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold">
-              Ã¢ÂÂ¸Ã¯Â¸Â On Hold
+              ⏸️ On Hold
             </span>
           )}
         </span>
@@ -1425,14 +1425,14 @@ export default function BillingPage() {
                   {(item.size || item.color) && (
                     <span className="text-[9px] bg-indigo-50 text-indigo-900 border border-indigo-200 px-1 py-0.2 rounded font-medium">
                       {item.size && <span>Size: {item.size} </span>}
-                      {item.color && <span>Ã¢â‚¬Â¢ {item.color}</span>}
+                      {item.color && <span>• {item.color}</span>}
                     </span>
                   )}
 
                   {(item.imei_serial || item.warranty_period_months) && (
                     <span className="text-[9px] bg-cyan-50 text-cyan-900 border border-cyan-200 px-1 py-0.2 rounded font-mono">
                       {item.imei_serial && <span>SN:{item.imei_serial} </span>}
-                      {item.warranty_period_months && <span>Ã¢â‚¬Â¢ {item.warranty_period_months}M</span>}
+                      {item.warranty_period_months && <span>• {item.warranty_period_months}M</span>}
                     </span>
                   )}
                 </div>
@@ -1440,7 +1440,7 @@ export default function BillingPage() {
                 <div className="text-[11px] text-slate-500 font-mono flex items-center flex-wrap gap-1.5">
                   {item.unit === 'strip' ? (
                     <span>
-                      {formatINR(item.unit_price)}/strip Ãƒâ€” {item.quantity} {item.unit}
+                      {formatINR(item.unit_price)}/strip × {item.quantity} {item.unit}
                       {item.quantity < 1 || item.quantity % 1 !== 0 ? (
                         <span className="ml-1 text-blue-700 font-bold bg-blue-50 px-1 py-0.2 rounded border border-blue-200 text-[10px]">
                           ({Math.round(item.quantity * extractTabletsPerStrip(item.product_name))} Tabs)
@@ -1448,11 +1448,11 @@ export default function BillingPage() {
                       ) : null}
                     </span>
                   ) : (
-                    <span>{formatINR(item.unit_price)} Ãƒâ€” {item.quantity} {item.unit}</span>
+                    <span>{formatINR(item.unit_price)} × {item.quantity} {item.unit}</span>
                   )}
                   {item.discount_amount ? (
                     <span className="text-[10px] text-emerald-700 font-bold bg-emerald-100 px-1 rounded">
-                      -Ã¢â€šÂ¹{(item.discount_amount / 100).toFixed(0)} off
+                      -₹{(item.discount_amount / 100).toFixed(0)} off
                     </span>
                   ) : null}
                 </div>
@@ -1547,7 +1547,7 @@ export default function BillingPage() {
       {paymentMethod === 'credit' && !selectedCustomerId && (
         <div className="p-2.5 bg-rose-50 border border-rose-300 rounded-xl text-xs text-rose-950 flex items-center justify-between gap-2 shadow-2xs">
           <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-base flex-shrink-0">Ã¢Å¡Â Ã¯Â¸Â</span>
+            <span className="text-base flex-shrink-0">⚠️</span>
             <span className="font-bold truncate">Customer Name is compulsory for Credit (Udhar)</span>
           </div>
           <button
@@ -1607,13 +1607,13 @@ export default function BillingPage() {
             <div className="flex items-center justify-between font-bold text-slate-800 pb-1 border-b border-slate-200">
               <span>Split Payment Breakdown:</span>
               <span className={remainingPaise === 0 ? 'text-emerald-700 font-extrabold' : 'text-amber-800 font-extrabold'}>
-                {remainingPaise === 0 ? 'Ã¢Å“â€œ Matched Exactly' : remainingPaise > 0 ? `Ã¢â€šÂ¹${(remainingPaise / 100).toFixed(2)} Remaining` : `Ã¢â€šÂ¹${Math.abs(remainingPaise / 100).toFixed(2)} Overpaid`}
+                {remainingPaise === 0 ? '✓ Matched Exactly' : remainingPaise > 0 ? `₹${(remainingPaise / 100).toFixed(2)} Remaining` : `₹${Math.abs(remainingPaise / 100).toFixed(2)} Overpaid`}
               </span>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-[10px] font-bold text-slate-600 uppercase block mb-0.5">Cash (Ã¢â€šÂ¹)</label>
+                <label className="text-[10px] font-bold text-slate-600 uppercase block mb-0.5">Cash (₹)</label>
                 <input
                   type="number"
                   step="1"
@@ -1625,7 +1625,7 @@ export default function BillingPage() {
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-600 uppercase block mb-0.5">UPI / QR (Ã¢â€šÂ¹)</label>
+                <label className="text-[10px] font-bold text-slate-600 uppercase block mb-0.5">UPI / QR (₹)</label>
                 <input
                   type="number"
                   step="1"
@@ -1637,7 +1637,7 @@ export default function BillingPage() {
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-600 uppercase block mb-0.5">Card (Ã¢â€šÂ¹)</label>
+                <label className="text-[10px] font-bold text-slate-600 uppercase block mb-0.5">Card (₹)</label>
                 <input
                   type="number"
                   step="1"
@@ -1649,7 +1649,7 @@ export default function BillingPage() {
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-600 uppercase block mb-0.5">Credit / Udhar (Ã¢â€šÂ¹)</label>
+                <label className="text-[10px] font-bold text-slate-600 uppercase block mb-0.5">Credit / Udhar (₹)</label>
                 <input
                   type="number"
                   step="1"
@@ -1765,14 +1765,14 @@ export default function BillingPage() {
                       : "bg-white text-slate-700 hover:bg-slate-100 border-slate-300"
                   )}
                 >
-                  {idx === 0 ? `Exact Ã¢â€šÂ¹${chip}` : `Ã¢â€šÂ¹${chip}`}
+                  {idx === 0 ? `Exact ₹${chip}` : `₹${chip}`}
                 </button>
               ))}
             </div>
 
             {amountReceivedInput && parseFloat(amountReceivedInput) * 100 > grandTotalPaise && (
               <div className="p-2 bg-emerald-50 rounded-lg border border-emerald-200 flex items-center justify-between font-bold text-emerald-900">
-                <span>Ã°Å¸â€™Âµ Return Change to Customer:</span>
+                <span>💵 Return Change to Customer:</span>
                 <span className="font-mono text-sm font-black text-emerald-700">
                   {formatINR(Math.round(parseFloat(amountReceivedInput) * 100 - grandTotalPaise))}
                 </span>
@@ -1808,7 +1808,7 @@ export default function BillingPage() {
                   className="w-24 h-24 sm:w-28 sm:h-28 object-contain rounded border border-slate-200"
                 />
                 <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 rounded flex items-center justify-center text-white text-[10px] font-bold transition-opacity">
-                  <span>Enlarge Ã°Å¸â€œÂº</span>
+                  <span>Enlarge 📺</span>
                 </div>
               </div>
 
@@ -1820,7 +1820,7 @@ export default function BillingPage() {
                   {business?.upi_id || ''}
                 </div>
                 <div className="text-[10px] text-slate-500 font-medium leading-tight">
-                  Customer scans with Google Pay, PhonePe, Paytm or BHIM Ã¢â‚¬â€ <b>amount auto-fills instantly</b>.
+                  Customer scans with Google Pay, PhonePe, Paytm or BHIM — <b>amount auto-fills instantly</b>.
                 </div>
                 <div className="flex items-center gap-1.5 pt-1">
                   <button
@@ -1829,7 +1829,7 @@ export default function BillingPage() {
                     className="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold text-[10.5px] inline-flex items-center gap-1 cursor-pointer transition shadow-2xs"
                   >
                     <QrCode className="w-3 h-3 text-slate-700" />
-                    <span>Fullscreen Ã°Å¸â€œÂº</span>
+                    <span>Fullscreen 📺</span>
                   </button>
                   <button
                     type="button"
@@ -1841,7 +1841,7 @@ export default function BillingPage() {
                     title="Simulate incoming PhonePe / Bank SMS payment"
                   >
                     <Sparkles className="w-3 h-3 text-emerald-700" />
-                    <span>Ã¢Å¡Â¡ Test Pay Received</span>
+                    <span>⚡ Test Pay Received</span>
                   </button>
                 </div>
               </div>
@@ -1876,7 +1876,7 @@ export default function BillingPage() {
                     : 'text-slate-600 hover:text-slate-900'
                 )}
               >
-                Ã¢â€šÂ¹ Flat
+                ₹ Flat
               </button>
               <button
                 type="button"
@@ -1906,7 +1906,7 @@ export default function BillingPage() {
                 className="w-full bg-white border border-slate-300 text-slate-900 text-xs rounded-lg pl-6 pr-2 py-1.5 focus:outline-none focus:border-slate-900 font-mono font-bold"
               />
               <span className="absolute left-2.5 top-1.5 text-xs text-slate-400 font-bold">
-                {billDiscountType === 'percentage' ? '%' : 'Ã¢â€šÂ¹'}
+                {billDiscountType === 'percentage' ? '%' : '₹'}
               </span>
             </div>
             {billDiscountValue && (
@@ -1986,7 +1986,7 @@ export default function BillingPage() {
                 !isQuotation ? 'bg-white text-slate-950 shadow-2xs' : 'text-slate-500 hover:text-slate-900'
               )}
             >
-              Ã°Å¸Â§Â¾ Tax Invoice
+              🧾 Tax Invoice
             </button>
             <button
               type="button"
@@ -1996,7 +1996,7 @@ export default function BillingPage() {
                 isQuotation ? 'bg-amber-400 text-slate-950 shadow-2xs ring-1 ring-amber-400/50' : 'text-slate-500 hover:text-slate-900'
               )}
             >
-              Ã°Å¸â€œÂ Estimate / Quotation
+              📝 Estimate / Quotation
             </button>
           </div>
         )}
@@ -2152,7 +2152,7 @@ export default function BillingPage() {
                       className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs gap-1.5 shadow-xs cursor-pointer border-none mt-1"
                     >
                       <Sparkles className="w-3.5 h-3.5" />
-                      <span>{isSeedingProducts ? 'Loading Default Items...' : 'Ã¢Å“Â¨ Load Default Products'}</span>
+                      <span>{isSeedingProducts ? 'Loading Default Items...' : '✨ Load Default Products'}</span>
                     </Button>
                   )}
                 </div>
@@ -2258,7 +2258,7 @@ export default function BillingPage() {
           </div>
           <div className="min-w-0">
             <div className="text-[11px] text-slate-500 font-bold truncate">
-              {tabs.length > 1 ? `Bill #${activeTab.tabNumber} Ã¢â‚¬Â¢ ` : ''}{totalItemCount} {totalItemCount === 1 ? 'item' : 'items'}
+              {tabs.length > 1 ? `Bill #${activeTab.tabNumber} • ` : ''}{totalItemCount} {totalItemCount === 1 ? 'item' : 'items'}
             </div>
             <div className="text-base font-black text-slate-900 font-mono leading-tight">
               {formatINR(grandTotalPaise)}
@@ -2281,7 +2281,7 @@ export default function BillingPage() {
       <Modal
         isOpen={isMobileCartOpen}
         onClose={() => setIsMobileCartOpen(false)}
-        title={`POS Checkout Ã¢â‚¬â€ Bill #${activeTab.tabNumber}`}
+        title={`POS Checkout — Bill #${activeTab.tabNumber}`}
         size="lg"
       >
         <div className="p-1">
@@ -2379,7 +2379,7 @@ export default function BillingPage() {
           </div>
 
           <div>
-            <label className="text-xs font-bold text-slate-700 block mb-1">Selling Price (Ã¢â€šÂ¹) *</label>
+            <label className="text-xs font-bold text-slate-700 block mb-1">Selling Price (₹) *</label>
             <Input
               type="number"
               step="0.01"
@@ -2521,7 +2521,7 @@ export default function BillingPage() {
           onShareWhatsApp={async () => {
             if (activeSaleForInvoice && activeSaleForInvoice.customer_phone && business) {
               const cleanPhone = activeSaleForInvoice.customer_phone.replace(/\D/g, '').slice(-10);
-              showBillingToast(`Ã°Å¸â€œÂ² Dispatching WhatsApp bill to +91${cleanPhone}...`, 'info');
+              showBillingToast(`📲 Dispatching WhatsApp bill to +91${cleanPhone}...`, 'info');
               try {
                 const res = await sendInvoiceViaOfficialCloudApi(
                   activeSaleForInvoice.customer_phone,
@@ -2529,15 +2529,15 @@ export default function BillingPage() {
                   business
                 );
                 if (res.sent) {
-                  showBillingToast(`Ã¢Å“â€¦ WhatsApp bill sent to +91${cleanPhone}!`, 'success');
+                  showBillingToast(`✅ WhatsApp bill sent to +91${cleanPhone}!`, 'success');
                 } else {
-                  showBillingToast(`Ã¢Å¡Â Ã¯Â¸Â ${res.error || 'WhatsApp delivery failed'}`, 'error');
+                  showBillingToast(`⚠️ ${res.error || 'WhatsApp delivery failed'}`, 'error');
                 }
               } catch (err: any) {
-                showBillingToast(`Ã¢Å¡Â Ã¯Â¸Â ${err?.message || 'Failed to dispatch WhatsApp bill'}`, 'error');
+                showBillingToast(`⚠️ ${err?.message || 'Failed to dispatch WhatsApp bill'}`, 'error');
               }
             } else if (!activeSaleForInvoice?.customer_phone) {
-              showBillingToast('Ã¢Å¡Â Ã¯Â¸Â No customer phone number attached to this bill.', 'error');
+              showBillingToast('⚠️ No customer phone number attached to this bill.', 'error');
             }
           }}
         />
@@ -2561,7 +2561,7 @@ export default function BillingPage() {
         }`}>
           {billingToast.type === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
           {billingToast.type === 'info' && <Sparkles className="w-4 h-4 text-sky-400 shrink-0 animate-pulse" />}
-          {billingToast.type === 'error' && <span className="text-sm shrink-0">Ã¢Å¡Â Ã¯Â¸Â</span>}
+          {billingToast.type === 'error' && <span className="text-sm shrink-0">⚠️</span>}
           <span>{billingToast.message}</span>
         </div>
       )}

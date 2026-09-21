@@ -1,6 +1,6 @@
 {
   "name": "kamai-plus-desktop",
-  "version": "4.23.0",
+  "version": "4.24.0",
   "private": true,
   "description": "KamaiPlus Desktop Application",
   "scripts": {
@@ -10,17 +10,11 @@
     "lint": "next lint",
     "test:e2e": "npx tsx scripts/e2e_simulation.ts",
     "version:bump": "npx tsx scripts/bump_version.ts",
-    "cap:sync": "npx cap sync android",
-    "cap:open": "npx cap open android",
-    "cap:build": "next build && npx cap sync android",
     "deploy:firebase": "next build && firebase deploy --only hosting",
     "electron": "electron .",
     "build:desktop": "next build && electron-builder"
   },
   "dependencies": {
-    "@capacitor/android": "^8.5.0",
-    "@capacitor/cli": "^7.6.8",
-    "@capacitor/core": "^8.5.0",
     "@supabase/supabase-js": "^2.112.3",
     "bcryptjs": "^3.0.3",
     "canvas-confetti": "^1.9.4",

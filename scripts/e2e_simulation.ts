@@ -27,7 +27,7 @@ import { getAllStoreProfiles, getStoreProfile, hasModule } from '../src/lib/cons
 import { getDefaultProductsForCategory, DEFAULT_CATEGORY_PRODUCTS } from '../src/lib/constants/defaultProducts';
 import { checkRateLimit } from '../src/lib/security/rateLimiter';
 import { EscPosEncoder } from '../src/lib/hardware/escpos';
-import { signAdminToken, verifyAdminToken } from '../src/lib/admin/adminAuth';
+
 import { signSessionToken, verifySessionToken } from '../src/lib/auth/session';
 import { calculateGstSummary } from '../src/lib/invoices/gstCalculator';
 import { formatINR } from '../src/lib/utils';
@@ -169,15 +169,7 @@ const hashWrong = crypto.createHash('sha256').update(enteredWrong).digest();
 assert(crypto.timingSafeEqual(hashExpected, hashCorrect), 'Constant-time verification accepts matching password hash');
 assert(!crypto.timingSafeEqual(hashExpected, hashWrong), 'Constant-time verification rejects invalid password hash');
 
-// 3. Admin JWT Session Token Lifecycle
-const adminToken = signAdminToken();
-assert(typeof adminToken === 'string' && adminToken.length > 20, 'SuperAdmin JWT token signed successfully');
 
-const adminSession = verifyAdminToken(adminToken);
-assert(adminSession !== null && adminSession.isAdmin === true && adminSession.role === 'superadmin', 'SuperAdmin JWT token verified and decoded claims match');
-
-const tamperedAdminToken = adminToken.slice(0, -5) + 'AAAAA';
-assert(verifyAdminToken(tamperedAdminToken) === null, 'Tampered SuperAdmin JWT token is strictly rejected');
 
 // 4. Staff / Merchant Session Token Lifecycle
 const staffPayload = {

@@ -2,13 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Capacitor } from '@capacitor/core';
-import { ensureStarterBusinessIfEmpty, db as localDb } from '@/lib/db';
-import { AuthUser, getStoredUser, setStoredUser } from '@/lib/auth';
 import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
 import { BottomNav } from './BottomNav';
-import { GlobalBroadcastBanner } from '@/components/common/GlobalBroadcastBanner';
 import { DailyDigestAutoWatcher } from '@/components/common/DailyDigestAutoWatcher';
 import { subscriptionService } from '@/lib/subscription/subscriptionService';
 import { APP_VERSION } from '@/lib/constants/version';
@@ -26,29 +22,6 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     url: string;
     changelog?: string;
   } | null>(null);
-  const [impersonationData, setImpersonationData] = useState<{
-    admin_active: boolean;
-    merchant_id: string;
-    merchant_name: string;
-    merchant_phone?: string;
-    backup_user?: string | null;
-  } | null>(null);
-
-  const handleExitImpersonation = () => {
-    try {
-      const imp = sessionStorage.getItem('kamai_admin_impersonation');
-      if (imp) {
-        const parsed = JSON.parse(imp);
-        if (parsed.backup_user) {
-          localStorage.setItem('kamai_user', parsed.backup_user);
-        } else {
-          localStorage.removeItem('kamai_user');
-        }
-      }
-      sessionStorage.removeItem('kamai_admin_impersonation');
-    } catch {}
-    window.location.href = '/admin';
-  };
 
   // --- PERSISTENT STORAGE & OFFLINE RESILIENCY ---
   useEffect(() => {
@@ -81,41 +54,6 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     
     const initialUser = getStoredUser();
     setCurrentUser(initialUser);
-
-    try {
-      const imp = sessionStorage.getItem('kamai_admin_impersonation');
-      if (imp) {
-        setImpersonationData(JSON.parse(imp));
-      }
-    } catch {}
-
-    // Check remote platform version requirements
-    fetch('/api/admin/config')
-      .then((r) => r.json())
-      .then((data) => {
-        if (data?.config?.forceUpdate && data?.config?.minRequiredVersion) {
-          const reqVer = data.config.minRequiredVersion;
-          const curParts = APP_VERSION.split('.').map((p: string) => parseInt(p, 10) || 0);
-          const reqParts = reqVer.split('.').map((p: string) => parseInt(p, 10) || 0);
-          let isLower = false;
-          for (let i = 0; i < Math.max(curParts.length, reqParts.length); i++) {
-            const cur = curParts[i] || 0;
-            const req = reqParts[i] || 0;
-            if (cur < req) { isLower = true; break; }
-            if (cur > req) { isLower = false; break; }
-          }
-          if (isLower) {
-            setForceUpdateInfo({
-              required: true,
-              minVersion: reqVer,
-              latestVersion: data.config.latestVersion || reqVer,
-              url: data.config.updateDownloadUrl || 'https://github.com/sayrahul/kamai/releases',
-              changelog: data.config.updateChangelog,
-            });
-          }
-        }
-      })
-      .catch(() => {});
 
     const handleAuthChange = () => {
       const u = getStoredUser();
@@ -204,13 +142,11 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     
     // Route classifications
     const isCustomerInvoice = pathname === '/invoice' || (pathname.startsWith('/invoice') && !pathname.startsWith('/invoice-designer'));
-    const isLegalOrPublic = pathname === '/terms-of-service' || pathname === '/privacy-policy' || pathname === '/refund-policy' || pathname === '/contact-us' || pathname === '/features' || pathname === '/about' || pathname === '/download' || pathname === '/plans' || pathname === '/admin' || pathname.startsWith('/admin');
+    const isLegalOrPublic = pathname === '/terms-of-service' || pathname === '/privacy-policy' || pathname === '/refund-policy' || pathname === '/contact-us' || pathname === '/features' || pathname === '/about' || pathname === '/download' || pathname === '/plans';
     const isAuthRoute = pathname === '/auth';
     const isOnboardingRoute = pathname === '/onboarding';
-    // The public marketing homepage only takes over "/" for logged-out visitors in a
-    // normal browser. Inside the already-published Android app (Capacitor webview),
-    // "/" must keep behaving exactly as before (dashboard when logged in, else /auth).
-    const isRootMarketing = pathname === '/' && !Capacitor.isNativePlatform() && !user;
+    // The public marketing homepage only takes over "/" for logged-out visitors
+    const isRootMarketing = pathname === '/' && !user;
     const isPublicRoute = isCustomerInvoice || isLegalOrPublic || isAuthRoute || isOnboardingRoute || isRootMarketing;
 
     if (!user) {
@@ -242,9 +178,9 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     return <main className="min-h-screen bg-slate-50">{children}</main>;
   }
 
-  // Standalone full-screen layout for admin, onboarding, auth, legal pages, and the public marketing site
-  const isRootMarketing = pathname === '/' && !Capacitor.isNativePlatform() && !currentUser;
-  if (pathname === '/admin' || pathname.startsWith('/admin') || pathname === '/onboarding' || pathname === '/auth' || pathname === '/terms-of-service' || pathname === '/privacy-policy' || pathname === '/refund-policy' || pathname === '/contact-us' || pathname === '/features' || pathname === '/about' || pathname === '/download' || pathname === '/plans' || isRootMarketing) {
+  // Standalone full-screen layout for onboarding, auth, legal pages, and the public marketing site
+  const isRootMarketing = pathname === '/' && !currentUser;
+  if (pathname === '/onboarding' || pathname === '/auth' || pathname === '/terms-of-service' || pathname === '/privacy-policy' || pathname === '/refund-policy' || pathname === '/contact-us' || pathname === '/features' || pathname === '/about' || pathname === '/download' || pathname === '/plans' || isRootMarketing) {
     return <main className="min-h-screen bg-slate-950">{children}</main>;
   }
 
@@ -324,29 +260,6 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         </div>
       )}
 
-      {/* SuperAdmin Customer Support Impersonation Banner */}
-      {impersonationData && (
-        <div className="bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 text-slate-950 px-4 py-2 text-xs font-bold flex items-center justify-between shadow-lg sticky top-0 z-[9999] border-b border-amber-400">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="bg-slate-950 text-amber-300 px-2 py-0.5 rounded-full text-[10px] uppercase font-black tracking-wider shadow-xs shrink-0">
-              SuperAdmin Support Mode
-            </span>
-            <span className="truncate text-xs">
-              Inspecting Store: <strong>{impersonationData.merchant_name}</strong> {impersonationData.merchant_phone ? `(+91 ${impersonationData.merchant_phone})` : ''}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={handleExitImpersonation}
-            className="bg-slate-950 hover:bg-slate-900 text-white px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 shadow-md shrink-0 ml-2"
-          >
-            <span>Exit to Admin</span>
-            <span>&rarr;</span>
-          </button>
-        </div>
-      )}
-
-      <GlobalBroadcastBanner />
       <DailyDigestAutoWatcher />
       <Navbar />
       <div className="flex-1 flex w-full max-w-7xl mx-auto">
