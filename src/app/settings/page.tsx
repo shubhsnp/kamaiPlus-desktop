@@ -29,6 +29,7 @@ import { SettingsNavTabs, SettingsTabType } from '@/components/settings/Settings
 import { StoreProfileTab } from '@/components/settings/StoreProfileTab';
 import { UpiBankingTab } from '@/components/settings/UpiBankingTab';
 import { InvoiceSettingsTab } from '@/components/settings/InvoiceSettingsTab';
+import { DataMaintenanceTab } from '@/components/settings/DataMaintenanceTab';
 
 
 export default function SettingsPage() {
@@ -472,6 +473,7 @@ export default function SettingsPage() {
           logoUrl={logoUrl}
           onLogoUpload={handleLogoUpload}
           onRemoveLogo={() => setLogoUrl('')}
+          onSwitchToDataTab={() => setActiveTab('data')}
         />
       )}
 
@@ -513,6 +515,10 @@ export default function SettingsPage() {
           footerMessage={footerMessage}
           setFooterMessage={setFooterMessage}
         />
+      )}
+
+      {activeTab === 'data' && (
+        <DataMaintenanceTab business={business} />
       )}
 
 

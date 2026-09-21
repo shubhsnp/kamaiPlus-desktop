@@ -114,10 +114,11 @@ export async function ensureStarterBusinessIfEmpty(): Promise<Business> {
     return starterBiz;
   }
 
-  // If business exists but products table is empty, auto-seed default products
+  // If business exists but products table is empty, auto-seed default products unless manually cleared
   try {
+    const isManuallyCleared = typeof window !== 'undefined' && localStorage.getItem('kamai_products_manually_cleared') === 'true';
     const prodCount = await db.products.count();
-    if (prodCount === 0) {
+    if (prodCount === 0 && !isManuallyCleared) {
       await seedBusinessStarterData(existing.id, existing.business_type || 'grocery');
     }
   } catch (err) {
@@ -125,6 +126,30 @@ export async function ensureStarterBusinessIfEmpty(): Promise<Business> {
   }
 
   return existing;
+}
+
+/**
+ * Completely clean all product and stock inventory data from local database.
+ * Retains customers, sales records, and business settings.
+ */
+export async function clearAllProductData(): Promise<{ success: boolean; deletedCount: number }> {
+  const count = await db.products.count();
+  await db.products.clear();
+  await db.inventory_movements.clear();
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('kamai_products_manually_cleared', 'true');
+  }
+  return { success: true, deletedCount: count };
+}
+
+/**
+ * Re-seed starter sample products for testing or fresh catalog setup.
+ */
+export async function restoreStarterProductCatalog(businessId: string, businessType?: BusinessType): Promise<void> {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('kamai_products_manually_cleared');
+  }
+  await seedBusinessStarterData(businessId, businessType || 'grocery');
 }
 
 // Default Category & Sample Product Seeder per business type

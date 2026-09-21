@@ -42,3 +42,4 @@ repomix-output.*
 .firebase/
 *.log
 *.apk
+/dist/

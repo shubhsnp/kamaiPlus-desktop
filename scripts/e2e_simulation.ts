@@ -1120,6 +1120,19 @@ assert(filterByCust(sampleBills, 'c101').length === 2, 'Customer filter matches 
 const supportedLabelPapers = ['50x25', '38x25', 'thermal-58', 'thermal-80'];
 assert(supportedLabelPapers.includes('50x25') && supportedLabelPapers.includes('38x25'), 'Barcode printer supports standard 50x25mm and 38x25mm label sizes');
 
+// 5. Product Data Clean & Reset Invariant
+const mockProductsTable = [{ id: 'p1' }, { id: 'p2' }, { id: 'p3' }];
+let localProducts = [...mockProductsTable];
+let localStorageFlags: Record<string, string> = {};
+const simulateCleanProducts = () => {
+  const count = localProducts.length;
+  localProducts = [];
+  localStorageFlags['kamai_products_manually_cleared'] = 'true';
+  return count;
+};
+assert(simulateCleanProducts() === 3 && localProducts.length === 0, 'Clean product data removes all items from catalog');
+assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean product data marks manual clear flag to prevent unauthorized re-seeding');
+
 
 console.log('');
 console.log('================================================================');

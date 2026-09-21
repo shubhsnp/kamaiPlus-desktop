@@ -12,7 +12,7 @@ import {
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
-export type SettingsTabType = 'profile' | 'upi' | 'invoicing';
+export type SettingsTabType = 'profile' | 'upi' | 'invoicing' | 'data';
 
 interface SettingsNavTabsProps {
   activeTab: SettingsTabType;
@@ -44,7 +44,12 @@ export const SettingsNavTabs: React.FC<SettingsNavTabsProps> = ({
       shortLabel: 'Invoices',
       icon: Receipt,
     },
-
+    {
+      id: 'data' as SettingsTabType,
+      label: 'Data & Reset',
+      shortLabel: 'Data Clean',
+      icon: HardDrive,
+    },
   ];
 
   return (

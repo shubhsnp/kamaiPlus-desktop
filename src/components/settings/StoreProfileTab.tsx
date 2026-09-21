@@ -42,6 +42,7 @@ interface StoreProfileTabProps {
   logoUrl: string;
   onLogoUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onRemoveLogo: () => void;
+  onSwitchToDataTab?: () => void;
 }
 
 export const StoreProfileTab: React.FC<StoreProfileTabProps> = ({
@@ -66,6 +67,7 @@ export const StoreProfileTab: React.FC<StoreProfileTabProps> = ({
   logoUrl,
   onLogoUpload,
   onRemoveLogo,
+  onSwitchToDataTab,
 }) => {
   const storeProfiles = getAllStoreProfiles();
 
@@ -247,6 +249,42 @@ export const StoreProfileTab: React.FC<StoreProfileTabProps> = ({
           </button>
         </div>
       </Card>
+
+      {/* Catalog & Data Maintenance Card */}
+      {onSwitchToDataTab && (
+        <Card className="p-4 sm:p-5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xs space-y-3">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+            <div className="flex items-center gap-2">
+              <Trash2 className="w-4 h-4 text-rose-600" />
+              <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
+                Product Catalog &amp; Data Reset
+              </h3>
+            </div>
+            <span className="text-xs font-bold text-slate-400">
+              Maintenance
+            </span>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+            <div>
+              <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                Clean All Product Data / Reset Catalog
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Testing ke liye sabhi products ko 1-click me clean karein ya fresh sample catalog load karein.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={onSwitchToDataTab}
+              className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 font-bold text-xs flex items-center gap-1.5 self-start sm:self-center transition active:scale-95 cursor-pointer shrink-0"
+            >
+              <span>Manage &amp; Clean Data →</span>
+            </button>
+          </div>
+        </Card>
+      )}
     </div>
   );
 };
