@@ -16,7 +16,7 @@ import { DayEndClosingReportModal } from '@/components/reports/DayEndClosingRepo
 import { TodayBusinessPulse } from '@/components/dashboard/TodayBusinessPulse';
 import { QuickActionDock } from '@/components/dashboard/QuickActionDock';
 import { QuickToolsGrid } from '@/components/dashboard/QuickToolsGrid';
-import { NicheRadarBanner } from '@/components/dashboard/NicheRadarBanner';
+
 import { DashboardStockWatchlist } from '@/components/dashboard/DashboardStockWatchlist';
 import { DashboardRecentSales } from '@/components/dashboard/DashboardRecentSales';
 
@@ -117,20 +117,7 @@ export default function DashboardHome() {
   }) || [];
 
   // Niche Metric Computations
-  const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
-  const expiredMedicines = useMemo(() => {
-    const now = Date.now();
-    return products.filter((p) => p.expiry_date && new Date(p.expiry_date).getTime() <= now);
-  }, [products]);
 
-  const expiringSoonMedicines = useMemo(() => {
-    const now = Date.now();
-    return products.filter((p) => {
-      if (!p.expiry_date) return false;
-      const diff = new Date(p.expiry_date).getTime() - now;
-      return diff > 0 && diff <= thirtyDaysMs;
-    });
-  }, [products]);
 
   const looseItemsCount = useMemo(() => {
     return products.filter((p) => p.is_loose_item || ['kg', 'gram', 'litre'].includes(p.unit)).length;
@@ -217,14 +204,7 @@ export default function DashboardHome() {
         onOpenClosingReport={() => setIsClosingReportOpen(true)}
       />
 
-      {/* 3. NICHE RADAR ADAPTIVE HUB (Pharmacy Rx, Restaurant Tables, Apparel Sizes, etc.) */}
-      <NicheRadarBanner
-        businessType={businessType}
-        products={products}
-        expiredMedicines={expiredMedicines}
-        expiringSoonMedicines={expiringSoonMedicines}
-        looseItemsCount={looseItemsCount}
-      />
+
 
       {/* 4. LOW STOCK & OUT OF STOCK WATCHLIST ACCORDION */}
       <DashboardStockWatchlist

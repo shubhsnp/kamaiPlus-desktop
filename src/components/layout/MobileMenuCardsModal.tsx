@@ -32,8 +32,7 @@ import {
   Pill
 } from 'lucide-react';
 import { APP_VERSION } from '@/lib/constants/version';
-import { WhatsAppLogo } from '@/components/ui/WhatsAppLogo';
-import { useProSubscription } from '@/components/subscription/ProFeatureGate';
+
 import { logoutUser } from '@/lib/auth';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
@@ -45,74 +44,22 @@ interface MobileMenuCardsModalProps {
 
 export const MobileMenuCardsModal: React.FC<MobileMenuCardsModalProps> = ({ isOpen, onClose }) => {
   const pathname = usePathname();
-  const { isPro } = useProSubscription();
+
 
   const business = useLiveQuery(() => db.businesses.toCollection().first());
   const storeType = business?.business_type;
 
-  const isRestaurant = storeType === 'restaurant' || storeType === 'bakery';
-  const isClothing = storeType === 'clothing';
-  const isHardware = storeType === 'hardware' || storeType === 'electrical' || storeType === 'electronics' || storeType === 'mobile';
-  const isPharmacy = storeType === 'pharmacy';
-  const isGrocery = storeType === 'grocery' || storeType === 'fmcg';
 
-  let productsTitle = 'Products';
-  let productsDesc = 'Item Catalog & Prices';
-  let ProductsIcon = Package;
-  let productsBg = 'bg-blue-100 text-blue-900';
-  let productsBorder = 'border-blue-300';
-
-  if (isRestaurant) {
-    productsTitle = 'Menu & Dishes';
-    productsDesc = 'Food Items & Rates';
-    ProductsIcon = UtensilsCrossed;
-    productsBg = 'bg-orange-100 text-orange-900';
-    productsBorder = 'border-orange-300';
-  } else if (isPharmacy) {
-    productsTitle = 'Medicines Master';
-    productsDesc = 'Drugs & Prescriptions';
-    ProductsIcon = Pill;
-    productsBg = 'bg-sky-100 text-sky-900';
-    productsBorder = 'border-sky-300';
-  } else if (isClothing) {
-    productsTitle = 'Garments & Sizes';
-    productsDesc = 'Sizes, Colors & Fits';
-    ProductsIcon = Shirt;
-    productsBg = 'bg-purple-100 text-purple-900';
-    productsBorder = 'border-purple-300';
-  } else if (isHardware) {
-    productsTitle = 'Items & Materials';
-    productsDesc = 'Tools, Pipes & Parts';
-    ProductsIcon = Wrench;
-    productsBg = 'bg-slate-100 text-slate-900';
-    productsBorder = 'border-slate-300';
-  } else if (isGrocery) {
-    productsTitle = 'Products & FMCG';
-    productsDesc = 'Daily Essentials & Barcodes';
-  }
-
-  let inventoryTitle = 'Inventory & Expiry';
-  let inventoryDesc = 'Batches & Low Stock';
-  if (isPharmacy) {
-    inventoryTitle = 'Expiry & Batches';
-    inventoryDesc = 'Batch Radar & Expiry';
-  } else if (isGrocery) {
-    inventoryTitle = 'Inventory & Alerts';
-    inventoryDesc = 'Stock Alerts & Low Stock';
-  }
-
-  let purchasesTitle = 'Purchases';
-  let purchasesDesc = 'Supplier Invoices';
-  if (isPharmacy) {
-    purchasesTitle = 'Distributor Invoices';
-    purchasesDesc = 'Medicine Inward & Bills';
-  } else if (isGrocery) {
-    purchasesTitle = 'Wholesale Inward';
-    purchasesDesc = 'Mandi & Supplier Bills';
-  } else if (isHardware) {
-    purchasesTitle = 'Vendor Inward';
-    purchasesDesc = 'Hardware Supplier Bills';
-  }
+  // Generic Retail Labels
+  const productsTitle = 'Products';
+  const productsDesc = 'Item Catalog & Prices';
+  const ProductsIcon = Package;
+  const productsBg = 'bg-blue-100 text-blue-900';
+  const productsBorder = 'border-blue-300';
+  const inventoryTitle = 'Inventory & Expiry';
+  const inventoryDesc = 'Batches & Low Stock';
+  const purchasesTitle = 'Purchases';
+  const purchasesDesc = 'Supplier Invoices';
 
   // Exactly 4 sections
   const menuSections = [
@@ -126,34 +73,20 @@ export const MobileMenuCardsModal: React.FC<MobileMenuCardsModalProps> = ({ isOp
       ],
     },
     {
-      title: isRestaurant ? 'Menu & Catalog' : 'Stock & Inventory',
+      title: 'Stock & Inventory',
       items: [
         { href: '/products', title: productsTitle, desc: productsDesc, icon: ProductsIcon, bg: productsBg, border: productsBorder },
-        ...(!isRestaurant && !isClothing && !isHardware ? [
-          { href: '/inventory', title: inventoryTitle, desc: inventoryDesc, icon: Boxes, bg: 'bg-cyan-100 text-cyan-900', border: 'border-cyan-300' }
-        ] : []),
-        ...(!isRestaurant ? [
-          { href: '/purchases', title: purchasesTitle, desc: purchasesDesc, icon: ShoppingBag, bg: 'bg-amber-100 text-amber-900', border: 'border-amber-300' }
-        ] : []),
-        ...(!isRestaurant ? [
-          { href: '/barcode-generator', title: 'Barcode Studio', desc: 'Price Stickers & Tags', icon: Barcode, bg: 'bg-purple-100 text-purple-900', border: 'border-purple-300' }
-        ] : []),
+        { href: '/inventory', title: inventoryTitle, desc: inventoryDesc, icon: Boxes, bg: 'bg-cyan-100 text-cyan-900', border: 'border-cyan-300' },
+        { href: '/purchases', title: purchasesTitle, desc: purchasesDesc, icon: ShoppingBag, bg: 'bg-amber-100 text-amber-900', border: 'border-amber-300' },
+        { href: '/barcode-generator', title: 'Barcode Studio', desc: 'Price Stickers & Tags', icon: Barcode, bg: 'bg-purple-100 text-purple-900', border: 'border-purple-300' },
       ],
     },
+
     {
       title: 'Customer & Credit Ledger',
       items: [
         { href: '/khata', title: 'Khata Ledger', desc: 'Customer Credit & Udhar', icon: BookOpen, bg: 'bg-amber-100 text-amber-900', border: 'border-amber-300' },
         { href: '/customers', title: 'Customers', desc: 'Profiles & Loyalty', icon: Users, bg: 'bg-sky-100 text-sky-900', border: 'border-sky-300' },
-        { href: '/growth', title: 'WhatsApp Growth', desc: 'Festival Greetings', icon: TrendingUp, bg: 'bg-emerald-100 text-emerald-900', border: 'border-emerald-300' },
-        { 
-          href: '/pricing', 
-          title: isPro ? 'My Subscription' : 'Upgrade & Plans', 
-          desc: isPro ? 'Kamai+ Pro Active' : 'Kamai+ Pro', 
-          icon: isPro ? Crown : Sparkles, 
-          bg: isPro ? 'bg-amber-100 text-amber-900' : 'bg-purple-100 text-purple-900', 
-          border: isPro ? 'border-amber-300' : 'border-purple-300' 
-        },
       ],
     },
     {
@@ -242,15 +175,7 @@ export const MobileMenuCardsModal: React.FC<MobileMenuCardsModalProps> = ({ isOp
         {/* Bottom Bar */}
         <div className="px-3 py-2 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-[11px] text-slate-500 gap-2">
           <div className="flex items-center gap-2">
-            <a
-              href="https://wa.me/message/TNIXVEOIXK4PH1"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-950 font-bold text-[10.5px] transition active:scale-95 shadow-2xs"
-            >
-              <WhatsAppLogo className="w-3.5 h-3.5" />
-              <span>Assistant</span>
-            </a>
+
             <span className="font-mono text-[9.5px] bg-white border border-slate-300 px-1.5 py-0.5 rounded font-bold">
               v{APP_VERSION}
             </span>

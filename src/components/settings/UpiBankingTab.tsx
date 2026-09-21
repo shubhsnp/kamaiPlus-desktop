@@ -81,7 +81,7 @@ export const UpiBankingTab: React.FC<UpiBankingTabProps> = ({
           {/* Add New UPI ID Strip */}
           <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200/80 dark:border-slate-700 space-y-2.5">
             <div className="text-xs font-black text-slate-800 dark:text-slate-200">
-              + Add UPI ID / Soundbox VPA
+              + Add UPI ID / VPA
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <input

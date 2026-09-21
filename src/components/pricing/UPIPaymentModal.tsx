@@ -19,7 +19,6 @@ import {
   RefreshCw,
   AlertCircle
 } from 'lucide-react';
-import { WhatsAppLogo } from '@/components/ui/WhatsAppLogo';
 
 interface UPIPaymentModalProps {
   isOpen: boolean;
@@ -427,15 +426,7 @@ export const UPIPaymentModal: React.FC<UPIPaymentModalProps> = ({
                 <ShieldCheck className="w-3.5 h-3.5 text-slate-600" />
                 <span>100% Encrypted Payment</span>
               </span>
-              <a
-                href={`https://wa.me/919999999999?text=Hello%20KamaiPlus%20Team%2C%20I%20need%20help%20with%20upgrading%20to%20${encodeURIComponent(planTitle)}`}
-                target="_blank"
-                rel="noreferrer"
-                className="text-slate-800 font-bold hover:underline flex items-center gap-1"
-              >
-                <WhatsAppLogo className="w-3.5 h-3.5" />
-                <span>WhatsApp Support</span>
-              </a>
+
             </div>
           </>
         )}

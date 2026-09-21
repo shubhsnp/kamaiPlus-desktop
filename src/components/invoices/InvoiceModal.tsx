@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Business, Sale, CartItem, UpiAccount } from '@/types';
 import { formatINR, generateUPILink } from '@/lib/utils';
 import { calculateGstSummary, numberToWordsINR } from '@/lib/invoices/gstCalculator';
-import { sendInvoiceViaOfficialCloudApi, sendInvoiceViaWhatsApp } from '@/lib/invoices/whatsappInvoice';
+
 import { usePlatformPromoConfig } from '@/lib/firebase/remoteConfig';
 import Link from 'next/link';
 import { 
@@ -39,7 +39,7 @@ import { EditInvoiceModal } from '@/components/invoices/EditInvoiceModal';
 import { DEFAULT_INVOICE_THEME_CONFIG } from '@/lib/invoices/themeDefaults';
 import { useProSubscription } from '@/components/subscription/ProFeatureGate';
 import { UpgradeModal } from '@/components/subscription/UpgradeModal';
-import { WhatsAppLogo } from '@/components/ui/WhatsAppLogo';
+
 
 export type InvoiceFormat = 'thermal-58' | 'thermal-80' | 'a4';
 
@@ -71,16 +71,15 @@ export function InvoiceModal({
   const [sale, setSale] = useState<Sale | null>(initialSale);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [recipientPhone, setRecipientPhone] = useState<string>(initialPhone);
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState<boolean>(false);
-  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState<boolean>(false);
+
   const [shareSuccessMsg, setShareSuccessMsg] = useState<string>('');
   const [isBluetoothPrinting, setIsBluetoothPrinting] = useState<boolean>(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState<boolean>(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [selectedUpiIndex, setSelectedUpiIndex] = useState<number>(0);
   const [isPdfPreviewExpanded, setIsPdfPreviewExpanded] = useState<boolean>(!isPostSaleSuccess);
   
-  // Pharmacy Prescription Bill Mode Toggle (Pro Feature)
-  const [isPharmacyRxEnabled, setIsPharmacyRxEnabled] = useState<boolean>(false);
+
 
   // Responsive Mobile & Desktop Preview View Mode ('fit' vs 'full')
   const [viewMode, setViewMode] = useState<'fit' | 'full'>('fit');
@@ -121,11 +120,6 @@ export function InvoiceModal({
 
   useEffect(() => {
     setSale(initialSale);
-    if (isPro && (initialSale?.doctor_name || business?.business_type === 'pharmacy' || business?.invoice_theme_config?.show_pharmacy_rx)) {
-      setIsPharmacyRxEnabled(true);
-    } else {
-      setIsPharmacyRxEnabled(false);
-    }
   }, [initialSale, business, isPro]);
 
   const activeUpi: UpiAccount | null = business?.upi_ids && business.upi_ids.length > 0
@@ -279,77 +273,6 @@ export function InvoiceModal({
     }
   };
 
-  const handleWhatsAppSend = async () => {
-    if (!sale || !business) return;
-    const targetPhone = recipientPhone || sale.customer_phone || '';
-    if (!targetPhone) {
-      alert('Please enter a valid 10-digit customer WhatsApp number.');
-      return;
-    }
-
-    const el = document.getElementById('modal-printable-invoice');
-    setIsSendingWhatsApp(true);
-    setIsGeneratingPdf(true);
-    const prevMode = viewMode;
-    const scrollContainer = previewContainerRef.current;
-    const prevScrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
-
-    try {
-      if (prevMode !== 'full') {
-        setViewMode('full');
-      }
-      if (scrollContainer) {
-        scrollContainer.scrollTop = 0;
-      }
-      await new Promise((r) => setTimeout(r, 60));
-      const targetEl = document.getElementById('modal-printable-invoice') || el;
-
-      let pdfBase64: string | undefined = undefined;
-      if (targetEl) {
-        try {
-          const { blob } = await generateInvoicePdfBlobFromElement(targetEl, `Invoice_${sale.invoice_number}.pdf`);
-          pdfBase64 = await new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.readAsDataURL(blob);
-          });
-        } catch (pdfErr) {
-          console.warn('PDF generation for WhatsApp background dispatch notice:', pdfErr);
-        }
-      }
-
-      // Silent dispatch via Meta WhatsApp Cloud API
-      const res = await sendInvoiceViaOfficialCloudApi(targetPhone, sale, business, pdfBase64);
-
-      if (res.sent) {
-        const masked = targetPhone.replace(/\D/g, '').slice(-10);
-        setShareSuccessMsg(`✅ Official WhatsApp invoice delivered silently to +91${masked}!`);
-        setTimeout(() => setShareSuccessMsg(''), 5000);
-      } else {
-        // Smart Fail-Safe Auto-Fallback: Open via merchant's WhatsApp app / Web
-        console.warn('Cloud API unavailable or unconfigured, launching direct WhatsApp:', res.error);
-        sendInvoiceViaWhatsApp(targetPhone, sale, business);
-        const masked = targetPhone.replace(/\D/g, '').slice(-10);
-        setShareSuccessMsg(`📲 Opened WhatsApp for +91${masked} (Direct Dispatch)`);
-        setTimeout(() => setShareSuccessMsg(''), 5000);
-      }
-    } catch (err: any) {
-      console.error('WhatsApp send error, launching direct fallback:', err);
-      sendInvoiceViaWhatsApp(targetPhone, sale, business);
-      const masked = targetPhone.replace(/\D/g, '').slice(-10);
-      setShareSuccessMsg(`📲 Opened WhatsApp for +91${masked}`);
-      setTimeout(() => setShareSuccessMsg(''), 5000);
-    } finally {
-      if (prevMode !== 'full') {
-        setViewMode(prevMode);
-      }
-      if (scrollContainer) {
-        scrollContainer.scrollTop = prevScrollTop;
-      }
-      setIsGeneratingPdf(false);
-      setIsSendingWhatsApp(false);
-    }
-  };
 
   const handleInvoiceSaved = (updatedSale: Sale) => {
     setSale(updatedSale);
@@ -482,18 +405,7 @@ export function InvoiceModal({
               </div>
             )}
 
-            {/* 2b. Pharmacy Rx License Bar */}
-            {(isPharmacyRxEnabled || sale.doctor_name || business.business_type === 'pharmacy') && (
-              <div className="p-2.5 rounded-xl bg-sky-50 border border-sky-200 text-sky-950 flex items-center justify-between text-[11px] shadow-2xs">
-                <div className="flex items-center gap-2">
-                  <span className="font-black px-2 py-0.5 bg-sky-600 text-white rounded-md text-[10px]">Rx</span>
-                  <span>Doctor: <b>{sale.doctor_name || 'Registered Medical Practitioner (RMP)'}</b></span>
-                </div>
-                <div className="font-mono font-bold text-[11px] text-sky-800">
-                  D.L. No: {theme.drug_license_no || business.drug_license_no || 'DL-20B/21B-XXXXXX'}
-                </div>
-              </div>
-            )}
+
 
             {/* 3. Customer Details & Payment Mode Card */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 p-3.5 sm:p-4 bg-slate-50/90 rounded-xl border border-slate-200/90 shadow-2xs">
@@ -549,11 +461,7 @@ export function InvoiceModal({
                       <td className="py-2.5 px-3 text-center text-slate-400 font-mono text-[11px]">{idx + 1}</td>
                       <td className="py-2.5 px-3.5">
                         <div className="font-black text-slate-900 text-xs">{item.product_name}</div>
-                        {item.batch_number && (
-                          <div className="text-[10px] text-slate-500 font-mono pt-0.5">
-                            Batch: {item.batch_number} {item.expiry_date ? `| Exp: ${item.expiry_date}` : ''}
-                          </div>
-                        )}
+
                         {(item.size || item.color) && (
                           <div className="text-[10px] text-purple-700 font-medium pt-0.5">
                             {[item.size ? `Size: ${item.size}` : '', item.color ? `Color: ${item.color}` : ''].filter(Boolean).join(' • ')}
@@ -711,11 +619,10 @@ export function InvoiceModal({
               <div key={i} className="flex justify-between items-start text-[10.5px]">
                 <div className="flex-1 pr-1 truncate">
                   <div>{item.product_name} x {item.quantity} {item.unit || ''}</div>
-                  {(item.batch_number || item.size || item.color || item.warranty_period_months) && (
+                  {(item.size || item.color || item.warranty_period_months) && (
                     <div className="text-[9px] text-slate-500">
                       {[
-                        item.batch_number ? `B:${item.batch_number}` : '',
-                        item.expiry_date ? `Exp:${item.expiry_date}` : '',
+
                         item.size ? `Size:${item.size}` : '',
                         item.color ? item.color : '',
                         item.warranty_period_months ? `War:${item.warranty_period_months}m` : '',
@@ -870,43 +777,6 @@ export function InvoiceModal({
                   Dispatch &amp; Receipt Actions
                 </div>
 
-                {/* WhatsApp Direct Send Row with Official Logo */}
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-2 bg-emerald-50/70 border border-emerald-200 rounded-xl">
-                  <div className="flex items-center gap-2 px-2 py-0.5 shrink-0">
-                    <WhatsAppLogo className="w-5 h-5" />
-                    <span className="text-xs font-black text-emerald-950 whitespace-nowrap">WhatsApp Bill:</span>
-                  </div>
-
-                  <div className="flex-1 flex items-center gap-1.5">
-                    <div className="flex-1 flex items-center bg-white border border-emerald-300 rounded-lg px-2.5 py-1.5 focus-within:ring-2 focus-within:ring-emerald-500">
-                      <Phone className="w-3.5 h-3.5 text-slate-400 mr-2 flex-shrink-0" />
-                      <input
-                        type="tel"
-                        placeholder="Customer 10-digit WhatsApp number..."
-                        value={recipientPhone}
-                        onChange={(e) => setRecipientPhone(e.target.value)}
-                        className="w-full text-xs font-mono font-bold text-slate-900 bg-transparent outline-none placeholder:text-slate-400"
-                      />
-                    </div>
-
-                    <Button
-                      size="sm"
-                      onClick={handleWhatsAppSend}
-                      disabled={isGeneratingPdf || isSendingWhatsApp}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black gap-1.5 rounded-lg h-9 px-3.5 shadow-xs cursor-pointer active:scale-95 shrink-0"
-                    >
-                      {isSendingWhatsApp ? (
-                        <>
-                          <Zap className="w-3.5 h-3.5 text-amber-300 animate-spin" />
-                          <span>Sending...</span>
-                        </>
-                      ) : (
-                        <span>Send WhatsApp</span>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-
                 {/* Print & PDF Action Buttons Grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
                   <Button
@@ -996,36 +866,7 @@ export function InvoiceModal({
               </div>
 
               <div className="flex flex-wrap items-center gap-1.5 justify-end">
-                {/* Pharmacy Rx Mode Toggle Pill */}
-                {business?.business_type === 'pharmacy' && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!isPro) {
-                        setIsUpgradeModalOpen(true);
-                      } else {
-                        setIsPharmacyRxEnabled(!isPharmacyRxEnabled);
-                      }
-                    }}
-                    className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 cursor-pointer h-8 ${
-                      isPharmacyRxEnabled && isPro
-                        ? 'bg-sky-50 text-sky-900 border-sky-300 shadow-2xs'
-                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                    }`}
-                    title={!isPro ? 'Pharmacy Prescription Rx Bill (Pro Feature)' : 'Toggle Pharmacy Prescription Rx & Drug License Details on Bill'}
-                  >
-                    <span>💊 Rx Bill:</span>
-                    {!isPro ? (
-                      <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-400 text-slate-950 flex items-center gap-0.5 shadow-2xs">
-                        <Lock className="w-2.5 h-2.5" /> PRO
-                      </span>
-                    ) : (
-                      <span className={`px-1.5 py-0.5 rounded text-[9.5px] font-black ${isPharmacyRxEnabled ? 'bg-sky-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
-                        {isPharmacyRxEnabled ? 'ON' : 'OFF'}
-                      </span>
-                    )}
-                  </button>
-                )}
+
 
                 <Button
                   variant="outline"
@@ -1083,25 +924,6 @@ export function InvoiceModal({
                   <span>{isGeneratingPdf ? 'Saving...' : 'PDF'}</span>
                 </Button>
 
-                <Button
-                  size="sm"
-                  onClick={handleWhatsAppSend}
-                  disabled={isGeneratingPdf || isSendingWhatsApp}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black gap-1.5 rounded-xl h-8 shadow-sm cursor-pointer"
-                  title="Send official bill silently via Meta WhatsApp Cloud API"
-                >
-                  {isSendingWhatsApp ? (
-                    <>
-                      <Zap className="w-3.5 h-3.5 text-amber-300 animate-spin" />
-                      <span>Sending...</span>
-                    </>
-                  ) : (
-                    <>
-                      <WhatsAppLogo className="w-3.5 h-3.5" />
-                      <span>WhatsApp</span>
-                    </>
-                  )}
-                </Button>
               </div>
             </div>
           )}

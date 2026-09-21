@@ -56,7 +56,7 @@ export const AdminCouponModal: React.FC<AdminCouponModalProps> = ({
       <form onSubmit={onSubmit} className="space-y-3.5">
         <Input
           label="Coupon Code *"
-          placeholder="e.g. DIWALI50 or PRO20"
+          placeholder="e.g. DIWALI50 or SAVE20"
           value={newCouponCode}
           onChange={(e) => setNewCouponCode(e.target.value.toUpperCase())}
           required

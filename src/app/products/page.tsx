@@ -46,7 +46,6 @@ export default function ProductsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
-  const [showExpiringOnly, setShowExpiringOnly] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isPurchaseSheetOpen, setIsPurchaseSheetOpen] = useState(false);
@@ -73,8 +72,7 @@ export default function ProductsPage() {
   const [formIsFavorite, setFormIsFavorite] = useState(false);
 
   // Dynamic Store Specific Attributes
-  const [formBatchNumber, setFormBatchNumber] = useState('');
-  const [formExpiryDate, setFormExpiryDate] = useState('');
+
   const [formSize, setFormSize] = useState('');
   const [formColor, setFormColor] = useState('');
   const [formError, setFormError] = useState('');
@@ -110,8 +108,7 @@ export default function ProductsPage() {
         const q = searchQuery.toLowerCase().trim();
         const matchName = p.name.toLowerCase().includes(q);
         const matchBarcode = p.barcode ? p.barcode.toLowerCase().includes(q) : false;
-        const matchBatch = p.batch_number ? p.batch_number.toLowerCase().includes(q) : false;
-        if (!matchName && !matchBarcode && !matchBatch) return false;
+        if (!matchName && !matchBarcode) return false;
       }
 
       // 2. Category Filter
@@ -126,22 +123,13 @@ export default function ProductsPage() {
         if (p.current_stock > minAlert) return false;
       }
 
-      // 4. Expiring Soon Filter (Within 30 days or already expired)
-      if (showExpiringOnly) {
-        if (!p.expiry_date) return false;
-        const expTime = new Date(p.expiry_date).getTime();
-        const nowTime = new Date().getTime();
-        const diffDays = Math.ceil((expTime - nowTime) / (1000 * 60 * 60 * 24));
-        if (diffDays > 30) return false;
-      }
-
       return true;
     }).sort((a, b) => {
       if (a.is_favorite && !b.is_favorite) return -1;
       if (!a.is_favorite && b.is_favorite) return 1;
       return a.name.localeCompare(b.name);
     });
-  }, [allProducts, searchQuery, selectedCategory, showLowStockOnly, showExpiringOnly]);
+  }, [allProducts, searchQuery, selectedCategory, showLowStockOnly]);
 
   // Financial & Inventory Metrics
   const lowStockCount = useMemo(() => {
@@ -173,8 +161,7 @@ export default function ProductsPage() {
     setFormMinStock('5');
     setFormBarcode('');
     setFormIsFavorite(false);
-    setFormBatchNumber('');
-    setFormExpiryDate('');
+
     setFormSize('');
     setFormColor('');
     setIsModalOpen(true);
@@ -196,8 +183,7 @@ export default function ProductsPage() {
     setFormMinStock((p.min_stock_level || 5).toString());
     setFormBarcode(p.barcode || '');
     setFormIsFavorite(Boolean(p.is_favorite));
-    setFormBatchNumber(p.batch_number || '');
-    setFormExpiryDate(p.expiry_date || '');
+
     setFormSize(p.size || '');
     setFormColor(p.color || '');
     setIsModalOpen(true);
@@ -247,8 +233,7 @@ export default function ProductsPage() {
       current_stock: stockNum,
       min_stock_level: minStockNum,
       barcode: formBarcode.trim() || undefined,
-      batch_number: formBatchNumber.trim() || undefined,
-      expiry_date: formExpiryDate.trim() || undefined,
+
       size: formSize.trim() || undefined,
       color: formColor.trim() || undefined,
       is_favorite: formIsFavorite,
@@ -389,8 +374,6 @@ export default function ProductsPage() {
         onSelectCategory={setSelectedCategory}
         showLowStockOnly={showLowStockOnly}
         onToggleLowStock={setShowLowStockOnly}
-        showExpiringOnly={showExpiringOnly}
-        onToggleExpiringOnly={setShowExpiringOnly}
         onOpenScanner={() => setIsScannerOpen(true)}
       />
 
@@ -448,10 +431,7 @@ export default function ProductsPage() {
         setFormMinStock={setFormMinStock}
         formBarcode={formBarcode}
         setFormBarcode={setFormBarcode}
-        formBatchNumber={formBatchNumber}
-        setFormBatchNumber={setFormBatchNumber}
-        formExpiryDate={formExpiryDate}
-        setFormExpiryDate={setFormExpiryDate}
+
         formSize={formSize}
         setFormSize={setFormSize}
         formColor={formColor}

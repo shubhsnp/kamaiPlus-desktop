@@ -303,52 +303,6 @@ export default function BarcodeGeneratorPage() {
     return allProducts.filter((p) => p.name.toLowerCase().includes(q) || (p.barcode && p.barcode.includes(q))).slice(0, 5);
   }, [allProducts, productSearch]);
 
-  if (!isPro) {
-    return (
-      <div className="space-y-4 pb-12">
-        <div className="bg-white rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 border border-slate-200 shadow-2xs flex items-center justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5 truncate">
-              <Barcode className="w-4 h-4 text-purple-700 shrink-0" />
-              <h1 className="text-sm xs:text-base sm:text-lg font-black text-slate-900 truncate">
-                Barcode &amp; Price Label Studio
-              </h1>
-            </div>
-            <p className="text-[10px] sm:text-xs text-slate-500 truncate">
-              Generate custom barcode stickers &amp; price tags for A4 sheets and thermal rolls
-            </p>
-          </div>
-
-          <Button
-            onClick={() => setIsUpgradeModalOpen(true)}
-            className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs gap-1.5 shadow-2xs cursor-pointer px-3 py-1.5 flex-shrink-0"
-          >
-            <Crown className="w-3.5 h-3.5" />
-            <span>Unlock Pro</span>
-          </Button>
-        </div>
-
-        <ProFeatureLockedCard
-          title="Barcode &amp; Price Label Studio is a Pro Feature"
-          description="Design and print professional retail price stickers, Avery A4 label sheets (24/30/40 up), and thermal roll labels for your store products."
-          features={[
-            'Generate Code-128 & QR Code Barcode Stickers',
-            'Print on Standard Avery A4 Sheets (24, 30, 40 per sheet)',
-            'Thermal Roll Label Printing (50x25mm & 38x25mm)',
-            'Show Store Name, MRP, Our Price & Customer Savings badge',
-            '1-Click Direct Bluetooth & Desktop Printing'
-          ]}
-        />
-
-        <UpgradeModal
-          isOpen={isUpgradeModalOpen}
-          onClose={() => setIsUpgradeModalOpen(false)}
-          businessName={business?.name || 'Your Store'}
-        />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4 pb-16">
       {/* ---------------- SCREEN HEADER (Single Row Compact) ---------------- */}

@@ -11,7 +11,6 @@ import {
   ArrowRight,
   Sparkles
 } from 'lucide-react';
-import { WhatsAppLogo } from '@/components/ui/WhatsAppLogo';
 
 interface QuickActionDockProps {
   onOpenRapidInward?: () => void;
@@ -91,21 +90,21 @@ export const QuickActionDock: React.FC<QuickActionDockProps> = ({
           </div>
         </Link>
 
-        {/* 4. Day-End WhatsApp Closing Summary */}
+        {/* 4. Day-End Closing Summary */}
         <div 
           onClick={onOpenClosingReport}
           className="bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-2xl p-3 sm:p-3.5 flex items-center justify-between gap-2 shadow-2xs border border-emerald-200/80 dark:border-emerald-900/60 active:scale-[0.98] transition-all cursor-pointer group"
         >
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform p-1.5">
-              <WhatsAppLogo className="w-full h-full" />
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+              <Calculator className="w-4 h-4" />
             </div>
             <div className="min-w-0">
               <div className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">
                 Day Summary
               </div>
               <div className="text-[10.5px] font-medium text-slate-400 truncate">
-                WhatsApp Z-Report
+                Shift Z-Report
               </div>
             </div>
           </div>

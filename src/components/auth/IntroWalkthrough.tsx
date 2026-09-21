@@ -16,7 +16,6 @@ import {
   QrCode,
   CheckCircle2
 } from 'lucide-react';
-import { WhatsAppLogo } from '@/components/ui/WhatsAppLogo';
 
 interface IntroWalkthroughProps {
   onComplete: () => void;
@@ -61,14 +60,14 @@ export const IntroWalkthrough: React.FC<IntroWalkthroughProps> = ({
     {
       id: 2,
       step: '3 / 3',
-      badge: 'CUSTOMER CREDIT & WHATSAPP',
-      title: 'Credit Ledger & WhatsApp Bills',
-      subtitle: 'Send official WhatsApp PDF invoices with zero-fee UPI QR codes and track pending customer balances.',
+      badge: 'CUSTOMER CREDIT',
+      title: 'Credit Ledger',
+      subtitle: 'Track pending customer balances and collect payments easily.',
       icon: BookOpen,
       iconColor: 'text-sky-400 bg-sky-950/60 border-sky-800',
       highlights: [
         { icon: BookOpen, title: 'Zero-Loss Credit Ledger', desc: 'Track customer balances and payment history.' },
-        { icon: WhatsAppLogo, title: 'WhatsApp PDF Invoices', desc: 'Send paperless bills directly to WhatsApp.' },
+        { icon: Receipt, title: 'PDF Invoices', desc: 'Generate paperless bills easily.' },
         { icon: QrCode, title: 'Instant UPI QR Collection', desc: 'Direct bank payments with zero commissions.' },
       ]
     }

@@ -14,21 +14,17 @@ import {
 } from 'lucide-react';
 import { Customer } from '@/types';
 import { formatINR, cn } from '@/lib/utils';
-import { WhatsAppLogo } from '@/components/ui/WhatsAppLogo';
+
 import { Button } from '@/components/ui/Button';
 
 interface CustomerCardProps {
   customer: Customer;
-  isSendingWhatsApp: boolean;
   onEditCustomer: (customer: Customer) => void;
-  onSendWhatsAppGreeting: (customer: Customer) => void;
 }
 
 export const CustomerCard: React.FC<CustomerCardProps> = ({
   customer,
-  isSendingWhatsApp,
   onEditCustomer,
-  onSendWhatsAppGreeting,
 }) => {
   const isVip = customer.customer_type === 'vip';
   const hasUdhar = customer.current_balance > 0;
@@ -146,21 +142,6 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5">
-          {customer.phone && (
-            <button
-              type="button"
-              onClick={() => onSendWhatsAppGreeting(customer)}
-              disabled={isSendingWhatsApp}
-              className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 border border-emerald-200 dark:border-emerald-800 transition cursor-pointer disabled:opacity-50 active:scale-95 shadow-2xs"
-              title="Send WhatsApp Greeting Message"
-            >
-              {isSendingWhatsApp ? (
-                <Loader2 className="w-3.5 h-3.5 text-emerald-600 animate-spin" />
-              ) : (
-                <WhatsAppLogo className="w-3.5 h-3.5" />
-              )}
-            </button>
-          )}
 
           <Link href={`/khata?search=${encodeURIComponent(customer.phone || customer.name)}`}>
             <Button 

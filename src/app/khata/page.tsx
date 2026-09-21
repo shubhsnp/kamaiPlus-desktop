@@ -25,7 +25,7 @@ import {
   Loader2,
   CheckCircle2
 } from 'lucide-react';
-import { WhatsAppLogo } from '@/components/ui/WhatsAppLogo';
+
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
@@ -107,9 +107,6 @@ function KhataContent() {
   // Invoice Detailed Bill Viewer Modal
   const [viewingSale, setViewingSale] = useState<Sale | null>(null);
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
-
-  // WhatsApp Payment Reminder State & Dispatcher
-  const [isSendingReminder, setIsSendingReminder] = useState(false);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -450,47 +447,6 @@ function KhataContent() {
     }
   };
 
-  // WhatsApp Payment Reminder Dispatcher
-  const handleSendWhatsAppReminder = async () => {
-    if (!selectedCustomer || !selectedCustomer.phone) {
-      showToast('⚠️ No phone number saved for this customer');
-      return;
-    }
-    if ((selectedCustomer.current_balance || 0) <= 0) {
-      showToast('✅ Customer has zero pending balance (Udhar)');
-      return;
-    }
-
-    const cleanPhone = selectedCustomer.phone.replace(/\D/g, '').slice(-10);
-    setIsSendingReminder(true);
-    showToast(`📲 Dispatching WhatsApp reminder to +91${cleanPhone}...`);
-
-    try {
-      const response = await fetch('/api/whatsapp/send-khata-reminder', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone: selectedCustomer.phone,
-          customerName: selectedCustomer.name,
-          balanceDue: selectedCustomer.current_balance,
-          businessName: business?.name || 'Our Store',
-          storePhone: business?.phone,
-          upiId: business?.upi_id,
-        }),
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        showToast(`✅ WhatsApp reminder sent to +91${cleanPhone}!`);
-      } else {
-        showToast(`⚠️ ${data.error || 'Failed to dispatch WhatsApp reminder'}`);
-      }
-    } catch (err: any) {
-      showToast(`⚠️ ${err?.message || 'Network error sending reminder'}`);
-    } finally {
-      setIsSendingReminder(false);
-    }
-  };
 
   return (
     <div className="space-y-3.5 pb-24 lg:pb-6 animate-in fade-in duration-200">
@@ -747,22 +703,7 @@ function KhataContent() {
                         <span>Call</span>
                       </a>
                     )}
-                    {selectedCustomer.phone && (
-                      <button
-                        type="button"
-                        onClick={handleSendWhatsAppReminder}
-                        disabled={isSendingReminder}
-                        className="p-1.5 px-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-bold flex items-center gap-1 active:scale-95 shadow-2xs disabled:opacity-50"
-                        title="WhatsApp Reminder"
-                      >
-                        {isSendingReminder ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <WhatsAppLogo className="w-3.5 h-3.5" />
-                        )}
-                        <span>Reminder</span>
-                      </button>
-                    )}
+
                   </div>
                 </div>
 
@@ -874,22 +815,7 @@ function KhataContent() {
                       <span>↙ You Got ₹ (Jama)</span>
                     </button>
 
-                    {selectedCustomer.phone && (
-                      <button
-                        type="button"
-                        onClick={handleSendWhatsAppReminder}
-                        disabled={isSendingReminder}
-                        className="px-2.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300/80 font-bold text-xs flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer disabled:opacity-50 active:scale-95"
-                        title="Send PDF statement & UPI payment link via WhatsApp"
-                      >
-                        {isSendingReminder ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
-                        ) : (
-                          <WhatsAppLogo className="w-3.5 h-3.5" />
-                        )}
-                        <span>WhatsApp Reminder</span>
-                      </button>
-                    )}
+
                   </div>
 
                   <button

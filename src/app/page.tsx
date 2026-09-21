@@ -3,20 +3,27 @@
 import React, { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { getStoredUser } from '@/lib/auth';
+import { useRouter } from 'next/navigation';
 
 const DashboardHome = dynamic(() => import('@/components/dashboard/DashboardHome'), { ssr: false });
-const MarketingHome = dynamic(() => import('@/components/marketing/MarketingHome'), { ssr: false });
 
 export default function HomePage() {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
-    setIsLoggedIn(Boolean(getStoredUser()));
-  }, []);
+    const user = getStoredUser();
+    if (user) {
+      setIsLoggedIn(true);
+    } else {
+      setIsLoggedIn(false);
+      router.replace('/auth');
+    }
+  }, [router]);
 
-  if (isLoggedIn === null) {
+  if (isLoggedIn === null || isLoggedIn === false) {
     return null;
   }
 
-  return isLoggedIn ? <DashboardHome /> : <MarketingHome />;
+  return <DashboardHome />;
 }

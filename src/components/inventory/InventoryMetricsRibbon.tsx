@@ -15,18 +15,18 @@ interface InventoryMetricsRibbonProps {
   totalItems: number;
   totalAssetValuePaise: number;
   lowStockCount: number;
-  nearExpiryCount: number;
+
 }
 
 export const InventoryMetricsRibbon: React.FC<InventoryMetricsRibbonProps> = ({
   totalItems,
   totalAssetValuePaise,
   lowStockCount,
-  nearExpiryCount,
+
 }) => {
   return (
     <Card className="p-2.5 sm:p-3 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-2xs rounded-2xl">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-slate-800">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-slate-800">
         {/* 1. Total Catalog Items */}
         <div className="px-2 py-1 sm:py-0 sm:first:pl-1">
           <div className="flex items-center justify-between text-slate-500 text-[11px] font-bold">
@@ -78,22 +78,7 @@ export const InventoryMetricsRibbon: React.FC<InventoryMetricsRibbonProps> = ({
           </div>
         </div>
 
-        {/* 4. Near-Expiry Items */}
-        <div className="px-2 pt-2 sm:pt-0 sm:pl-3">
-          <div className="flex items-center justify-between text-slate-500 text-[11px] font-bold">
-            <span className="flex items-center gap-1 text-amber-700 dark:text-amber-400">
-              <Clock className="w-3.5 h-3.5 text-amber-600" />
-              <span>Near Expiry</span>
-            </span>
-            <span className="text-[10px] text-slate-400 font-mono">&lt;60d</span>
-          </div>
-          <div className="text-base sm:text-lg font-black font-mono text-amber-600 dark:text-amber-400 mt-0.5 leading-tight">
-            {nearExpiryCount}
-          </div>
-          <div className="text-[10px] text-slate-400 truncate mt-0.5">
-            Batch expiry radar
-          </div>
-        </div>
+
       </div>
     </Card>
   );

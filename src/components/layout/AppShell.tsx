@@ -10,10 +10,6 @@ import { Sidebar } from './Sidebar';
 import { BottomNav } from './BottomNav';
 import { GlobalBroadcastBanner } from '@/components/common/GlobalBroadcastBanner';
 import { DailyDigestAutoWatcher } from '@/components/common/DailyDigestAutoWatcher';
-import { useFirebasePageTracking } from '@/lib/firebase/analytics';
-import { initFirebaseAppCheck } from '@/lib/firebase/appCheck';
-import { initBackgroundCloudSync } from '@/lib/firebase/backgroundSync';
-import { restoreFirestoreToLocalDexie } from '@/lib/firebase/firestoreSync';
 import { subscriptionService } from '@/lib/subscription/subscriptionService';
 import { APP_VERSION } from '@/lib/constants/version';
 
@@ -54,9 +50,6 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     window.location.href = '/admin';
   };
 
-  // Auto Page View Analytics for Platform Owner
-  useFirebasePageTracking();
-
   // --- PERSISTENT STORAGE & OFFLINE RESILIENCY ---
   useEffect(() => {
     const requestPersistentStorage = async () => {
@@ -82,10 +75,9 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     requestPersistentStorage();
   }, []);
 
-  // --- 1. MOUNT SETUP: DB HYDRATION, EVENT LISTENERS & CLOUD HEARTBEAT ---
+  // --- 1. MOUNT SETUP: DB HYDRATION & EVENT LISTENERS ---
   useEffect(() => {
     setIsClient(true);
-    initFirebaseAppCheck();
     
     const initialUser = getStoredUser();
     setCurrentUser(initialUser);
@@ -146,8 +138,6 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     window.addEventListener('auth_changed', handleAuthChange);
     window.addEventListener('storage', handleAuthChange);
 
-    const cleanupSync = initBackgroundCloudSync(initialUser?.business_id);
-
     // Initial DB hydration: restore business and default products from local Dexie
     const initDb = async () => {
       try {
@@ -163,16 +153,6 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         }
 
         let localBiz = await localDb.businesses.toCollection().first();
-
-        // If local DB is empty for an authenticated merchant, attempt cloud restore from Firestore
-        if (!localBiz && u.business_id && u.business_id !== 'biz_pending') {
-          try {
-            await restoreFirestoreToLocalDexie(u.business_id);
-            localBiz = await localDb.businesses.toCollection().first();
-          } catch (cloudErr) {
-            console.warn('Initial cloud restore hydration notice:', cloudErr);
-          }
-        }
 
         if (localBiz && localBiz.id && localBiz.is_onboarded) {
           const userPhone = (u.phone || '').replace(/\D/g, '').slice(-10);
@@ -208,108 +188,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
     initDb();
 
-    // Verify session with server API (/api/auth/me) in the background with 30s heartbeat
-    const checkServerSession = async () => {
-      try {
-        // If client is already logged out, do not automatically pull old session
-        const currentStored = getStoredUser();
-        if (!currentStored) return;
-
-        const qParams = new URLSearchParams();
-        if (currentStored.business_id && currentStored.business_id !== 'biz_pending') {
-          qParams.set('business_id', currentStored.business_id);
-        }
-        if (currentStored.phone) {
-          qParams.set('phone', currentStored.phone);
-        }
-        const meUrl = qParams.toString() ? `/api/auth/me?${qParams.toString()}` : '/api/auth/me';
-        const res = await fetch(meUrl);
-        if (res.status === 410 || res.status === 403 || res.status === 401) {
-          const data = await res.json().catch(() => ({}));
-          if (res.status === 410 || data.isDeleted) {
-            console.warn('🚨 Merchant account permanently deleted by admin. Purging local device.');
-            const { purgeLocalDeviceData } = await import('@/lib/auth');
-            await purgeLocalDeviceData().catch(() => {});
-            setStoredUser(null);
-            setCurrentUser(null);
-            router.replace('/auth?deleted=true');
-            return;
-          }
-          if (data.isFrozen) {
-            // SAFE LOCKOUT: Keep local IndexedDB records 100% intact (zero data loss for offline business)
-            // Only pause active user session and render the frozen lockout notice
-            setStoredUser(null);
-            setCurrentUser(null);
-            setAccountLockout({
-              isFrozen: true,
-              message: data.error || 'Your merchant account has been frozen by the platform administrator.',
-            });
-            return;
-          }
-        }
-
-        if (res.ok) {
-          const data = await res.json();
-          if (data.authenticated && data.user) {
-            const activeStored = getStoredUser();
-            if (!activeStored) return; // User logged out while fetch was in-flight
-
-            // Only update stored user if cloud found a valid business_id that client didn't have AND identity matches
-            if (data.user.business_id && (!activeStored.business_id || activeStored.business_id === 'biz_pending')) {
-              const uPhone = (activeStored.phone || '').replace(/\D/g, '').slice(-10);
-              const dPhone = (data.user.phone || '').replace(/\D/g, '').slice(-10);
-              const uEmail = (activeStored.email || '').toLowerCase().trim();
-              const dEmail = (data.user.email || '').toLowerCase().trim();
-              const matches = (uPhone && dPhone && uPhone === dPhone) ||
-                              (uEmail && dEmail && uEmail === dEmail) ||
-                              (activeStored.uid && data.user.id && activeStored.uid === data.user.id);
-              if (matches) {
-                const updatedUser: AuthUser = {
-                  uid: data.user.id || activeStored.uid || data.user.phone,
-                  id: data.user.id || activeStored.id || data.user.phone,
-                  phone: data.user.phone || activeStored.phone,
-                  name: data.user.name || activeStored.name || 'Store Owner',
-                  email: activeStored.email || null,
-                  photoURL: activeStored.photoURL || null,
-                  role: data.user.role || 'admin',
-                  business_id: data.user.business_id,
-                  business_name: data.business?.name || data.user.business_name || activeStored.business_name || '',
-                  shop_name: data.business?.name || data.user.business_name || activeStored.shop_name || '',
-                };
-                setStoredUser(updatedUser);
-                setCurrentUser(updatedUser);
-              }
-            }
-
-            // Sync subscription tier from Cloud DB
-            if (data.business?.subscription_tier) {
-              subscriptionService.setTierFromCloud(
-                data.business.subscription_tier,
-                data.business.subscription_valid_until || data.business.subscription_expires_at
-              );
-            }
-          }
-        }
-      } catch (err) {
-        console.warn('Offline or session check bypassed:', err);
-      }
-    };
-
-    checkServerSession();
-    const heartbeatTimer = setInterval(checkServerSession, 30000);
-    window.addEventListener('focus', checkServerSession);
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        checkServerSession();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
     return () => {
-      clearInterval(heartbeatTimer);
-      window.removeEventListener('focus', checkServerSession);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      cleanupSync();
       window.removeEventListener('account_frozen', handleAccountFrozen);
       window.removeEventListener('account_unfrozen', handleAccountUnfrozen);
       window.removeEventListener('auth_changed', handleAuthChange);

@@ -28,7 +28,6 @@ import {
   QrCode
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { OnboardingPhotoScanCard } from '@/components/onboarding/OnboardingPhotoScanCard';
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -41,9 +40,8 @@ export default function OnboardingPage() {
   const [ownerName, setOwnerName] = useState<string>('');
   const [phone, setPhone] = useState<string>('');
   const [upiId, setUpiId] = useState<string>('');
-  const [businessType, setBusinessType] = useState<BusinessType>('grocery');
+  const [businessType] = useState<BusinessType>('retail');
   const [seedStarterCatalog, setSeedStarterCatalog] = useState<boolean>(true);
-  const [launchPhotoScan, setLaunchPhotoScan] = useState<boolean>(true);
 
   // Load current authenticated user and pre-fill details
   useEffect(() => {
@@ -61,20 +59,7 @@ export default function OnboardingPage() {
     }
   }, []);
 
-  const businessCategories: Array<{
-    type: BusinessType;
-    label: string;
-    description: string;
-    icon: any;
-  }> = [
-    { type: 'grocery', label: 'Grocery / Kirana', description: 'Loose weights, FMCG, Rice, Atta & Barcodes', icon: Store },
-    { type: 'clothing', label: 'Apparel / Clothing', description: 'Sizes S/M/L/XL, Colors & Garments', icon: ShoppingBag },
-    { type: 'electronics', label: 'Electronics & Mobile', description: 'Serial numbers, Accessories & Gadgets', icon: Tv },
-    { type: 'restaurant', label: 'Cafe / Restaurant', description: 'Table orders, Food items & KOT tokens', icon: Utensils },
-    { type: 'pharmacy', label: 'Pharmacy / Medical', description: 'Batch numbers, Expiry alerts & Medicines', icon: Pill },
-    { type: 'hardware', label: 'Hardware & Electrical', description: 'Paints, Tools, Pipes & Metered items', icon: Wrench },
-    { type: 'other', label: 'General Retail', description: 'Universal retail billing & general items', icon: Building2 },
-  ];
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -257,12 +242,8 @@ export default function OnboardingPage() {
         }).catch(() => {});
       }
 
-      // 4. Navigate to products catalog with auto-scan if enabled, otherwise dashboard
-      if (launchPhotoScan) {
-        router.replace('/products?scan=auto');
-      } else {
-        router.replace('/');
-      }
+      // 4. Navigate to dashboard
+      router.replace('/');
     } catch (err: any) {
       console.error('Failed to complete onboarding:', err);
       setError(err?.message || 'Error setting up your store. Please try again.');
@@ -392,43 +373,6 @@ export default function OnboardingPage() {
               </p>
             </div>
 
-            {/* 5. Business Category Selector */}
-            <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                Business Category *
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
-                {businessCategories.map((item) => {
-                  const Icon = item.icon;
-                  const isSelected = businessType === item.type;
-                  return (
-                    <button
-                      key={item.type}
-                      type="button"
-                      onClick={() => setBusinessType(item.type)}
-                      className={`flex items-start gap-2.5 p-2.5 text-left rounded-xl border transition-all cursor-pointer ${
-                        isSelected
-                          ? 'border-amber-400 bg-amber-400/10 ring-1 ring-amber-400/20'
-                          : 'border-slate-800 bg-slate-950 hover:bg-slate-800/60'
-                      }`}
-                    >
-                      <div className={`p-1.5 rounded-lg shrink-0 ${isSelected ? 'bg-amber-400 text-slate-950' : 'bg-slate-800 text-slate-400'}`}>
-                        <Icon className="w-4 h-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className={`text-xs font-bold truncate ${isSelected ? 'text-amber-400' : 'text-white'}`}>
-                          {item.label}
-                        </div>
-                        <div className="text-[10px] text-slate-400 line-clamp-1 leading-tight mt-0.5">
-                          {item.description}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
             {/* 5. Preload Starter Catalog Checkbox */}
             <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl">
               <label className="flex items-start gap-2.5 cursor-pointer select-none">
@@ -443,18 +387,11 @@ export default function OnboardingPage() {
                     Pre-load starter product catalog
                   </span>
                   <span className="text-[10.5px] text-slate-400 block leading-tight mt-0.5">
-                    Automatically seeds 8 popular items for {businessCategories.find(c => c.type === businessType)?.label} with standard prices.
+                    Automatically seeds 8 popular items for General Retail with standard prices.
                   </span>
                 </div>
               </label>
             </div>
-
-            {/* 6. 1-Tap Photo Scan Card (Adaptive for Restaurant / Retail) */}
-            <OnboardingPhotoScanCard
-              businessType={businessType}
-              enabled={launchPhotoScan}
-              onToggle={setLaunchPhotoScan}
-            />
 
             {/* Submit Button */}
             <Button

@@ -14,7 +14,6 @@ import { InventoryMetricsRibbon } from '@/components/inventory/InventoryMetricsR
 import { InventoryNavTabs, InventoryTabType } from '@/components/inventory/InventoryNavTabs';
 import { ReorderAlertsList } from '@/components/inventory/ReorderAlertsList';
 import { StockMovementsList } from '@/components/inventory/StockMovementsList';
-import { ExpiryRadar } from '@/components/inventory/ExpiryRadar';
 
 // Lazy-load heavy modals
 const ExcelInventoryImporter = dynamic(
@@ -50,18 +49,7 @@ export default function InventoryPage() {
     return products.filter((p) => !p.is_unlimited_stock && p.current_stock <= (p.min_stock_level || 5));
   }, [products]);
 
-  // Near-expiry products (<60 days)
-  const nearExpiryProducts = useMemo(() => {
-    const today = new Date();
-    const sixtyDaysLater = new Date();
-    sixtyDaysLater.setDate(today.getDate() + 60);
 
-    return products.filter((p) => {
-      if (!p.expiry_date) return false;
-      const expDate = new Date(p.expiry_date);
-      return !isNaN(expDate.getTime()) && expDate <= sixtyDaysLater;
-    });
-  }, [products]);
 
   // Inventory asset valuation
   const totalAssetValuePaise = useMemo(() => {
@@ -97,23 +85,6 @@ export default function InventoryPage() {
     showInvToast(`✅ Restocked +${quantity} units for ${product.name}!`);
   };
 
-  // WhatsApp Supplier Order Handler
-  const handleSendSupplierOrder = (product: Product) => {
-    const supplier = suppliers.find((s) => s.id === product.supplier_id) || suppliers[0];
-    const supplierPhone = supplier?.phone ? supplier.phone.replace(/\D/g, '') : '';
-    const storeName = business?.name || 'Our Store';
-    const reorderQty = Math.max(10, (product.min_stock_level || 5) * 2);
-
-    const message = `🙏 *नमस्ते ${supplier?.name ? supplier.name + ' जी' : 'सप्लायर जी'},*\n━━━━━━━━━━━━━━━━━━━━\n*${storeName}* की तरफ से नया Purchase Re-Order:\n\n📦 *Item:* ${product.name}\n🔢 *Required Quantity:* ${reorderQty} ${product.unit}\n🏷️ *Barcode:* ${product.barcode || 'N/A'}\n\nकृपया जल्द से जल्द बिल और डिलीवरी कन्फर्म करें।\n━━━━━━━━━━━━━━━━━━━━\n_${storeName} — Smart POS_`;
-
-    if (supplierPhone) {
-      window.open(`https://wa.me/91${supplierPhone}?text=${encodeURIComponent(message)}`, '_blank');
-      showInvToast(`📲 WhatsApp opened for supplier +91${supplierPhone}!`);
-    } else {
-      window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
-      showInvToast(`📲 WhatsApp share opened!`);
-    }
-  };
 
   return (
     <div className="space-y-3.5 pb-20 sm:pb-8 animate-in fade-in duration-150">
@@ -128,7 +99,6 @@ export default function InventoryPage() {
         totalItems={products.length}
         totalAssetValuePaise={totalAssetValuePaise}
         lowStockCount={lowStockProducts.length}
-        nearExpiryCount={nearExpiryProducts.length}
       />
 
       {/* 3. Navigation Tabs */}
@@ -136,7 +106,6 @@ export default function InventoryPage() {
         activeTab={activeTab}
         onTabChange={setActiveTab}
         lowStockCount={lowStockProducts.length}
-        nearExpiryCount={nearExpiryProducts.length}
       />
 
       {/* 4. Active Tab Content */}
@@ -145,13 +114,9 @@ export default function InventoryPage() {
           lowStockProducts={lowStockProducts}
           suppliers={suppliers}
           onQuickRestock={handleQuickRestock}
-          onSendSupplierOrder={handleSendSupplierOrder}
         />
       )}
 
-      {activeTab === 'expiry' && (
-        <ExpiryRadar />
-      )}
 
       {activeTab === 'movements' && (
         <StockMovementsList

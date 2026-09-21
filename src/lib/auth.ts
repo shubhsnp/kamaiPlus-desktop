@@ -87,10 +87,10 @@ export const purgeLocalDeviceData = async () => {
 export const logoutUser = async () => {
     if (typeof window === 'undefined') return;
     try {
-        await purgeLocalDeviceData().catch(() => {});
-        
-        const { signOutUser } = await import('@/lib/firebase/googleAuth');
-        await signOutUser().catch(() => {});
+        // ONLY clear the session. Do NOT purge local device data! 
+        // This is an offline app now, purging data would delete their entire business!
+        localStorage.removeItem('kamai_user');
+        localStorage.removeItem('kamai_session_timestamp');
         
         await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
     } catch (e) {

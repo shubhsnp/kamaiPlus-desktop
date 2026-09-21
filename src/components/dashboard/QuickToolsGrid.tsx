@@ -167,11 +167,6 @@ export const QuickToolsGrid: React.FC<QuickToolsGridProps> = ({
                       </div>
                     </div>
 
-                    {tool.isPro && (
-                      <span className="px-1 py-0.2 rounded bg-amber-100 dark:bg-amber-950/60 border border-amber-300/80 dark:border-amber-700 text-amber-900 dark:text-amber-300 text-[8.5px] font-black uppercase shrink-0">
-                        PRO
-                      </span>
-                    )}
                   </div>
                 </Link>
               );

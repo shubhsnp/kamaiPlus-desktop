@@ -332,8 +332,7 @@ class BluetoothPrinterService {
 
       // Print category specific line attributes if present
       const metaTokens: string[] = [];
-      if (item.batch_number) metaTokens.push(`B:${item.batch_number}`);
-      if (item.expiry_date) metaTokens.push(`Exp:${item.expiry_date}`);
+
       if (item.size) metaTokens.push(`Size:${item.size}`);
       if (item.color) metaTokens.push(`${item.color}`);
       if (item.imei_serial) metaTokens.push(`SN:${item.imei_serial}`);

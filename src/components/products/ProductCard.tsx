@@ -38,16 +38,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const isLowStock = !product.is_unlimited_stock && product.current_stock > 0 && product.current_stock <= (product.min_stock_level || 5);
   const profitMarginPaise = product.selling_price - (product.purchase_price || 0);
 
-  const expiryStatus = (() => {
-    if (!product.expiry_date) return null;
-    const expDate = new Date(product.expiry_date);
-    const now = new Date();
-    const diffTime = expDate.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    if (diffDays < 0) return { label: 'Expired', isExpired: true };
-    if (diffDays <= 30) return { label: `${diffDays}d to Expiry`, isNear: true };
-    return null;
-  })();
+
 
   return (
     <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between space-y-3">
@@ -65,16 +56,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                   Weighed
                 </span>
               )}
-              {expiryStatus && (
-                <span className={cn(
-                  "px-1.5 py-0.2 rounded text-[9.5px] font-bold flex items-center gap-0.5",
-                  expiryStatus.isExpired 
-                    ? "bg-rose-100 text-rose-900 border border-rose-300"
-                    : "bg-amber-100 text-amber-900 border border-amber-300 animate-pulse"
-                )}>
-                  ⏰ {expiryStatus.label}
-                </span>
-              )}
             </div>
 
             <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mt-1 flex-wrap font-mono">
@@ -87,12 +68,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 <span className="flex items-center gap-1 text-[10.5px] text-slate-400">
                   <Barcode className="w-3 h-3 text-slate-400" />
                   <span>{product.barcode}</span>
-                </span>
-              )}
-              {product.batch_number && (
-                <span className="flex items-center gap-1 text-[10.5px] text-teal-600 dark:text-teal-400 font-bold">
-                  <Pill className="w-3 h-3" />
-                  <span>Batch: {product.batch_number}</span>
                 </span>
               )}
             </div>

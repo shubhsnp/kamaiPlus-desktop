@@ -10,7 +10,7 @@ import {
   Package, 
   Truck 
 } from 'lucide-react';
-import { WhatsAppLogo } from '@/components/ui/WhatsAppLogo';
+
 import { Product, Supplier } from '@/types';
 import { formatINR } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
@@ -19,14 +19,14 @@ interface ReorderAlertsListProps {
   lowStockProducts: Product[];
   suppliers: Supplier[];
   onQuickRestock: (product: Product, quantity: number) => Promise<void>;
-  onSendSupplierOrder: (product: Product) => void;
+
 }
 
 export const ReorderAlertsList: React.FC<ReorderAlertsListProps> = ({
   lowStockProducts,
   suppliers,
   onQuickRestock,
-  onSendSupplierOrder,
+
 }) => {
   return (
     <div className="space-y-3">
@@ -69,15 +69,6 @@ export const ReorderAlertsList: React.FC<ReorderAlertsListProps> = ({
 
               {/* Actions: WhatsApp Supplier & +10 Instant Stock */}
               <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
-                <button
-                  type="button"
-                  onClick={() => onSendSupplierOrder(p)}
-                  className="px-2.5 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 border border-emerald-200 dark:border-emerald-800 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                  title="Send Purchase Order WhatsApp message to supplier"
-                >
-                  <WhatsAppLogo className="w-3.5 h-3.5" />
-                  <span>Order on WhatsApp</span>
-                </button>
 
                 <button
                   type="button"

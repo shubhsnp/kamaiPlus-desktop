@@ -10,10 +10,9 @@ import {
   CreditCard, 
   Sliders 
 } from 'lucide-react';
-import { WhatsAppLogo } from '@/components/ui/WhatsAppLogo';
 import { cn } from '@/lib/utils';
 
-export type AdminTabType = 'overview' | 'merchants' | 'broadcast' | 'coupons' | 'whatsapp' | 'revenue' | 'config';
+export type AdminTabType = 'overview' | 'merchants' | 'broadcast' | 'coupons' | 'revenue' | 'config';
 
 interface AdminNavTabsProps {
   activeTab: AdminTabType;
@@ -33,7 +32,6 @@ export const AdminNavTabs: React.FC<AdminNavTabsProps> = ({
     { id: 'merchants' as AdminTabType, label: 'Merchants', count: merchantsCount, icon: Users },
     { id: 'broadcast' as AdminTabType, label: 'Broadcast Banner', icon: Radio },
     { id: 'coupons' as AdminTabType, label: 'Coupons', count: couponsCount, icon: Tag },
-    { id: 'whatsapp' as AdminTabType, label: 'WhatsApp Outreach', icon: WhatsAppLogo },
     { id: 'revenue' as AdminTabType, label: 'Revenue & SaaS', icon: CreditCard },
     { id: 'config' as AdminTabType, label: 'Remote Config', icon: Sliders },
   ];
@@ -41,10 +39,9 @@ export const AdminNavTabs: React.FC<AdminNavTabsProps> = ({
   const marketingTabs = [
     { id: 'broadcast' as AdminTabType, label: 'Broadcast', icon: Radio },
     { id: 'coupons' as AdminTabType, label: 'Coupons', count: couponsCount, icon: Tag },
-    { id: 'whatsapp' as AdminTabType, label: 'WhatsApp', icon: WhatsAppLogo },
   ];
 
-  const isMarketingTab = activeTab === 'broadcast' || activeTab === 'coupons' || activeTab === 'whatsapp';
+  const isMarketingTab = activeTab === 'broadcast' || activeTab === 'coupons';
 
   return (
     <>

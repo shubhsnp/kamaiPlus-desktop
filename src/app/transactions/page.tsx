@@ -169,7 +169,6 @@ export default function TransactionsPage() {
     }
   };
 
-  const [sendingWhatsAppSaleId, setSendingWhatsAppSaleId] = useState<string | null>(null);
   const [txToast, setTxToast] = useState<{ message: string; type?: 'success' | 'info' | 'error' } | null>(null);
 
   const showTxToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
@@ -182,25 +181,6 @@ export default function TransactionsPage() {
     setIsInvoiceModalOpen(true);
   };
 
-  const handleSendWhatsApp = async (sale: Sale, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!business) return;
-    if (!sale.customer_phone) {
-      showTxToast('⚠️ No customer phone number attached to this bill.', 'error');
-      return;
-    }
-    const cleanPhone = sale.customer_phone.replace(/\D/g, '').slice(-10);
-    setSendingWhatsAppSaleId(sale.id);
-    showTxToast(`📲 Sending WhatsApp bill to +91${cleanPhone}...`, 'info');
-    try {
-      sendInvoiceViaWhatsApp(sale.customer_phone, sale, business);
-      showTxToast(`✅ WhatsApp bill opened for +91${cleanPhone}!`, 'success');
-    } catch (err: any) {
-      showTxToast(`⚠️ ${err?.message || 'Failed to dispatch WhatsApp bill'}`, 'error');
-    } finally {
-      setSendingWhatsAppSaleId(null);
-    }
-  };
 
   // Export 1-Click Tally Prime XML
   const handleExportTallyXML = () => {
@@ -326,7 +306,6 @@ export default function TransactionsPage() {
                 key={sale.id}
                 sale={sale}
                 isPro={isPro}
-                sendingWhatsAppSaleId={sendingWhatsAppSaleId}
                 onOpenInvoice={handleOpenInvoice}
                 onConvertToInvoice={handleConvertToInvoice}
                 onEditSale={(s) => {
@@ -341,7 +320,7 @@ export default function TransactionsPage() {
                     setIsReturnModalOpen(true);
                   }
                 }}
-                onSendWhatsApp={handleSendWhatsApp}
+
               />
             ))}
           </div>

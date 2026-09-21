@@ -20,7 +20,7 @@ export default function CustomersPage() {
   const [selectedFilter, setSelectedFilter] = useState<CustomerCategoryFilter>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
-  const [sendingWhatsAppCustId, setSendingWhatsAppCustId] = useState<string | null>(null);
+
   const [custToast, setCustToast] = useState<{ message: string; type?: 'success' | 'info' | 'error' } | null>(null);
 
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
@@ -63,47 +63,6 @@ export default function CustomersPage() {
   const totalVIPCount = rawCustomers.filter((c) => c.customer_type === 'vip').length;
   const creditCustomersCount = rawCustomers.filter((c) => c.current_balance > 0).length;
 
-  const handleSendCustomerGreeting = async (c: Customer) => {
-    if (!c.phone) {
-      showCustToast('⚠️ No phone number saved for this customer', 'error');
-      return;
-    }
-    const cleanPhone = c.phone.replace(/\D/g, '').slice(-10);
-    setSendingWhatsAppCustId(c.id);
-    showCustToast(`📲 Dispatching WhatsApp greeting to +91${cleanPhone}...`, 'info');
-
-    try {
-      const storeName = business?.name || 'Our Store';
-      const greetingMsg = `🙏 *नमस्ते ${c.name} जी,*\n━━━━━━━━━━━━━━━━━━━━\n*${storeName}* की तरफ से आपको हार्दिक शुभकामनाएं! ✨\n\nहमारी दुकान पर आने के लिए धन्यवाद। यदि आपको किसी भी उत्पाद की आवश्यकता है, तो बेझिझक संपर्क करें।\n\n📞 *संपर्क:* ${business?.phone || ''}\n━━━━━━━━━━━━━━━━━━━━\n_${storeName} — Smart Billing_`;
-
-      const response = await fetch('/api/whatsapp/send-campaign', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone: c.phone,
-          customerName: c.name,
-          message: greetingMsg,
-          campaignTitle: 'Customer Greeting',
-        }),
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        showCustToast(`✅ WhatsApp greeting delivered to +91${cleanPhone}!`, 'success');
-      } else {
-        // Fallback to wa.me if cloud API fails
-        const url = `https://wa.me/91${cleanPhone}?text=${encodeURIComponent(greetingMsg)}`;
-        window.open(url, '_blank');
-        showCustToast(`✅ WhatsApp opened for +91${cleanPhone}!`, 'success');
-      }
-    } catch (err: any) {
-      const url = `https://wa.me/91${cleanPhone}?text=${encodeURIComponent(`नमस्ते ${c.name} जी!`)}`;
-      window.open(url, '_blank');
-      showCustToast(`✅ WhatsApp opened for +91${cleanPhone}!`, 'success');
-    } finally {
-      setSendingWhatsAppCustId(null);
-    }
-  };
 
   const handleSaveCustomer = async (data: {
     name: string;
@@ -210,12 +169,10 @@ export default function CustomersPage() {
           <CustomerCard
             key={c.id}
             customer={c}
-            isSendingWhatsApp={sendingWhatsAppCustId === c.id}
             onEditCustomer={(cust) => {
               setEditingCustomer(cust);
               setIsModalOpen(true);
             }}
-            onSendWhatsAppGreeting={handleSendCustomerGreeting}
           />
         ))}
 

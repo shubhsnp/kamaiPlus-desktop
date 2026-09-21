@@ -18,7 +18,7 @@ import { AdminOverviewTab } from '@/components/admin/AdminOverviewTab';
 import { AdminMerchantsTab } from '@/components/admin/AdminMerchantsTab';
 import { AdminBroadcastTab } from '@/components/admin/AdminBroadcastTab';
 import { AdminCouponsTab } from '@/components/admin/AdminCouponsTab';
-import { AdminWhatsAppTab } from '@/components/admin/AdminWhatsAppTab';
+
 import { AdminRevenueTab } from '@/components/admin/AdminRevenueTab';
 import { AdminConfigTab } from '@/components/admin/AdminConfigTab';
 import { AdminMobileBottomNav } from '@/components/admin/AdminMobileBottomNav';
@@ -165,7 +165,7 @@ export default function MasterSuperAdminPage() {
 
   // WhatsApp Outreach State
   const [waTemplate, setWaTemplate] = useState<'welcome' | 'offer50' | 'renewal' | 'features' | 'custom'>('offer50');
-  const [waCustomText, setWaCustomText] = useState<string>('Hello! Special offer from KamaiPlus: Upgrade to Pro today and get 50% off with coupon PRO50. Grow your store with instant WhatsApp bills!');
+  const [waCustomText, setWaCustomText] = useState<string>('Hello! Special offer from KamaiPlus: Get 50% off with coupon SAVE50.');
   const [waTestPhone, setWaTestPhone] = useState<string>('');
   const [waTargetTier, setWaTargetTier] = useState<'all' | 'free' | 'pro'>('free');
   const [isSendingOutreach, setIsSendingOutreach] = useState<boolean>(false);
@@ -810,20 +810,7 @@ export default function MasterSuperAdminPage() {
           onDeleteMerchant={setMerchantToDelete}
           onTogglePro={handleTogglePro}
           onToggleActive={handleToggleActive}
-          onSendWhatsApp={(m) => {
-            const expiryDate = m.subscription_expires_at || m.subscription_valid_until;
-            const diffDays = expiryDate ? Math.ceil((new Date(expiryDate).getTime() - Date.now()) / (24 * 60 * 60 * 1000)) : null;
-            const isExpiringSoon = diffDays !== null && diffDays <= 7 && diffDays > 0;
-            const isExpired = diffDays !== null && diffDays <= 0;
 
-            let text = `Namaste ${m.owner_name || m.name} ji! Special update from KamaiPlus Master Support.`;
-            if (isExpiringSoon) {
-              text = `Namaste ${m.owner_name || m.name} ji! Aapki dukan "${m.name}" ka KamaiPlus Pro subscription agle ${diffDays} din me expire hone wala hai. Bina kisi rukawat billing, digital thermal slips aur cloud backup continue rakhne ke liye abhi renew karein: https://kamaiplus.in/pricing - KamaiPlus Team`;
-            } else if (isExpired) {
-              text = `Namaste ${m.owner_name || m.name} ji! Aapki dukan "${m.name}" ka KamaiPlus Pro plan expire ho gaya hai. Apne billing counter ko uninterrupted rakhne ke liye abhi renew karein: https://kamaiplus.in/pricing - KamaiPlus Team`;
-            }
-            window.open(`https://wa.me/91${m.phone.replace(/\D/g, '')}?text=${encodeURIComponent(text)}`, '_blank');
-          }}
         />
       )}
 
@@ -865,20 +852,6 @@ export default function MasterSuperAdminPage() {
         />
       )}
 
-      {activeTab === 'whatsapp' && (
-        <AdminWhatsAppTab
-          waTemplate={waTemplate}
-          setWaTemplate={setWaTemplate}
-          waCustomText={waCustomText}
-          setWaCustomText={setWaCustomText}
-          waTestPhone={waTestPhone}
-          setWaTestPhone={setWaTestPhone}
-          waTargetTier={waTargetTier}
-          setWaTargetTier={setWaTargetTier}
-          onSendTestOutreach={handleSendTestOutreach}
-          isSendingOutreach={isSendingOutreach}
-        />
-      )}
 
       {activeTab === 'revenue' && (
         <AdminRevenueTab

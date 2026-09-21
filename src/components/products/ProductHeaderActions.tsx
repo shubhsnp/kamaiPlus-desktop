@@ -27,7 +27,7 @@ export const ProductHeaderActions: React.FC<ProductHeaderActionsProps> = ({
   onOpenInwardSheet,
   onOpenRapidInward,
 }) => {
-  const isRestaurant = businessType === 'restaurant' || businessType === 'cafe' || businessType === 'bakery';
+  const isRestaurant = false;
   const handleInwardClick = onOpenInwardSheet || onOpenRapidInward || onOpenAddModal;
 
   return (

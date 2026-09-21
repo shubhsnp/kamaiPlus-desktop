@@ -18,27 +18,11 @@ export const BottomNav: React.FC = () => {
   const business = useLiveQuery(() => db.businesses.toCollection().first());
   const storeType = business?.business_type;
 
-  const isRestaurant = storeType === 'restaurant' || storeType === 'bakery';
-  const isPharmacy = storeType === 'pharmacy';
-  const isClothing = storeType === 'clothing';
-  const isHardware = storeType === 'hardware' || storeType === 'electrical' || storeType === 'electronics' || storeType === 'mobile';
 
-  let productLabel = 'Product';
-  let ProductIcon = Boxes;
+  // Generic Retail
+  const productLabel = 'Product';
+  const ProductIcon = Boxes;
 
-  if (isRestaurant) {
-    productLabel = 'Menu';
-    ProductIcon = UtensilsCrossed;
-  } else if (isPharmacy) {
-    productLabel = 'Medicines';
-    ProductIcon = Pill;
-  } else if (isClothing) {
-    productLabel = 'Garments';
-    ProductIcon = Shirt;
-  } else if (isHardware) {
-    productLabel = 'Items';
-    ProductIcon = Wrench;
-  }
 
   const isHomeActive = pathname === '/';
   const isProductActive = pathname.startsWith('/products') || pathname.startsWith('/inventory');

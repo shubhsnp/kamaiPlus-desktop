@@ -27,7 +27,7 @@ import {
   FileSpreadsheet,
   ExternalLink
 } from 'lucide-react';
-import { WhatsAppLogo } from '@/components/ui/WhatsAppLogo';
+
 import { Button } from '@/components/ui/Button';
 import { MerchantRecord } from '@/app/admin/page';
 import { AuthUser, setStoredUser } from '@/lib/auth';
@@ -46,7 +46,7 @@ interface AdminMerchantsTabProps {
   onViewMerchant: (merchant: MerchantRecord) => void;
   onEditMerchant: (merchant: MerchantRecord) => void;
   onDeleteMerchant: (merchant: MerchantRecord) => void;
-  onSendWhatsApp: (merchant: MerchantRecord) => void;
+
   onTogglePro?: (merchant: MerchantRecord) => void;
   onToggleActive?: (merchant: MerchantRecord) => void;
 }
@@ -64,7 +64,7 @@ export const AdminMerchantsTab: React.FC<AdminMerchantsTabProps> = ({
   onViewMerchant,
   onEditMerchant,
   onDeleteMerchant,
-  onSendWhatsApp,
+
   onTogglePro,
   onToggleActive,
 }) => {
@@ -458,22 +458,7 @@ export const AdminMerchantsTab: React.FC<AdminMerchantsTabProps> = ({
                 </div>
 
                 {/* Bottom: Action Toolbar */}
-                <div className="pt-2.5 border-t border-slate-800/80 flex items-center justify-between gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onSendWhatsApp(m)}
-                    className={cn(
-                      "px-2.5 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs",
-                      isExpiringSoon || isExpired
-                        ? "bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/40 animate-pulse"
-                        : "bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/30"
-                    )}
-                    title={isExpiringSoon || isExpired ? "Send WhatsApp Renewal Alert" : "Send WhatsApp Message"}
-                  >
-                    <WhatsAppLogo className="w-3.5 h-3.5" />
-                    <span className="text-[11px]">{isExpiringSoon || isExpired ? 'Renew Alert' : 'Chat'}</span>
-                  </button>
-
+                <div className="pt-2.5 border-t border-slate-800/80 flex items-center justify-end gap-2">
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
@@ -592,19 +577,6 @@ export const AdminMerchantsTab: React.FC<AdminMerchantsTabProps> = ({
                       </td>
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => onSendWhatsApp(m)}
-                            className={cn(
-                              "p-1.5 rounded-lg border cursor-pointer transition",
-                              isExpiringSoon || isExpired
-                                ? "bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border-amber-500/40 animate-pulse"
-                                : "bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border-emerald-500/30"
-                            )}
-                            title={isExpiringSoon || isExpired ? "Send Renewal Alert" : "WhatsApp"}
-                          >
-                            <WhatsAppLogo className="w-3.5 h-3.5" />
-                          </button>
                           <button
                             type="button"
                             onClick={() => onViewMerchant(m)}

@@ -8,8 +8,6 @@ import { generateUPILink } from '@/lib/utils';
 import { UpiAccount, BusinessType } from '@/types';
 import { compressImageFile } from '@/lib/utils/imageCompressor';
 import { uploadStoreLogoToStorage } from '@/lib/firebase/storage';
-import { useProSubscription } from '@/components/subscription/ProFeatureGate';
-import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 import { MerchantQRModal } from '@/components/paytm/MerchantQRModal';
 import { 
   SettingsChangeBar, 
@@ -31,15 +29,13 @@ import { SettingsNavTabs, SettingsTabType } from '@/components/settings/Settings
 import { StoreProfileTab } from '@/components/settings/StoreProfileTab';
 import { UpiBankingTab } from '@/components/settings/UpiBankingTab';
 import { InvoiceSettingsTab } from '@/components/settings/InvoiceSettingsTab';
-import { WhatsAppSettingsTab } from '@/components/settings/WhatsAppSettingsTab';
+
 
 export default function SettingsPage() {
-  const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
 
   // Form State
   const [name, setName] = useState('');
-  const [businessType, setBusinessType] = useState<BusinessType>('grocery');
   const [tagline, setTagline] = useState('');
   const [logoUrl, setLogoUrl] = useState<string>('');
   const [ownerName, setOwnerName] = useState('');
@@ -48,9 +44,7 @@ export default function SettingsPage() {
   const [address, setAddress] = useState('');
   const [pincode, setPincode] = useState('');
   const [gstin, setGstin] = useState('');
-  const [drugLicenseNo, setDrugLicenseNo] = useState('');
-  const [pharmacistRegNo, setPharmacistRegNo] = useState('');
-  const [fssaiLicenseNo, setFssaiLicenseNo] = useState('');
+
   
   // Multi-UPI State
   const [upiList, setUpiList] = useState<UpiAccount[]>([]);
@@ -82,22 +76,12 @@ export default function SettingsPage() {
   const [isStandeeModalOpen, setIsStandeeModalOpen] = useState(false);
   const [liveQrDataUrl, setLiveQrDataUrl] = useState<string>('');
 
-  // WhatsApp Testing
-  const [testWhatsAppPhone, setTestWhatsAppPhone] = useState<string>('');
-  const [isTestingWhatsApp, setIsTestingWhatsApp] = useState<boolean>(false);
-  const [testWhatsAppResult, setTestWhatsAppResult] = useState<{
-    success: boolean;
-    message: string;
-    messageId?: string;
-  } | null>(null);
-  const [hasCopiedWebhook, setHasCopiedWebhook] = useState(false);
-  const [hasCopiedToken, setHasCopiedToken] = useState(false);
+
 
   // Load business data into form
   useEffect(() => {
     if (business) {
       setName(business.name || '');
-      setBusinessType(business.business_type || 'grocery');
       setTagline(business.tagline || '');
       setLogoUrl(business.logo_url || '');
       setOwnerName(business.owner_name || '');
@@ -106,9 +90,6 @@ export default function SettingsPage() {
       setAddress(business.address || '');
       setPincode(business.pincode || '');
       setGstin(business.gstin || '');
-      setDrugLicenseNo(business.drug_license_no || '');
-      setPharmacistRegNo(business.pharmacist_reg_no || '');
-      setFssaiLicenseNo(business.fssai_license_no || '');
       
       const initialUpiList: UpiAccount[] = business.upi_ids && business.upi_ids.length > 0
         ? business.upi_ids
@@ -208,54 +189,7 @@ export default function SettingsPage() {
     }
   };
 
-  // Test WhatsApp Cloud API
-  const handleSendTestWhatsApp = async () => {
-    if (!testWhatsAppPhone.trim()) return;
-    setIsTestingWhatsApp(true);
-    setTestWhatsAppResult(null);
 
-    try {
-      const res = await fetch('/api/whatsapp/send-invoice', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone: testWhatsAppPhone,
-          business: {
-            name: name || 'KamaiPlus Store',
-            phone: phone || '9876543210',
-          },
-          sale: {
-            invoice_number: 'TEST-001',
-            grand_total: 10000,
-            payment_method: 'cash',
-            created_at: new Date().toISOString(),
-            items: [{ product_name: 'Test Item', quantity: 1, unit_price: 10000, total_amount: 10000 }],
-          },
-        }),
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        setTestWhatsAppResult({
-          success: true,
-          message: `✅ Test WhatsApp message delivered to +91${testWhatsAppPhone}!`,
-          messageId: data.messageId,
-        });
-      } else {
-        setTestWhatsAppResult({
-          success: false,
-          message: `⚠️ Delivery Failed: ${data.error || 'Check Meta Cloud API tokens in .env.local'}`,
-        });
-      }
-    } catch (err: any) {
-      setTestWhatsAppResult({
-        success: false,
-        message: `⚠️ Connection Error: ${err?.message || 'Network error'}`,
-      });
-    } finally {
-      setIsTestingWhatsApp(false);
-    }
-  };
 
   // ---------------- CHANGE DETECTION ----------------
   const changedFields = useMemo<ChangedField[]>(() => {
@@ -265,9 +199,7 @@ export default function SettingsPage() {
     if (name.trim() !== (business.name || '').trim()) {
       changes.push({ key: 'name', label: 'Store Name', category: 'profile', categoryLabel: 'Store Profile', oldValue: business.name || '', newValue: name.trim() });
     }
-    if (businessType !== business.business_type) {
-      changes.push({ key: 'business_type', label: 'Business Industry', category: 'profile', categoryLabel: 'Store Profile', oldValue: business.business_type, newValue: businessType });
-    }
+
     if (ownerName.trim() !== (business.owner_name || '').trim()) {
       changes.push({ key: 'owner_name', label: 'Owner Name', category: 'profile', categoryLabel: 'Store Profile', oldValue: business.owner_name || '', newValue: ownerName.trim() });
     }
@@ -288,7 +220,7 @@ export default function SettingsPage() {
     }
 
     return changes;
-  }, [business, name, businessType, ownerName, phone, address, gstin, invoicePrefix, gstPricingMode]);
+  }, [business, name, ownerName, phone, address, gstin, invoicePrefix, gstPricingMode]);
 
   const changedCategories = useMemo(() => Array.from(new Set(changedFields.map((c) => c.category))), [changedFields]);
 
@@ -357,16 +289,7 @@ export default function SettingsPage() {
       }
     }
 
-    // 6. Validate FSSAI (if provided)
-    if (fssaiLicenseNo && fssaiLicenseNo.trim()) {
-      const fssaiRes = validateFssaiLicense(fssaiLicenseNo, false);
-      if (!fssaiRes.isValid) {
-        setSettingsError(fssaiRes.error || 'FSSAI License must be 14 digits.');
-        setActiveTab('profile');
-        setIsReviewModalOpen(false);
-        return;
-      }
-    }
+
 
     setIsSaving(true);
 
@@ -377,7 +300,7 @@ export default function SettingsPage() {
       await db.businesses.update(business.id, {
         name: name.trim(),
         tagline: tagline.trim() || undefined,
-        business_type: businessType,
+        business_type: 'retail',
         logo_url: logoUrl || undefined,
         owner_name: ownerName.trim(),
         phone: phoneRes.cleanedValue || phone.trim(),
@@ -385,9 +308,6 @@ export default function SettingsPage() {
         address: address.trim() || undefined,
         pincode: pincode.trim() || undefined,
         gstin: gstin.trim().toUpperCase() || undefined,
-        drug_license_no: drugLicenseNo.trim() || undefined,
-        pharmacist_reg_no: pharmacistRegNo.trim() || undefined,
-        fssai_license_no: fssaiLicenseNo.trim() || undefined,
         upi_id: defaultUpi,
         upi_ids: upiList,
         bank_name: bankName.trim() || undefined,
@@ -434,11 +354,13 @@ export default function SettingsPage() {
   const handleDiscardAll = () => {
     if (!business) return;
     setName(business.name || '');
-    setBusinessType(business.business_type || 'grocery');
     setTagline(business.tagline || '');
+    setLogoUrl(business.logo_url || '');
     setOwnerName(business.owner_name || '');
     setPhone(business.phone || '');
+    setEmail(business.email || '');
     setAddress(business.address || '');
+    setPincode(business.pincode || '');
     setGstin(business.gstin || '');
     setInvoicePrefix(business.invoice_prefix || 'INV-');
     setGstPricingMode(business.gst_pricing_mode || 'inclusive');
@@ -477,8 +399,6 @@ export default function SettingsPage() {
           setName={setName}
           tagline={tagline}
           setTagline={setTagline}
-          businessType={businessType}
-          setBusinessType={setBusinessType}
           ownerName={ownerName}
           setOwnerName={setOwnerName}
           phone={phone}
@@ -491,12 +411,6 @@ export default function SettingsPage() {
           setPincode={setPincode}
           gstin={gstin}
           setGstin={setGstin}
-          drugLicenseNo={drugLicenseNo}
-          setDrugLicenseNo={setDrugLicenseNo}
-          pharmacistRegNo={pharmacistRegNo}
-          setPharmacistRegNo={setPharmacistRegNo}
-          fssaiLicenseNo={fssaiLicenseNo}
-          setFssaiLicenseNo={setFssaiLicenseNo}
           logoUrl={logoUrl}
           onLogoUpload={handleLogoUpload}
           onRemoveLogo={() => setLogoUrl('')}
@@ -543,19 +457,7 @@ export default function SettingsPage() {
         />
       )}
 
-      {activeTab === 'whatsapp' && (
-        <WhatsAppSettingsTab
-          testWhatsAppPhone={testWhatsAppPhone}
-          setTestWhatsAppPhone={setTestWhatsAppPhone}
-          isTestingWhatsApp={isTestingWhatsApp}
-          testWhatsAppResult={testWhatsAppResult}
-          onSendTestWhatsApp={handleSendTestWhatsApp}
-          hasCopiedWebhook={hasCopiedWebhook}
-          setHasCopiedWebhook={setHasCopiedWebhook}
-          hasCopiedToken={hasCopiedToken}
-          setHasCopiedToken={setHasCopiedToken}
-        />
-      )}
+
 
       {/* 3. Sticky Bottom Changes Detection Dialogue Bar */}
       <SettingsChangeBar
@@ -606,12 +508,7 @@ export default function SettingsPage() {
         business={business || null}
       />
 
-      {/* 7. Upgrade Modal */}
-      <UpgradeModal
-        isOpen={isUpgradeModalOpen}
-        onClose={() => setIsUpgradeModalOpen(false)}
-        businessName={business?.name || 'Your Store'}
-      />
+
     </div>
   );
 }

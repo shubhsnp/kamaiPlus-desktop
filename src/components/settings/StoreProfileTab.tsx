@@ -25,8 +25,7 @@ interface StoreProfileTabProps {
   setName: (val: string) => void;
   tagline: string;
   setTagline: (val: string) => void;
-  businessType: BusinessType;
-  setBusinessType: (val: BusinessType) => void;
+
   ownerName: string;
   setOwnerName: (val: string) => void;
   phone: string;
@@ -39,12 +38,7 @@ interface StoreProfileTabProps {
   setPincode: (val: string) => void;
   gstin: string;
   setGstin: (val: string) => void;
-  drugLicenseNo: string;
-  setDrugLicenseNo: (val: string) => void;
-  pharmacistRegNo: string;
-  setPharmacistRegNo: (val: string) => void;
-  fssaiLicenseNo: string;
-  setFssaiLicenseNo: (val: string) => void;
+
   logoUrl: string;
   onLogoUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onRemoveLogo: () => void;
@@ -55,8 +49,7 @@ export const StoreProfileTab: React.FC<StoreProfileTabProps> = ({
   setName,
   tagline,
   setTagline,
-  businessType,
-  setBusinessType,
+
   ownerName,
   setOwnerName,
   phone,
@@ -69,12 +62,7 @@ export const StoreProfileTab: React.FC<StoreProfileTabProps> = ({
   setPincode,
   gstin,
   setGstin,
-  drugLicenseNo,
-  setDrugLicenseNo,
-  pharmacistRegNo,
-  setPharmacistRegNo,
-  fssaiLicenseNo,
-  setFssaiLicenseNo,
+
   logoUrl,
   onLogoUpload,
   onRemoveLogo,
@@ -144,44 +132,7 @@ export const StoreProfileTab: React.FC<StoreProfileTabProps> = ({
           />
         </div>
 
-        {/* Business Industry / Profile Selector */}
-        <div>
-          <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
-            Business Industry &amp; Niche Profile
-          </label>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {storeProfiles.map((p) => {
-              const isSelected = businessType === p.id;
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => setBusinessType(p.id as BusinessType)}
-                  className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-                    isSelected
-                      ? 'bg-amber-50/80 dark:bg-amber-950/40 border-amber-400 dark:border-amber-600 ring-2 ring-amber-400/30'
-                      : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 hover:border-slate-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-base">{p.emoji || '🏪'}</span>
-                    {isSelected && (
-                      <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
-                    )}
-                  </div>
-                  <div className="mt-1.5">
-                    <div className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">
-                      {p.name}
-                    </div>
-                    <div className="text-[10px] text-slate-400 truncate">
-                      {p.tagline}
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+
       </Card>
 
       {/* 2. Contact & Address Details */}
@@ -247,45 +198,14 @@ export const StoreProfileTab: React.FC<StoreProfileTabProps> = ({
           </h3>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3">
           <Input
             label="GSTIN Number (For GST Tax Invoices)"
             placeholder="e.g. 27AAAAA0000A1Z5"
             value={gstin}
             onChange={(e) => setGstin(e.target.value.toUpperCase())}
           />
-          <Input
-            label="FSSAI License Number (Food &amp; Restaurant)"
-            placeholder="e.g. 10019022009876"
-            value={fssaiLicenseNo}
-            onChange={(e) => setFssaiLicenseNo(e.target.value)}
-          />
         </div>
-
-        {/* Pharmacy Specific License Inputs */}
-        {(businessType === 'pharmacy' || drugLicenseNo || pharmacistRegNo) && (
-          <div className="p-3 bg-teal-50/70 dark:bg-teal-950/30 rounded-xl border border-teal-200 dark:border-teal-800 space-y-3">
-            <div className="text-xs font-black text-teal-900 dark:text-teal-200 flex items-center gap-1.5">
-              <Pill className="w-3.5 h-3.5 text-teal-600" />
-              <span>Pharmacy &amp; Chemist Compliance (Printed on Rx Invoices)</span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Input
-                label="Drug License Number (Form 20B / 21B)"
-                placeholder="e.g. MH-MZ2-123456"
-                value={drugLicenseNo}
-                onChange={(e) => setDrugLicenseNo(e.target.value)}
-              />
-              <Input
-                label="Registered Pharmacist Reg. No."
-                placeholder="e.g. REG-98765-MH"
-                value={pharmacistRegNo}
-                onChange={(e) => setPharmacistRegNo(e.target.value)}
-              />
-            </div>
-          </div>
-        )}
       </Card>
 
       {/* Account & Session Management Card */}

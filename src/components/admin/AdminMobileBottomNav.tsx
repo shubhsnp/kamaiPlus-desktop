@@ -14,7 +14,6 @@ import {
   ChevronUp,
   Sparkles
 } from 'lucide-react';
-import { WhatsAppLogo } from '@/components/ui/WhatsAppLogo';
 import { AdminTabType } from './AdminNavTabs';
 import { cn } from '@/lib/utils';
 
@@ -33,7 +32,7 @@ export const AdminMobileBottomNav: React.FC<AdminMobileBottomNavProps> = ({
 }) => {
   const [isMarketingSheetOpen, setIsMarketingSheetOpen] = useState(false);
 
-  const isMarketingActive = activeTab === 'broadcast' || activeTab === 'coupons' || activeTab === 'whatsapp';
+  const isMarketingActive = activeTab === 'broadcast' || activeTab === 'coupons';
 
   const handleSelectTab = (tab: AdminTabType) => {
     onTabChange(tab);
@@ -122,30 +121,6 @@ export const AdminMobileBottomNav: React.FC<AdminMobileBottomNavProps> = ({
                 </span>
               </button>
 
-              {/* WhatsApp Outreach */}
-              <button
-                type="button"
-                onClick={() => handleSelectTab('whatsapp')}
-                className={cn(
-                  "p-3 rounded-2xl border text-left transition flex items-center justify-between cursor-pointer",
-                  activeTab === 'whatsapp'
-                    ? "bg-amber-400 text-slate-950 border-amber-400 shadow-lg font-black"
-                    : "bg-slate-800/80 text-white border-slate-700/60 hover:bg-slate-800"
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  <WhatsAppLogo className="w-5 h-5" />
-                  <div>
-                    <div className="text-xs font-black">WhatsApp Campaigns</div>
-                    <div className={cn("text-[10px]", activeTab === 'whatsapp' ? "text-slate-800 font-medium" : "text-slate-400")}>
-                      Direct customer notifications &amp; Meta Cloud API
-                    </div>
-                  </div>
-                </div>
-                <span className={cn("text-xs font-mono font-bold px-2 py-0.5 rounded-md", activeTab === 'whatsapp' ? "bg-slate-950 text-amber-300" : "bg-slate-900 text-slate-300")}>
-                  API
-                </span>
-              </button>
             </div>
           </div>
         </div>

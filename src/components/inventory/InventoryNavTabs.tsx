@@ -9,20 +9,18 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export type InventoryTabType = 'reorder' | 'expiry' | 'movements';
+export type InventoryTabType = 'reorder' | 'movements';
 
 interface InventoryNavTabsProps {
   activeTab: InventoryTabType;
   onTabChange: (tab: InventoryTabType) => void;
   lowStockCount: number;
-  nearExpiryCount: number;
 }
 
 export const InventoryNavTabs: React.FC<InventoryNavTabsProps> = ({
   activeTab,
   onTabChange,
   lowStockCount,
-  nearExpiryCount,
 }) => {
   const tabs = [
     {
@@ -31,13 +29,6 @@ export const InventoryNavTabs: React.FC<InventoryNavTabsProps> = ({
       icon: AlertTriangle,
       badge: lowStockCount > 0 ? lowStockCount : null,
       badgeColor: 'bg-rose-500 text-white',
-    },
-    {
-      id: 'expiry' as InventoryTabType,
-      label: `Near Expiry (${nearExpiryCount})`,
-      icon: Clock,
-      badge: nearExpiryCount > 0 ? nearExpiryCount : null,
-      badgeColor: 'bg-amber-500 text-slate-950',
     },
     {
       id: 'movements' as InventoryTabType,

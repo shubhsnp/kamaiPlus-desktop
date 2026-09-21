@@ -1,26 +1,7 @@
 // Domain Types for KamaiPlus (Kamai+) Platform
 // Note: All monetary amounts (prices, totals, discounts, balances) are stored as integer PAISE (1 INR = 100 paise)
 
-// 5 Core Indian Retail Pillars
-export type CoreBusinessType = 
-  | 'grocery'       // 🌾 Kirana & Grocery Retail (Weights, FMCG Barcodes, Udhar Khata)
-  | 'pharmacy'      // 💊 Medical Store & Pharmacy (Batches, Expiry, Doctor Rx, D.L. 20B/21B)
-  | 'clothing'      // 👕 Clothing, Apparel & Footwear (Size Matrix S/M/L/XL/32/34, Colors)
-  | 'hardware'      // 🔩 Hardware, Sanitary & Electricals (Meters, Boxes, Contractor Ledger)
-  | 'restaurant';   // 🍽️ Restaurant, Cafe & Food Stall (Table Dine-In, KOT Tokens, Touch POS)
-
-// BusinessType with legacy aliases supported for backward compatibility
-export type BusinessType = 
-  | CoreBusinessType
-  | 'electronics'
-  | 'electrical'
-  | 'fmcg'
-  | 'bakery'
-  | 'salon'
-  | 'stationery'
-  | 'mobile'
-  | 'services'
-  | 'other';
+export type BusinessType = string;
 
 export type ModuleId = 
   | 'POS'
@@ -183,9 +164,7 @@ export interface Product {
   tax_rate: number; // percentage (0, 5, 12, 18, 28)
   is_tax_inclusive: boolean;
   hsn_code?: string;
-  batch_number?: string;
-  mfg_date?: string; // YYYY-MM-DD
-  expiry_date?: string; // YYYY-MM-DD
+
   size?: string; // Clothing size (e.g. S, M, L, XL, 32, 34)
   color?: string; // Clothing / Mobile color
   imei_serial?: string; // Electronics IMEI or device serial number
@@ -246,8 +225,7 @@ export interface CartItem {
   product_name: string;
   hsn_code?: string;
   barcode?: string;
-  batch_number?: string;
-  expiry_date?: string;
+
   size?: string;
   color?: string;
   imei_serial?: string;

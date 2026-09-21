@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/Button';
 export interface ChangedField {
   key: string;
   label: string;
-  category: 'profile' | 'upi' | 'invoicing' | 'soundbox';
+  category: 'profile' | 'upi' | 'invoicing';
   categoryLabel: string;
   oldValue: string;
   newValue: string;
@@ -183,7 +183,7 @@ export function SettingsReviewModal({
       case 'profile': return <Store className="w-3.5 h-3.5 text-blue-500" />;
       case 'upi': return <QrCode className="w-3.5 h-3.5 text-amber-500" />;
       case 'invoicing': return <Receipt className="w-3.5 h-3.5 text-purple-500" />;
-      case 'soundbox': return <Volume2 className="w-3.5 h-3.5 text-emerald-500" />;
+
       default: return <Sparkles className="w-3.5 h-3.5 text-slate-500" />;
     }
   };

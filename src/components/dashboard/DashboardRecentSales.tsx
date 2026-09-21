@@ -16,8 +16,6 @@ import {
 } from 'lucide-react';
 import { Sale, Business } from '@/types';
 import { formatINR, cn } from '@/lib/utils';
-import { WhatsAppLogo } from '@/components/ui/WhatsAppLogo';
-import { sendInvoiceViaWhatsApp, sendInvoiceViaOfficialCloudApi } from '@/lib/invoices/whatsappInvoice';
 
 interface DashboardRecentSalesProps {
   sales: Sale[];
@@ -71,25 +69,6 @@ export const DashboardRecentSales: React.FC<DashboardRecentSalesProps> = ({
   });
 
   const displayedSales = filteredSales.slice(0, 10);
-
-  const handleSendWhatsApp = async (sale: Sale, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!sale.customer_phone) {
-      alert('No phone number saved on this bill.');
-      return;
-    }
-
-    setSendingWhatsappId(sale.id);
-    try {
-      if (business) {
-        sendInvoiceViaWhatsApp(sale.customer_phone, sale, business);
-      }
-    } catch (err: any) {
-      alert(`Failed to send WhatsApp bill: ${err?.message || 'Error'}`);
-    } finally {
-      setSendingWhatsappId(null);
-    }
-  };
 
   return (
     <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-3.5 sm:p-4 shadow-2xs space-y-3">
@@ -265,18 +244,6 @@ export const DashboardRecentSales: React.FC<DashboardRecentSalesProps> = ({
                       </div>
                     </div>
 
-                    {/* Quick WhatsApp Share Button */}
-                    {sale.customer_phone && (
-                      <button
-                        type="button"
-                        onClick={(e) => handleSendWhatsApp(sale, e)}
-                        disabled={sendingWhatsappId === sale.id}
-                        className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 transition active:scale-95 cursor-pointer shadow-2xs"
-                        title="Send bill on WhatsApp"
-                      >
-                        <WhatsAppLogo className="w-3.5 h-3.5" />
-                      </button>
-                    )}
 
                     {/* Quick Print / View Bill Button */}
                     <button

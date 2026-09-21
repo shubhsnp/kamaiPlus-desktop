@@ -9,11 +9,10 @@ import {
   Palette,
   HardDrive
 } from 'lucide-react';
-import { WhatsAppLogo } from '@/components/ui/WhatsAppLogo';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
-export type SettingsTabType = 'profile' | 'upi' | 'invoicing' | 'whatsapp';
+export type SettingsTabType = 'profile' | 'upi' | 'invoicing';
 
 interface SettingsNavTabsProps {
   activeTab: SettingsTabType;
@@ -45,12 +44,7 @@ export const SettingsNavTabs: React.FC<SettingsNavTabsProps> = ({
       shortLabel: 'Invoices',
       icon: Receipt,
     },
-    {
-      id: 'whatsapp' as SettingsTabType,
-      label: 'WhatsApp Cloud API',
-      shortLabel: 'WhatsApp',
-      icon: WhatsAppLogo,
-    },
+
   ];
 
   return (

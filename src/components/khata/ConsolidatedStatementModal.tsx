@@ -24,7 +24,6 @@ import {
   Landmark,
   Check
 } from 'lucide-react';
-import { WhatsAppLogo } from '@/components/ui/WhatsAppLogo';
 
 interface ConsolidatedStatementModalProps {
   isOpen: boolean;
@@ -46,7 +45,7 @@ export function ConsolidatedStatementModal({
   const [scaleFactor, setScaleFactor] = useState<number>(1);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [isGeneratingPdf, setIsGeneratingPdf] = useState<boolean>(false);
-  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState<boolean>(false);
+
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   const previewContainerRef = useRef<HTMLDivElement>(null);
@@ -202,64 +201,6 @@ export function ConsolidatedStatementModal({
     }
   };
 
-  // WhatsApp Statement Dispatch
-  const handleShareWhatsApp = async () => {
-    if (!customer.phone) {
-      showToast('⚠️ No phone number saved for this customer');
-      return;
-    }
-
-    const cleanPhone = customer.phone.replace(/\D/g, '').slice(-10);
-    setIsSendingWhatsApp(true);
-
-    try {
-      const storeName = business?.name || 'Our Store';
-      const invoiceNums = selectedSales.map((s) => `#${s.invoice_number}`).join(', ');
-
-      const response = await fetch('/api/whatsapp/send-khata-reminder', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone: customer.phone,
-          customerName: customer.name,
-          balanceDue: totalDuePaise,
-          businessName: storeName,
-          storePhone: business?.phone,
-          upiId: business?.upi_id,
-          customNote: `Consolidated Statement for ${selectedSales.length} Bill(s): ${invoiceNums}`,
-        }),
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        showToast(`✅ WhatsApp statement sent to +91${cleanPhone}!`);
-      } else {
-        // Fallback: Open WhatsApp URL directly in new tab
-        const upiLink = business?.upi_id
-          ? generateUPILink(business.upi_id, storeName, totalDuePaise, 'Khata_Udhar_Payment')
-          : '';
-        const msg = encodeURIComponent(
-          `*${storeName} — Consolidated Khata Statement*\n` +
-          `━━━━━━━━━━━━━━━━━━━━\n` +
-          `Dear *${customer.name}*,\n\n` +
-          `Here is the consolidated summary of your *${selectedSales.length} pending bill(s)*:\n` +
-          `🧾 Invoices: ${invoiceNums}\n` +
-          `💰 Total Bill Amount: ${formatINR(totalGrandTotalPaise)}\n` +
-          `✅ Total Paid: ${formatINR(totalPaidPaise)}\n` +
-          `🔴 *Net Balance Due: ${formatINR(totalDuePaise)}*\n\n` +
-          (upiLink ? `📲 *Pay instantly via UPI:*\n${upiLink}\n\n` : '') +
-          `Thank you for your business!\n` +
-          `_${storeName}_`
-        );
-        window.open(`https://wa.me/91${cleanPhone}?text=${msg}`, '_blank');
-        showToast('📲 Opened WhatsApp with statement summary!');
-      }
-    } catch (err: any) {
-      showToast(`⚠️ ${err?.message || 'Error sending WhatsApp statement'}`);
-    } finally {
-      setIsSendingWhatsApp(false);
-    }
-  };
 
   return (
     <Modal
@@ -345,17 +286,6 @@ export function ConsolidatedStatementModal({
               <span>Download PDF</span>
             </Button>
 
-            {customer.phone && (
-              <Button
-                size="sm"
-                onClick={handleShareWhatsApp}
-                disabled={isSendingWhatsApp}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5 cursor-pointer shadow-2xs active:scale-95"
-              >
-                {isSendingWhatsApp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <WhatsAppLogo className="w-3.5 h-3.5" />}
-                <span>WhatsApp</span>
-              </Button>
-            )}
           </div>
         </div>
 

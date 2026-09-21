@@ -7,7 +7,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { PWAInstallBanner } from '@/components/pwa/PWAInstallBanner';
 
 export const metadata: Metadata = {
-  title: 'KamaiPlus (Kamai+) | Business Management & Growth Platform',
+  title: 'Retail POS Desktop | Business Management & Growth Platform',
   description: 'Sell, Manage, and Grow your local Indian business with instant POS billing, offline Khata, inventory, and WhatsApp marketing.',
   manifest: '/manifest.json',
   icons: {

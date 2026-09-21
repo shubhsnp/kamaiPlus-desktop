@@ -53,14 +53,13 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import dynamic from 'next/dynamic';
 import { useHardwareBarcodeScanner } from '@/lib/hardware/barcodeScannerListener';
-import { performHybridBarcodeScan, autoCreateProductFromCategoryItem } from '@/lib/barcode/offlineBarcodeLookup';
+
 import { CustomerSearchAutocomplete } from '@/components/customers/CustomerSearchAutocomplete';
 import { getStoreProfile } from '@/lib/constants/storeProfiles';
 import { useProSubscription } from '@/components/subscription/ProFeatureGate';
 import { Sale } from '@/types';
 
 import { paymentBridge } from '@/lib/payments/paymentBridge';
-import { soundboxEngine } from '@/lib/payments/soundboxEngine';
 import { ParsedPaymentEvent } from '@/lib/payments/notificationParser';
 import { getFirestoreDb } from '@/lib/firebase/config';
 import { doc, setDoc } from 'firebase/firestore';
@@ -429,8 +428,8 @@ export default function BillingPage() {
   };
 
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
-  const isRestaurant = business?.business_type === 'restaurant';
-  const isPharmacy = business?.business_type === 'pharmacy';
+  const isRestaurant = false;
+  const isPharmacy = false;
   const storeProfile = getStoreProfile(business?.business_type);
   const categories = useLiveQuery(async () => db.categories.toArray()) || [];
   const customers = useLiveQuery(async () => db.customers.toArray()) || [];
@@ -616,8 +615,7 @@ export default function BillingPage() {
             tax_amount: taxAmt,
             total_amount: lineTotal,
             is_tax_inclusive: product.is_tax_inclusive,
-            batch_number: product.batch_number,
-            expiry_date: product.expiry_date,
+
             size: product.size,
             color: product.color,
             imei_serial: product.imei_serial,
@@ -765,30 +763,19 @@ export default function BillingPage() {
     setNewCustAddress('');
   };
 
-  // Barcode scanned handler (Hybrid Zero-Latency Offline Scan & Auto-Learning)
+  // Barcode scanned handler
   const handleBarcodeScanned = async (barcode: string) => {
     const clean = barcode.trim();
     if (!clean) return;
 
-    const businessId = business?.id || 'biz_default';
-
     try {
-      // Step A (Dexie) & Step B (Category JSON Dictionary)
-      const scanResult = await performHybridBarcodeScan(clean, businessId, business?.business_type);
-
-      if (scanResult.source === 'dexie' && scanResult.product) {
-        addToCart(scanResult.product, 1);
-        return;
-      }
-
-      if (scanResult.source === 'category_json' && scanResult.categoryItem) {
-        // Instant auto-create in local Dexie and add to cart (0ms)
-        const autoProduct = await autoCreateProductFromCategoryItem(scanResult.categoryItem, businessId);
-        addToCart(autoProduct, 1);
+      const product = await db.products.where('barcode').equals(clean).first();
+      if (product) {
+        addToCart(product, 1);
         return;
       }
     } catch (err) {
-      console.warn('Hybrid barcode scan notice:', err);
+      console.warn('Barcode scan check error:', err);
     }
 
     // Step C: Auto-Learning Fallback -> Trigger Quick Add Modal for Shopkeeper
@@ -932,10 +919,7 @@ export default function BillingPage() {
 
       // Check if incoming payment matches active cart amount
       if (incomingPayment.amountPaise === targetPaise) {
-        // 1. Voice soundbox announcement in Hindi/Marathi/English
-        soundboxEngine.announcePayment(incomingPayment.amountRupees, business?.name || 'Ã Â¤â€¢Ã Â¤Â®Ã Â¤Â¾Ã Â¤Ë† Ã Â¤ÂªÃ Â¥ÂÃ Â¤Â²Ã Â¤Â¸');
-
-        // 2. Open Top-Tier Celebration Modal
+        // 1. Open Top-Tier Celebration Modal
         setCelebrationPayment(incomingPayment);
         setIsCelebrationOpen(true);
 
@@ -1438,23 +1422,6 @@ export default function BillingPage() {
 
                 {/* Dynamic Category Attributes */}
                 <div className="flex flex-wrap gap-1 my-0.5">
-                  {(item.batch_number || item.expiry_date) && (
-                    <span className={cn(
-                      "text-[9px] px-1 py-0.2 rounded font-mono border",
-                      item.expiry_date && new Date(item.expiry_date).getTime() < Date.now()
-                        ? "bg-rose-100 text-rose-900 border-rose-300 font-bold"
-                        : "bg-amber-50 text-amber-900 border-amber-200"
-                    )}>
-                      {item.batch_number && <span>B:{item.batch_number} </span>}
-                      {item.expiry_date && (
-                        <span>
-                          Exp:{item.expiry_date}
-                          {new Date(item.expiry_date).getTime() < Date.now() && ' (EXPIRED)'}
-                        </span>
-                      )}
-                    </span>
-                  )}
-
                   {(item.size || item.color) && (
                     <span className="text-[9px] bg-indigo-50 text-indigo-900 border border-indigo-200 px-1 py-0.2 rounded font-medium">
                       {item.size && <span>Size: {item.size} </span>}
@@ -1887,20 +1854,6 @@ export default function BillingPage() {
               </p>
             </div>
           )}
-
-          {/* Live Radar Listening Indicator */}
-          <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-emerald-950/70 border border-emerald-500/30 text-[10.5px] text-emerald-300">
-            <div className="flex items-center gap-2 font-bold">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              <span>Soundbox Radar: Listening for PhonePe / GPay / Bank SMS...</span>
-            </div>
-            <span className="text-[9px] font-mono bg-emerald-900/60 px-1.5 py-0.5 rounded text-emerald-400 font-black">
-              AUTO-MATCH
-            </span>
-          </div>
         </div>
       )}
 

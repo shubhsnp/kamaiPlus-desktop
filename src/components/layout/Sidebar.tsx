@@ -43,56 +43,14 @@ export const Sidebar: React.FC = () => {
   const business = useLiveQuery(() => db.businesses.toCollection().first());
   const storeType = business?.business_type;
 
-  const isRestaurant = storeType === 'restaurant' || storeType === 'bakery';
-  const isClothing = storeType === 'clothing';
-  const isHardware = storeType === 'hardware' || storeType === 'electrical' || storeType === 'electronics' || storeType === 'mobile';
-  const isPharmacy = storeType === 'pharmacy';
-  const isGrocery = storeType === 'grocery' || storeType === 'fmcg';
 
-  // Dynamic Product Label & Icon
-  let productsLabel = t('nav.products');
-  let ProductsIcon = Package;
-  let productsBg = 'bg-blue-100 text-blue-800';
-
-  if (isRestaurant) {
-    productsLabel = 'Menu & Dishes';
-    ProductsIcon = UtensilsCrossed;
-    productsBg = 'bg-orange-100 text-orange-800';
-  } else if (isPharmacy) {
-    productsLabel = 'Medicines Master';
-    ProductsIcon = Pill;
-    productsBg = 'bg-sky-100 text-sky-800';
-  } else if (isClothing) {
-    productsLabel = 'Garments & Sizes';
-    ProductsIcon = Shirt;
-    productsBg = 'bg-purple-100 text-purple-800';
-  } else if (isHardware) {
-    productsLabel = 'Items & Materials';
-    ProductsIcon = Wrench;
-    productsBg = 'bg-slate-100 text-slate-800';
-  } else if (isGrocery) {
-    productsLabel = 'Products & FMCG';
-  }
-
-  // Dynamic Inventory Label
-  let inventoryLabel = 'Inventory & Expiry';
-  if (isPharmacy) {
-    inventoryLabel = 'Expiry & Batch Radar';
-  } else if (isGrocery) {
-    inventoryLabel = 'Inventory & Alerts';
-  }
-
-  // Dynamic Purchases Label
-  let purchasesLabel = 'Purchases & Bills';
-  if (isPharmacy) {
-    purchasesLabel = 'Distributor Invoices';
-  } else if (isGrocery) {
-    purchasesLabel = 'Wholesale Inward';
-  } else if (isHardware) {
-    purchasesLabel = 'Vendor Inward & Bills';
-  }
-
-  const stockSectionTitle = isRestaurant ? 'Menu & Catalog' : 'Stock & Sourcing';
+  // Generic Retail Labels
+  const productsLabel = t('nav.products');
+  const ProductsIcon = Package;
+  const productsBg = 'bg-blue-100 text-blue-800';
+  const inventoryLabel = 'Inventory & Expiry';
+  const purchasesLabel = 'Purchases & Bills';
+  const stockSectionTitle = 'Stock & Sourcing';
 
   const sections = [
     {
@@ -102,7 +60,7 @@ export const Sidebar: React.FC = () => {
         { href: '/', label: t('nav.dashboard'), icon: Home, iconBg: 'bg-slate-100 text-slate-700', activeIcon: 'text-white' },
         { href: '/billing', label: 'Billing POS', icon: Receipt, iconBg: 'bg-emerald-100 text-emerald-800', activeIcon: 'text-emerald-300' },
         { href: '/cash-register', label: 'Cash Register', icon: Calculator, iconBg: 'bg-amber-100 text-amber-900', activeIcon: 'text-amber-300' },
-        ...(!isRestaurant ? [{ href: '/barcode-generator', label: 'Barcode Studio', icon: Barcode, iconBg: 'bg-purple-100 text-purple-800', activeIcon: 'text-purple-300', isPro: true }] : []),
+        { href: '/barcode-generator', label: 'Barcode Studio', icon: Barcode, iconBg: 'bg-purple-100 text-purple-800', activeIcon: 'text-purple-300' },
         { href: '/transactions', label: 'Transactions', icon: ShieldCheck, iconBg: 'bg-teal-100 text-teal-800', activeIcon: 'text-teal-300' },
       ],
     },
@@ -111,12 +69,8 @@ export const Sidebar: React.FC = () => {
       dotColor: 'bg-blue-500',
       items: [
         { href: '/products', label: productsLabel, icon: ProductsIcon, iconBg: productsBg, activeIcon: 'text-blue-300' },
-        ...(!isRestaurant && !isClothing && !isHardware ? [
-          { href: '/inventory', label: inventoryLabel, icon: Boxes, iconBg: 'bg-cyan-100 text-cyan-800', activeIcon: 'text-cyan-300' }
-        ] : []),
-        ...(!isRestaurant ? [
-          { href: '/purchases', label: purchasesLabel, icon: ShoppingBag, iconBg: 'bg-amber-100 text-amber-800', activeIcon: 'text-amber-300' }
-        ] : []),
+        { href: '/inventory', label: inventoryLabel, icon: Boxes, iconBg: 'bg-cyan-100 text-cyan-800', activeIcon: 'text-cyan-300' },
+        { href: '/purchases', label: purchasesLabel, icon: ShoppingBag, iconBg: 'bg-amber-100 text-amber-800', activeIcon: 'text-amber-300' },
       ],
     },
     {
@@ -125,7 +79,6 @@ export const Sidebar: React.FC = () => {
       items: [
         { href: '/khata', label: 'Khata Ledger', icon: BookOpen, iconBg: 'bg-amber-100 text-amber-800', activeIcon: 'text-amber-300' },
         { href: '/customers', label: 'Customers', icon: Users, iconBg: 'bg-sky-100 text-sky-800', activeIcon: 'text-sky-300' },
-        { href: '/growth', label: 'Growth & WhatsApp', icon: TrendingUp, iconBg: 'bg-emerald-100 text-emerald-800', activeIcon: 'text-emerald-300', isPro: true },
       ],
     },
     {
@@ -135,13 +88,7 @@ export const Sidebar: React.FC = () => {
         { href: '/gst-reports', label: 'GST & Accounting', icon: FileSpreadsheet, iconBg: 'bg-indigo-100 text-indigo-800', activeIcon: 'text-indigo-300', isPro: true },
         { href: '/invoice-designer', label: 'Invoice Themes', icon: Palette, iconBg: 'bg-amber-100 text-amber-800', activeIcon: 'text-amber-300' },
         { href: '/cloud-backup', label: 'Backup & Restore', icon: HardDrive, iconBg: 'bg-sky-100 text-sky-800', activeIcon: 'text-sky-300', isPro: true },
-        { 
-          href: '/pricing', 
-          label: isPro ? 'Pro Subscription' : 'Upgrade & Plans', 
-          icon: isPro ? Crown : Sparkles, 
-          iconBg: isPro ? 'bg-amber-400 text-slate-950' : 'bg-amber-100 text-amber-900', 
-          activeIcon: 'text-amber-300' 
-        },
+
         { href: '/settings', label: t('nav.settings'), icon: Settings, iconBg: 'bg-slate-100 text-slate-700', activeIcon: 'text-slate-300' },
       ],
     },
@@ -188,17 +135,7 @@ export const Sidebar: React.FC = () => {
                       </div>
                       <span className="truncate">{item.label}</span>
                     </div>
-                    {item.isPro && (
-                      <span className={cn(
-                        'px-1.5 py-0.5 rounded text-[9px] font-black shadow-2xs flex-shrink-0 ml-1 flex items-center gap-0.5',
-                        isPro 
-                          ? 'bg-emerald-100 text-emerald-900 border border-emerald-300' 
-                          : 'bg-amber-400 text-slate-950'
-                      )}>
-                        {!isPro && <Lock className="w-2.5 h-2.5" />}
-                        <span>PRO</span>
-                      </span>
-                    )}
+
                   </Link>
                 );
               })}

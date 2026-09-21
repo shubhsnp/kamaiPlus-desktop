@@ -16,7 +16,6 @@ import {
 import { Business, Sale, CashExpense } from '@/types';
 import { formatINR } from '@/lib/utils';
 import { generateDailyClosingPDF } from '@/lib/reports/dailyClosingPdf';
-import { WhatsAppLogo } from '@/components/ui/WhatsAppLogo';
 
 interface DayEndClosingReportModalProps {
   isOpen: boolean;
@@ -37,10 +36,6 @@ export const DayEndClosingReportModal: React.FC<DayEndClosingReportModalProps> =
 }) => {
   const [copied, setCopied] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
-  const [sendSuccess, setSendSuccess] = useState<string | null>(null);
-  const [sendError, setSendError] = useState<string | null>(null);
-
   const targetPhone = business?.phone || '';
   const datePrefix = selectedDate || new Date().toISOString().slice(0, 10);
 
@@ -132,71 +127,6 @@ export const DayEndClosingReportModal: React.FC<DayEndClosingReportModalProps> =
     return msg;
   };
 
-  /**
-   * Directly dispatches Today's Summary PDF to the Shop Owner via WhatsApp Cloud API
-   */
-  const handleSendToOwnerWhatsApp = async () => {
-    setSendSuccess(null);
-    setSendError(null);
-    setIsSendingWhatsApp(true);
-
-    try {
-      // 1. Generate PDF in memory
-      const { blob, filename } = generateDailyClosingPDF({
-        business,
-        sales,
-        expenses,
-        dateStr: datePrefix,
-      });
-
-      // 2. Convert Blob to base64 data URL
-      const base64Promise = new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
-      const pdfBase64 = await base64Promise;
-
-      // 3. Post to WhatsApp Cloud API dispatcher
-      const res = await fetch('/api/reports/send-daily-whatsapp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          toPhone: targetPhone,
-          storeName: business?.name || 'My Store',
-          ownerName: business?.owner_name || 'Store Owner',
-          dateFormatted,
-          timeFormatted,
-          pdfBase64,
-          filename,
-          summary: {
-            totalInvoices: daysSales.length,
-            grossSales: formatINR(totalSalesPaise),
-            cashSales: formatINR(cashSalesPaise),
-            upiSales: formatINR(upiSalesPaise),
-            creditSales: formatINR(creditSalesPaise),
-            totalExpenses: formatINR(totalExpensePaise),
-            netCash: formatINR(netCashInTillPaise),
-          },
-        }),
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        setSendSuccess(`Report PDF dispatched to owner WhatsApp (+91 ${targetPhone.slice(-10)})`);
-      } else {
-        setSendError(data.error || 'Failed to dispatch report. Please verify WhatsApp API configuration.');
-      }
-    } catch (err: any) {
-      console.error('Send report to WhatsApp error:', err);
-      setSendError(err?.message || 'Network error while contacting WhatsApp service.');
-    } finally {
-      setIsSendingWhatsApp(false);
-    }
-  };
-
   const handleCopyText = async () => {
     const message = constructWhatsAppMessage();
     try {
@@ -243,22 +173,6 @@ export const DayEndClosingReportModal: React.FC<DayEndClosingReportModalProps> =
       size="md"
     >
       <div className="space-y-4 text-xs p-0.5">
-        {/* Success Alert */}
-        {sendSuccess && (
-          <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
-            <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span className="font-medium">{sendSuccess}</span>
-          </div>
-        )}
-
-        {/* Error Alert */}
-        {sendError && (
-          <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-            <span>{sendError}</span>
-          </div>
-        )}
-
         {/* Preview Card */}
         <div className="p-3.5 bg-slate-900 text-white rounded-2xl border border-slate-800 space-y-3 font-sans shadow-lg">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
@@ -339,16 +253,9 @@ export const DayEndClosingReportModal: React.FC<DayEndClosingReportModalProps> =
           )}
         </div>
 
-        {/* Owner Target Phone Info */}
-        <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-xs">
-          <span className="text-slate-500 font-medium">Owner WhatsApp Destination:</span>
-          <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
-            {targetPhone ? `+91 ${targetPhone.slice(-10)}` : 'Logged-In Number'}
-          </span>
-        </div>
 
-        {/* 3 Action Buttons: Copy, PDF, Direct WhatsApp API */}
-        <div className="grid grid-cols-3 gap-2 pt-1 border-t border-slate-200 dark:border-slate-800">
+        {/* 2 Action Buttons: Copy, PDF */}
+        <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-200 dark:border-slate-800">
           <Button
             variant="outline"
             size="sm"
@@ -377,25 +284,6 @@ export const DayEndClosingReportModal: React.FC<DayEndClosingReportModalProps> =
           >
             <FileDown className="w-3.5 h-3.5 text-amber-400" />
             <span>{isGeneratingPdf ? 'Saving...' : 'PDF Report'}</span>
-          </Button>
-
-          <Button
-            size="sm"
-            onClick={handleSendToOwnerWhatsApp}
-            disabled={isSendingWhatsApp}
-            className="w-full font-black text-[11px] gap-1 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-slate-950 shadow-md shadow-emerald-600/20 cursor-pointer"
-          >
-            {isSendingWhatsApp ? (
-              <>
-                <RefreshCw className="w-3.5 h-3.5 text-slate-950 animate-spin" />
-                <span>Sending...</span>
-              </>
-            ) : (
-              <>
-                <WhatsAppLogo className="w-4 h-4" />
-                <span>Send to WhatsApp</span>
-              </>
-            )}
           </Button>
         </div>
       </div>

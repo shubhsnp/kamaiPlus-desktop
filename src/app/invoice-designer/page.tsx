@@ -411,12 +411,7 @@ export default function InvoiceDesignerPage() {
                         <span className="font-bold text-slate-800 truncate text-[11px]">{toggle.label}</span>
                       </div>
 
-                      {toggle.isProOnly && !isPro && (
-                        <span className="px-1 py-0.2 rounded text-[8px] font-black bg-amber-400 text-slate-950 shadow-2xs flex-shrink-0 flex items-center gap-0.5">
-                          <Lock className="w-2.5 h-2.5" />
-                          <span>PRO</span>
-                        </span>
-                      )}
+
                     </div>
                   );
                 })}
@@ -454,23 +449,7 @@ export default function InvoiceDesignerPage() {
                 </div>
               )}
 
-              {/* Pharmacy Drug License Pro Lock for Free Users */}
-              {!isPro && (
-                <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-200/80 flex items-center justify-between gap-2 mt-1 shadow-2xs">
-                  <div className="flex items-center gap-1.5 text-xs text-slate-700">
-                    <span>💊</span>
-                    <span className="font-bold text-[11px]">Pharmacy Drug License</span>
-                    <ProFeatureBadge />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsUpgradeModalOpen(true)}
-                    className="px-2 py-0.5 text-[10px] font-bold rounded-lg bg-amber-400 text-slate-950 hover:bg-amber-500 cursor-pointer shadow-2xs"
-                  >
-                    Unlock Pro
-                  </button>
-                </div>
-              )}
+
             </div>
           </Card>
 

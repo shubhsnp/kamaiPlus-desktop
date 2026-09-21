@@ -48,10 +48,7 @@ interface AddEditProductModalProps {
   setFormMinStock: (val: string) => void;
   formBarcode: string;
   setFormBarcode: (val: string) => void;
-  formBatchNumber: string;
-  setFormBatchNumber: (val: string) => void;
-  formExpiryDate: string;
-  setFormExpiryDate: (val: string) => void;
+
   formSize: string;
   setFormSize: (val: string) => void;
   formColor: string;
@@ -94,10 +91,7 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
   setFormMinStock,
   formBarcode,
   setFormBarcode,
-  formBatchNumber,
-  setFormBatchNumber,
-  formExpiryDate,
-  setFormExpiryDate,
+
   formSize,
   setFormSize,
   formColor,
@@ -109,9 +103,9 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
   onDeleteProduct,
   formError,
 }) => {
-  const isPharmacy = businessType === 'pharmacy';
-  const isClothing = businessType === 'clothing';
-  const isRestaurant = businessType === 'restaurant' || businessType === 'bakery';
+  const isPharmacy = false;
+  const isClothing = false;
+  const isRestaurant = false;
 
   return (
     <Modal
@@ -305,29 +299,7 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
           />
         </div>
 
-        {/* Niche Specific Fields: Pharmacy Batch & Expiry */}
-        {(isPharmacy || formBatchNumber || formExpiryDate) && (
-          <div className="p-3 bg-teal-50/70 dark:bg-teal-950/30 rounded-xl border border-teal-200 dark:border-teal-800 space-y-2">
-            <div className="text-xs font-black text-teal-900 dark:text-teal-200 flex items-center gap-1.5">
-              <Pill className="w-3.5 h-3.5 text-teal-600" />
-              <span>Pharmacy Batch &amp; Expiry Radar</span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Input
-                label="Batch Number"
-                placeholder="e.g. BATCH-8819"
-                value={formBatchNumber}
-                onChange={(e) => setFormBatchNumber(e.target.value)}
-              />
-              <Input
-                label="Expiry Date (MM/YYYY or DD-MM-YYYY)"
-                placeholder="e.g. 12/2027"
-                value={formExpiryDate}
-                onChange={(e) => setFormExpiryDate(e.target.value)}
-              />
-            </div>
-          </div>
-        )}
+
 
         {/* Niche Specific Fields: Clothing Size & Color */}
         {(isClothing || formSize || formColor) && (

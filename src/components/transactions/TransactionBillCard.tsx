@@ -15,27 +15,22 @@ import {
 } from 'lucide-react';
 import { Sale } from '@/types';
 import { formatINR, cn } from '@/lib/utils';
-import { WhatsAppLogo } from '@/components/ui/WhatsAppLogo';
 
 interface TransactionBillCardProps {
   sale: Sale;
   isPro: boolean;
-  sendingWhatsAppSaleId: string | null;
   onOpenInvoice: (sale: Sale) => void;
   onEditSale: (sale: Sale) => void;
   onReturnSale: (saleId: string) => void;
-  onSendWhatsApp: (sale: Sale, e: React.MouseEvent) => void;
   onConvertToInvoice?: (sale: Sale) => void;
 }
 
 export const TransactionBillCard: React.FC<TransactionBillCardProps> = ({
   sale,
   isPro,
-  sendingWhatsAppSaleId,
   onOpenInvoice,
   onEditSale,
   onReturnSale,
-  onSendWhatsApp,
   onConvertToInvoice,
 }) => {
   const isCredit = sale.payment_method === 'credit' || (sale.balance_due && sale.balance_due > 0);
@@ -175,21 +170,6 @@ export const TransactionBillCard: React.FC<TransactionBillCardProps> = ({
             className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-amber-50 dark:hover:bg-amber-950/40 text-slate-600 dark:text-slate-300 cursor-pointer shadow-2xs transition active:scale-95"
           >
             <RotateCcw className="w-3 h-3 text-amber-700 dark:text-amber-400" />
-          </button>
-
-          {/* 3. WhatsApp Send */}
-          <button
-            type="button"
-            onClick={(e) => onSendWhatsApp(sale, e)}
-            disabled={sendingWhatsAppSaleId === sale.id}
-            title="Send WhatsApp Invoice"
-            className="p-1.5 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50/80 dark:bg-emerald-950/60 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-300 cursor-pointer shadow-2xs transition active:scale-95 disabled:opacity-50"
-          >
-            {sendingWhatsAppSaleId === sale.id ? (
-              <Loader2 className="w-3.5 h-3.5 text-emerald-600 animate-spin" />
-            ) : (
-              <WhatsAppLogo className="w-3.5 h-3.5" />
-            )}
           </button>
 
           {/* 4. Print / View Invoice */}

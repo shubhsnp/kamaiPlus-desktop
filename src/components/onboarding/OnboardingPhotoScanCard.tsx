@@ -15,7 +15,7 @@ export const OnboardingPhotoScanCard: React.FC<OnboardingPhotoScanCardProps> = (
   enabled,
   onToggle,
 }) => {
-  const isRestaurant = businessType === 'restaurant' || businessType === 'bakery';
+  const isRestaurant = false;
 
   const title = isRestaurant
     ? '📸 1-Tap Menu Card Photo Setup (Fastest)'
