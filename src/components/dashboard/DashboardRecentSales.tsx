@@ -70,9 +70,9 @@ export const DashboardRecentSales: React.FC<DashboardRecentSalesProps> = ({
   const displayedSales = filteredSales.slice(0, 10);
 
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-3.5 sm:p-4 shadow-2xs space-y-3">
+    <div className="flex flex-col h-full bg-white dark:bg-slate-900">
       {/* Top Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-slate-100 dark:border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-4 pb-3 border-b border-slate-100 dark:border-slate-800">
         <div 
           onClick={() => setIsCollapsed(!isCollapsed)}
           className="flex items-center gap-2.5 cursor-pointer select-none flex-1"
@@ -119,9 +119,9 @@ export const DashboardRecentSales: React.FC<DashboardRecentSalesProps> = ({
       </div>
 
       {!isCollapsed && (
-        <div className="space-y-3 animate-in fade-in duration-150">
+        <div className="flex flex-col h-full animate-in fade-in duration-150">
           {/* Search & Filter Bar */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+          <div className="px-4 py-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800">
             <div className="relative flex-1">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
@@ -182,7 +182,7 @@ export const DashboardRecentSales: React.FC<DashboardRecentSalesProps> = ({
           </div>
 
           {/* Bills List */}
-          <div className="space-y-2">
+          <div className="flex-1 overflow-y-auto p-4 space-y-2">
             {displayedSales.map((sale) => {
               const isCredit = sale.payment_method === 'credit' || (sale.balance_due && sale.balance_due > 0);
               const isPaid = sale.payment_status === 'paid' && (!sale.balance_due || sale.balance_due === 0);

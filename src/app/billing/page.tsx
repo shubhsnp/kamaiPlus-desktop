@@ -11,6 +11,8 @@ import QRCode from 'qrcode';
 import { playBeepSound } from '@/lib/voice/speechParser';
 import { PlatformAnalytics } from '@/lib/firebase/analytics';
 import { getNextUniqueInvoiceNumber, commitNextInvoiceNumber, formatInvoiceNumber } from '@/lib/invoices/invoiceNumberService';
+import { useDebounce } from 'use-debounce';
+import { VirtuosoGrid } from 'react-virtuoso';
 import { 
   Search, 
   Receipt, 
@@ -170,6 +172,89 @@ export function extractTabletsPerStrip(productName: string): number {
   return 10; // Default Indian pharmacy strip packaging size
 }
 
+// Memoized Product Card to prevent re-rendering the entire 200-item grid on every cart update
+const PosProductCard = React.memo(({
+  p,
+  idx,
+  inCartQuantity,
+  availableStock,
+  stockNum,
+  isOutOfStock,
+  isLowStock,
+  isHighlighted,
+  onAdd
+}: {
+  p: any;
+  idx: number;
+  inCartQuantity: number;
+  availableStock: number;
+  stockNum: number;
+  isOutOfStock: boolean;
+  isLowStock: boolean;
+  isHighlighted: boolean;
+  onAdd: (p: any) => void;
+}) => {
+  return (
+    <button
+      type="button"
+      onClick={() => onAdd(p)}
+      className={cn(
+        'p-2.5 rounded-xl border text-left flex flex-col justify-between relative transition-all min-h-[105px] sm:min-h-[110px] h-full',
+        isOutOfStock
+          ? 'border-rose-300/80 bg-rose-50/40 opacity-70 hover:border-rose-400 cursor-not-allowed select-none'
+          : isHighlighted
+          ? 'cursor-pointer bg-emerald-50/80 border-emerald-500 ring-2 ring-emerald-500 shadow-md scale-[1.01]'
+          : inCartQuantity > 0 && !isOutOfStock
+          ? 'cursor-pointer bg-amber-50/40 border-amber-400 ring-1.5 ring-amber-400/50 shadow-2xs active:scale-[0.98]'
+          : 'cursor-pointer bg-white hover:border-slate-400 hover:shadow-2xs border-slate-200 shadow-2xs active:scale-[0.98]'
+      )}
+    >
+      {isOutOfStock ? (
+        <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-rose-600 text-white text-[9px] font-black uppercase tracking-wider shadow-xs">
+          Out of Stock
+        </div>
+      ) : isHighlighted ? (
+        <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-emerald-600 text-white text-[9px] font-black font-mono shadow-xs">
+          ↵ Enter
+        </div>
+      ) : inCartQuantity > 0 ? (
+        <div className="absolute top-1.5 right-1.5 px-1.5 py-0.2 rounded-md bg-amber-400 text-slate-950 text-[9px] font-black shadow-xs">
+          {inCartQuantity} in cart
+        </div>
+      ) : null}
+
+      <div className="pr-12">
+        <span className="text-[9px] uppercase font-extrabold tracking-wider block leading-tight text-slate-400">
+          {p.category_name || 'Item'}
+        </span>
+        <h4 className={cn(
+          "text-xs sm:text-sm font-bold line-clamp-2 mt-0.5 leading-snug",
+          isOutOfStock ? "text-slate-500 line-through" : "text-slate-900"
+        )}>
+          {p.name}
+        </h4>
+      </div>
+
+      <div className="mt-1.5 pt-1.5 border-t border-slate-100 flex items-baseline justify-between gap-1">
+        <div className="truncate">
+          <span className={cn(
+            "text-xs sm:text-sm font-black font-mono",
+            isOutOfStock ? "text-slate-400 line-through" : "text-slate-900"
+          )}>
+            {formatINR(p.selling_price)}
+          </span>
+          <span className="text-[10px] text-slate-500 font-medium ml-0.5">/{p.unit}</span>
+        </div>
+        <span className={cn(
+          "text-[10px] font-bold font-mono px-1.5 py-0.5 rounded-md shrink-0 flex items-center gap-1",
+          isOutOfStock ? "bg-rose-100 text-rose-700" : isLowStock ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"
+        )}>
+          {p.is_unlimited_stock ? '∞' : stockNum}
+        </span>
+      </div>
+    </button>
+  );
+});
 
 export default function BillingPage() {
   const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
@@ -448,30 +533,57 @@ export default function BillingPage() {
   const storeProfile = getStoreProfile(business?.business_type);
   const categories = useLiveQuery(async () => db.categories.toArray()) || [];
   const customers = useLiveQuery(async () => db.customers.toArray()) || [];
-  const allProducts = useLiveQuery(async () => db.products.toArray()) || [];
   
-  const products = useLiveQuery(async () => {
-    let prods = await db.products.toArray();
-    // Filter active items
-    prods = prods.filter(p => p.is_active !== false);
-
-    // Filter by Category
-    if (selectedCategory !== 'all') {
-      prods = prods.filter(p => p.category_id === selectedCategory);
+  const totalProductCount = useLiveQuery(() => db.products.count()) || 0;
+  
+  const categoryCounts = useLiveQuery(async () => {
+    const counts: Record<string, number> = {};
+    for (const cat of categories) {
+      counts[cat.id] = await db.products.where('category_id').equals(cat.id).count();
     }
+    return counts;
+  }, [categories]) || {};
 
-    // Filter by Search Query (Name, Barcode, Category)
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      prods = prods.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          (p.barcode && p.barcode.includes(q)) ||
-          (p.category_name && p.category_name.toLowerCase().includes(q))
-      );
+  const [debouncedSearch] = useDebounce(searchQuery, 300);
+  
+  const [products, setProducts] = useState<any[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchProducts() {
+      try {
+        let prods = db.products.filter(p => p.is_active !== false);
+
+        // Filter by Category
+        if (selectedCategory !== 'all') {
+          prods = prods.filter(p => p.category_id === selectedCategory);
+        }
+
+        // Filter by Search Query
+        if (debouncedSearch.trim()) {
+          const q = debouncedSearch.toLowerCase();
+          prods = prods.filter(
+            (p) =>
+              Boolean(
+                p.name.toLowerCase().includes(q) ||
+                (p.barcode && p.barcode.includes(q)) ||
+                (p.category_name && p.category_name.toLowerCase().includes(q))
+              )
+          );
+        }
+        
+        // No limit needed now that we are using Virtualization (Phase 1)
+        const data = await prods.toArray();
+        if (isMounted) {
+          setProducts(data);
+        }
+      } catch (err) {
+        console.error('Error fetching POS products:', err);
+      }
     }
-    return prods;
-  }, [searchQuery, selectedCategory]) || [];
+    fetchProducts();
+    return () => { isMounted = false; };
+  }, [debouncedSearch, selectedCategory]);
 
   const selectedCustomer = customers.find((c) => c.id === selectedCustomerId);
 
@@ -643,8 +755,11 @@ export default function BillingPage() {
     });
   };
 
-  const updateQuantity = (productId: string, delta: number) => {
-    const product = products.find((p) => p.id === productId) || allProducts.find((p) => p.id === productId);
+  const updateQuantity = async (productId: string, delta: number) => {
+    let product = products.find((p) => p.id === productId);
+    if (!product) {
+      product = await db.products.get(productId);
+    }
     if (!product) return;
 
     if (delta > 0 && !product.is_unlimited_stock) {
@@ -1347,7 +1462,7 @@ export default function BillingPage() {
 
   // Reusable Checkout Panel Component for Desktop side-panel and Mobile Bottom Drawer
   const renderCheckoutPanel = () => (
-    <div className="flex flex-col h-full min-h-0 space-y-3">
+    <div className="flex flex-col space-y-3">
       {/* Multi-Bill Tab Bar */}
       <div className="bg-slate-100 p-1 rounded-xl flex items-center gap-1 overflow-x-auto border border-slate-200">
         {tabs.map((tab) => {
@@ -1438,7 +1553,7 @@ export default function BillingPage() {
               Customer
             </label>
             {selectedCustomer && (selectedCustomer.current_balance || 0) > 0 && (
-              <span className="px-2 py-0.5 rounded-full bg-rose-100 border border-rose-300 text-rose-700 text-[10px] font-black flex items-center gap-1 shadow-2xs animate-pulse">
+              <span className="px-2 py-0.5 rounded-full bg-rose-100 border border-rose-300 text-rose-700 text-[10px] font-black flex items-center gap-1 shadow-2xs">
                 <span>⚠️ Old Khata:</span>
                 <span className="font-mono">{formatINR(selectedCustomer.current_balance)}</span>
               </span>
@@ -1512,7 +1627,7 @@ export default function BillingPage() {
       )}
 
       {/* Cart Items List with Inline / Popover Edit */}
-      <div className="border-t border-b border-slate-100 py-2 space-y-2 flex-1 min-h-[140px] max-h-[calc(100vh-420px)] lg:max-h-none overflow-y-auto pr-1">
+      <div className="border-t border-b border-slate-100 py-2 space-y-2 flex-1 min-h-[60px] max-h-[calc(100vh-420px)] lg:max-h-none overflow-y-auto pr-1">
         {cart.length === 0 ? (
           <div className="text-center py-8 text-xs text-slate-400 font-medium space-y-1.5">
             <ShoppingCart className="w-8 h-8 text-slate-300 mx-auto" />
@@ -2231,7 +2346,7 @@ export default function BillingPage() {
   );
 
   return (
-    <div className="relative pb-40 lg:pb-2 h-full flex flex-col animate-in fade-in duration-300">
+    <div className="relative pb-40 lg:pb-2 h-full flex flex-col">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 h-full flex-1 min-h-0">
         {/* Left: Product Selection Catalog */}
         <div className="lg:col-span-7 flex flex-col h-full min-h-0">
@@ -2308,11 +2423,11 @@ export default function BillingPage() {
                   "text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold",
                   selectedCategory === 'all' ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"
                 )}>
-                  {allProducts.length}
+                  {totalProductCount}
                 </span>
               </button>
               {categories.map((cat) => {
-                const count = allProducts.filter(p => p.category_id === cat.id).length;
+                const count = categoryCounts[cat.id] || 0;
                 return (
                   <button
                     key={cat.id}
@@ -2338,18 +2453,18 @@ export default function BillingPage() {
             </div>
 
             {/* Responsive Products Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2.5 flex-1 min-h-0 overflow-y-auto pr-1 content-start">
+            <div className="flex-1 min-h-0" style={{ height: '100%' }}>
               {products.length === 0 ? (
-                <div className="col-span-full py-12 text-center text-xs text-slate-500 border border-dashed border-slate-300 rounded-2xl bg-white p-6 space-y-2.5">
+                <div className="py-12 text-center text-xs text-slate-500 border border-dashed border-slate-300 rounded-2xl bg-white p-6 space-y-2.5">
                   <div className="font-bold text-slate-800 text-sm">
-                    {allProducts.length === 0 ? 'No products in store catalog' : 'No items match your search'}
+                    {totalProductCount === 0 ? 'No products in store catalog' : 'No items match your search'}
                   </div>
                   <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
-                    {allProducts.length === 0
+                    {totalProductCount === 0
                       ? 'Your inventory is currently empty. Click below to load pre-configured starter items.'
                       : 'Try clearing your search query or selecting "All Items".'}
                   </p>
-                  {allProducts.length === 0 && (
+                  {totalProductCount === 0 && (
                     <Button
                       type="button"
                       onClick={handleLoadSampleProducts}
@@ -2363,87 +2478,42 @@ export default function BillingPage() {
                   )}
                 </div>
               ) : (
-                products.map((p, idx) => {
-                  const inCart = cart.find((i) => i.product_id === p.id);
-                  const availableStock = getAvailableStockForProduct(p);
-                  const stockNum = Number(p.current_stock ?? 0);
-                  const isOutOfStock = !p.is_unlimited_stock && (stockNum <= 0 || availableStock <= 0);
-                  const isLowStock = !p.is_unlimited_stock && !isOutOfStock && availableStock <= (p.min_stock_level || 5);
-                  const isHighlighted = highlightedIndex === idx;
+                <VirtuosoGrid
+                  data={products}
+                  totalCount={products.length}
+                  listClassName="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2.5 pr-1 content-start"
+                  itemClassName="w-full"
+                  itemContent={(idx, p) => {
+                    const inCartQuantity = cart.find((i) => i.product_id === p.id)?.quantity || 0;
+                    const availableStock = getAvailableStockForProduct(p);
+                    const stockNum = Number(p.current_stock ?? 0);
+                    const isOutOfStock = !p.is_unlimited_stock && (stockNum <= 0 || availableStock <= 0);
+                    const isLowStock = !p.is_unlimited_stock && !isOutOfStock && availableStock <= (p.min_stock_level || 5);
+                    const isHighlighted = highlightedIndex === idx;
 
-                  return (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => {
-                        if (isOutOfStock) {
-                          playBeepSound('alert');
-                          showBillingToast(`Out of Stock: "${p.name}" has 0 stock remaining.`, 'error');
-                          return;
-                        }
-                        addToCart(p, 1);
-                      }}
-                      className={cn(
-                        'p-2.5 rounded-xl border text-left flex flex-col justify-between relative overflow-hidden transition-all min-h-[82px] sm:min-h-[88px]',
-                        isOutOfStock
-                          ? 'border-rose-300/80 bg-rose-50/40 opacity-70 hover:border-rose-400 cursor-not-allowed select-none'
-                          : isHighlighted
-                          ? 'cursor-pointer bg-emerald-50/80 border-emerald-500 ring-2 ring-emerald-500 shadow-md scale-[1.01]'
-                          : inCart && !isOutOfStock
-                          ? 'cursor-pointer bg-amber-50/40 border-amber-400 ring-1.5 ring-amber-400/50 shadow-2xs active:scale-[0.98]'
-                          : 'cursor-pointer bg-white hover:border-slate-400 hover:shadow-2xs border-slate-200 shadow-2xs active:scale-[0.98]'
-                      )}
-                    >
-                      {isOutOfStock ? (
-                        <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-rose-600 text-white text-[9px] font-black uppercase tracking-wider shadow-xs">
-                          Out of Stock
-                        </div>
-                      ) : isHighlighted ? (
-                        <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-emerald-600 text-white text-[9px] font-black font-mono shadow-xs animate-pulse">
-                          ↵ Enter
-                        </div>
-                      ) : inCart ? (
-                        <div className="absolute top-1.5 right-1.5 px-1.5 py-0.2 rounded-md bg-amber-400 text-slate-950 text-[9px] font-black shadow-xs">
-                          {inCart.quantity} in cart
-                        </div>
-                      ) : null}
-
-                      <div className="pr-12">
-                        <span className="text-[9px] uppercase font-extrabold tracking-wider block leading-tight text-slate-400">
-                          {p.category_name || 'Item'}
-                        </span>
-                        <h4 className={cn(
-                          "text-xs sm:text-sm font-bold line-clamp-2 mt-0.5 leading-snug",
-                          isOutOfStock ? "text-slate-500 line-through" : "text-slate-900"
-                        )}>
-                          {p.name}
-                        </h4>
-                      </div>
-
-                      <div className="mt-1.5 pt-1.5 border-t border-slate-100 flex items-baseline justify-between gap-1">
-                        <div className="truncate">
-                          <span className={cn(
-                            "text-xs sm:text-sm font-black font-mono",
-                            isOutOfStock ? "text-slate-400 line-through" : "text-slate-900"
-                          )}>
-                            {formatINR(p.selling_price)}
-                          </span>
-                          <span className="text-[10px] text-slate-500 font-medium ml-0.5">/{p.unit}</span>
-                        </div>
-                        <span className={cn(
-                          "text-[10px] font-bold flex-shrink-0 px-1 py-0.2 rounded",
-                          isOutOfStock
-                            ? "text-rose-700 bg-rose-100 font-black uppercase"
-                            : isLowStock
-                            ? "text-amber-800 bg-amber-100 font-bold"
-                            : "text-slate-500"
-                        )}>
-                          {isOutOfStock ? '0 left' : `${availableStock} left`}
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })
+                    return (
+                      <PosProductCard
+                        key={p.id}
+                        p={p}
+                        idx={idx}
+                        inCartQuantity={inCartQuantity}
+                        availableStock={availableStock}
+                        stockNum={stockNum}
+                        isOutOfStock={isOutOfStock}
+                        isLowStock={isLowStock}
+                        isHighlighted={isHighlighted}
+                        onAdd={(prod) => {
+                          if (isOutOfStock) {
+                            playBeepSound('alert');
+                            showBillingToast(`Out of Stock: "${prod.name}" has 0 stock remaining.`, 'error');
+                            return;
+                          }
+                          addToCart(prod, 1);
+                        }}
+                      />
+                    );
+                  }}
+                />
               )}
             </div>
           </div>
@@ -2458,7 +2528,7 @@ export default function BillingPage() {
       </div>
 
       {/* Mobile Floating Bottom Sticky Cart Button (Elevated cleanly above bottom nav bar) */}
-      <div className="lg:hidden fixed bottom-[88px] left-3 right-3 sm:left-6 sm:right-6 max-w-md mx-auto p-3 bg-white/95 backdrop-blur-md border border-slate-300 rounded-2xl z-30 shadow-2xl shadow-slate-900/15 flex items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-2">
+      <div className="lg:hidden fixed bottom-[88px] left-3 right-3 sm:left-6 sm:right-6 max-w-md mx-auto p-3 bg-white/95 backdrop-blur-md border border-slate-300 rounded-2xl z-30 shadow-2xl shadow-slate-900/15 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-black relative flex-shrink-0 shadow-xs">
             <ShoppingCart className="w-5 h-5" />

@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslation } from '@/lib/i18n';
 import { SupportedLanguage } from '@/types';
 import { db } from '@/lib/db';
-import { useLiveQuery } from 'dexie-react-hooks';
+import { useBusiness } from '@/components/layout/BusinessProvider';
 import {
   Wifi,
   WifiOff,
@@ -37,9 +37,7 @@ export const Navbar: React.FC = () => {
 
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const business = useLiveQuery(async () => {
-    return await db.businesses.toCollection().first();
-  });
+  const business = useBusiness();
 
   useEffect(() => {
     setCurrentUser(getStoredUser());
@@ -93,7 +91,7 @@ export const Navbar: React.FC = () => {
 
   return (
     <>
-      <header className="h-16 bg-white/80 backdrop-blur-md border-b border-slate-200 px-3 sm:px-6 flex items-center justify-between sticky top-0 z-30 shadow-xs">
+      <header className="h-16 bg-white border-b border-slate-200 px-3 sm:px-6 flex items-center justify-between sticky top-0 z-30 shadow-xs">
         
         {/* Left Side: Actions (Upgrade Pro, Store QR, Network Status) */}
         <div className="flex items-center gap-2">

@@ -9,6 +9,8 @@ import { Sidebar } from './Sidebar';
 import { DesktopStatusBar } from './DesktopStatusBar';
 import { subscriptionService } from '@/lib/subscription/subscriptionService';
 import { APP_VERSION } from '@/lib/constants/version';
+import { GlobalDrawers } from './GlobalDrawers';
+import { BusinessProvider } from './BusinessProvider';
 
 export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
@@ -195,6 +197,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   }
 
   return (
+    <BusinessProvider>
     <div className="h-screen w-screen overflow-hidden bg-slate-50 flex flex-col text-slate-900">
       {/* Account Freeze / Delete Lockout Modal */}
       {accountLockout && (
@@ -269,6 +272,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         </main>
       </div>
       <DesktopStatusBar />
+      <GlobalDrawers />
     </div>
+    </BusinessProvider>
   );
 };

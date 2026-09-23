@@ -31,24 +31,25 @@ export default function DashboardHome() {
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
   const businessType = business?.business_type || 'grocery';
 
-  // Live Database Queries
+  // ── Batched query 1: Products (single subscription) ──
   const products = useLiveQuery(async () => db.products.toArray()) || [];
   const activeProducts = useMemo(() => products.filter((p) => p.is_active !== false), [products]);
 
-  // Today's Sales (local calendar day, half-open)
-  const todaysSales = useLiveQuery(async () => {
+  // ── Batched query 2: Today's activity — sales, returns, ledger, expenses in ONE subscription ──
+  const todayData = useLiveQuery(async () => {
     const { start, end } = getLocalDayRange();
-    return db.sales.where('created_at').between(start, end, true, false).toArray();
-  }) || [];
-  const todaysReturns = useLiveQuery(async () => {
-    const { start } = getLocalDayRange();
-    // Returns of today's bills can only have been made today or later.
-    return db.sales_returns.where('created_at').aboveOrEqual(start).toArray();
-  }) || [];
-  const todaysLedger = useLiveQuery(async () => {
-    const { start, end } = getLocalDayRange();
-    return db.ledger_transactions.where('created_at').between(start, end, true, false).toArray();
-  }) || [];
+    const [sales, returns, ledger, expenses] = await Promise.all([
+      db.sales.where('created_at').between(start, end, true, false).toArray(),
+      db.sales_returns.where('created_at').aboveOrEqual(start).toArray(),
+      db.ledger_transactions.where('created_at').between(start, end, true, false).toArray(),
+      db.cash_expenses.where('created_at').between(start, end, true, false).toArray(),
+    ]);
+    return { sales, returns, ledger, expenses };
+  });
+  const todaysSales = todayData?.sales || [];
+  const todaysReturns = todayData?.returns || [];
+  const todaysLedger = todayData?.ledger || [];
+  const todaysExpenses = todayData?.expenses || [];
 
   // Revenue bills only: estimates and fully returned bills are not sales; partial returns count net.
   const todaysRevenueSales = useMemo(() => todaysSales.filter(isRevenueSale), [todaysSales]);
@@ -58,12 +59,6 @@ export default function DashboardHome() {
       0
     );
   }, [todaysRevenueSales, todaysReturns]);
-
-  // Today's Cash Expenses
-  const todaysExpenses = useLiveQuery(async () => {
-    const { start, end } = getLocalDayRange();
-    return db.cash_expenses.where('created_at').between(start, end, true, false).toArray();
-  }) || [];
 
   // Cash in hand: cash kept from sales (no change, split cash included) + khata cash − cash expenses & refunds
   const netCashInHand = useMemo(() => {
@@ -78,10 +73,17 @@ export default function DashboardHome() {
   );
   const todaysGrossProfit = todaysProfit.totalProfitPaise;
 
-  // Outstanding Khata Debtors
-  const customersWithCredit = useLiveQuery(async () => {
-    return db.customers.where('current_balance').above(0).toArray();
-  }) || [];
+  // ── Batched query 3: Khata debtors + Recent sales in ONE subscription ──
+  const dashLists = useLiveQuery(async () => {
+    const [debtors, recent] = await Promise.all([
+      db.customers.where('current_balance').above(0).toArray(),
+      db.sales.orderBy('created_at').reverse().limit(50).toArray(),
+    ]);
+    return { debtors, recent };
+  });
+  const customersWithCredit = dashLists?.debtors || [];
+  const recentSales = dashLists?.recent || [];
+
   const totalOutstandingCredit = useMemo(() => {
     return customersWithCredit.reduce((acc, c) => acc + (c.current_balance > 0 ? c.current_balance : 0), 0);
   }, [customersWithCredit]);
@@ -106,12 +108,6 @@ export default function DashboardHome() {
       return stockA - stockB;
     });
   }, [lowStockProducts]);
-
-  // Recent Sales list
-  const recentSales = useLiveQuery(async () => {
-    return await db.sales.orderBy('created_at').reverse().limit(50).toArray();
-  }) || [];
-
   // Niche Metric Computations
 
 
@@ -200,15 +196,6 @@ export default function DashboardHome() {
 
       {/* 5. SHOP MANAGEMENT TOOLS (Compact 8-Tool Grid) */}
       <QuickToolsGrid productsCount={products.length} />
-
-      {/* 6. RECENT TRANSACTIONS STREAM WITH 1-CLICK ACTIONS */}
-      <DashboardRecentSales
-        sales={recentSales}
-        onSelectSaleForInvoice={(sale) => setSelectedSaleForInvoice(sale)}
-        business={business}
-      />
-
-      {/* ---------------- MODALS ---------------- */}
       {/* Day-End Closing Z-Report Modal */}
       <DayEndClosingReportModal
         isOpen={isClosingReportOpen}
@@ -217,14 +204,6 @@ export default function DashboardHome() {
         sales={todaysSales}
         expenses={todaysExpenses}
         ledger={todaysLedger}
-      />
-
-      {/* Tax Invoice Full Bill Preview Modal */}
-      <InvoiceModal
-        isOpen={Boolean(selectedSaleForInvoice)}
-        onClose={() => setSelectedSaleForInvoice(null)}
-        sale={selectedSaleForInvoice}
-        business={business}
       />
     </div>
   );

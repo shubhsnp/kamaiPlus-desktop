@@ -28,7 +28,7 @@ import {
 import { APP_VERSION } from '@/lib/constants/version';
 import { cn } from '@/lib/utils';
 import { useProSubscription } from '@/components/subscription/ProFeatureGate';
-import { useLiveQuery } from 'dexie-react-hooks';
+import { useBusiness } from '@/components/layout/BusinessProvider';
 import { db } from '@/lib/db';
 
 interface SidebarProps {
@@ -44,7 +44,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { t } = useTranslation();
   const { isPro } = useProSubscription();
 
-  const business = useLiveQuery(() => db.businesses.toCollection().first());
+  const business = useBusiness();
 
   const [internalCollapsed, setInternalCollapsed] = useState<boolean>(false);
 

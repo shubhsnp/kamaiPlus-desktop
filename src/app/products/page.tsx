@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useDebounce } from 'use-debounce';
 import { useTranslation } from '@/lib/i18n';
 import { Product, ProductUnit } from '@/types';
 import { parseRupeesToPaise } from '@/lib/utils';
@@ -121,12 +122,14 @@ export default function ProductsPage() {
     }
   }, []);
 
+  const [debouncedSearch] = useDebounce(searchQuery, 300);
+
   // Filtered Products List
   const filteredProducts = useMemo(() => {
     return allProducts.filter((p) => {
       // 1. Search Query
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
+      if (debouncedSearch.trim()) {
+        const q = debouncedSearch.toLowerCase().trim();
         const matchName = p.name.toLowerCase().includes(q);
         const matchBarcode = p.barcode ? p.barcode.toLowerCase().includes(q) : false;
         if (!matchName && !matchBarcode) return false;
@@ -150,7 +153,7 @@ export default function ProductsPage() {
       if (!a.is_favorite && b.is_favorite) return 1;
       return a.name.localeCompare(b.name);
     });
-  }, [allProducts, searchQuery, selectedCategory, showLowStockOnly]);
+  }, [allProducts, debouncedSearch, selectedCategory, showLowStockOnly]);
 
   // Financial & Inventory Metrics
   const lowStockCount = useMemo(() => {

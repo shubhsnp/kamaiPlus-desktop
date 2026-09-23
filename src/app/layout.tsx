@@ -7,7 +7,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { PWAInstallBanner } from '@/components/pwa/PWAInstallBanner';
 
 export const metadata: Metadata = {
-  title: 'Retail POS Desktop | Business Management & Growth Platform',
+  title: 'KamaiPlus Desktop | Business Management & Growth Platform',
   description: 'Sell, Manage, and Grow your local Indian business with instant POS billing, offline Khata, inventory, and WhatsApp marketing.',
   manifest: '/manifest.json',
   icons: {
@@ -39,11 +39,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Mukta:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-      </head>
+      <head />
+
       <body>
         <I18nProvider>
           <AppShell>

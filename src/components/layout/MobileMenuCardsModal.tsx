@@ -34,7 +34,7 @@ import {
 import { APP_VERSION } from '@/lib/constants/version';
 
 import { logoutUser } from '@/lib/auth';
-import { useLiveQuery } from 'dexie-react-hooks';
+import { useBusiness } from '@/components/layout/BusinessProvider';
 import { db } from '@/lib/db';
 
 interface MobileMenuCardsModalProps {
@@ -46,7 +46,7 @@ export const MobileMenuCardsModal: React.FC<MobileMenuCardsModalProps> = ({ isOp
   const pathname = usePathname();
 
 
-  const business = useLiveQuery(() => db.businesses.toCollection().first());
+  const business = useBusiness();
   const storeType = business?.business_type;
 
 

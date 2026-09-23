@@ -7,7 +7,7 @@ import { useTranslation } from '@/lib/i18n';
 import { Home, Receipt, LayoutGrid, BookOpen, Boxes, UtensilsCrossed, Pill, Shirt, Wrench } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MobileMenuCardsModal } from './MobileMenuCardsModal';
-import { useLiveQuery } from 'dexie-react-hooks';
+import { useBusiness } from '@/components/layout/BusinessProvider';
 import { db } from '@/lib/db';
 
 export const BottomNav: React.FC = () => {
@@ -15,7 +15,7 @@ export const BottomNav: React.FC = () => {
   const { t } = useTranslation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  const business = useLiveQuery(() => db.businesses.toCollection().first());
+  const business = useBusiness();
   const storeType = business?.business_type;
 
 

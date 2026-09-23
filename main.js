@@ -1,3 +1,4 @@
+require('v8-compile-cache');
 const { app, BrowserWindow, ipcMain, net, protocol, shell } = require('electron');
 const fs = require('fs');
 const os = require('os');
@@ -19,6 +20,12 @@ const OUT_DIR = path.join(__dirname, 'out');
 const DEV_URL = 'http://localhost:3000';
 const hasExport = fs.existsSync(path.join(OUT_DIR, 'index.html'));
 const isDevServer = process.argv.includes('--dev') || !hasExport;
+
+// ── Performance: force hardware-accelerated rendering on all GPUs ──
+app.commandLine.appendSwitch('enable-gpu-rasterization');
+app.commandLine.appendSwitch('enable-zero-copy');
+app.commandLine.appendSwitch('ignore-gpu-blocklist');
+app.commandLine.appendSwitch('js-flags', '--max-old-space-size=512');
 
 // A POS window partly covered by another app must keep rendering (Windows occlusion
 // tracking otherwise pauses it, which also stalls hidden print jobs).
@@ -64,12 +71,8 @@ function registerAppProtocol() {
     try {
       const { pathname } = new URL(request.url);
       const filePath = resolveExportFile(pathname);
-      const ext = path.extname(filePath).toLowerCase();
-      const mime = MIME_TYPES[ext] || 'application/octet-stream';
-      const data = await fs.promises.readFile(filePath);
-      return new Response(data, {
-        headers: { 'content-type': mime },
-      });
+      // Let Electron's net module handle the streaming natively!
+      return await net.fetch(pathToFileURL(filePath).toString());
     } catch {
       return new Response('Not Found', { status: 404 });
     }
@@ -88,7 +91,7 @@ function createWindow() {
     minHeight: 680,
     show: false,
     backgroundColor: '#f8fafc',
-    title: 'Retail POS',
+    title: 'KamaiPlus Desktop',
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -96,6 +99,7 @@ function createWindow() {
       nodeIntegration: false,
       sandbox: true,
       spellcheck: false,
+      backgroundThrottling: false,
     },
   });
 

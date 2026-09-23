@@ -3,14 +3,14 @@
 import React, { useState, useEffect } from 'react';
 import { HardDrive, Wifi, WifiOff, Printer, Clock } from 'lucide-react';
 import { APP_VERSION } from '@/lib/constants/version';
-import { useLiveQuery } from 'dexie-react-hooks';
+import { useBusiness } from '@/components/layout/BusinessProvider';
 import { db } from '@/lib/db';
 
 export const DesktopStatusBar: React.FC = () => {
   const [isOnline, setIsOnline] = useState<boolean>(true);
   const [currentTime, setCurrentTime] = useState<string>('');
 
-  const business = useLiveQuery(() => db.businesses.toCollection().first());
+  const business = useBusiness();
 
   useEffect(() => {
     setIsOnline(navigator.onLine);
