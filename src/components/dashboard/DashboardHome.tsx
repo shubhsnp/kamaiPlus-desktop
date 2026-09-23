@@ -7,12 +7,16 @@ import { useBusiness } from '@/components/layout/BusinessProvider';
 import { useTranslation } from '@/lib/i18n';
 import { Sale, Product } from '@/types';
 import { triggerBackgroundSync } from '@/lib/firebase/backgroundSync';
-import { InvoiceModal } from '@/components/invoices/InvoiceModal';
+import dynamic from 'next/dynamic';
 import { AdvancedAnalyticsBanner } from '@/components/dashboard/AdvancedAnalyticsBanner';
 import { getLocalDayRange, getSaleNetTotal, isRevenueSale } from '@/lib/sales/saleMath';
 import { computeDrawerSummary } from '@/lib/reports/cashDrawer';
 import { buildAdvancedReport, isProfitPartial } from '@/lib/reports/advancedReports';
-import { DayEndClosingReportModal } from '@/components/reports/DayEndClosingReportModal';
+
+const DayEndClosingReportModal = dynamic(
+  () => import('@/components/reports/DayEndClosingReportModal').then((m) => m.DayEndClosingReportModal),
+  { ssr: false }
+);
 
 // Modular Dashboard Sub-components
 import { TodayBusinessPulse } from '@/components/dashboard/TodayBusinessPulse';
@@ -196,15 +200,17 @@ export default function DashboardHome() {
 
       {/* 5. SHOP MANAGEMENT TOOLS (Compact 8-Tool Grid) */}
       <QuickToolsGrid productsCount={products.length} />
-      {/* Day-End Closing Z-Report Modal */}
-      <DayEndClosingReportModal
-        isOpen={isClosingReportOpen}
-        onClose={() => setIsClosingReportOpen(false)}
-        business={business}
-        sales={todaysSales}
-        expenses={todaysExpenses}
-        ledger={todaysLedger}
-      />
+      {/* Day-End Closing Z-Report Modal (Loaded on-demand only when opened) */}
+      {isClosingReportOpen && (
+        <DayEndClosingReportModal
+          isOpen={isClosingReportOpen}
+          onClose={() => setIsClosingReportOpen(false)}
+          business={business}
+          sales={todaysSales}
+          expenses={todaysExpenses}
+          ledger={todaysLedger}
+        />
+      )}
     </div>
   );
 }

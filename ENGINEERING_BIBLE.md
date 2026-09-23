@@ -1,7 +1,7 @@
 # 📕 KamaiPlus Desktop — Engineering Bible
 
 > **Canonical context file. Read this before touching any code.**
-> Last verified against the tree at v4.39.0, 2026‑09‑23.
+> Last verified against the tree at v4.40.0, 2026‑09‑23.
 
 This file exists so that an agent starting cold does **not** have to scan 180 source
 files, and does **not** re-solve problems that were already solved. Everything here

@@ -21,11 +21,8 @@ const DEV_URL = 'http://localhost:3000';
 const hasExport = fs.existsSync(path.join(OUT_DIR, 'index.html'));
 const isDevServer = process.argv.includes('--dev') || !hasExport;
 
-// ── Performance: force hardware-accelerated rendering on all GPUs ──
+// ── Performance: safe GPU rendering without buggy zero-copy driver deadlocks ──
 app.commandLine.appendSwitch('enable-gpu-rasterization');
-app.commandLine.appendSwitch('enable-zero-copy');
-app.commandLine.appendSwitch('ignore-gpu-blocklist');
-app.commandLine.appendSwitch('js-flags', '--max-old-space-size=512');
 
 // A POS window partly covered by another app must keep rendering (Windows occlusion
 // tracking otherwise pauses it, which also stalls hidden print jobs).
@@ -106,7 +103,8 @@ function createWindow() {
   mainWindow.once('ready-to-show', () => {
     mainWindow.maximize();
     mainWindow.show();
-    // Warm up the hidden print window so the first "Print" / "Save PDF" is instant.
+    // Warm up the hidden print window safely after initial UI has settled (15s),
+    // so it never competes with initial rendering or blocks clicks.
     setTimeout(() => {
       enqueuePrintJob(async () => {
         try {
@@ -117,7 +115,7 @@ function createWindow() {
           resetPrintWindow();
         }
       }).catch(() => {});
-    }, 1500);
+    }, 15000);
   });
 
   // Links to the web (help pages, UPI apps, etc.) open in the system browser.
