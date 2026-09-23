@@ -177,7 +177,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <Link
                     key={`${idx}-${item.href}-${item.label}`}
                     href={item.href}
-                    prefetch={true}
+                    prefetch={false}
                     title={isCollapsed ? item.label : undefined}
                     className={cn(
                       'group flex items-center rounded-lg font-bold transition-all leading-none',

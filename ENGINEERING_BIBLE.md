@@ -1,7 +1,7 @@
 # 📕 KamaiPlus Desktop — Engineering Bible
 
 > **Canonical context file. Read this before touching any code.**
-> Last verified against the tree at v4.40.0, 2026‑09‑23.
+> Last verified against the tree at v4.41.0, 2026‑09‑23.
 
 This file exists so that an agent starting cold does **not** have to scan 180 source
 files, and does **not** re-solve problems that were already solved. Everything here
@@ -71,7 +71,7 @@ versions. `next build` produces a static export in `out/`, and Electron serves i
 electron main process  (main.js)
  │
  ├─ registers custom scheme  app://kamaiplus   ← THE ORIGIN. NEVER CHANGE IT.
- │     serves ./out/** through protocol.handle + net.fetch
+ │     serves ./out/** through protocol.handle + fs.promises.readFile
  │
  ├─ hidden reusable print window (one, queued) ──► printToPDF / webContents.print
  │
@@ -342,7 +342,7 @@ src/app/layout.tsx          (server component — metadata, viewport, fonts)
     └── <AppShell>          'use client' — auth guard, route classification, lockout
         └── <BusinessProvider>            ◄── THE single db.businesses live query
             ├── <Navbar>                  store menu, language, lazy MerchantQRModal
-            ├── <Sidebar>                 4 sections, Ctrl+B collapse, prefetch={true}
+            ├── <Sidebar>                 4 sections, Ctrl+B collapse, prefetch={false}
             ├── <main>{children}</main>   ◄── the route renders here
             ├── <DesktopStatusBar>        online/printer/clock/version
             └── <GlobalDrawers>           right-edge Checkout + History pull-tabs

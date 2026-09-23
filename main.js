@@ -68,8 +68,15 @@ function registerAppProtocol() {
     try {
       const { pathname } = new URL(request.url);
       const filePath = resolveExportFile(pathname);
-      // Let Electron's net module handle the streaming natively!
-      return await net.fetch(pathToFileURL(filePath).toString());
+      const ext = path.extname(filePath).toLowerCase();
+      const mime = MIME_TYPES[ext] || 'application/octet-stream';
+      const data = await fs.promises.readFile(filePath);
+      return new Response(data, {
+        headers: {
+          'content-type': mime,
+          'cache-control': 'public, max-age=31536000, immutable',
+        },
+      });
     } catch {
       return new Response('Not Found', { status: 404 });
     }
