@@ -1,3 +1,8 @@
+> # 📜 HISTORICAL — superseded by [`ENGINEERING_BIBLE.md`](./ENGINEERING_BIBLE.md)
+>
+> A snapshot of an older version of the app. Useful as archaeology; do not treat any
+> file, component or behaviour named here as current without verifying it first.
+
 # 🏛️ KAMAI+ (KAMAIPLUS) MASTER PROJECT HANDOVER & ENGINEERING BLUEPRINT
 
 > **Version:** `v4.17.0` (Stable Production Snapshot)  

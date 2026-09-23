@@ -1,3 +1,22 @@
+> # ⛔ DO NOT USE THIS FILE — IT IS FICTION
+>
+> **Superseded by [`ENGINEERING_BIBLE.md`](./ENGINEERING_BIBLE.md).**
+>
+> Verified 2026-09-23: **all 27 component names in the table below are invented.**
+> `DashboardStatsCards`, `QuickActionGrid`, `ProductModal`, `KhataEntryModal`,
+> `BatchExpiryTable`, `ReorderSupplierCards`, `StockAdjustModal`, `SupplierModal`,
+> `PurchaseBillModal`, `DenominationCounter`, `CashInflowOutflowModal`,
+> `BarcodeDesigner`, `ThemeSelector`, `BackupExportEngine`, `RestoreModal`,
+> `Gstr1SummaryTable`, `HsnSummaryTable`, `ExcelExportButton`, `ReceiptPrintSheet`,
+> `ReturnRefundModal`, `CustomerModal`, `CustomerTable`, `EditTransactionModal`,
+> `WhatsAppReminderButton`, `RapidBarcodeInwardModal`, `CustomerAddModal` and
+> `DayEndReportModal` **do not exist in `src/` and never did.**
+>
+> An agent that trusts this file will hallucinate imports. Read the Bible instead:
+> its route ↔ component ↔ table matrix is generated from the source tree.
+>
+> Kept only as a record of what went wrong. Safe to delete.
+
 # 🗺️ KamaiPlus Feature & Dependency Registry
 
 > **Complete Component, Route, Database, and Side-Effect Matrix.**

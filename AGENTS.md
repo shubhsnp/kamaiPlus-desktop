@@ -14,6 +14,24 @@ You are working on **KamaiPlus (Kamai+)**, an offline-first Billing POS and Reta
 
 ---
 
+## 📕 RULE 0: READ `ENGINEERING_BIBLE.md` FIRST — BEFORE ANY CODE
+
+`ENGINEERING_BIBLE.md` in the repo root is the **canonical, code-verified map** of this
+application: routes, Dexie schema, which file writes which table, the sale-completion
+sequence, the print pipeline, the performance contract, and a registry of problems that
+are already solved and must not regress.
+
+1. **Open it before you plan or edit anything.** It exists so you do not have to scan
+   180 files, and so you do not re-break something that was already fixed.
+2. **Never invent a file, component, function or table name.** Verify it exists first
+   (`ls`, `rg`). `FEATURE_REGISTRY.md` is fiction — all 27 component names in it are
+   invented. Do not read or trust it. `SYSTEM_ARCHITECTURE.md`, `HANDOVER.md` and
+   `KamaiPlus_Complete_App_Documentation.md` are stale; the Bible lists exactly how.
+3. **If you discover the Bible is wrong, correct it in the same commit as your change.**
+   A stale map causes the exact double-work and hallucination it was written to prevent.
+4. **Every bug you fix gets an invariant** in SUITE 9 of `scripts/e2e_simulation.ts`
+   (or the fitting suite), so it cannot silently come back.
+
 ## 🎯 RULE 1: ATOMIC TASK ISOLATION & SURGICAL MODIFICATION (ONE THING AT A TIME)
 1. **Strict Single-Scope Focus:** Work on ONLY the specific button, feature, modal, or page requested by the user. Do NOT attempt to refactor, "clean up", or redesign adjacent components in the same prompt.
 2. **Zero Unsolicited Rewrites:** NEVER re-architect, simplify, or rewrite working features, styling, or handlers in existing files.

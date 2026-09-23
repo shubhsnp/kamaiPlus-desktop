@@ -644,6 +644,67 @@ assert(
   `The active business is read through BusinessProvider, not per page (live-query holders: ${bizQuery.map((f) => path.relative(SRC_ROOT, f)).join(', ') || 'none'})`
 );
 
+// --- 10. Documentation system: the map may not silently rot ---------------
+// ENGINEERING_BIBLE.md is what a cold agent reads instead of scanning the tree.
+// These assertions fail the build the moment the code drifts away from it.
+const REPO_ROOT = path.join(__dirname, '..');
+const bible = fs.readFileSync(path.join(REPO_ROOT, 'ENGINEERING_BIBLE.md'), 'utf8');
+const agentsMd = fs.readFileSync(path.join(REPO_ROOT, 'AGENTS.md'), 'utf8');
+
+assert(bible.length > 4000, 'ENGINEERING_BIBLE.md exists and is substantive');
+assert(
+  /RULE 0/.test(agentsMd) && agentsMd.includes('ENGINEERING_BIBLE.md'),
+  'AGENTS.md Rule 0 points every agent at ENGINEERING_BIBLE.md'
+);
+
+// Superseded docs must keep warning agents off, or be deleted outright.
+for (const stale of ['FEATURE_REGISTRY.md', 'SYSTEM_ARCHITECTURE.md', 'HANDOVER.md', 'KamaiPlus_Complete_App_Documentation.md']) {
+  const full = path.join(REPO_ROOT, stale);
+  const flagged = !fs.existsSync(full) || fs.readFileSync(full, 'utf8').slice(0, 400).includes('ENGINEERING_BIBLE.md');
+  assert(flagged, `Stale doc ${stale} is either deleted or banner-flagged as superseded`);
+}
+
+// Every route on disk must appear in the Bible's route table.
+const routeDirs = fs
+  .readdirSync(path.join(SRC_ROOT, 'app'), { withFileTypes: true })
+  .filter((d) => d.isDirectory() && fs.existsSync(path.join(SRC_ROOT, 'app', d.name, 'page.tsx')))
+  .map((d) => '/' + d.name);
+const undocumentedRoutes = routeDirs.filter((r) => !bible.includes('`' + r + '`'));
+assert(
+  undocumentedRoutes.length === 0,
+  `Every route is documented in ENGINEERING_BIBLE.md (missing: ${undocumentedRoutes.join(', ') || 'none'})`
+);
+
+// Every localStorage key the app uses must be listed in the Bible.
+const lsKeys = new Set<string>();
+const lsRegex = /localStorage\.(?:getItem|setItem|removeItem)\('([^']+)'/g;
+for (const f of ALL_SOURCE) {
+  const src = fs.readFileSync(f, 'utf8');
+  let match: RegExpExecArray | null;
+  while ((match = lsRegex.exec(src)) !== null) {
+    lsKeys.add(match[1]);
+  }
+}
+const undocumentedKeys = Array.from(lsKeys).filter((k) => !bible.includes(k));
+assert(
+  undocumentedKeys.length === 0,
+  `Every localStorage key is documented in ENGINEERING_BIBLE.md (missing: ${undocumentedKeys.join(', ') || 'none'})`
+);
+
+// Every Electron IPC channel must be documented.
+const mainJs = fs.readFileSync(path.join(REPO_ROOT, 'main.js'), 'utf8');
+const ipcRegex = /ipcMain\.handle\('([^']+)'/g;
+const ipcChannels: string[] = [];
+let ipcMatch: RegExpExecArray | null;
+while ((ipcMatch = ipcRegex.exec(mainJs)) !== null) {
+  ipcChannels.push(ipcMatch[1]);
+}
+const undocumentedIpc = ipcChannels.filter((c) => !bible.includes(c));
+assert(
+  ipcChannels.length > 0 && undocumentedIpc.length === 0,
+  `Every Electron IPC channel is documented (missing: ${undocumentedIpc.join(', ') || 'none'})`
+);
+
 // 🌙 SUITE 10: WhatsApp Daily Summary, Khata Payment Deep-Link & Hardware Quotation/Estimate
 console.log('\n🌙 SUITE 10: WhatsApp Daily Summary, Khata Payment Deep-Link & Hardware Quotation/Estimate');
 

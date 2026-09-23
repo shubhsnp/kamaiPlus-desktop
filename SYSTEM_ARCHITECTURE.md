@@ -1,3 +1,13 @@
+> # ⚠️ PARTLY STALE — superseded by [`ENGINEERING_BIBLE.md`](./ENGINEERING_BIBLE.md)
+>
+> Verified 2026-09-23. Known wrong below: it claims **React 19** (actually 18.3.1),
+> **Next.js 15** (actually 16.3.1), and **Supabase/PostgreSQL** as the server database
+> (the Supabase dependency was removed in v4.38.0 — nothing in the app uses it).
+> The "Reverse Handshake" auth it describes was dead code and has been deleted.
+>
+> **Still correct and worth reading:** the integer-paise financial invariant section.
+> For everything else use the Bible.
+
 # 🏛️ KamaiPlus (Kamai+) System Architecture & Engineering Blueprint
 
 > **Offline-First Billing POS, Digital Khata, and Retail Growth Engine for Indian Micro & Small Businesses.**
