@@ -2,13 +2,11 @@
 
 import React, { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { ensureStarterBusinessIfEmpty, db as localDb } from '@/lib/db';
+import { db as localDb } from '@/lib/db';
 import { AuthUser, getStoredUser, setStoredUser } from '@/lib/auth';
 import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
 import { DesktopStatusBar } from './DesktopStatusBar';
-import { subscriptionService } from '@/lib/subscription/subscriptionService';
-import { APP_VERSION } from '@/lib/constants/version';
 import { GlobalDrawers } from './GlobalDrawers';
 import { BusinessProvider } from './BusinessProvider';
 
@@ -18,37 +16,9 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const [isClient, setIsClient] = useState<boolean>(false);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [accountLockout, setAccountLockout] = useState<{ isFrozen: boolean; message: string } | null>(null);
-  const [forceUpdateInfo, setForceUpdateInfo] = useState<{
-    required: boolean;
-    minVersion: string;
-    latestVersion: string;
-    url: string;
-    changelog?: string;
-  } | null>(null);
-
-  // --- PERSISTENT STORAGE & OFFLINE RESILIENCY ---
+  // Ask the OS not to evict the shop's local database.
   useEffect(() => {
-    const requestPersistentStorage = async () => {
-      try {
-        if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.persist) {
-          const isPersisted = await navigator.storage.persist();
-          if (isPersisted) {
-            console.log('✅ IndexedDB persistent storage granted (OS will not evict local DB).');
-          } else {
-            console.log('ℹ️ Persistent storage not granted; standard IndexedDB storage active.');
-          }
-
-          if (navigator.storage.estimate) {
-            const { usage, quota } = await navigator.storage.estimate();
-            console.log(`💾 Storage quota: ${(usage! / (1024 * 1024)).toFixed(1)}MB used of ${(quota! / (1024 * 1024)).toFixed(1)}MB`);
-          }
-        }
-      } catch (err) {
-        console.warn('Storage persist check notice:', err);
-      }
-    };
-
-    requestPersistentStorage();
+    navigator.storage?.persist?.().catch(() => {});
   }, []);
 
   // --- 1. MOUNT SETUP: DB HYDRATION & EVENT LISTENERS ---
@@ -231,38 +201,6 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         </div>
       )}
 
-      {/* App Version Force Update Modal */}
-      {forceUpdateInfo && (
-        <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md animate-in fade-in">
-          <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-amber-200 text-center space-y-4">
-            <div className="w-16 h-16 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto shadow-xs">
-              <span className="text-3xl">🚀</span>
-            </div>
-            <div className="space-y-1">
-              <h2 className="text-lg font-black text-slate-900">
-                New Update Available!
-              </h2>
-              <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                A critical release <strong>v{forceUpdateInfo.latestVersion}</strong> is ready. Please update to continue using POS billing without interruption.
-              </p>
-            </div>
-            {forceUpdateInfo.changelog && (
-              <div className="p-3 bg-amber-50 rounded-2xl border border-amber-100 text-xs text-amber-950 text-left space-y-1">
-                <div className="font-bold text-[11px] uppercase tracking-wider text-amber-800">What's New:</div>
-                <div className="font-medium text-slate-700 leading-relaxed text-[11.5px]">{forceUpdateInfo.changelog}</div>
-              </div>
-            )}
-            <a
-              href={forceUpdateInfo.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block w-full py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs transition cursor-pointer shadow-lg shadow-amber-500/20"
-            >
-              Update Kamai+ App Now &rarr;
-            </a>
-          </div>
-        </div>
-      )}
 
       <Navbar />
       <div className="flex-1 flex w-full overflow-hidden min-h-0">

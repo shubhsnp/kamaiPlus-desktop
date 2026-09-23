@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslation } from '@/lib/i18n';
@@ -21,15 +21,10 @@ import {
   HardDrive,
   LineChart,
   PanelLeftClose,
-  PanelLeftOpen,
-  ChevronLeft,
-  ChevronRight
+  PanelLeftOpen
 } from 'lucide-react';
 import { APP_VERSION } from '@/lib/constants/version';
 import { cn } from '@/lib/utils';
-import { useProSubscription } from '@/components/subscription/ProFeatureGate';
-import { useBusiness } from '@/components/layout/BusinessProvider';
-import { db } from '@/lib/db';
 
 interface SidebarProps {
   isCollapsed?: boolean;
@@ -42,9 +37,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const pathname = usePathname();
   const { t } = useTranslation();
-  const { isPro } = useProSubscription();
-
-  const business = useBusiness();
 
   const [internalCollapsed, setInternalCollapsed] = useState<boolean>(false);
 
@@ -59,19 +51,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const isCollapsed = controlledCollapsed !== undefined ? controlledCollapsed : internalCollapsed;
 
-  const handleToggle = () => {
+  const handleToggle = useCallback(() => {
     if (controlledToggle) {
       controlledToggle();
-    } else {
-      const next = !internalCollapsed;
-      setInternalCollapsed(next);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('kamai_sidebar_collapsed', String(next));
-      }
+      return;
     }
-  };
+    setInternalCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('kamai_sidebar_collapsed', String(next));
+      } catch {}
+      return next;
+    });
+  }, [controlledToggle]);
 
-  // Keyboard shortcut: Ctrl + B to toggle sidebar
+  // Keyboard shortcut: Ctrl + B to toggle sidebar. Bound once — it used to be
+  // re-registered on every single render of the shell.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
@@ -81,17 +76,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  });
+  }, [handleToggle]);
 
-  // Generic Retail Labels
-  const productsLabel = t('nav.products') || 'Products';
-  const ProductsIcon = Package;
-  const productsBg = 'bg-blue-100 text-blue-800';
-  const inventoryLabel = 'Inventory & Stock';
-  const purchasesLabel = 'Purchases & Bills';
-  const stockSectionTitle = 'Stock & Sourcing';
-
-  const sections = [
+  const sections = useMemo(() => [
     {
       title: 'POS & Counter',
       dotColor: 'bg-emerald-500',
@@ -105,12 +92,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ],
     },
     {
-      title: stockSectionTitle,
+      title: 'Stock & Sourcing',
       dotColor: 'bg-blue-500',
       items: [
-        { href: '/products', label: productsLabel, icon: ProductsIcon, iconBg: productsBg, activeIcon: 'text-blue-300' },
-        { href: '/inventory', label: inventoryLabel, icon: Boxes, iconBg: 'bg-cyan-100 text-cyan-800', activeIcon: 'text-cyan-300' },
-        { href: '/purchases', label: purchasesLabel, icon: ShoppingBag, iconBg: 'bg-amber-100 text-amber-800', activeIcon: 'text-amber-300' },
+        { href: '/products', label: t('nav.products') || 'Products', icon: Package, iconBg: 'bg-blue-100 text-blue-800', activeIcon: 'text-blue-300' },
+        { href: '/inventory', label: 'Inventory & Stock', icon: Boxes, iconBg: 'bg-cyan-100 text-cyan-800', activeIcon: 'text-cyan-300' },
+        { href: '/purchases', label: 'Purchases & Bills', icon: ShoppingBag, iconBg: 'bg-amber-100 text-amber-800', activeIcon: 'text-amber-300' },
       ],
     },
     {
@@ -131,7 +118,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { href: '/settings', label: t('nav.settings') || 'Settings', icon: Settings, iconBg: 'bg-slate-100 text-slate-700', activeIcon: 'text-slate-300' },
       ],
     },
-  ];
+  ], [t]);
 
   return (
     <aside 

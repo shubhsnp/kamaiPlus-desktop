@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useBusiness } from '@/components/layout/BusinessProvider';
 import { CheckCircle2, Download, Eye, Palette, Printer, Save } from 'lucide-react';
 import { db } from '@/lib/db';
 import { InvoiceThemeConfig } from '@/types';
@@ -23,7 +24,7 @@ import { DisplayOptionsSection, TermsFooterSection, ThemeColorSection } from '@/
  * exactly what prints and what the PDF contains.
  */
 export default function InvoiceDesignerPage() {
-  const business = useLiveQuery(async () => db.businesses.toCollection().first());
+  const business = useBusiness();
   const [config, setConfig] = useState<InvoiceThemeConfig | null>(null);
   const [format, setFormat] = useState<PaperFormat>('a4');
   const [doc, setDoc] = useState<InvoiceDocument | null>(null);

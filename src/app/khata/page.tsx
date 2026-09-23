@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { db } from '@/lib/db';
 import { localDateKey } from '@/lib/reports/cashDrawer';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useBusiness } from '@/components/layout/BusinessProvider';
 import { useTranslation } from '@/lib/i18n';
 import { formatINR } from '@/lib/utils';
 import { validateCustomerData } from '@/lib/validation/validators';
@@ -115,7 +116,7 @@ function KhataContent() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  const business = useLiveQuery(async () => db.businesses.toCollection().first());
+  const business = useBusiness();
 
   const allCustomers = useLiveQuery(async () => {
     return await db.customers.toArray();

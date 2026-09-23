@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useBusiness } from '@/components/layout/BusinessProvider';
 import { useTranslation } from '@/lib/i18n';
 import { formatINR } from '@/lib/utils';
 import { Product } from '@/types';
@@ -67,7 +68,7 @@ interface LabelItem {
 export default function BarcodeGeneratorPage() {
   const { isPro, requirePro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
   const { language } = useTranslation();
-  const business = useLiveQuery(async () => db.businesses.toCollection().first());
+  const business = useBusiness();
   const allProducts = useLiveQuery(async () => {
     const prods = await db.products.toArray();
     return prods.filter((p) => p.is_active !== false);

@@ -1,21 +1,15 @@
-import { BusinessType, ProductUnit, ModuleId } from '@/types';
+import { ProductUnit } from '@/types';
 
-export interface StoreProfileProduct {
-  name: string;
-  category: string;
-  unit: ProductUnit;
-  selling_price: number; // in paise
-  purchase_price: number; // in paise
-  mrp: number; // in paise
-  tax_rate: number; // percentage
-  is_loose_item?: boolean;
-  batch_number?: string;
-  expiry_date?: string;
-  size?: string;
-  color?: string;
-  warranty_period_months?: number;
-  barcode?: string;
-}
+/**
+ * KamaiPlus is a single, universal retail product.
+ *
+ * This file used to carry one "store profile" per business vertical (kirana,
+ * pharmacy, restaurant, apparel, electronics, hardware…), each with its own
+ * module list, feature toggles, placeholders and sample catalogue. Every screen
+ * then branched on the shop's `business_type`. All of that is gone: there is one
+ * POS, and what is left here is the shared unit master and the starter
+ * categories used when a brand new shop is seeded.
+ */
 
 export interface UnitOption {
   id: ProductUnit;
@@ -43,123 +37,11 @@ export const MASTER_UNITS: UnitOption[] = [
   { id: 'custom', labelEn: 'Custom Unit', labelHi: 'अन्य / कस्टम', symbol: 'unit' },
 ];
 
-export interface StoreProfile {
-  id: BusinessType;
-  name: string;
-  shortName: string;
-  iconName: string;
-  emoji: string;
-  tagline: string;
-  description: string;
-  accentColor: string;
-  badgeBg: string;
-  
-  // Enabled Modules
-  modules: ModuleId[];
+/** Default unit offered when a new product is created. */
+export const DEFAULT_UNIT: ProductUnit = 'piece';
 
-  // Dynamic UI Feature Toggles
-  featureToggles: {
-    showBarcode: boolean;
-    showWeightUnits: boolean;
-    showBatchExpiry: boolean;
-    showTableOrderType: boolean;
-    showSizeVariants: boolean;
-    showImeiWarranty: boolean;
-    showDoctorPrescription: boolean;
-    showKOTToken: boolean;
-    hasBillScan: boolean;
-    showQuotationEstimate: boolean;
-  };
+/** Units surfaced first in pickers, before the full master list. */
+export const RECOMMENDED_UNITS: ProductUnit[] = ['piece', 'packet', 'kg', 'box'];
 
-  // Dynamic Input Placeholders
-  placeholders: {
-    searchProduct: string;
-    newProductName: string;
-    customerSearch: string;
-    customerNotes: string;
-    invoiceFooterNote: string;
-  };
-
-  defaultUnit: ProductUnit;
-  recommendedUnits: ProductUnit[];
-  quickCategories: string[];
-  sampleProducts: StoreProfileProduct[];
-}
-
-export const RETAIL_PROFILE: StoreProfile = {
-  id: 'retail',
-  name: 'Retail POS',
-  shortName: 'Retail',
-  iconName: 'store',
-  emoji: '🛍️',
-  tagline: 'General Retail POS',
-  description: 'Smart billing & inventory for all retail stores.',
-  accentColor: 'blue',
-  badgeBg: 'bg-blue-100 text-blue-800',
-  modules: [
-    'POS', 'INVENTORY', 'KHATA', 'CUSTOMERS', 
-    'SUPPLIERS', 'GST', 'BARCODE', 'WEIGHT', 
-    'BATCH_EXPIRY', 'REPORTS', 'PURCHASES', 'EXPENSES'
-  ],
-  featureToggles: {
-    showBarcode: true,
-    showWeightUnits: true,
-    showBatchExpiry: true,
-    showTableOrderType: false,
-    showSizeVariants: true,
-    showImeiWarranty: false,
-    showDoctorPrescription: false,
-    showKOTToken: false,
-    hasBillScan: true,
-    showQuotationEstimate: false,
-  },
-  placeholders: {
-    searchProduct: 'Search products by name or barcode (F3)...',
-    newProductName: 'e.g. Rice 1kg, T-Shirt, Soap...',
-    customerSearch: 'Search Customer by Mobile or Name...',
-    customerNotes: 'Add remarks for customer bill...',
-    invoiceFooterNote: 'Thank you for shopping! Visit Again.',
-  },
-  defaultUnit: 'piece',
-  recommendedUnits: ['piece', 'packet', 'kg', 'box'],
-  quickCategories: ['General', 'FMCG', 'Loose Items', 'Apparel', 'Accessories'],
-  sampleProducts: [
-    {
-      name: 'Sample Item (Box)',
-      category: 'General',
-      unit: 'box',
-      selling_price: 15000,
-      purchase_price: 12000,
-      mrp: 19900,
-      tax_rate: 18,
-    }
-  ]
-};
-
-/**
- * Returns the StoreProfile configuration for a given business type.
- * Always returns RETAIL_PROFILE now to enforce generic retail standard.
- */
-export function getStoreProfile(businessType?: string | null): StoreProfile {
-  return RETAIL_PROFILE;
-}
-
-export function hasModule(businessType: BusinessType | string | null | undefined, moduleId: ModuleId): boolean {
-  return RETAIL_PROFILE.modules.includes(moduleId);
-}
-
-export function isModuleEnabled(profile: StoreProfile, moduleId: ModuleId): boolean {
-  return profile.modules ? profile.modules.includes(moduleId) : false;
-}
-
-export function getAllStoreProfiles(): StoreProfile[] {
-  return [RETAIL_PROFILE];
-}
-
-export function getCategoryRecommendedUnits(businessType?: string | null): ProductUnit[] {
-  return RETAIL_PROFILE.recommendedUnits;
-}
-
-export function getCategoryPlaceholders(businessType?: string | null): StoreProfile['placeholders'] {
-  return RETAIL_PROFILE.placeholders;
-}
+/** Categories created for a brand new shop so the catalogue is never empty. */
+export const STARTER_CATEGORIES: string[] = ['General', 'FMCG', 'Loose Items', 'Apparel', 'Accessories'];

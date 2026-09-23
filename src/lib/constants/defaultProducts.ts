@@ -1,4 +1,4 @@
-﻿import { BusinessType, Product, ProductUnit } from '@/types';
+﻿import { Product, ProductUnit } from '@/types';
 import { db } from '@/lib/db';
 
 export interface SeedProductDefinition {
@@ -17,19 +17,10 @@ export interface SeedProductDefinition {
 }
 
 /**
- * Default Category-Specific Indian Retail Products Dictionary
- * Mapped to the 8 Primary Business Categories:
- * 1. Kirana & Grocery (grocery)
- * 2. Medical Store & Pharmacy (pharmacy)
- * 3. Cafe & Restaurant (restaurant)
- * 4. Clothing & Footwear (clothing)
- * 5. Electronics & Mobile (electronics / mobile)
- * 6. Hardware & Sanitary (hardware)
- * 7. Electrical Goods (electrical)
- * 8. FMCG & Supermarket (fmcg)
+ * Starter catalogue seeded into a brand new shop so the POS grid is never empty.
+ * One universal list — the app no longer keeps a separate catalogue per trade.
  */
-export const DEFAULT_CATEGORY_PRODUCTS: Record<string, SeedProductDefinition[]> = {
-  grocery: [
+export const DEFAULT_STARTER_PRODUCTS: SeedProductDefinition[] = [
     {
       name: 'Standard Phuljhadi (Sparklers) - 10 pcs',
       category: 'Sparklers',
@@ -160,45 +151,21 @@ export const DEFAULT_CATEGORY_PRODUCTS: Record<string, SeedProductDefinition[]> 
       is_tax_inclusive: true,
       hsn_code: '3604',
     }
-  ]
-};
+];
 
-// Legacy Niche Aliases Mapper
-const LEGACY_PRODUCT_MAP: Record<string, string> = {
-  fmcg: 'grocery',
-  bakery: 'restaurant',
-  electrical: 'hardware',
-  electronics: 'hardware',
-  mobile: 'hardware',
-  salon: 'clothing',
-  stationery: 'grocery',
-  services: 'hardware',
-  other: 'grocery',
-};
+/** Back-compat alias for callers that still ask for "the default products". */
+export const DEFAULT_CATEGORY_PRODUCTS: SeedProductDefinition[] = DEFAULT_STARTER_PRODUCTS;
 
-/**
- * Returns default seed products for a given business category
- */
-export function getDefaultProductsForCategory(businessType?: BusinessType | string): SeedProductDefinition[] {
-  const typeKey = (businessType || 'grocery').toLowerCase();
-  if (DEFAULT_CATEGORY_PRODUCTS[typeKey]) {
-    return DEFAULT_CATEGORY_PRODUCTS[typeKey];
-  }
-  const mapped = LEGACY_PRODUCT_MAP[typeKey];
-  if (mapped && DEFAULT_CATEGORY_PRODUCTS[mapped]) {
-    return DEFAULT_CATEGORY_PRODUCTS[mapped];
-  }
-  return DEFAULT_CATEGORY_PRODUCTS['grocery'];
+/** Returns the universal starter product list. */
+export function getDefaultProductsForCategory(): SeedProductDefinition[] {
+  return DEFAULT_STARTER_PRODUCTS;
 }
 
 /**
- * Auto-populates the local Dexie.js products and categories table with category-specific items
+ * Auto-populates the local Dexie products and categories tables with the starter items
  */
-export async function seedCategoryDefaultProducts(
-  businessId: string,
-  businessType: BusinessType | string
-): Promise<Product[]> {
-  const seedDefs = getDefaultProductsForCategory(businessType);
+export async function seedCategoryDefaultProducts(businessId: string): Promise<Product[]> {
+  const seedDefs = getDefaultProductsForCategory();
   const now = new Date().toISOString();
 
   // 1. Extract unique categories and ensure they exist in db.categories

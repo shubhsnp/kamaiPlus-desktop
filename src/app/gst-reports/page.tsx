@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useBusiness } from '@/components/layout/BusinessProvider';
 import { formatINR } from '@/lib/utils';
 import { 
   generateGSTR1Report, 
@@ -27,7 +28,7 @@ export type GSTPeriodPreset = 'this_month' | 'last_month' | 'q1' | 'q2' | 'q3' |
 
 export default function GSTReportsPage() {
   const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
-  const business = useLiveQuery(async () => db.businesses.toCollection().first());
+  const business = useBusiness();
   const customers = useLiveQuery(async () => db.customers.toArray()) || [];
 
   // Filter States

@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/Button';
 import { Sale, Customer, Business } from '@/types';
 import { formatINR, generateUPILink } from '@/lib/utils';
 import { numberToWordsINR } from '@/lib/invoices/gstCalculator';
-import { downloadInvoicePdfFromElement } from '@/lib/invoices/pdfGenerator';
 import QRCode from 'qrcode';
 import { 
   Printer, 
@@ -126,6 +125,7 @@ export function ConsolidatedStatementModal({
       await new Promise((r) => setTimeout(r, 60));
       const targetEl = document.getElementById('modal-consolidated-statement') || el;
       const fileName = `Statement_${customer?.name?.replace(/\s+/g, '_') || 'Customer'}_${Date.now()}.pdf`;
+      const { downloadInvoicePdfFromElement } = await import('@/lib/invoices/pdfGenerator');
       await downloadInvoicePdfFromElement(targetEl, fileName);
       showToast('✅ Statement PDF downloaded successfully!');
     } catch (err: any) {

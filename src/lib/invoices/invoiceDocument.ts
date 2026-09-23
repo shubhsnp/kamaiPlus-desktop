@@ -254,13 +254,6 @@ export function buildInvoiceDocument(sale: Sale, business: Business, options: Bu
   // Billed-to block
   const detailParts: string[] = [];
   if (sale.customer_phone) detailParts.push(`Ph: ${sale.customer_phone}`);
-  if (sale.table_no) detailParts.push(`Table: ${sale.table_no}`);
-  if (sale.order_type && sale.order_type !== 'counter') {
-    detailParts.push(sale.order_type === 'takeaway' ? 'Takeaway' : sale.order_type === 'delivery' ? 'Delivery' : 'Dine-In');
-  }
-  if (sale.token_number) detailParts.push(`Token #${sale.token_number}`);
-  if (sale.doctor_name) detailParts.push(`Dr: ${sale.doctor_name}`);
-  if (sale.patient_name) detailParts.push(`Patient: ${sale.patient_name}`);
 
   // Rows
   const rows: InvoiceRow[] = items.map((item, idx) => {

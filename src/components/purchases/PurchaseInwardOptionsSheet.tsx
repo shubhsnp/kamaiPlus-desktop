@@ -27,7 +27,6 @@ import { scanPurchaseBill } from '@/lib/ai/geminiClient';
 interface PurchaseInwardOptionsSheetProps {
   isOpen: boolean;
   onClose: () => void;
-  businessType?: string;
   businessId?: string;
   existingProducts: Product[];
   onManualInwardClick: () => void;
@@ -87,7 +86,6 @@ async function readPdfAsBase64(file: File): Promise<string> {
 export function PurchaseInwardOptionsSheet({
   isOpen,
   onClose,
-  businessType,
   businessId = 'biz_default',
   existingProducts,
   onManualInwardClick,
@@ -296,18 +294,14 @@ export function PurchaseInwardOptionsSheet({
               <div>
                 <div className="flex items-center gap-2">
                   <span className="text-base font-black text-slate-900 dark:text-white">
-                    {businessType === 'restaurant' || businessType === 'cafe' || businessType === 'bakery'
-                      ? 'AI Menu Card Scanner & Intake'
-                      : 'AI Wholesale Invoice & Inward'}
+                    {'AI Wholesale Invoice & Inward'}
                   </span>
                   <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 text-[10px] font-black uppercase">
                     AI Vision
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  {businessType === 'restaurant' || businessType === 'cafe' || businessType === 'bakery'
-                    ? 'Take a photo of your printed menu card or tariff board to auto-add all food items & rates.'
-                    : 'Scan wholesale invoices, parchas, or upload PDFs to auto-add products, prices & stock.'}
+                  {'Scan wholesale invoices, parchas, or upload PDFs to auto-add products, prices & stock.'}
                 </p>
               </div>
 
@@ -329,9 +323,7 @@ export function PurchaseInwardOptionsSheet({
                     {processingStatus || 'Processing with AI Vision...'}
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">
-                    {businessType === 'restaurant' || businessType === 'cafe' || businessType === 'bakery'
-                      ? 'Extracting dishes, categories & prices from menu card'
-                      : 'Extracting products, quantities & cost rates from invoice'}
+                    {'Extracting products, quantities & cost rates from invoice'}
                   </p>
                 </div>
               </div>
@@ -350,18 +342,14 @@ export function PurchaseInwardOptionsSheet({
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
-                          {businessType === 'restaurant' || businessType === 'cafe' || businessType === 'bakery'
-                            ? '📸 Scan Menu Card Photo'
-                            : '📸 Scan Bill / Parcha Photo'}
+                          {'📸 Scan Bill / Parcha Photo'}
                         </span>
                         <span className="px-1.5 py-0.2 rounded-md bg-amber-500 text-slate-950 text-[9px] font-black uppercase tracking-tight">
                           Recommended
                         </span>
                       </div>
                       <div className="text-[11px] text-amber-900 dark:text-amber-300 font-medium truncate mt-0.5">
-                        {businessType === 'restaurant' || businessType === 'cafe' || businessType === 'bakery'
-                          ? 'Point camera at printed menu card or board'
-                          : 'Camera photo of invoice, slip or wholesale parcha'}
+                        {'Camera photo of invoice, slip or wholesale parcha'}
                       </div>
                     </div>
                   </div>
@@ -381,9 +369,7 @@ export function PurchaseInwardOptionsSheet({
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
-                          {businessType === 'restaurant' || businessType === 'cafe' || businessType === 'bakery'
-                            ? 'Upload Menu PDF / File'
-                            : 'Upload Invoice PDF'}
+                          {'Upload Invoice PDF'}
                         </span>
                         <span className="px-1.5 py-0.2 rounded-md bg-sky-600 text-white text-[9px] font-black uppercase tracking-tight">
                           Faster
@@ -440,9 +426,7 @@ export function PurchaseInwardOptionsSheet({
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
-                          {businessType === 'restaurant' || businessType === 'cafe' || businessType === 'bakery'
-                            ? 'Add Single Dish Manually'
-                            : 'Add Single Item Manually'}
+                          {'Add Single Item Manually'}
                         </span>
                         <span className="px-1.5 py-0.2 rounded-md bg-purple-600 text-white text-[9px] font-black uppercase tracking-tight">
                           Manual Form

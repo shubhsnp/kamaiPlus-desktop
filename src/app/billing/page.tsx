@@ -9,9 +9,9 @@ import { formatINR, parseRupeesToPaise, generateUPILink, cn } from '@/lib/utils'
 import { allocateBillDiscount, computeBillTotals, isLineTaxInclusive } from '@/lib/sales/saleMath';
 import QRCode from 'qrcode';
 import { playBeepSound } from '@/lib/voice/speechParser';
-import { PlatformAnalytics } from '@/lib/firebase/analytics';
 import { getNextUniqueInvoiceNumber, commitNextInvoiceNumber, formatInvoiceNumber } from '@/lib/invoices/invoiceNumberService';
 import { useDebounce } from 'use-debounce';
+import { useBusiness } from '@/components/layout/BusinessProvider';
 import { VirtuosoGrid } from 'react-virtuoso';
 import { 
   Search, 
@@ -57,16 +57,12 @@ import dynamic from 'next/dynamic';
 import { useHardwareBarcodeScanner } from '@/lib/hardware/barcodeScannerListener';
 
 import { CustomerSearchAutocomplete } from '@/components/customers/CustomerSearchAutocomplete';
-import { getStoreProfile } from '@/lib/constants/storeProfiles';
 import { useProSubscription } from '@/components/subscription/ProFeatureGate';
 import { Sale } from '@/types';
 
 import { paymentBridge } from '@/lib/payments/paymentBridge';
 import { ParsedPaymentEvent } from '@/lib/payments/notificationParser';
-import { getFirestoreDb } from '@/lib/firebase/config';
-import { doc, setDoc } from 'firebase/firestore';
-import { sanitizeForFirestore } from '@/lib/firebase/firestoreSync';
-import { triggerBackgroundSync } from '@/lib/firebase/backgroundSync';
+import { cloudMerge, cloudSyncSoon, cloudTrackInvoice, prewarmCloud } from '@/lib/firebase/lazyCloud';
 import { getDesktopApi } from '@/lib/desktop/desktopBridge';
 import { resolveInvoiceConfig } from '@/lib/invoices/themeDefaults';
 import { getPrimaryUpiVpa, buildInvoiceDocument } from '@/lib/invoices/invoiceDocument';
@@ -113,14 +109,9 @@ export interface BillTab {
   splitCredit: string;
   billDiscountType?: 'flat' | 'percentage';
   billDiscountValue?: string;
-  tableNo?: string;
-  orderType?: 'dine_in' | 'takeaway' | 'delivery';
-  doctorName?: string;
-  patientName?: string;
   isHeld: boolean;
   heldAt?: string;
   holdNote?: string;
-  isQuotation?: boolean;
 }
 
 const TABS_STORAGE_KEY = 'kamai_pos_tabs';
@@ -150,26 +141,9 @@ function getInitialTabs(): { tabs: BillTab[]; activeTabId: string } {
     splitCredit: '',
     billDiscountType: 'flat',
     billDiscountValue: '',
-    orderType: 'dine_in',
     isHeld: false,
-    isQuotation: false,
   };
   return { tabs: [defaultTab], activeTabId: 'tab_1' };
-}
-
-export function extractTabletsPerStrip(productName: string): number {
-  if (!productName) return 10;
-  const match =
-    productName.match(/\((\d+)\s*(?:tabs?|tablets?|caps?|capsules?|'s)?\)/i) ||
-    productName.match(/(\d+)\s*(?:tabs?|tablets?|caps?|capsules?)\b/i) ||
-    productName.match(/pack\s*of\s*(\d+)/i);
-  if (match && match[1]) {
-    const parsed = parseInt(match[1], 10);
-    if (!isNaN(parsed) && parsed > 0 && parsed <= 120) {
-      return parsed;
-    }
-  }
-  return 10; // Default Indian pharmacy strip packaging size
 }
 
 // Memoized Product Card to prevent re-rendering the entire 200-item grid on every cart update
@@ -294,16 +268,6 @@ export default function BillingPage() {
   const splitCredit = activeTab.splitCredit;
   const billDiscountType = activeTab.billDiscountType || 'flat';
   const billDiscountValue = activeTab.billDiscountValue || '';
-  const tableNo = activeTab.tableNo || '';
-  const orderType = activeTab.orderType;
-  const doctorName = activeTab.doctorName || '';
-  const patientName = activeTab.patientName || '';
-  const isQuotation = Boolean(activeTab.isQuotation);
-
-  const setIsQuotation = (val: boolean) => {
-    updateActiveTab((tab) => ({ ...tab, isQuotation: val }));
-  };
-
   // Persist tabs in localStorage
   useEffect(() => {
     try {
@@ -360,22 +324,6 @@ export default function BillingPage() {
     updateActiveTab((tab) => ({ ...tab, billDiscountValue: val }));
   };
 
-  const setTableNo = (val: string) => {
-    updateActiveTab((tab) => ({ ...tab, tableNo: val }));
-  };
-
-  const setOrderType = (val: 'dine_in' | 'takeaway' | 'delivery') => {
-    updateActiveTab((tab) => ({ ...tab, orderType: val }));
-  };
-
-  const setDoctorName = (val: string) => {
-    updateActiveTab((tab) => ({ ...tab, doctorName: val }));
-  };
-
-  const setPatientName = (val: string) => {
-    updateActiveTab((tab) => ({ ...tab, patientName: val }));
-  };
-
   // Tab Actions: Create New Tab, Hold Tab, Close Tab
   const handleCreateNewTab = () => {
     if (!isPro && tabs.length >= 3) {
@@ -396,7 +344,6 @@ export default function BillingPage() {
       splitCard: '',
       splitCredit: '',
       isHeld: false,
-      isQuotation: false,
     };
     setTabs((prev) => [...prev, newTab]);
     setActiveTabId(newTabId);
@@ -444,7 +391,6 @@ export default function BillingPage() {
         splitCard: '',
         splitCredit: '',
         isHeld: false,
-        isQuotation: false,
       }]);
       setActiveTabId('tab_1');
       return;
@@ -466,9 +412,6 @@ export default function BillingPage() {
   const [editItemPrice, setEditItemPrice] = useState<string>('');
   const [editItemDiscount, setEditItemDiscount] = useState<string>('0');
   const [editItemDiscountType, setEditItemDiscountType] = useState<'flat' | 'percentage'>('flat');
-  const [pharmacySellMode, setPharmacySellMode] = useState<'tablets' | 'strips'>('tablets');
-  const [selectedPackSize, setSelectedPackSize] = useState<number>(10);
-  const [looseTabsInput, setLooseTabsInput] = useState<string>('1');
   
   // Quick Add Customer State
   const [isAddCustomerModalOpen, setIsAddCustomerModalOpen] = useState(false);
@@ -518,7 +461,7 @@ export default function BillingPage() {
     setIsSeedingProducts(true);
     try {
       const biz = business || (await ensureStarterBusinessIfEmpty());
-      await seedBusinessStarterData(biz.id, biz.business_type || 'grocery');
+      await seedBusinessStarterData(biz.id);
       showBillingToast('✅ Loaded default catalog products!', 'success');
     } catch (err: any) {
       showBillingToast(`Failed to load sample products: ${err?.message}`, 'error');
@@ -527,26 +470,33 @@ export default function BillingPage() {
     }
   };
 
-  const business = useLiveQuery(async () => db.businesses.toCollection().first());
-  const isRestaurant = false;
-  const isPharmacy = false;
-  const storeProfile = getStoreProfile(business?.business_type);
+  const business = useBusiness();
   const categories = useLiveQuery(async () => db.categories.toArray()) || [];
   const customers = useLiveQuery(async () => db.customers.toArray()) || [];
-  
+
   const totalProductCount = useLiveQuery(() => db.products.count()) || 0;
-  
+
+  // One indexed pass over the category column instead of one count() query per
+  // category (a shop with 30 categories used to fire 30 serial IndexedDB reads
+  // every time the counter screen opened).
   const categoryCounts = useLiveQuery(async () => {
     const counts: Record<string, number> = {};
-    for (const cat of categories) {
-      counts[cat.id] = await db.products.where('category_id').equals(cat.id).count();
-    }
+    await db.products.orderBy('category_id').eachKey((key) => {
+      const id = String(key);
+      counts[id] = (counts[id] || 0) + 1;
+    });
     return counts;
-  }, [categories]) || {};
+  }, []) || {};
 
   const [debouncedSearch] = useDebounce(searchQuery, 300);
   
   const [products, setProducts] = useState<any[]>([]);
+
+  // Pull the cloud-sync bundle in while the cashier is still picking items, so
+  // the first bill of the day does not wait for it.
+  useEffect(() => {
+    prewarmCloud();
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -607,9 +557,7 @@ export default function BillingPage() {
     }, 0);
 
   // Whether GST is added on top of prices (Exclusive) vs included in prices (Inclusive)
-  const isBusinessGstExclusive = 
-    business?.gst_pricing_mode === 'exclusive' || 
-    (business?.business_type === 'restaurant' && business?.gst_pricing_mode !== 'inclusive');
+  const isBusinessGstExclusive = business?.gst_pricing_mode === 'exclusive';
 
   const calculateItemTax = (lineTotal: number, taxRate: number, isProductInclusive?: boolean) => {
     if (!taxRate || taxRate <= 0 || lineTotal <= 0) return 0;
@@ -655,15 +603,10 @@ export default function BillingPage() {
         created_at: now,
       });
 
-      // Direct cloud sync to prevent stale overwrite
-      try {
-        const firestore = getFirestoreDb();
-        const bizId = product.business_id || business?.id;
-        if (firestore && bizId && bizId !== 'biz_default') {
-          await setDoc(doc(firestore, `businesses/${bizId}/products/${product.id}`), sanitizeForFirestore(updatedProduct), { merge: true });
-        }
-      } catch (cloudErr) {
-        // Non-blocking offline fallback
+      // Direct cloud sync to prevent stale overwrite (never blocks the cart)
+      const bizId = product.business_id || business?.id;
+      if (bizId && bizId !== 'biz_default') {
+        void cloudMerge(`businesses/${bizId}/products/${product.id}`, updatedProduct);
       }
 
       addToCart(updatedProduct, billQty);
@@ -806,13 +749,6 @@ export default function BillingPage() {
     setEditItemPrice((item.unit_price / 100).toString());
     setEditItemDiscount(((item.discount_amount || 0) / 100).toString());
     setEditItemDiscountType('flat');
-
-    // Detect packaging size for pharmacy tablets / strips
-    const pack = extractTabletsPerStrip(item.product_name);
-    setSelectedPackSize(pack);
-    const calculatedTabs = Math.max(1, Math.round(item.quantity * pack));
-    setLooseTabsInput(String(calculatedTabs));
-    setPharmacySellMode(item.quantity < 1 || item.quantity % 1 !== 0 ? 'tablets' : 'strips');
   };
 
   const handleSaveEditItem = () => {
@@ -1087,7 +1023,7 @@ export default function BillingPage() {
       const { invoiceNumber, nextSeq } = await getNextUniqueInvoiceNumber(businessId);
       const now = new Date().toISOString();
 
-      const finalInvoiceNumber = isQuotation ? `EST-${nextSeq}` : invoiceNumber;
+      const finalInvoiceNumber = invoiceNumber;
 
       let finalMethod: PaymentMethod = explicitPayment ? 'upi' : paymentMethod;
       let receivedPaise = 0;
@@ -1141,20 +1077,14 @@ export default function BillingPage() {
         discount_total: discountTotalPaise,
         tax_total: taxTotalPaise,
         grand_total: grandTotalPaise,
-        payment_method: isQuotation ? 'cash' : finalMethod,
-        payment_split: isQuotation ? undefined : paymentSplitData,
-        amount_received: isQuotation ? 0 : receivedPaise,
-        balance_due: isQuotation ? 0 : balanceDuePaise,
-        change_returned: isQuotation ? 0 : changeReturnedPaise,
-        payment_status: isQuotation ? 'unpaid' : balanceDuePaise === 0 ? 'paid' : balanceDuePaise < grandTotalPaise ? 'partial' : 'unpaid',
-        status: isQuotation ? 'draft' : 'completed',
-        table_no: isRestaurant ? (tableNo || undefined) : undefined,
-        order_type: isRestaurant ? (orderType || 'dine_in') : undefined,
-        token_number: isRestaurant ? Math.floor(100 + (nextSeq % 900)) : undefined,
-        doctor_name: isPharmacy ? (doctorName || undefined) : undefined,
-        notes: isQuotation
-          ? 'ESTIMATE / QUOTATION'
-          : explicitPayment?.referenceNumber
+        payment_method: finalMethod,
+        payment_split: paymentSplitData,
+        amount_received: receivedPaise,
+        balance_due: balanceDuePaise,
+        change_returned: changeReturnedPaise,
+        payment_status: balanceDuePaise === 0 ? 'paid' : balanceDuePaise < grandTotalPaise ? 'partial' : 'unpaid',
+        status: 'completed',
+        notes: explicitPayment?.referenceNumber
           ? `UPI Ref / UTR: ${explicitPayment.referenceNumber} (${explicitPayment.sourceApp})`
           : undefined,
         created_by: 'owner',
@@ -1167,20 +1097,18 @@ export default function BillingPage() {
       await db.sales.put(newSale);
 
       // Track sale creation in Firebase Analytics for Platform Owner (safe non-blocking)
-      try {
-        PlatformAnalytics.invoiceCreated({
-          invoiceNumber: newSale.invoice_number,
-          totalAmountPaise: newSale.grand_total,
-          paymentMode: newSale.payment_method,
-          itemCount: newSale.items.length,
-          businessId: newSale.business_id,
-          isGstBill: (newSale.tax_total || 0) > 0,
-        });
-      } catch {}
+      void cloudTrackInvoice({
+        invoiceNumber: newSale.invoice_number,
+        totalAmountPaise: newSale.grand_total,
+        paymentMode: newSale.payment_method,
+        itemCount: newSale.items.length,
+        businessId: newSale.business_id,
+        isGstBill: (newSale.tax_total || 0) > 0,
+      });
 
       // Trigger instant background sync to Firestore for WhatsApp Bot & Cloud backup
       if (newSale.business_id) {
-        triggerBackgroundSync(newSale.business_id).catch(() => {});
+        void cloudSyncSoon(newSale.business_id);
       }
 
       // 2. Increment business invoice number counter reliably
@@ -1188,8 +1116,8 @@ export default function BillingPage() {
         await commitNextInvoiceNumber(currentBiz.id, nextSeq);
       }
 
-      // 3. Deduct product inventory stock ONLY if NOT an estimate/quotation
-      if (!isQuotation) {
+      // 3. Deduct product inventory stock
+      {
         for (const item of cart) {
         let prod = await db.products.get(item.product_id);
         if (!prod && item.barcode) {
@@ -1226,24 +1154,18 @@ export default function BillingPage() {
           });
 
           // Direct cloud sync to prevent stale overwrite from cloud background sync
-          try {
-            const firestore = getFirestoreDb();
-            if (firestore && businessId && businessId !== 'biz_default') {
-              const prodRef = doc(firestore, `businesses/${businessId}/products/${prod.id}`);
-              await setDoc(prodRef, sanitizeForFirestore(updatedProd), { merge: true });
-            }
-          } catch {}
+          if (businessId && businessId !== 'biz_default') {
+            void cloudMerge(`businesses/${businessId}/products/${prod.id}`, updatedProd);
+          }
         }
       }
     }
 
       // Trigger background sync debounce for full backup
-      try {
-        triggerBackgroundSync(businessId);
-      } catch {}
+      void cloudSyncSoon(businessId);
 
       // 4. If Udhar / Credit, update customer balance & write ledger entry (Skip for quotations)
-      if (!isQuotation && targetCustomer && balanceDuePaise > 0) {
+      if (targetCustomer && balanceDuePaise > 0) {
         const freshCust = (await db.customers.get(targetCustomer.id)) || targetCustomer;
         const updatedBalance = (freshCust.current_balance || 0) + balanceDuePaise;
         
@@ -1273,19 +1195,13 @@ export default function BillingPage() {
         await db.ledger_transactions.put(newLedgerTx);
 
         // Direct cloud sync to Firestore for multi-device realtime Khata
-        try {
-          const firestore = getFirestoreDb();
-          if (firestore && businessId && businessId !== 'biz_default') {
-            await setDoc(doc(firestore, `businesses/${businessId}/customers/${targetCustomer.id}`), sanitizeForFirestore({
-              ...freshCust,
-              current_balance: updatedBalance,
-              updated_at: now,
-            }), { merge: true });
-
-            await setDoc(doc(firestore, `businesses/${businessId}/ledger_transactions/${ledgerTxId}`), sanitizeForFirestore(newLedgerTx), { merge: true });
-          }
-        } catch (cloudErr) {
-          console.warn('Non-blocking cloud ledger sync notice:', cloudErr);
+        if (businessId && businessId !== 'biz_default') {
+          void cloudMerge(`businesses/${businessId}/customers/${targetCustomer.id}`, {
+            ...freshCust,
+            current_balance: updatedBalance,
+            updated_at: now,
+          });
+          void cloudMerge(`businesses/${businessId}/ledger_transactions/${ledgerTxId}`, newLedgerTx);
         }
       }
 
@@ -1462,7 +1378,11 @@ export default function BillingPage() {
 
   // Reusable Checkout Panel Component for Desktop side-panel and Mobile Bottom Drawer
   const renderCheckoutPanel = () => (
-    <div className="flex flex-col space-y-3">
+    <div className="flex flex-col flex-1 min-h-0">
+      {/* Everything above the tender card scrolls. The grand total and the
+          Complete Sale button are pinned below it, so a long bill can never
+          push the pay button out of the panel. */}
+      <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pr-1 -mr-1">
       {/* Multi-Bill Tab Bar */}
       <div className="bg-slate-100 p-1 rounded-xl flex items-center gap-1 overflow-x-auto border border-slate-200">
         {tabs.map((tab) => {
@@ -1627,7 +1547,7 @@ export default function BillingPage() {
       )}
 
       {/* Cart Items List with Inline / Popover Edit */}
-      <div className="border-t border-b border-slate-100 py-2 space-y-2 flex-1 min-h-[60px] max-h-[calc(100vh-420px)] lg:max-h-none overflow-y-auto pr-1">
+      <div className="border-t border-b border-slate-100 py-2 space-y-2 min-h-[60px]">
         {cart.length === 0 ? (
           <div className="text-center py-8 text-xs text-slate-400 font-medium space-y-1.5">
             <ShoppingCart className="w-8 h-8 text-slate-300 mx-auto" />
@@ -1663,18 +1583,7 @@ export default function BillingPage() {
                 </div>
 
                 <div className="text-[11px] text-slate-500 font-mono flex items-center flex-wrap gap-1.5">
-                  {item.unit === 'strip' ? (
-                    <span>
-                      {formatINR(item.unit_price)}/strip × {item.quantity} {item.unit}
-                      {item.quantity < 1 || item.quantity % 1 !== 0 ? (
-                        <span className="ml-1 text-blue-700 font-bold bg-blue-50 px-1 py-0.2 rounded border border-blue-200 text-[10px]">
-                          ({Math.round(item.quantity * extractTabletsPerStrip(item.product_name))} Tabs)
-                        </span>
-                      ) : null}
-                    </span>
-                  ) : (
-                    <span>{formatINR(item.unit_price)} × {item.quantity} {item.unit}</span>
-                  )}
+                  <span>{formatINR(item.unit_price)} × {item.quantity} {item.unit}</span>
                   {item.discount_amount ? (
                     <span className="text-[10px] text-emerald-700 font-bold bg-emerald-100 px-1 rounded">
                       -₹{(item.discount_amount / 100).toFixed(0)} off
@@ -2175,9 +2084,10 @@ export default function BillingPage() {
           )}
         </div>
       )}
+      </div>
 
-      {/* Bottom Total & Checkout Button */}
-      <div className="pt-2.5 border-t border-slate-200 space-y-2 flex-shrink-0">
+      {/* Bottom Total & Checkout Button (always visible) */}
+      <div className="pt-2.5 mt-2.5 border-t border-slate-200 space-y-2 flex-shrink-0">
         <div className="space-y-1 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
           <div className="flex items-center justify-between text-xs text-slate-600">
             <span>Items Total</span>
@@ -2277,32 +2187,6 @@ export default function BillingPage() {
           })()}
         </div>
 
-        {/* Hardware & Sanitary Only: Quotation / Estimate Toggle */}
-        {storeProfile.featureToggles.showQuotationEstimate && (
-          <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl">
-            <button
-              type="button"
-              onClick={() => setIsQuotation(false)}
-              className={cn(
-                'flex-1 py-1.5 text-center text-xs font-black rounded-lg transition-all cursor-pointer',
-                !isQuotation ? 'bg-white text-slate-950 shadow-2xs' : 'text-slate-500 hover:text-slate-900'
-              )}
-            >
-              🧾 Tax Invoice
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsQuotation(true)}
-              className={cn(
-                'flex-1 py-1.5 text-center text-xs font-black rounded-lg transition-all cursor-pointer',
-                isQuotation ? 'bg-amber-400 text-slate-950 shadow-2xs ring-1 ring-amber-400/50' : 'text-slate-500 hover:text-slate-900'
-              )}
-            >
-              📝 Estimate / Quotation
-            </button>
-          </div>
-        )}
-
         {/* Customer Balance Warning Banner if Selected Customer has Pending Udhar */}
         {selectedCustomer && (selectedCustomer.current_balance || 0) > 0 && (
           <div className="p-2 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between text-xs text-rose-950 font-bold shadow-2xs">
@@ -2322,24 +2206,12 @@ export default function BillingPage() {
           onClick={() => handleCompleteSale()}
           className={cn(
             'w-full text-xs sm:text-sm font-black py-3 sm:py-3.5 shadow-md cursor-pointer transition-all flex items-center justify-center gap-2 rounded-xl',
-            isQuotation
-              ? 'bg-amber-500 hover:bg-amber-600 text-slate-950 border-amber-500 shadow-amber-500/20'
-              : 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-emerald-600/20'
+            'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-emerald-600/20'
           )}
         >
-          {isQuotation ? (
-            <>
-              <FileText className="w-4 h-4 mr-1 text-slate-950" />
-              <span>Save &amp; Print Estimate</span>
-              <kbd className="ml-1 px-1.5 py-0.5 rounded bg-amber-400 text-slate-950 font-mono text-[10px] font-bold border border-amber-300">Enter ↵</kbd>
-            </>
-          ) : (
-            <>
-              <Receipt className="w-4 h-4 mr-1 text-white" />
-              <span>Complete Sale &amp; Print</span>
-              <kbd className="ml-1 px-1.5 py-0.5 rounded bg-emerald-700 text-emerald-100 font-mono text-[10px] font-bold border border-emerald-500">Enter ↵</kbd>
-            </>
-          )}
+          <Receipt className="w-4 h-4 mr-1 text-white" />
+          <span>Complete Sale &amp; Print</span>
+          <kbd className="ml-1 px-1.5 py-0.5 rounded bg-emerald-700 text-emerald-100 font-mono text-[10px] font-bold border border-emerald-500">Enter ↵</kbd>
         </Button>
       </div>
     </div>
@@ -2356,7 +2228,7 @@ export default function BillingPage() {
               <div className="relative flex-1">
                 <Input
                   ref={searchInputRef}
-                  placeholder={storeProfile.placeholders.searchProduct || "Search products by name, barcode or category... [F2]"}
+                  placeholder="Search products by name, barcode or category... [F2]"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   leftIcon={<Search className="w-4 h-4 text-slate-400" />}
@@ -2368,7 +2240,7 @@ export default function BillingPage() {
               </div>
 
               {/* Barcode Camera Scanner Button (Shown if BARCODE module enabled) */}
-              {storeProfile.featureToggles.showBarcode && (
+              {(
                 <button
                   type="button"
                   onClick={() => setIsBarcodeModalOpen(true)}
@@ -2379,7 +2251,7 @@ export default function BillingPage() {
                 </button>
               )}
               
-              {storeProfile.featureToggles.showBarcode && (
+              {(
                 <button
                   type="button"
                   onClick={() => setIsRapidScanModeOpen(true)}
@@ -2566,7 +2438,7 @@ export default function BillingPage() {
         title={`POS Checkout — Bill #${activeTab.tabNumber}`}
         size="lg"
       >
-        <div className="p-1">
+        <div className="p-1 h-full flex flex-col">
           {renderCheckoutPanel()}
         </div>
       </Modal>
@@ -2584,12 +2456,6 @@ export default function BillingPage() {
         setEditItemDiscountType={setEditItemDiscountType}
         editItemDiscount={editItemDiscount}
         setEditItemDiscount={setEditItemDiscount}
-        looseTabsInput={looseTabsInput}
-        setLooseTabsInput={setLooseTabsInput}
-        selectedPackSize={selectedPackSize}
-        setSelectedPackSize={setSelectedPackSize}
-        pharmacySellMode={pharmacySellMode}
-        setPharmacySellMode={setPharmacySellMode}
         handleSaveEditItem={handleSaveEditItem}
       />
 

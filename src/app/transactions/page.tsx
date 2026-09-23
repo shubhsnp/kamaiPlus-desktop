@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useBusiness } from '@/components/layout/BusinessProvider';
 import { useTranslation } from '@/lib/i18n';
 import { formatINR } from '@/lib/utils';
 import { Sale, Customer, Product, LedgerTransaction } from '@/types';
@@ -43,7 +44,7 @@ export default function TransactionsPage() {
   const [isClearHistoryModalOpen, setIsClearHistoryModalOpen] = useState(false);
 
   // Queries
-  const business = useLiveQuery(async () => db.businesses.toCollection().first());
+  const business = useBusiness();
   const customers = useLiveQuery(async () => db.customers.toArray()) || [];
 
   const allSales = useLiveQuery(async () => {

@@ -23,7 +23,7 @@ if (fs.existsSync(envPath)) {
   }
 }
 
-import { getAllStoreProfiles, getStoreProfile, hasModule } from '../src/lib/constants/storeProfiles';
+import { MASTER_UNITS, RECOMMENDED_UNITS, STARTER_CATEGORIES } from '../src/lib/constants/storeProfiles';
 import { getDefaultProductsForCategory, DEFAULT_CATEGORY_PRODUCTS } from '../src/lib/constants/defaultProducts';
 import { checkRateLimit } from '../src/lib/security/rateLimiter';
 import { EscPosEncoder } from '../src/lib/hardware/escpos';
@@ -493,30 +493,30 @@ assert(parseInvoiceSequenceNumber('INV-002') === 2, 'parseInvoiceSequenceNumber 
 assert(parseInvoiceSequenceNumber('BILL-1045') === 1045, 'parseInvoiceSequenceNumber extracts 1045 from BILL-1045');
 assert(parseInvoiceSequenceNumber('CUSTOM-99') === 99, 'parseInvoiceSequenceNumber extracts 99 from CUSTOM-99');
 
-// 📸 SUITE 8: Store-Adaptive AI Inward & Menu Card Extraction Verification
-console.log('\n📸 SUITE 8: Store-Adaptive AI Inward & Menu Card Extraction Verification');
-assert(BILL_SCAN_SYSTEM_PROMPT.includes('Restaurant, cafe, and food stall menu cards'), 'AI Vision prompt explicitly supports Restaurant & Cafe menu cards');
-assert(BILL_SCAN_SYSTEM_PROMPT.includes('dish / food item as a line item'), 'AI Vision prompt instructs extraction of dish items');
-assert(BILL_SCAN_SYSTEM_PROMPT.includes('Wholesale Invoice / Distributor Bill / Parcha'), 'AI Vision prompt supports wholesale parchas and distributor bills');
+// 📸 SUITE 8: AI Purchase Inward Extraction Verification
+console.log('\n📸 SUITE 8: AI Purchase Inward Extraction Verification');
+assert(BILL_SCAN_SYSTEM_PROMPT.includes('wholesale invoices, distributor bills, cash memos'), 'AI Vision prompt targets Indian retail purchase documents');
+assert(!/menu card|dish|Restaurant/i.test(BILL_SCAN_SYSTEM_PROMPT), 'AI Vision prompt carries no restaurant-vertical instructions');
+assert(BILL_SCAN_SYSTEM_PROMPT.includes('Never invent or hallucinate data'), 'AI Vision prompt keeps the no-hallucination safeguard');
 
-// Test schema extraction parsing for Restaurant Menu item
-const menuExtractTest = PurchaseBillExtractionSchema.safeParse({
-  supplier_name: 'Royal Spice Restaurant',
+// Schema still accepts a single-line, price-list style entry
+const priceListExtractTest = PurchaseBillExtractionSchema.safeParse({
+  supplier_name: 'Royal Spice Traders',
   bill_number: null,
   bill_date: null,
   total_amount: 220,
   line_items: [
     {
-      name: 'Paneer Butter Masala',
+      name: 'Basmati Rice 1kg',
       quantity: 1,
-      unit: 'plate',
+      unit: 'pkt',
       unit_price: 220,
       total_price: 220,
       confidence: 'high'
     }
   ]
 });
-assert(menuExtractTest.success === true, 'PurchaseBillExtractionSchema successfully validates extracted restaurant dish');
+assert(priceListExtractTest.success === true, 'PurchaseBillExtractionSchema validates a single-line price-list entry');
 
 // Test schema extraction parsing for Wholesale Invoice line item
 const wholesaleExtractTest = PurchaseBillExtractionSchema.safeParse({
@@ -537,92 +537,112 @@ const wholesaleExtractTest = PurchaseBillExtractionSchema.safeParse({
 });
 assert(wholesaleExtractTest.success === true, 'PurchaseBillExtractionSchema successfully validates wholesale invoice line items');
 
-// 🧭 SUITE 9: Store-Type Adaptive Sidebar Navigation & Onboarding Flow Verification
-console.log('\n🧭 SUITE 9: Store-Type Adaptive Sidebar Navigation & Onboarding Flow Verification');
+// 🧭 SUITE 9: Universal Product Invariants (no per-vertical branching anywhere)
+console.log('\n🧭 SUITE 9: Universal Product Invariants (no per-vertical branching anywhere)');
 
+const SRC_ROOT = path.join(__dirname, '..', 'src');
 
-
-const clothProfile = getStoreProfile('clothing');
-assert(clothProfile.featureToggles.showSizeVariants === true, 'Clothing store profile has showSizeVariants set to true');
-
-
-
-
-const grocProfile = getStoreProfile('grocery');
-assert(grocProfile.featureToggles.showWeightUnits === true, 'Grocery store profile has showWeightUnits set to true');
-
-// 2. Navigation Simulation Helper matching Sidebar.tsx logic
-function simulateSidebarItems(storeType?: string) {
-  const isRestaurant = storeType === 'restaurant' || storeType === 'bakery';
-  const isClothing = storeType === 'clothing';
-  const isHardware = storeType === 'hardware' || storeType === 'electrical' || storeType === 'electronics' || storeType === 'mobile';
-  const isPharmacy = storeType === 'pharmacy';
-  const isGrocery = storeType === 'grocery' || storeType === 'fmcg';
-
-  let productsLabel = 'Products';
-  if (isRestaurant) productsLabel = 'Menu & Dishes';
-  else if (isPharmacy) productsLabel = 'Medicines Master';
-  else if (isClothing) productsLabel = 'Garments & Sizes';
-  else if (isHardware) productsLabel = 'Items & Materials';
-  else if (isGrocery) productsLabel = 'Products & FMCG';
-
-  let inventoryLabel = 'Inventory & Expiry';
-  if (isPharmacy) inventoryLabel = 'Expiry & Batch Radar';
-  else if (isGrocery) inventoryLabel = 'Inventory & Alerts';
-
-  let purchasesLabel = 'Purchases & Bills';
-  if (isPharmacy) purchasesLabel = 'Distributor Invoices';
-  else if (isGrocery) purchasesLabel = 'Wholesale Inward';
-  else if (isHardware) purchasesLabel = 'Vendor Inward & Bills';
-
-  const posItems = [
-    { href: '/', label: 'Dashboard' },
-    { href: '/billing', label: 'Billing POS' },
-    { href: '/cash-register', label: 'Cash Register' },
-    ...(!isRestaurant ? [{ href: '/barcode-generator', label: 'Barcode Studio' }] : []),
-    { href: '/transactions', label: 'Transactions' },
-  ];
-
-  const stockItems = [
-    { href: '/products', label: productsLabel },
-    ...(!isRestaurant && !isClothing && !isHardware ? [{ href: '/inventory', label: inventoryLabel }] : []),
-    ...(!isRestaurant ? [{ href: '/purchases', label: purchasesLabel }] : []),
-  ];
-
-  return { posItems, stockItems };
+function walkSource(dir: string, out: string[] = []): string[] {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) walkSource(full, out);
+    else if (entry.name.endsWith('.ts') || entry.name.endsWith('.tsx')) out.push(full);
+  }
+  return out;
 }
 
-// 3. Verify Restaurant Navigation
-const restNav = simulateSidebarItems('restaurant');
-assert(!restNav.posItems.some(i => i.href === '/barcode-generator'), 'Restaurant hides Barcode Studio');
-assert(!restNav.stockItems.some(i => i.href === '/inventory'), 'Restaurant hides Inventory & Expiry');
-assert(!restNav.stockItems.some(i => i.href === '/purchases'), 'Restaurant hides Purchases & Bills');
-assert(restNav.stockItems.find(i => i.href === '/products')?.label === 'Menu & Dishes', 'Restaurant renames /products to "Menu & Dishes"');
+const ALL_SOURCE = walkSource(SRC_ROOT);
+const readSource = (rel: string) => fs.readFileSync(path.join(SRC_ROOT, rel), 'utf8');
 
-// 4. Verify Clothing Navigation
-const clothNav = simulateSidebarItems('clothing');
-assert(!clothNav.stockItems.some(i => i.href === '/inventory'), 'Clothing hides Inventory & Expiry');
-assert(clothNav.stockItems.some(i => i.href === '/purchases'), 'Clothing retains Purchases & Bills');
-assert(clothNav.stockItems.find(i => i.href === '/products')?.label === 'Garments & Sizes', 'Clothing renames /products to "Garments & Sizes"');
+// 1. No screen may branch on the shop's business type ever again.
+const VERTICAL_BRANCH = /business_type\s*===|businessType\s*===|\bisRestaurant\b|\bisPharmacy\b|\bisClothing\b|\bisGrocery\b|featureToggles/;
+const verticalOffenders = ALL_SOURCE.filter((f) => VERTICAL_BRANCH.test(fs.readFileSync(f, 'utf8')));
+assert(
+  verticalOffenders.length === 0,
+  `No source file branches on business type (found: ${verticalOffenders.map((f) => path.relative(SRC_ROOT, f)).join(', ') || 'none'})`
+);
 
-// 5. Verify Hardware Navigation
-const hardNav = simulateSidebarItems('hardware');
-assert(!hardNav.stockItems.some(i => i.href === '/inventory'), 'Hardware hides Inventory & Expiry');
-assert(hardNav.stockItems.find(i => i.href === '/purchases')?.label === 'Vendor Inward & Bills', 'Hardware renames /purchases to "Vendor Inward & Bills"');
-assert(hardNav.stockItems.find(i => i.href === '/products')?.label === 'Items & Materials', 'Hardware renames /products to "Items & Materials"');
+// 2. The store-profile module is reduced to shared units + starter categories only.
+const profileSrc = readSource('lib/constants/storeProfiles.ts');
+assert(!/getStoreProfile|hasModule|getAllStoreProfiles|StoreProfile\b/.test(profileSrc), 'storeProfiles.ts exposes no per-vertical profile API');
+assert(MASTER_UNITS.length > 0, 'MASTER_UNITS still ships the shared unit list');
+assert(STARTER_CATEGORIES.length > 0, 'STARTER_CATEGORIES seeds a universal starter catalogue');
+assert(RECOMMENDED_UNITS.every((u) => MASTER_UNITS.some((m) => m.id === u)), 'Every recommended unit exists in MASTER_UNITS');
 
-// 6. Verify Pharmacy Navigation
-const pharmNav = simulateSidebarItems('pharmacy');
-assert(pharmNav.stockItems.find(i => i.href === '/products')?.label === 'Medicines Master', 'Pharmacy renames /products to "Medicines Master"');
-assert(pharmNav.stockItems.find(i => i.href === '/inventory')?.label === 'Expiry & Batch Radar', 'Pharmacy renames /inventory to "Expiry & Batch Radar"');
-assert(pharmNav.stockItems.find(i => i.href === '/purchases')?.label === 'Distributor Invoices', 'Pharmacy renames /purchases to "Distributor Invoices"');
+// 3. `ModuleId` (the per-vertical module gate) is gone from the domain types.
+assert(!/ModuleId/.test(readSource('types/index.ts')), 'types/index.ts no longer declares the per-vertical ModuleId union');
 
-// 7. Verify Fallback Navigation (Unknown or null store type)
-const fallbackNav = simulateSidebarItems(undefined);
-assert(fallbackNav.posItems.some(i => i.href === '/barcode-generator'), 'Fallback retains Barcode Studio');
-assert(fallbackNav.stockItems.some(i => i.href === '/products'), 'Fallback retains Products');
-assert(fallbackNav.stockItems.some(i => i.href === '/inventory'), 'Fallback retains Inventory & Expiry');
-assert(fallbackNav.stockItems.some(i => i.href === '/purchases'), 'Fallback retains Purchases & Bills');
+// 4. The POS checkout panel must keep its pay button reachable: a scrolling body
+//    plus a pinned footer. This is the bug where a long bill hid the totals.
+const billingSrc = readSource('app/billing/page.tsx');
+assert(
+  /const renderCheckoutPanel = \(\) => \(\s*\n\s*<div className="flex flex-col flex-1 min-h-0">/.test(billingSrc),
+  'POS checkout panel root is a bounded flex column (flex-1 min-h-0)'
+);
+assert(
+  /<div className="flex-1 min-h-0 overflow-y-auto space-y-3 pr-1 -mr-1">/.test(billingSrc),
+  'POS checkout panel has exactly one scrolling body region'
+);
+assert(
+  /Bottom Total & Checkout Button \(always visible\)[\s\S]{0,120}flex-shrink-0/.test(billingSrc),
+  'POS grand total + Complete Sale button stay pinned (flex-shrink-0)'
+);
+
+// 5. Heavy libraries must never sit in the always-loaded app shell.
+const HEAVY = ["from 'jspdf'", "from 'html2canvas'", "from 'xlsx'", "from 'firebase/firestore'"];
+const shellFiles = ['app/layout.tsx', 'components/layout/AppShell.tsx', 'components/layout/Navbar.tsx', 'components/layout/Sidebar.tsx', 'components/layout/GlobalDrawers.tsx', 'components/layout/DesktopStatusBar.tsx'];
+for (const rel of shellFiles) {
+  const src = readSource(rel);
+  for (const lib of HEAVY) {
+    assert(!src.includes(lib), `App shell file ${rel} does not statically import ${lib}`);
+  }
+}
+assert(/dynamic\(\s*\(\) => import\('@\/components\/paytm\/MerchantQRModal'\)/.test(readSource('components/layout/Navbar.tsx')), 'Navbar loads the QR standee modal lazily (keeps jsPDF/html2canvas out of every page)');
+assert(/dynamic\(\s*\(\) => import\('@\/components\/invoices\/InvoiceModal'\)/.test(readSource('components/layout/GlobalDrawers.tsx')), 'GlobalDrawers loads the invoice viewer lazily');
+
+// 6. Billing reaches the cloud only through the lazy bridge.
+assert(!/from 'firebase\//.test(billingSrc), 'Billing page has no static Firebase import');
+assert(/from '@\/lib\/firebase\/lazyCloud'/.test(billingSrc), 'Billing page mirrors to the cloud via the lazy bridge');
+const lazyCloudSrc = readSource('lib/firebase/lazyCloud.ts');
+for (const fn of ['cloudMerge', 'cloudSyncSoon', 'cloudTrackInvoice', 'prewarmCloud']) {
+  assert(lazyCloudSrc.includes(`export `) && lazyCloudSrc.includes(fn), `lazyCloud exports ${fn}`);
+}
+assert(!/^import .*firebase/m.test(lazyCloudSrc), 'lazyCloud itself only imports Firebase dynamically');
+
+// 7. Category counts are one indexed pass, not one query per category.
+assert(
+  /db\.products\.orderBy\('category_id'\)\.eachKey/.test(billingSrc),
+  'POS category counts use a single indexed pass over category_id'
+);
+assert(
+  !/for \(const cat of categories\)[\s\S]{0,200}db\.products\.where\('category_id'\)/.test(billingSrc),
+  'POS no longer issues one count() query per category'
+);
+
+// 8. Dead modules stay deleted.
+const DELETED = [
+  'components/voice/VoiceBillingModal.tsx',
+  'components/layout/BottomNav.tsx',
+  'components/layout/MobileMenuCardsModal.tsx',
+  'components/auth/IntroWalkthrough.tsx',
+  'lib/firebase/messaging.ts',
+  'lib/firebase/remoteConfig.ts',
+  'lib/firebase/appCheck.ts',
+  'lib/firebase/storage.ts',
+  'lib/voice/paytmSoundbox.ts',
+  'lib/auth/reverseHandshakeService.ts',
+  'lib/api/publicBarcodeLookup.ts',
+];
+for (const rel of DELETED) {
+  assert(!fs.existsSync(path.join(SRC_ROOT, rel)), `Dead module ${rel} is not back in the tree`);
+}
+
+// 9. Exactly one live query for the active business, shared through context.
+const bizQuery = ALL_SOURCE.filter((f) => /db\.businesses\.toCollection\(\)\.first\(\)/.test(fs.readFileSync(f, 'utf8')) && /useLiveQuery/.test(fs.readFileSync(f, 'utf8')));
+assert(
+  bizQuery.length <= 2,
+  `The active business is read through BusinessProvider, not per page (live-query holders: ${bizQuery.map((f) => path.relative(SRC_ROOT, f)).join(', ') || 'none'})`
+);
 
 // 🌙 SUITE 10: WhatsApp Daily Summary, Khata Payment Deep-Link & Hardware Quotation/Estimate
 console.log('\n🌙 SUITE 10: WhatsApp Daily Summary, Khata Payment Deep-Link & Hardware Quotation/Estimate');

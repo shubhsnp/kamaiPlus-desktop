@@ -15,7 +15,7 @@ import {
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Product, Category, ProductUnit, BusinessType } from '@/types';
+import { Product, Category, ProductUnit } from '@/types';
 import { MASTER_UNITS } from '@/lib/constants/storeProfiles';
 
 interface AddEditProductModalProps {
@@ -23,7 +23,6 @@ interface AddEditProductModalProps {
   onClose: () => void;
   editingProduct: Product | null;
   categories: Category[];
-  businessType?: BusinessType;
   formName: string;
   setFormName: (val: string) => void;
   formCategory: string;
@@ -66,7 +65,6 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
   onClose,
   editingProduct,
   categories,
-  businessType,
   formName,
   setFormName,
   formCategory,
@@ -103,10 +101,6 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
   onDeleteProduct,
   formError,
 }) => {
-  const isPharmacy = false;
-  const isClothing = false;
-  const isRestaurant = false;
-
   return (
     <Modal
       isOpen={isOpen}
@@ -114,10 +108,10 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
       title={
         <div className="flex items-center gap-2">
           {editingProduct ? <Edit3 className="w-5 h-5 text-sky-500" /> : <Plus className="w-5 h-5 text-sky-500" />}
-          <span>{editingProduct ? `Edit Item: ${editingProduct.name}` : (isRestaurant ? 'Add New Dish to Menu' : 'Add New Item to Catalog')}</span>
+          <span>{editingProduct ? `Edit Item: ${editingProduct.name}` : 'Add New Item to Catalog'}</span>
         </div>
       }
-      description={editingProduct ? "Update pricing, barcode, inventory levels, and niche compliance." : (isRestaurant ? "Enter food dish name, price, and category." : "Enter product details, barcode, selling price, and initial stock.")}
+      description={editingProduct ? "Update pricing, barcode and inventory levels." : "Enter product details, barcode, selling price, and initial stock."}
       size="lg"
     >
       <form onSubmit={onSubmit} className="space-y-3.5">
@@ -130,12 +124,10 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-black text-slate-900 dark:text-slate-100">
-                  {isRestaurant ? 'Have a printed Menu Card?' : 'Have a Wholesale Bill / Parcha?'}
+                  Have a Wholesale Bill / Parcha?
                 </p>
                 <p className="text-[10.5px] text-slate-600 dark:text-slate-400 truncate">
-                  {isRestaurant
-                    ? 'Don’t type dishes one by one. Take a photo to auto-add your whole menu!'
-                    : 'Don’t type items one by one. Scan distributor invoice photo to auto-add stock!'}
+                  Don’t type items one by one. Scan distributor invoice photo to auto-add stock!
                 </p>
               </div>
             </div>
@@ -147,15 +139,15 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
               }}
               className="px-2.5 py-1.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-950 text-xs font-black shrink-0 hover:bg-slate-800 cursor-pointer shadow-xs active:scale-95 transition"
             >
-              {isRestaurant ? '📸 Scan Menu with AI' : '📸 Inward with AI'}
+              📸 Inward with AI
             </button>
           </div>
         )}
 
         {/* Product Name */}
         <Input
-          label={isRestaurant ? "Menu Item / Dish Name *" : "Product / Item Full Name *"}
-          placeholder={isRestaurant ? "e.g. Masala Dosa (Special)" : "e.g. Fortune Sunflower Oil 1L"}
+          label="Product / Item Full Name *"
+          placeholder="e.g. Fortune Sunflower Oil 1L"
           value={formName}
           onChange={(e) => setFormName(e.target.value)}
           required
@@ -301,8 +293,8 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
 
 
 
-        {/* Niche Specific Fields: Clothing Size & Color */}
-        {(isClothing || formSize || formColor) && (
+        {/* Optional variant attributes (size / colour) */}
+        {(formSize || formColor) && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
               label="Size / Dimensions"

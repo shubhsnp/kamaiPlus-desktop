@@ -9,16 +9,11 @@ import {
   MapPin, 
   Phone, 
   Mail, 
-  Pill, 
-  UtensilsCrossed, 
-  Layers,
   User,
   LogOut
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
-import { BusinessType } from '@/types';
-import { getAllStoreProfiles } from '@/lib/constants/storeProfiles';
 
 interface StoreProfileTabProps {
   name: string;
@@ -69,8 +64,6 @@ export const StoreProfileTab: React.FC<StoreProfileTabProps> = ({
   onRemoveLogo,
   onSwitchToDataTab,
 }) => {
-  const storeProfiles = getAllStoreProfiles();
-
   return (
     <div className="space-y-4 animate-in fade-in duration-150">
       {/* 1. Store Identity & Logo */}

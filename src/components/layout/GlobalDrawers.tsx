@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter, usePathname } from 'next/navigation';
 import { ShoppingCart, X, History, ArrowRight } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -8,7 +9,10 @@ import { useBusiness } from '@/components/layout/BusinessProvider';
 import { db } from '@/lib/db';
 import { DashboardRecentSales } from '@/components/dashboard/DashboardRecentSales';
 import { formatINR } from '@/lib/utils';
-import { InvoiceModal } from '@/components/invoices/InvoiceModal';
+const InvoiceModal = dynamic(
+  () => import('@/components/invoices/InvoiceModal').then((m) => m.InvoiceModal),
+  { ssr: false }
+);
 import { Sale } from '@/types';
 
 export const GlobalDrawers: React.FC = () => {

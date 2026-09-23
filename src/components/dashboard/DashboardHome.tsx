@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useBusiness } from '@/components/layout/BusinessProvider';
 import { useTranslation } from '@/lib/i18n';
 import { Sale, Product } from '@/types';
 import { triggerBackgroundSync } from '@/lib/firebase/backgroundSync';
@@ -28,8 +29,7 @@ export default function DashboardHome() {
   const [isClosingReportOpen, setIsClosingReportOpen] = useState<boolean>(false);
   const [restockToast, setRestockToast] = useState<string | null>(null);
 
-  const business = useLiveQuery(async () => db.businesses.toCollection().first());
-  const businessType = business?.business_type || 'grocery';
+  const business = useBusiness();
 
   // ── Batched query 1: Products (single subscription) ──
   const products = useLiveQuery(async () => db.products.toArray()) || [];

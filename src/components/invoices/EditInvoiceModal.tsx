@@ -66,7 +66,7 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
 
   const businesses = useLiveQuery(() => db.businesses.toArray()) || [];
   const business = businesses[0];
-  const isBusinessGstExclusive = business?.gst_pricing_mode === 'exclusive' || (business?.business_type === 'restaurant' && business?.gst_pricing_mode !== 'inclusive');
+  const isBusinessGstExclusive = business?.gst_pricing_mode === 'exclusive';
 
   const calculateItemTax = (lineTotal: number, taxRate: number, isProductInclusive?: boolean) => {
     if (!taxRate || taxRate <= 0 || lineTotal <= 0) return 0;

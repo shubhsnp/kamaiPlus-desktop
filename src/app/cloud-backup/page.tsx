@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useBusiness } from '@/components/layout/BusinessProvider';
 import { 
   downloadBackupJSON, 
   restoreDatabaseFromPayload, 
@@ -25,7 +26,6 @@ import {
   Smartphone,
   Lock
 } from 'lucide-react';
-import { syncLocalDexieToFirestore, restoreFirestoreToLocalDexie } from '@/lib/firebase/firestoreSync';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
@@ -35,14 +35,12 @@ import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 
 export default function CloudBackupPage() {
   const { isPro, requirePro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
-  const business = useLiveQuery(async () => db.businesses.toCollection().first());
+  const business = useBusiness();
   const productCount = useLiveQuery(async () => db.products.count()) || 0;
   const customerCount = useLiveQuery(async () => db.customers.count()) || 0;
   const saleCount = useLiveQuery(async () => db.sales.count()) || 0;
   const khataCount = useLiveQuery(async () => db.ledger_transactions.count()) || 0;
 
-  const sales = useLiveQuery(async () => db.sales.toArray()) || [];
-  const customers = useLiveQuery(async () => db.customers.toArray()) || [];
 
   const totalRecords = productCount + customerCount + saleCount + khataCount;
 
@@ -78,6 +76,7 @@ export default function CloudBackupPage() {
       }
       setIsFirestoreSyncing(true);
       try {
+        const { syncLocalDexieToFirestore } = await import('@/lib/firebase/firestoreSync');
         const res = await syncLocalDexieToFirestore(business.id);
         setBackupSuccessMessage(`Cloud Backup Successful: ${res.stats.sales} sales, ${res.stats.products} products, ${res.stats.customers} customers, ${res.stats.ledger} khata records.`);
         setTimeout(() => setBackupSuccessMessage(null), 6000);
@@ -100,6 +99,7 @@ export default function CloudBackupPage() {
       }
       setIsFirestoreRestoring(true);
       try {
+        const { restoreFirestoreToLocalDexie } = await import('@/lib/firebase/firestoreSync');
         const res = await restoreFirestoreToLocalDexie(business.id);
         setRestoreSuccessMessage(`Successfully restored from Cloud Backup: ${res.stats.products} products, ${res.stats.sales} sales.`);
         setTimeout(() => setRestoreSuccessMessage(null), 6000);
@@ -130,11 +130,12 @@ export default function CloudBackupPage() {
 
   // Export 1-Click Tally Prime XML
   const handleExportTallyXML = () => {
-    requirePro(() => {
-      if (sales.length === 0) {
+    requirePro(async () => {
+      if (saleCount === 0) {
         alert('No sales transactions recorded yet.');
         return;
       }
+      const [sales, customers] = await Promise.all([db.sales.toArray(), db.customers.toArray()]);
       const { xml, filename } = generateTallyPrimeXML({
         business,
         sales,
@@ -152,11 +153,12 @@ export default function CloudBackupPage() {
 
   // Export CA Master Excel CSV
   const handleExportCAMasterCSV = () => {
-    requirePro(() => {
-      if (sales.length === 0) {
+    requirePro(async () => {
+      if (saleCount === 0) {
         alert('No sales transactions recorded yet.');
         return;
       }
+      const sales = await db.sales.toArray();
       const { csv, filename } = generateCASalesRegisterCSV({
         business,
         sales,
@@ -390,11 +392,11 @@ export default function CloudBackupPage() {
             <Button
               size="sm"
               onClick={handleExportTallyXML}
-              disabled={sales.length === 0}
+              disabled={saleCount === 0}
               className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs gap-1.5 h-8 cursor-pointer shadow-2xs"
             >
               <Download className="w-3.5 h-3.5 text-amber-400" />
-              <span>Export Tally XML ({sales.length})</span>
+              <span>Export Tally XML ({saleCount})</span>
               {!isPro && <Lock className="w-3 h-3 text-amber-400" />}
             </Button>
           </div>
@@ -420,7 +422,7 @@ export default function CloudBackupPage() {
               <Button
                 size="sm"
                 onClick={handleExportCAMasterCSV}
-                disabled={sales.length === 0}
+                disabled={saleCount === 0}
                 className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs gap-1 h-8 cursor-pointer shadow-2xs truncate"
               >
                 <Download className="w-3.5 h-3.5 text-white" />

@@ -3,26 +3,6 @@
 
 export type BusinessType = string;
 
-export type ModuleId = 
-  | 'POS'
-  | 'INVENTORY'
-  | 'KHATA'
-  | 'CUSTOMERS'
-  | 'SUPPLIERS'
-  | 'GST'
-  | 'BARCODE'
-  | 'WEIGHT'
-  | 'BATCH_EXPIRY'
-  | 'VARIANTS'
-  | 'IMEI_SERIAL'
-  | 'WARRANTY'
-  | 'RESTAURANT_ORDERS'
-  | 'KOT'
-  | 'PHARMACY'
-  | 'PURCHASES'
-  | 'EXPENSES'
-  | 'REPORTS';
-
 export interface ProductAttributeDefinition {
   key: string;
   label: string;
@@ -248,7 +228,6 @@ export interface CartItem {
 export type PaymentMethod = 'cash' | 'upi' | 'card' | 'bank_transfer' | 'credit' | 'split';
 export type PaymentStatus = 'paid' | 'partial' | 'unpaid';
 export type SaleStatus = 'completed' | 'cancelled' | 'returned' | 'partial_return' | 'draft';
-export type OrderType = 'dine_in' | 'takeaway' | 'delivery' | 'counter';
 
 export interface PaymentSplit {
   cash_amount: number; // in paise
@@ -267,11 +246,6 @@ export interface Sale {
   customer_phone?: string;
   customer_address?: string;
   customer_gstin?: string;
-  table_no?: string;
-  order_type?: OrderType;
-  token_number?: number;
-  doctor_name?: string;
-  patient_name?: string;
   items: CartItem[];
   subtotal: number; // in paise
   discount_total: number; // in paise

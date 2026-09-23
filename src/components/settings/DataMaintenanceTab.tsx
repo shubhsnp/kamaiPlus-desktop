@@ -71,7 +71,7 @@ export const DataMaintenanceTab: React.FC<DataMaintenanceTabProps> = ({ business
     setIsRestoring(true);
     setFeedbackMessage(null);
     try {
-      await restoreStarterProductCatalog(business.id, business.business_type || 'grocery');
+      await restoreStarterProductCatalog(business.id);
       setFeedbackMessage({
         type: 'success',
         text: 'Starter sample retail products successfully restore ho gaye!',

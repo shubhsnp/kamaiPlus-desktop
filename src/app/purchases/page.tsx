@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useBusiness } from '@/components/layout/BusinessProvider';
 import { formatINR, parseRupeesToPaise } from '@/lib/utils';
 import { 
   ShoppingBag, 
@@ -25,7 +26,6 @@ import { Modal } from '@/components/ui/Modal';
 import { Product, PurchaseBill } from '@/types';
 import { useProSubscription, ProFeatureBadge } from '@/components/subscription/ProFeatureGate';
 import { UpgradeModal } from '@/components/subscription/UpgradeModal';
-import { getStoreProfile } from '@/lib/constants/storeProfiles';
 import { ScanBillButton } from '@/components/purchases/ScanBillButton';
 import { CashierPrivacyToggleButton, ProfitMask } from '@/components/privacy/ProfitMask';
 
@@ -40,16 +40,13 @@ export default function PurchasesPage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const products = useLiveQuery(async () => db.products.toArray()) || [];
-  const business = useLiveQuery(async () => db.businesses.toCollection().first());
+  const business = useBusiness();
   const purchaseBills = useLiveQuery(async () => 
     db.purchase_bills.orderBy('created_at').reverse().limit(10).toArray()
   ) || [];
   const recentMovements = useLiveQuery(async () => 
     db.inventory_movements.where('movement_type').equals('PURCHASE').reverse().limit(10).toArray()
   ) || [];
-
-  const storeProfile = getStoreProfile(business?.business_type);
-  const canScanBill = storeProfile.featureToggles.hasBillScan;
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -143,17 +140,14 @@ export default function PurchasesPage() {
         <div className="flex items-center gap-2 flex-wrap">
           <CashierPrivacyToggleButton />
 
-          {/* AI Bill Scanner (conditionally visible per vertical) */}
-          {canScanBill && (
-            <ScanBillButton
-              businessType={business?.business_type}
-              businessId={business?.id}
-              existingProducts={products}
-              onScanSuccess={(_billId, updated, created) => {
-                showToast(`🎉 Bill inward complete! ${updated} items restocked, ${created} new products created.`);
-              }}
-            />
-          )}
+          {/* AI Bill Scanner */}
+          <ScanBillButton
+            businessId={business?.id}
+            existingProducts={products}
+            onScanSuccess={(_billId, updated, created) => {
+              showToast(`🎉 Bill inward complete! ${updated} items restocked, ${created} new products created.`);
+            }}
+          />
 
           <Button onClick={() => setIsModalOpen(true)} size="md" className="text-xs font-bold gap-1.5 cursor-pointer">
             <Plus className="w-4 h-4" />

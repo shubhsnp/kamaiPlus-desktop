@@ -4,6 +4,7 @@ import React, { useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useBusiness } from '@/components/layout/BusinessProvider';
 import { Product, Supplier } from '@/types';
 import { CheckCircle2, Sparkles } from 'lucide-react';
 import { useProSubscription } from '@/components/subscription/ProFeatureGate';
@@ -36,7 +37,7 @@ export default function InventoryPage() {
     setTimeout(() => setInvToast(null), 4000);
   };
 
-  const business = useLiveQuery(async () => db.businesses.toCollection().first());
+  const business = useBusiness();
   const products = useLiveQuery(async () => {
     const all = await db.products.toArray();
     return all.filter((p) => p.is_active !== false);

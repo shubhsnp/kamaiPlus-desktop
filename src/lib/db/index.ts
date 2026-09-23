@@ -16,7 +16,7 @@ import {
   PurchaseBill,
   BusinessType,
 } from '@/types';
-import { getStoreProfile } from '@/lib/constants/storeProfiles';
+import { STARTER_CATEGORIES } from '@/lib/constants/storeProfiles';
 import { seedCategoryDefaultProducts } from '@/lib/constants/defaultProducts';
 
 export class VyaparSetuDatabase extends Dexie {
@@ -92,7 +92,7 @@ export async function ensureStarterBusinessIfEmpty(): Promise<Business> {
     const starterBiz: Business = {
       id: businessId,
       name: isRealMerchant ? (user!.business_name || user!.shop_name || 'My Retail Store') : 'My Retail Store',
-      business_type: 'grocery',
+      business_type: 'retail',
       owner_name: isRealMerchant ? (user!.name || 'Store Owner') : 'Store Owner',
       phone: isRealMerchant ? (user!.phone || '') : '',
       address: 'Main Market',
@@ -110,7 +110,7 @@ export async function ensureStarterBusinessIfEmpty(): Promise<Business> {
     };
 
     await db.businesses.put(starterBiz);
-    await seedBusinessStarterData(businessId, 'grocery');
+    await seedBusinessStarterData(businessId);
     return starterBiz;
   }
 
@@ -119,7 +119,7 @@ export async function ensureStarterBusinessIfEmpty(): Promise<Business> {
     const isManuallyCleared = typeof window !== 'undefined' && localStorage.getItem('kamai_products_manually_cleared') === 'true';
     const prodCount = await db.products.count();
     if (prodCount === 0 && !isManuallyCleared) {
-      await seedBusinessStarterData(existing.id, existing.business_type || 'grocery');
+      await seedBusinessStarterData(existing.id);
     }
   } catch (err) {
     console.warn('Auto-seed products check notice:', err);
@@ -145,37 +145,31 @@ export async function clearAllProductData(): Promise<{ success: boolean; deleted
 /**
  * Re-seed starter sample products for testing or fresh catalog setup.
  */
-export async function restoreStarterProductCatalog(businessId: string, businessType?: BusinessType): Promise<void> {
+export async function restoreStarterProductCatalog(businessId: string): Promise<void> {
   if (typeof window !== 'undefined') {
     localStorage.removeItem('kamai_products_manually_cleared');
   }
-  await seedBusinessStarterData(businessId, businessType || 'grocery');
+  await seedBusinessStarterData(businessId);
 }
 
-// Default Category & Sample Product Seeder per business type
-export async function seedBusinessStarterData(businessId: string, businessType: BusinessType) {
+// Starter categories, sample products and marketing templates for a new shop.
+export async function seedBusinessStarterData(businessId: string) {
   const now = new Date().toISOString();
-  const profile = getStoreProfile(businessType);
 
-  // 1. Seed Categories from Profile
-  const categoriesToSeed = profile.quickCategories.map((catName) => ({
-    name: catName,
-    icon: profile.iconName || 'package',
-  }));
-
-  for (let i = 0; i < categoriesToSeed.length; i++) {
+  // 1. Seed the universal starter categories
+  for (let i = 0; i < STARTER_CATEGORIES.length; i++) {
     const catId = `cat_${Date.now()}_${i}`;
     await db.categories.put({
       id: catId,
       business_id: businessId,
-      name: categoriesToSeed[i].name,
-      icon: categoriesToSeed[i].icon,
+      name: STARTER_CATEGORIES[i],
+      icon: 'package',
       created_at: now,
     });
   }
 
-  // 2. Seed Default Category Retail Products into db.products (stock = 10, no barcode)
-  await seedCategoryDefaultProducts(businessId, businessType);
+  // 2. Seed starter retail products into db.products (stock = 10, no barcode)
+  await seedCategoryDefaultProducts(businessId);
 
   // 3. Marketing Templates for festival/growth
   const templates: Array<Omit<MarketingTemplate, 'id'>> = [

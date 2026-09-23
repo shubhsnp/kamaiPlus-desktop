@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/Input';
 import { CartItem, Business, ProductUnit } from '@/types';
 import { cn } from '@/lib/utils';
 
-export function getQuantityConfigForUnit(unit?: ProductUnit, businessType?: string) {
+export function getQuantityConfigForUnit(unit?: ProductUnit) {
   const normUnit = (unit || '').toLowerCase() || 'piece';
 
   if (normUnit === 'kg') {
@@ -181,12 +181,6 @@ export interface PosItemEditModalProps {
   setEditItemDiscountType: (type: "flat" | "percentage") => void;
   editItemDiscount: string;
   setEditItemDiscount: (val: string) => void;
-  looseTabsInput: string;
-  setLooseTabsInput: (val: string) => void;
-  selectedPackSize: number;
-  setSelectedPackSize: (val: number) => void;
-  pharmacySellMode: "tablets" | "strips";
-  setPharmacySellMode: (mode: "tablets" | "strips") => void;
   handleSaveEditItem: () => void;
 }
 
@@ -202,18 +196,11 @@ export const PosItemEditModal: React.FC<PosItemEditModalProps> = ({
   setEditItemDiscountType,
   editItemDiscount,
   setEditItemDiscount,
-  looseTabsInput,
-  setLooseTabsInput,
-  selectedPackSize,
-  setSelectedPackSize,
-  pharmacySellMode,
-  setPharmacySellMode,
   handleSaveEditItem
 }) => {
   if (!editingCartItem) return null;
 
-  const qtyConfig = getQuantityConfigForUnit(editingCartItem.unit, business?.business_type);
-  const isStripUnit = (editingCartItem.unit || '').toLowerCase() === 'strip';
+  const qtyConfig = getQuantityConfigForUnit(editingCartItem.unit);
 
   return (
     <Modal
@@ -223,218 +210,41 @@ export const PosItemEditModal: React.FC<PosItemEditModalProps> = ({
       size="sm"
     >
       <div className="space-y-3 p-2">
-        {isStripUnit ? (
-          <div className="bg-blue-50/80 p-2.5 rounded-xl border border-blue-200 space-y-2.5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-blue-950 flex items-center gap-1.5">
-                <span>💊</span>
-                <span>Pharmacy Selling Mode</span>
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+              <span>{qtyConfig.unitLabel}</span>
+              <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 font-mono text-[10px] font-black uppercase">
+                {editingCartItem.unit || 'Unit'}
               </span>
-              <div className="flex items-center gap-1 text-[11px] font-bold text-blue-900">
-                <span>Pack of:</span>
-                <select
-                  value={selectedPackSize}
-                  onChange={(e) => {
-                    const newPack = Number(e.target.value);
-                    setSelectedPackSize(newPack);
-                    if (pharmacySellMode === 'tablets') {
-                      const tabs = parseFloat(looseTabsInput) || 1;
-                      setEditItemQty(String(Math.round((tabs / newPack) * 1000) / 1000));
-                    }
-                  }}
-                  className="bg-white border border-blue-300 rounded px-1.5 py-0.5 text-[11px] font-bold cursor-pointer"
-                >
-                  <option value={4}>4 Tabs</option>
-                  <option value={6}>6 Tabs</option>
-                  <option value={10}>10 Tabs</option>
-                  <option value={15}>15 Tabs</option>
-                  <option value={20}>20 Tabs</option>
-                  <option value={30}>30 Tabs</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-1.5">
+            </label>
+            <span className="text-[10px] text-slate-500 font-semibold">{qtyConfig.decimalNotice}</span>
+          </div>
+          <Input
+            type="number"
+            step={qtyConfig.step}
+            placeholder={qtyConfig.placeholder}
+            value={editItemQty}
+            onChange={(e) => setEditItemQty(e.target.value)}
+            autoFocus
+          />
+          <div className="flex flex-wrap items-center gap-1.5 mt-2">
+            {qtyConfig.chips.map((chip) => (
               <button
+                key={chip.val}
                 type="button"
-                onClick={() => {
-                  setPharmacySellMode('tablets');
-                  const tabs = parseFloat(looseTabsInput) || 1;
-                  setEditItemQty(String(Math.round((tabs / selectedPackSize) * 1000) / 1000));
-                }}
-                className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  pharmacySellMode === 'tablets'
-                    ? 'bg-blue-600 text-white shadow-xs font-black'
-                    : 'bg-white border border-blue-200 text-blue-900 hover:bg-blue-100'
+                onClick={() => setEditItemQty(chip.val)}
+                className={`px-2 py-1 rounded text-[11px] font-bold transition-all cursor-pointer ${
+                  editItemQty === chip.val
+                    ? 'bg-amber-400 text-slate-950 font-black shadow-xs ring-1 ring-amber-500'
+                    : 'bg-slate-100 hover:bg-amber-100 hover:text-amber-950 border border-slate-200 text-slate-700'
                 }`}
               >
-                <span>💊 Loose Tablets</span>
+                {chip.label}
               </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setPharmacySellMode('strips');
-                  setEditItemQty(String(Math.max(1, Math.round(parseFloat(editItemQty) || 1))));
-                }}
-                className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  pharmacySellMode === 'strips'
-                    ? 'bg-blue-600 text-white shadow-xs font-black'
-                    : 'bg-white border border-blue-200 text-blue-900 hover:bg-blue-100'
-                }`}
-              >
-                <span>📦 Full Strips</span>
-              </button>
-            </div>
-
-            {pharmacySellMode === 'tablets' ? (
-              <div className="space-y-2 pt-0.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-800">
-                    Number of Tablets to Sell:
-                  </label>
-                  <span className="text-[10px] text-blue-700 font-bold font-mono bg-blue-100/70 px-1.5 py-0.5 rounded">
-                    = {(parseFloat(editItemQty) || 0).toFixed(2)} Strip
-                  </span>
-                </div>
-
-                <Input
-                  type="number"
-                  min="1"
-                  step="1"
-                  placeholder="e.g. 2, 4, 6, 8 tablets"
-                  value={looseTabsInput}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setLooseTabsInput(val);
-                    const num = parseFloat(val) || 0;
-                    setEditItemQty(String(Math.round((num / selectedPackSize) * 1000) / 1000));
-                  }}
-                  autoFocus
-                />
-
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {[1, 2, 3, 4, 5, 6, 8, 10, selectedPackSize, selectedPackSize * 2]
-                    .filter((v, i, a) => a.indexOf(v) === i)
-                    .map((tCount) => (
-                      <button
-                        key={tCount}
-                        type="button"
-                        onClick={() => {
-                          setLooseTabsInput(String(tCount));
-                          setEditItemQty(String(Math.round((tCount / selectedPackSize) * 1000) / 1000));
-                        }}
-                        className={`px-2 py-1 rounded text-[11px] font-bold transition-all cursor-pointer ${
-                          looseTabsInput === String(tCount)
-                            ? 'bg-blue-600 text-white shadow-xs font-black'
-                            : 'bg-white hover:bg-blue-100 border border-blue-200 text-blue-900'
-                        }`}
-                      >
-                        {tCount === selectedPackSize
-                          ? `${tCount} Tabs (1 Strip)`
-                          : `${tCount} Tab${tCount > 1 ? 's' : ''}`}
-                      </button>
-                    ))}
-                </div>
-
-                <div className="p-2 bg-blue-100/70 rounded-lg text-xs font-mono text-blue-950 flex items-center justify-between">
-                  <span>Rate: ₹{((parseFloat(editItemPrice) || 0) / selectedPackSize).toFixed(2)} / tab</span>
-                  <span className="font-bold text-blue-900">
-                    Total: ₹{(((parseFloat(editItemPrice) || 0) / selectedPackSize) * (parseFloat(looseTabsInput) || 0)).toFixed(2)}
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-2 pt-0.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-800">
-                    Number of Full Strips:
-                  </label>
-                  <span className="text-[10px] text-slate-500 font-mono">
-                    {Math.round((parseFloat(editItemQty) || 0) * selectedPackSize)} Total Tablets
-                  </span>
-                </div>
-
-                <Input
-                  type="number"
-                  step="any"
-                  placeholder="e.g. 1, 2, 3"
-                  value={editItemQty}
-                  onChange={(e) => {
-                    setEditItemQty(e.target.value);
-                    const num = parseFloat(e.target.value) || 0;
-                    setLooseTabsInput(String(Math.round(num * selectedPackSize)));
-                  }}
-                  autoFocus
-                />
-
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {[
-                    { label: '1 Strip', val: '1' },
-                    { label: '2 Strips', val: '2' },
-                    { label: '3 Strips', val: '3' },
-                    { label: '4 Strips', val: '4' },
-                    { label: '5 Strips', val: '5' },
-                    { label: '10 Strips', val: '10' },
-                    { label: '½ Strip (Loose)', val: '0.5' },
-                  ].map((chip) => (
-                    <button
-                      key={chip.val}
-                      type="button"
-                      onClick={() => {
-                        setEditItemQty(chip.val);
-                        setLooseTabsInput(String(Math.round(parseFloat(chip.val) * selectedPackSize)));
-                      }}
-                      className={`px-2 py-1 rounded text-[11px] font-bold transition-all cursor-pointer ${
-                        editItemQty === chip.val
-                          ? 'bg-blue-600 text-white shadow-xs font-black'
-                          : 'bg-white hover:bg-blue-100 border border-blue-200 text-blue-900'
-                      }`}
-                    >
-                      {chip.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+            ))}
           </div>
-        ) : (
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                <span>{qtyConfig.unitLabel}</span>
-                <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 font-mono text-[10px] font-black uppercase">
-                  {editingCartItem.unit || 'Unit'}
-                </span>
-              </label>
-              <span className="text-[10px] text-slate-500 font-semibold">{qtyConfig.decimalNotice}</span>
-            </div>
-            <Input
-              type="number"
-              step={qtyConfig.step}
-              placeholder={qtyConfig.placeholder}
-              value={editItemQty}
-              onChange={(e) => setEditItemQty(e.target.value)}
-              autoFocus
-            />
-            <div className="flex flex-wrap items-center gap-1.5 mt-2">
-              {qtyConfig.chips.map((chip) => (
-                <button
-                  key={chip.val}
-                  type="button"
-                  onClick={() => setEditItemQty(chip.val)}
-                  className={`px-2 py-1 rounded text-[11px] font-bold transition-all cursor-pointer ${
-                    editItemQty === chip.val
-                      ? 'bg-amber-400 text-slate-950 font-black shadow-xs ring-1 ring-amber-500'
-                      : 'bg-slate-100 hover:bg-amber-100 hover:text-amber-950 border border-slate-200 text-slate-700'
-                  }`}
-                >
-                  {chip.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+        </div>
 
         <div>
           <label className="text-xs font-bold text-slate-700 block mb-1">Unit Price (₹)</label>

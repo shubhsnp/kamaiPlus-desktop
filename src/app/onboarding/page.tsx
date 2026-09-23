@@ -5,10 +5,6 @@ import { useRouter } from 'next/navigation';
 import { db as localDb, seedBusinessStarterData } from '@/lib/db';
 import { BusinessType, Business } from '@/types';
 import { getStoredUser, setStoredUser, AuthUser } from '@/lib/auth';
-import { getFirestoreDb } from '@/lib/firebase/config';
-import { doc, setDoc, deleteDoc } from 'firebase/firestore';
-import { sanitizeForFirestore } from '@/lib/firebase/firestoreSync';
-import { syncProfileToCloud } from '@/lib/sync/syncEngine';
 import { 
   Store, 
   ShoppingBag, 
@@ -144,13 +140,20 @@ export default function OnboardingPage() {
       // Seed starter catalog products for selected category
       if (seedStarterCatalog) {
         try {
-          await seedBusinessStarterData(businessId, businessType);
+          await seedBusinessStarterData(businessId);
         } catch (seedErr) {
           console.warn('Starter catalog seed warning:', seedErr);
         }
       }
 
-      // 2. Write Complete Merchant Document to Firestore `merchants/{uid}`
+      // 2. Write Complete Merchant Document to Firestore `merchants/{uid}`.
+      // Firebase (~650 KB) is pulled in here, at the one moment onboarding needs
+      // it, rather than with the page — the shop is usable offline without it.
+      const [{ getFirestoreDb }, { doc, setDoc, deleteDoc }, { sanitizeForFirestore }] = await Promise.all([
+        import('@/lib/firebase/config'),
+        import('firebase/firestore'),
+        import('@/lib/firebase/firestoreSync'),
+      ]);
       const firestore = getFirestoreDb();
       if (firestore) {
         try {
@@ -225,6 +228,7 @@ export default function OnboardingPage() {
 
       // Sync profile to cloud
       try {
+        const { syncProfileToCloud } = await import('@/lib/sync/syncEngine');
         await syncProfileToCloud(businessId);
       } catch (e) {}
 

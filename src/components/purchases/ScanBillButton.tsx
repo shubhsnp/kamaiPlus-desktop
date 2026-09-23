@@ -1,14 +1,18 @@
 'use client';
 
 import React, { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { Sparkles, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Product } from '@/types';
 import { useProSubscription, ProFeatureBadge } from '@/components/subscription/ProFeatureGate';
-import { PurchaseInwardOptionsSheet } from './PurchaseInwardOptionsSheet';
+// The inward sheet bundles the Excel/CSV parser (xlsx, ~400 KB); load it on first open.
+const PurchaseInwardOptionsSheet = dynamic(
+  () => import('./PurchaseInwardOptionsSheet').then((m) => m.PurchaseInwardOptionsSheet),
+  { ssr: false }
+);
 
 interface ScanBillButtonProps {
-  businessType?: string;
   businessId?: string;
   existingProducts: Product[];
   onScanSuccess?: (billId: string, updatedCount: number, createdCount: number) => void;
@@ -16,7 +20,6 @@ interface ScanBillButtonProps {
 }
 
 export function ScanBillButton({
-  businessType,
   businessId = 'biz_default',
   existingProducts,
   onScanSuccess,
@@ -41,10 +44,10 @@ export function ScanBillButton({
       </Button>
 
       {/* 4-Way Inward Bottom Sheet */}
+      {isSheetOpen && (
       <PurchaseInwardOptionsSheet
         isOpen={isSheetOpen}
         onClose={() => setIsSheetOpen(false)}
-        businessType={businessType}
         businessId={businessId}
         existingProducts={existingProducts}
         onManualInwardClick={() => {
@@ -53,6 +56,7 @@ export function ScanBillButton({
         }}
         onScanSuccess={onScanSuccess}
       />
+      )}
     </>
   );
 }

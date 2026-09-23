@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useBusiness } from '@/components/layout/BusinessProvider';
 import { useDebounce } from 'use-debounce';
 import { useTranslation } from '@/lib/i18n';
 import { Product, ProductUnit } from '@/types';
@@ -14,7 +15,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useProSubscription } from '@/components/subscription/ProFeatureGate';
-import { lookupCategoryBarcode } from '@/lib/barcode/categoryBarcodeLoader';
+import { lookupBarcode } from '@/lib/barcode/barcodeDictionary';
 
 // Modular Sub-components
 import { ProductHeaderActions } from '@/components/products/ProductHeaderActions';
@@ -102,7 +103,7 @@ export default function ProductsPage() {
   // Dexie Queries
   const allProducts = useLiveQuery(async () => db.products.toArray()) || [];
   const categories = useLiveQuery(async () => db.categories.toArray()) || [];
-  const business = useLiveQuery(async () => db.businesses.toCollection().first());
+  const business = useBusiness();
 
   const categoryMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -355,7 +356,7 @@ export default function ProductsPage() {
     setFormBarcode(code);
 
     if (!formName) {
-      const match = await lookupCategoryBarcode(code, business?.business_type);
+      const match = await lookupBarcode(code);
       if (match && match.name) {
         setFormName(match.name);
         if (match.selling_price) setFormSellingPrice(match.selling_price.toString());
@@ -387,7 +388,6 @@ export default function ProductsPage() {
       {/* 1. Header Actions */}
       <ProductHeaderActions
         totalProducts={allProducts.length}
-        businessType={business?.business_type}
         onOpenAddModal={handleOpenAddModal}
         onOpenExcelImporter={() => setIsExcelImporterOpen(true)}
         onOpenInwardSheet={() => setIsPurchaseSheetOpen(true)}
@@ -464,7 +464,6 @@ export default function ProductsPage() {
         onClose={() => setIsModalOpen(false)}
         editingProduct={editingProduct}
         categories={categories}
-        businessType={business?.business_type}
         formName={formName}
         setFormName={setFormName}
         formCategory={formCategory}
@@ -543,11 +542,10 @@ export default function ProductsPage() {
         businessId={business?.id || 'biz_default'}
       />
 
-      {/* Purchase & Menu Inward Sheet */}
+      {/* Purchase Inward Sheet */}
       <PurchaseInwardOptionsSheet
         isOpen={isPurchaseSheetOpen}
         onClose={() => setIsPurchaseSheetOpen(false)}
-        businessType={business?.business_type}
         businessId={business?.id || 'biz_default'}
         existingProducts={allProducts}
         onManualInwardClick={() => {

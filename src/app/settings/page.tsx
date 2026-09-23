@@ -1,14 +1,20 @@
 'use client';
 
+import dynamic from 'next/dynamic';
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useBusiness } from '@/components/layout/BusinessProvider';
 import QRCode from 'qrcode';
 import { generateUPILink } from '@/lib/utils';
 import { UpiAccount, BusinessType } from '@/types';
 import { compressImageFile } from '@/lib/utils/imageCompressor';
 import { resolveInvoiceConfig } from '@/lib/invoices/themeDefaults';
-import { MerchantQRModal } from '@/components/paytm/MerchantQRModal';
+const MerchantQRModal = dynamic(
+  () => import('@/components/paytm/MerchantQRModal').then((m) => m.MerchantQRModal),
+  { ssr: false }
+);
 import { 
   SettingsChangeBar, 
   SettingsReviewModal, 
@@ -33,7 +39,7 @@ import { DataMaintenanceTab } from '@/components/settings/DataMaintenanceTab';
 
 
 export default function SettingsPage() {
-  const business = useLiveQuery(async () => db.businesses.toCollection().first());
+  const business = useBusiness();
 
   // Form State
   const [name, setName] = useState('');
@@ -566,11 +572,13 @@ export default function SettingsPage() {
       />
 
       {/* 6. Merchant QR Standee Printable Modal */}
-      <MerchantQRModal
-        isOpen={isStandeeModalOpen}
-        onClose={() => setIsStandeeModalOpen(false)}
-        business={business || null}
-      />
+      {isStandeeModalOpen && (
+        <MerchantQRModal
+          isOpen={isStandeeModalOpen}
+          onClose={() => setIsStandeeModalOpen(false)}
+          business={business || null}
+        />
+      )}
 
 
     </div>

@@ -1,4 +1,7 @@
+'use client';
+
 import React, { useState, useEffect, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from '@/lib/i18n';
@@ -21,7 +24,12 @@ import {
   ChevronDown,
   Crown
 } from 'lucide-react';
-import { MerchantQRModal } from '@/components/paytm/MerchantQRModal';
+// Counter QR standee pulls in jsPDF + html2canvas (~600 KB). It sits in the app
+// shell, so importing it statically made every page pay that cost on load.
+const MerchantQRModal = dynamic(
+  () => import('@/components/paytm/MerchantQRModal').then((m) => m.MerchantQRModal),
+  { ssr: false }
+);
 
 import { AuthUser, getStoredUser, setStoredUser, logoutUser } from '@/lib/auth';
 
@@ -87,7 +95,6 @@ export const Navbar: React.FC = () => {
 
   const displayBusinessName = business?.name || 'My Store';
   const displayOwnerName = business?.owner_name || currentUser?.name || 'Owner';
-  const displayType = business?.business_type || 'Retail POS';
 
   return (
     <>
@@ -142,7 +149,7 @@ export const Navbar: React.FC = () => {
                 </h1>
               </div>
               <p className="text-[10px] sm:text-xs text-slate-500 font-normal truncate max-w-[120px] sm:max-w-[220px]">
-                {displayOwnerName} • <span className="capitalize">{displayType}</span>
+                {displayOwnerName}
               </p>
             </div>
 
@@ -247,11 +254,13 @@ export const Navbar: React.FC = () => {
       </header>
 
       {/* Clean Corporate Merchant QR Modal */}
-      <MerchantQRModal
-        isOpen={isQrModalOpen}
-        onClose={() => setIsQrModalOpen(false)}
-        business={business || null}
-      />
+      {isQrModalOpen && (
+        <MerchantQRModal
+          isOpen={isQrModalOpen}
+          onClose={() => setIsQrModalOpen(false)}
+          business={business || null}
+        />
+      )}
     </>
   );
 };

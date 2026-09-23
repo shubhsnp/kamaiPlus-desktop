@@ -1,14 +1,20 @@
 'use client';
 
+import dynamic from 'next/dynamic';
+
 import React, { useState, useMemo } from 'react';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useBusiness } from '@/components/layout/BusinessProvider';
 import { CashRegister, CashExpense } from '@/types';
 import { formatINR, cn } from '@/lib/utils';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { DayEndClosingReportModal } from '@/components/reports/DayEndClosingReportModal';
+const DayEndClosingReportModal = dynamic(
+  () => import('@/components/reports/DayEndClosingReportModal').then((m) => m.DayEndClosingReportModal),
+  { ssr: false }
+);
 import { Unlock } from 'lucide-react';
 import { getLocalDayRange } from '@/lib/sales/saleMath';
 import { computeDrawerSummary, localDateKey } from '@/lib/reports/cashDrawer';
@@ -18,10 +24,13 @@ import { CashRegisterHeaderActions } from '@/components/cash-register/CashRegist
 import { CashRegisterMetricsRibbon } from '@/components/cash-register/CashRegisterMetricsRibbon';
 import { CashExpensesList } from '@/components/cash-register/CashExpensesList';
 import { AddExpenseModal } from '@/components/cash-register/AddExpenseModal';
-import { DenominationCalculatorModal } from '@/components/cash-register/DenominationCalculatorModal';
+const DenominationCalculatorModal = dynamic(
+  () => import('@/components/cash-register/DenominationCalculatorModal').then((m) => m.DenominationCalculatorModal),
+  { ssr: false }
+);
 
 export default function CashRegisterPage() {
-  const business = useLiveQuery(async () => db.businesses.toCollection().first());
+  const business = useBusiness();
 
   // Active Open Shift Query
   const activeShift = useLiveQuery(async () => {
@@ -247,6 +256,7 @@ export default function CashRegisterPage() {
       />
 
       {/* Daily Closing Report Modal */}
+      {isClosingReportModalOpen && (
       <DayEndClosingReportModal
         isOpen={isClosingReportModalOpen}
         onClose={() => setIsClosingReportModalOpen(false)}
@@ -256,6 +266,7 @@ export default function CashRegisterPage() {
         ledger={todayLedger}
         selectedDate={todayDatePrefix}
       />
+      )}
 
     </div>
   );

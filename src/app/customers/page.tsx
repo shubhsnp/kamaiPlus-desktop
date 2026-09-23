@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useBusiness } from '@/components/layout/BusinessProvider';
 import { useTranslation } from '@/lib/i18n';
 import { Customer, CustomerType } from '@/types';
 import { Users, CheckCircle2, Sparkles } from 'lucide-react';
@@ -23,7 +24,7 @@ export default function CustomersPage() {
 
   const [custToast, setCustToast] = useState<{ message: string; type?: 'success' | 'info' | 'error' } | null>(null);
 
-  const business = useLiveQuery(async () => db.businesses.toCollection().first());
+  const business = useBusiness();
 
   const showCustToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
     setCustToast({ message, type });

@@ -25,7 +25,6 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
-import { downloadInvoicePdfFromElement } from '@/lib/invoices/pdfGenerator';
 
 function InvoiceContent() {
   const searchParams = useSearchParams();
@@ -144,6 +143,7 @@ function InvoiceContent() {
     setIsGeneratingPdf(true);
     try {
       const fileName = data.s_inv.endsWith('.pdf') ? data.s_inv : `Invoice_${data.s_inv}.pdf`;
+      const { downloadInvoicePdfFromElement } = await import('@/lib/invoices/pdfGenerator');
       await downloadInvoicePdfFromElement(el, fileName);
     } catch (err) {
       console.error('PDF generation failed:', err);
