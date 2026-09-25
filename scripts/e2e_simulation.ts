@@ -663,6 +663,15 @@ assert(/renameSync/.test(backupJs) && /startsWith\(PREFIX\)/.test(backupJs), 'Ba
 const backupSvc = readSource('lib/backup/cloudBackupService.ts');
 assert(/db\.purchase_bills\.toArray\(\)/.test(backupSvc) && /Array\.isArray\(purchase_bills\) \? db\.purchase_bills\.clear\(\)/.test(backupSvc), 'Backups include purchase bills; an older backup never wipes them');
 
+// 8i. Small known issues stay fixed.
+const statusBarSrc = readSource('components/layout/DesktopStatusBar.tsx');
+assert(!/<span>Products<\/span>|<span>Register<\/span>/.test(statusBarSrc) && /BILLING_SHORTCUTS/.test(statusBarSrc), 'Status bar lists only shortcuts that exist (no fake F1 Billing / F2 Products / F4 Register)');
+for (const [key] of [['F1'], ['F2'], ['F4'], ['F8'], ['F9'], ['F10']]) {
+  assert(billingSrc.includes(`e.key === '${key}'`), `Advertised shortcut ${key} is really handled on the billing screen`);
+}
+assert(/pathname === '\/pay'/.test(readSource('components/layout/AppShell.tsx')), '/pay (customer UPI link) opens without a shop login');
+assert(/\+ Add size \/ colour/.test(readSource('components/products/AddEditProductModal.tsx')), 'Size / colour can be added to a new product');
+
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.
 const PRO_OR_AI = /useProSubscription|requirePro|UpgradeModal|ProFeatureBadge|subscriptionService|razorpay|generativelanguage\.googleapis|gemini/i;
 const proOrAiOffenders = ALL_SOURCE.filter((f) => PRO_OR_AI.test(fs.readFileSync(f, 'utf8')));

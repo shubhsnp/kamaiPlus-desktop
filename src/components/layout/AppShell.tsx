@@ -116,7 +116,9 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     const user = currentUser || getStoredUser();
     
     // Route classifications
-    const isCustomerInvoice = pathname === '/invoice' || (pathname.startsWith('/invoice') && !pathname.startsWith('/invoice-designer'));
+    const isCustomerInvoice = pathname === '/invoice' || (pathname.startsWith('/invoice') && !pathname.startsWith('/invoice-designer'))
+      // The customer-facing UPI payment link must open without a shop login.
+      || pathname === '/pay';
     const isLegalOrPublic = pathname === '/terms-of-service' || pathname === '/privacy-policy' || pathname === '/refund-policy' || pathname === '/contact-us' || pathname === '/features' || pathname === '/about' || pathname === '/download' || pathname === '/plans';
     const isAuthRoute = pathname === '/auth';
     const isOnboardingRoute = pathname === '/onboarding';
@@ -147,8 +149,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     return <main className="min-h-screen bg-slate-50" />;
   }
 
-  // Standalone layout for public customer digital invoice links
-  const isCustomerInvoice = pathname === '/invoice' || (pathname.startsWith('/invoice') && !pathname.startsWith('/invoice-designer'));
+  // Standalone layout for public customer links (digital invoice, UPI payment)
+  const isCustomerInvoice = pathname === '/invoice' || (pathname.startsWith('/invoice') && !pathname.startsWith('/invoice-designer')) || pathname === '/pay';
   if (isCustomerInvoice) {
     return <main className="min-h-screen bg-slate-50">{children}</main>;
   }

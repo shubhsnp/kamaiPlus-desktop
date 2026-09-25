@@ -1,12 +1,27 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { HardDrive, Wifi, WifiOff, Printer, Clock } from 'lucide-react';
 import { APP_VERSION } from '@/lib/constants/version';
 import { useBusiness } from '@/components/layout/BusinessProvider';
 import { db } from '@/lib/db';
 
+// Keep in step with the keydown handler in app/billing/page.tsx. The bar used to
+// advertise F1 Billing / F2 Products / F4 Register everywhere — none of which existed.
+const BILLING_SHORTCUTS: [string, string][] = [
+  ['F1', 'New bill'],
+  ['F2', 'Search'],
+  ['F4', 'Cash'],
+  ['F8', 'UPI'],
+  ['F9', 'Credit'],
+  ['F10', 'Complete sale'],
+  ['Esc', 'Clear search'],
+];
+const GLOBAL_SHORTCUTS: [string, string][] = [['Ctrl+B', 'Show / hide menu']];
+
 export const DesktopStatusBar: React.FC = () => {
+  const pathname = usePathname();
   const [isOnline, setIsOnline] = useState<boolean>(true);
   const [currentTime, setCurrentTime] = useState<string>('');
 
@@ -80,24 +95,14 @@ export const DesktopStatusBar: React.FC = () => {
         )}
       </div>
 
-      {/* Center: Essential Keyboard Shortcuts */}
+      {/* Center: the keyboard shortcuts that actually work on this screen */}
       <div className="hidden lg:flex items-center gap-3 text-slate-400 text-[10.5px]">
-        <div className="flex items-center gap-1">
-          <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-mono font-bold text-[9.5px]">F1</kbd>
-          <span>Billing</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-mono font-bold text-[9.5px]">F2</kbd>
-          <span>Products</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-mono font-bold text-[9.5px]">F4</kbd>
-          <span>Register</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-mono font-bold text-[9.5px]">Esc</kbd>
-          <span>Close/Cancel</span>
-        </div>
+        {(pathname === '/billing' ? BILLING_SHORTCUTS : GLOBAL_SHORTCUTS).map(([key, label]) => (
+          <div key={key} className="flex items-center gap-1">
+            <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-mono font-bold text-[9.5px]">{key}</kbd>
+            <span>{label}</span>
+          </div>
+        ))}
       </div>
 
       {/* Right: Printer, Clock, Version */}

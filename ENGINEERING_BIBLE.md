@@ -219,7 +219,7 @@ src/components/<feature>/   Feature components, one folder per domain
 src/components/ui/          Button, Card, Input, Modal  (that is all of it)
 src/lib/<domain>/           Engines — see table below
 src/types/index.ts          All domain types. Single file.
-scripts/e2e_simulation.ts   The test suite (§11). 280 assertions.
+scripts/e2e_simulation.ts   The test suite (§11). 289 assertions.
 scripts/bump_version.ts     Version bumper (+0.1 minor)
 public/barcodes/*.json      5 shipped offline barcode dictionaries
 ```
@@ -595,13 +595,13 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 280/280, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 289/289, 0 failures
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
 git push origin main
 ```
 
-### Test suite map — `scripts/e2e_simulation.ts` (280 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (289 assertions)
 
 | Suite | Covers |
 | :--- | :--- |
@@ -638,9 +638,10 @@ business queries come back. **When you fix a bug, add its invariant there.**
 
 Recorded so the next agent does not rediscover them. None are fixed as of v4.38.0.
 
-1. **`DesktopStatusBar` advertises shortcuts that do not exist.** It shows
-   `F1 Billing · F2 Products · F4 Register · Esc Close/Cancel`. The real bindings are
-   POS-local, in `src/app/billing/page.tsx`:
+1. ~~`DesktopStatusBar` advertised shortcuts that do not exist~~ — **fixed in v4.47.0**:
+   it now shows the billing keys on `/billing` and only Ctrl+B elsewhere (Suite 9 §8i
+   checks every advertised key is handled). The real bindings, POS-local in
+   `src/app/billing/page.tsx`:
    | Key | Actual |
    | :--- | :--- |
    | F1 | New bill tab |
@@ -651,9 +652,8 @@ Recorded so the next agent does not rediscover them. None are fixed as of v4.38.
    | Ctrl+B | Toggle sidebar (global) |
    None of F1/F2/F4 do anything outside `/billing`.
 
-2. **`/pay` is unreachable when logged out.** It is a customer-facing UPI link page
-   (`?pa=&pn=&am=`) but is **not** in `AppShell`'s public-route allowlist, so a customer
-   opening the link is redirected to `/auth`. Fix = add `/pay` to `isLegalOrPublic`.
+2. ~~`/pay` was unreachable when logged out~~ — **fixed in v4.47.0**: `AppShell` treats
+   `/pay` like the public `/invoice` link (no login, standalone layout).
 
 3. **The route guard references 8 pages that do not exist** — `/terms-of-service`,
    `/privacy-policy`, `/refund-policy`, `/contact-us`, `/features`, `/about`,
@@ -662,8 +662,8 @@ Recorded so the next agent does not rediscover them. None are fixed as of v4.38.
 4. ~~`useProSubscription()` always returns Pro.~~ **Resolved in v4.43.0** — the whole
    Pro / subscription layer was deleted (see §10 #16).
 
-5. **Size / colour product fields only render if already set** — so they can never be
-   set on a new product. Pre-existing; was hidden behind a dead `isClothing` flag.
+5. ~~Size / colour fields only rendered if already set~~ — **fixed in v4.47.0**: a
+   "+ Add size / colour" link opens them on any product.
 
 6. **Repo weight.** Measured 2026-09-23: `node_modules` 1.2 GB, `dist/` 597 MB
    (electron-builder output), `.next/` 161 MB, `out/` 8.1 MB, plus **627 MB of stale

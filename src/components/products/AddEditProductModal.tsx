@@ -101,6 +101,14 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
   onDeleteProduct,
   formError,
 }) => {
+  // Size / colour used to render only when already filled, so a new product could
+  // never get them. They now open on demand and stay open once they hold a value.
+  const [showSizeColor, setShowSizeColor] = React.useState(false);
+  React.useEffect(() => {
+    if (!isOpen) setShowSizeColor(false);
+  }, [isOpen]);
+  const sizeColorVisible = showSizeColor || Boolean(formSize || formColor);
+
   return (
     <Modal
       isOpen={isOpen}
@@ -294,7 +302,16 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
 
 
         {/* Optional variant attributes (size / colour) */}
-        {(formSize || formColor) && (
+        {!sizeColorVisible && (
+          <button
+            type="button"
+            onClick={() => setShowSizeColor(true)}
+            className="text-xs font-bold text-sky-700 hover:text-sky-900 hover:underline cursor-pointer"
+          >
+            + Add size / colour
+          </button>
+        )}
+        {sizeColorVisible && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
               label="Size / Dimensions"
