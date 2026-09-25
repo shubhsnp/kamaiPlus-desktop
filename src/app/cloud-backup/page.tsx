@@ -30,6 +30,7 @@ import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
 import Link from 'next/link';
 import { CLOUD_SYNC_ENABLED, CLOUD_SYNC_DISABLED_MESSAGE } from '@/lib/firebase/cloudAvailability';
+import { AutoBackupCard } from '@/components/backup/AutoBackupCard';
 
 export default function CloudBackupPage() {
   const business = useBusiness();
@@ -273,6 +274,8 @@ export default function CloudBackupPage() {
         <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
           Store Data Backup &amp; Restore
         </h2>
+
+        <AutoBackupCard />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {/* CARD 1: EXPORT / DOWNLOAD */}

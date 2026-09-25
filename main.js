@@ -1,11 +1,12 @@
 require('v8-compile-cache');
-const { app, BrowserWindow, ipcMain, net, protocol, shell } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, net, protocol, shell } = require('electron');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { pathToFileURL } = require('url');
 const licence = require('./licence');
 const { initAutoUpdate } = require('./updater');
+const backup = require('./backup');
 
 /**
  * KamaiPlus desktop shell.
@@ -351,6 +352,32 @@ ipcMain.handle('kp:app-info', async () => ({ version: app.getVersion(), document
 ipcMain.handle('kp:licence-status', async () =>
   licence.getStatus({ userDataDir: app.getPath('userData'), dev: isDevServer })
 );
+
+// ---------------------------------------------------------------------------
+// Automatic local backup — see backup.js
+// ---------------------------------------------------------------------------
+
+const backupPaths = () => ({ documentsRoot: documentsRoot(), userDataDir: app.getPath('userData') });
+
+ipcMain.handle('kp:backup-write', async (_event, opts) =>
+  backup.writeBackup({ ...backupPaths(), json: opts && opts.json, shopName: opts && opts.shopName })
+);
+
+ipcMain.handle('kp:backup-info', async () => backup.getInfo(backupPaths()));
+
+ipcMain.handle('kp:backup-choose-folder', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Choose a folder for an extra backup copy (pen drive, Google Drive folder...)',
+    properties: ['openDirectory', 'createDirectory'],
+  });
+  if (!result.canceled && result.filePaths[0]) backup.setExtraFolder(app.getPath('userData'), result.filePaths[0]);
+  return backup.getInfo(backupPaths());
+});
+
+ipcMain.handle('kp:backup-clear-folder', async () => {
+  backup.setExtraFolder(app.getPath('userData'), null);
+  return backup.getInfo(backupPaths());
+});
 
 ipcMain.handle('kp:licence-activate', async (_event, key) =>
   licence.activate({

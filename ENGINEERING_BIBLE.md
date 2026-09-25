@@ -108,6 +108,10 @@ Defined in `main.js` (`ipcMain.handle`), exposed in `preload.js`, typed in
 | `kp:app-info` | `getAppInfo()` | `{version, documentsDir}` |
 | `kp:licence-status` | `getLicenceStatus()` | Offline licence check (§2.1) → `{state:'active',…}` or `{state:'required', machineName, reason?}` |
 | `kp:licence-activate` | `activateLicence(key)` | One-time online activation (§2.1) → `{ok, status}` or `{ok:false, error}` |
+| `kp:backup-write` | `writeBackup({json, shopName})` | Writes today's automatic backup (§2.3) |
+| `kp:backup-info` | `getBackupInfo()` | Backup folder, last backup, count, extra folder (§2.3) |
+| `kp:backup-choose-folder` | `chooseBackupFolder()` | Folder picker for the extra (pen drive) copy (§2.3) |
+| `kp:backup-clear-folder` | `clearBackupFolder()` | Stop the extra copy (§2.3) |
 | `kp:update-status` | `getUpdateStatus()` | `{enabled, readyVersion}` (§2.2) |
 | `kp:update-install` | `installUpdate()` | Silent install + relaunch, only when an update has downloaded (§2.2) |
 | _event_ `kp:update-ready` | `onUpdateReady(cb)` | Main → page when a new version has finished downloading (§2.2) |
@@ -175,6 +179,24 @@ npm run release:publish              # firebase deploy --only hosting:updates
   works when run by hand), so do not point it back at `public/icon-512.png`.
 - Shops on v4.44.0 or older have no updater: they install the first updater build
   (v4.45.0+) by hand once; every version after that arrives automatically.
+
+### 2.3 Automatic local backup (v4.46.0)
+
+Cloud sync is off (§12 #7), so the shop's own disk is the only safety net.
+
+- `<AutoBackupScheduler>` (in `AppShell`): first run 2 min after launch, then a check
+  every 30 min; **one backup per calendar day**. `lib/backup/autoBackup.ts` builds the
+  same JSON as "Export Full Backup" (`createFullBackupPayload`) and sends it over
+  `kp:backup-write`.
+- `backup.js` (main process) writes `Documents/KamaiPlus/Backups/KamaiPlus_AutoBackup_<shop>_<YYYY-MM-DD>.json`
+  via temp file + rename, keeps the newest 30, never deletes files it did not create.
+  Optional **extra folder** (pen drive / Google Drive folder) in
+  `<userData>/backup-settings.json`; a disconnected drive is reported, never fatal.
+- `<AutoBackupCard>` on `/cloud-backup`: last backup, Backup Now, Open Folder, choose /
+  remove the extra folder. Restore = the existing "Restore Store Data" button.
+- Since v4.46.0 backups include **`purchase_bills`**. Restoring an older backup (no
+  such key) leaves current purchase bills alone instead of wiping them.
+- `backup.js` must stay in `build.files`.
 - The old `firebase.json` deployed the whole repo to the default `kamaiplus` site (the
   public website) and `npm run deploy:firebase` would have overwritten it. Both are gone.
 
@@ -186,6 +208,7 @@ npm run release:publish              # firebase deploy --only hosting:updates
 main.js / preload.js        Electron shell + IPC bridge
 licence.js                  Licence check + one-time activation (main process, §2.1)
 updater.js                  Auto-update from kamaiplus-desktop.web.app (main process, §2.2)
+backup.js                   Daily automatic backup files (main process, §2.3)
 scripts/prepare_release.js  dist/ → release/ for the update site (§2.2)
 next.config.js              output:'export', images.unoptimized, TS errors NOT ignored
 src/app/<route>/page.tsx    19 routes (§4)
@@ -196,7 +219,7 @@ src/components/<feature>/   Feature components, one folder per domain
 src/components/ui/          Button, Card, Input, Modal  (that is all of it)
 src/lib/<domain>/           Engines — see table below
 src/types/index.ts          All domain types. Single file.
-scripts/e2e_simulation.ts   The test suite (§11). 268 assertions.
+scripts/e2e_simulation.ts   The test suite (§11). 280 assertions.
 scripts/bump_version.ts     Version bumper (+0.1 minor)
 public/barcodes/*.json      5 shipped offline barcode dictionaries
 ```
@@ -446,6 +469,7 @@ There is no global state library. Modules talk through window events:
 | `kamai_payment_received` | payment bridge → billing celebration modal |
 | `print_settings_changed` | settings → print consumers |
 | `privacy_mode_changed` | cashier privacy toggle → ProfitMask |
+| `auto_backup_saved` | `autoBackup.ts` → AutoBackupCard refresh |
 
 ### localStorage keys (complete, verified)
 
@@ -571,13 +595,13 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 268/268, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 280/280, 0 failures
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
 git push origin main
 ```
 
-### Test suite map — `scripts/e2e_simulation.ts` (268 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (280 assertions)
 
 | Suite | Covers |
 | :--- | :--- |

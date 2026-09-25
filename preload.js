@@ -12,6 +12,10 @@ contextBridge.exposeInMainWorld('kamaiDesktop', {
   getAppInfo: () => ipcRenderer.invoke('kp:app-info'),
   getLicenceStatus: () => ipcRenderer.invoke('kp:licence-status'),
   activateLicence: (key) => ipcRenderer.invoke('kp:licence-activate', key),
+  writeBackup: (opts) => ipcRenderer.invoke('kp:backup-write', opts),
+  getBackupInfo: () => ipcRenderer.invoke('kp:backup-info'),
+  chooseBackupFolder: () => ipcRenderer.invoke('kp:backup-choose-folder'),
+  clearBackupFolder: () => ipcRenderer.invoke('kp:backup-clear-folder'),
   getUpdateStatus: () => ipcRenderer.invoke('kp:update-status'),
   installUpdate: () => ipcRenderer.invoke('kp:update-install'),
   onUpdateReady: (callback) => {

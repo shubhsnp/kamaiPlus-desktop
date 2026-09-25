@@ -16,6 +16,7 @@ export interface BackupMetadata {
     sales_returns: number;
     inventory_movements: number;
     ledger_transactions: number;
+    purchase_bills?: number;
   };
 }
 
@@ -32,6 +33,8 @@ export interface FullBackupPayload {
   sales_returns: any[];
   inventory_movements: any[];
   ledger_transactions: any[];
+  /** Supplier bills. Absent in backups made before v4.46.0. */
+  purchase_bills?: any[];
 }
 
 /**
@@ -50,6 +53,7 @@ export async function createFullBackupPayload(): Promise<FullBackupPayload> {
     sales_returns,
     inventory_movements,
     ledger_transactions,
+    purchase_bills,
   ] = await Promise.all([
     db.businesses.toArray(),
     db.categories.toArray(),
@@ -62,6 +66,7 @@ export async function createFullBackupPayload(): Promise<FullBackupPayload> {
     db.sales_returns.toArray(),
     db.inventory_movements.toArray(),
     db.ledger_transactions.toArray(),
+    db.purchase_bills.toArray(),
   ]);
 
   const biz = businesses[0];
@@ -82,6 +87,7 @@ export async function createFullBackupPayload(): Promise<FullBackupPayload> {
       sales_returns: sales_returns.length,
       inventory_movements: inventory_movements.length,
       ledger_transactions: ledger_transactions.length,
+      purchase_bills: purchase_bills.length,
     },
   };
 
@@ -98,6 +104,7 @@ export async function createFullBackupPayload(): Promise<FullBackupPayload> {
     sales_returns,
     inventory_movements,
     ledger_transactions,
+    purchase_bills,
   };
 }
 
@@ -152,11 +159,14 @@ export async function restoreDatabaseFromPayload(
     sales_returns,
     inventory_movements,
     ledger_transactions,
+    purchase_bills,
   } = payload;
 
   if (mode === 'clean') {
-    // Clear all existing tables
+    // Clear all existing tables. Purchase bills are cleared only when the backup
+    // carries them, so restoring an older backup never wipes supplier bills.
     await Promise.all([
+      Array.isArray(purchase_bills) ? db.purchase_bills.clear() : Promise.resolve(),
       db.businesses.clear(),
       db.categories.clear(),
       db.products.clear(),
@@ -184,6 +194,7 @@ export async function restoreDatabaseFromPayload(
     sales_returns?.length ? db.sales_returns.bulkPut(sales_returns) : Promise.resolve(),
     inventory_movements?.length ? db.inventory_movements.bulkPut(inventory_movements) : Promise.resolve(),
     ledger_transactions?.length ? db.ledger_transactions.bulkPut(ledger_transactions) : Promise.resolve(),
+    purchase_bills?.length ? db.purchase_bills.bulkPut(purchase_bills) : Promise.resolve(),
   ]);
 
   try {

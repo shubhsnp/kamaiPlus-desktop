@@ -655,6 +655,14 @@ assert(pkgJson.build?.win?.icon === 'build/icon.ico' && fs.existsSync(path.join(
 const firebaseJson = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'firebase.json'), 'utf8'));
 assert(Array.isArray(firebaseJson.hosting) && firebaseJson.hosting.every((h: any) => h.target === 'updates' && h.public === 'release'), 'firebase.json can only deploy the update site, never the public website');
 
+// 8h. Automatic daily backup.
+assert((pkgJson.build?.files || []).includes('backup.js'), 'backup.js is packaged into the installer');
+assert(/<AutoBackupScheduler \/>/.test(readSource('components/layout/AppShell.tsx')), 'AppShell runs the daily automatic backup');
+const backupJs = fs.readFileSync(path.join(__dirname, '..', 'backup.js'), 'utf8');
+assert(/renameSync/.test(backupJs) && /startsWith\(PREFIX\)/.test(backupJs), 'Backups are written atomically and pruning only touches auto-backup files');
+const backupSvc = readSource('lib/backup/cloudBackupService.ts');
+assert(/db\.purchase_bills\.toArray\(\)/.test(backupSvc) && /Array\.isArray\(purchase_bills\) \? db\.purchase_bills\.clear\(\)/.test(backupSvc), 'Backups include purchase bills; an older backup never wipes them');
+
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.
 const PRO_OR_AI = /useProSubscription|requirePro|UpgradeModal|ProFeatureBadge|subscriptionService|razorpay|generativelanguage\.googleapis|gemini/i;
 const proOrAiOffenders = ALL_SOURCE.filter((f) => PRO_OR_AI.test(fs.readFileSync(f, 'utf8')));

@@ -27,6 +27,25 @@ export type LicenceActivationResult =
   | { ok: true; status: LicenceStatus }
   | { ok: false; error: string };
 
+/** Automatic local backup state from `backup.js` in the Electron main process. */
+export interface BackupInfo {
+  folder: string;
+  extraFolder: string | null;
+  extraFolderAvailable: boolean | null;
+  count: number;
+  keepDays: number;
+  lastBackupAt: string | null;
+  today: string;
+  hasTodaysBackup: boolean;
+}
+
+export interface BackupWriteResult {
+  ok: boolean;
+  path?: string;
+  error?: string;
+  extra?: { ok: boolean; error?: string } | null;
+}
+
 export interface KamaiDesktopApi {
   isDesktop: true;
   printToPdf(opts: { html: string; fileName: string; folder: 'Invoices' | 'Reports' | 'Statements' }): Promise<DesktopResult>;
@@ -37,6 +56,10 @@ export interface KamaiDesktopApi {
   getAppInfo(): Promise<{ version: string; documentsDir: string }>;
   getLicenceStatus(): Promise<LicenceStatus>;
   activateLicence(key: string): Promise<LicenceActivationResult>;
+  writeBackup(opts: { json: string; shopName: string }): Promise<BackupWriteResult>;
+  getBackupInfo(): Promise<BackupInfo>;
+  chooseBackupFolder(): Promise<BackupInfo>;
+  clearBackupFolder(): Promise<BackupInfo>;
   getUpdateStatus(): Promise<{ enabled: boolean; readyVersion: string | null }>;
   installUpdate(): Promise<DesktopResult>;
   /** Fires once a newer version has finished downloading. Returns an unsubscribe. */
