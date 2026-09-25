@@ -30,9 +30,11 @@ by exactly this (see §12).
 | :--- | :--- |
 | `AGENTS.md` | ✅ **Authoritative.** Hard rules. Obey it. |
 | `ENGINEERING_BIBLE.md` (this file) | ✅ **Authoritative.** Verified map. |
-| `FEATURE_REGISTRY.md` | ❌ **Fiction.** All 27 component names in it are invented — `DashboardStatsCards`, `ProductModal`, `KhataEntryModal`, `RestoreModal` etc. do not exist and never did. Do not read it. |
-| `SYSTEM_ARCHITECTURE.md` | ⚠️ **Partly stale.** Claims React 19 (actually 18.3.1), Next 15 (actually 16.3.1) and Supabase as the server DB (the Supabase dep was removed in v4.38.0 — nothing uses it). The *paise math* section in it is still correct. |
-| `HANDOVER.md`, `KamaiPlus_Complete_App_Documentation.md` | ⚠️ **Historical.** Snapshots of older versions. Treat as archaeology. |
+| `docs/archive/SYSTEM_ARCHITECTURE.md` | ⚠️ **Partly stale.** Claims React 19 (actually 18.3.1), Next 15 (actually 16.3.1) and Supabase as the server DB (the Supabase dep was removed in v4.38.0 — nothing uses it). The *paise math* section in it is still correct. |
+| `docs/archive/HANDOVER.md`, `docs/archive/KamaiPlus_Complete_App_Documentation.md` | ⚠️ **Historical.** Snapshots of older versions. Treat as archaeology. |
+
+`FEATURE_REGISTRY.md` (27 invented component names) and a stale, never-deployed copy of
+`firestore.rules` were deleted in v4.62.0. Firestore rules live in the **Android repo**.
 
 ---
 
@@ -129,7 +131,7 @@ the browser print dialog. Do not assume Electron.
 
 ```
 Admin Console (KamaiPlus Android repo, admin_console/) → Desktop Licences
-   creates desktop_licences/{KPD-XXXX-XXXX-XXXX-XXXX}   (admin-only in firestore.rules)
+   creates desktop_licences/{KPD-XXXX-XXXX-XXXX-XXXX}   (admin-only in the Android repo's firestore.rules)
         │  key sent to the shop
         ▼
 <LicenceGate> (src/components/licence/LicenceGate.tsx) wraps AppShell in layout.tsx
@@ -353,8 +355,7 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 
 ### 4.1 Which file writes which Dexie table (verified — the real side-effect map)
 
-This replaces the fictional table in `FEATURE_REGISTRY.md`. **Before you change a
-table, read this row.** Regenerate it with the `rg` command in §13.
+**Before you change a table, read this row.** Regenerate it with the `rg` command in §13.
 
 Four modules write to almost every table and are omitted from the rows below to keep
 them readable — assume they touch everything:
@@ -698,7 +699,7 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 358/358, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 356/356, 0 failures
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
 git push origin main
@@ -723,7 +724,7 @@ bypassed; without the key only the no-licence checks run. The script removes
 `ELECTRON_RUN_AS_NODE` (set by VS Code terminals), which otherwise stops Electron
 launching. Failure screenshots go to `%TEMP%\kamaiplus-e2e-shots\`.
 
-### Test suite map — `scripts/e2e_simulation.ts` (358 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (356 assertions)
 
 | Suite | Covers |
 | :--- | :--- |
@@ -787,11 +788,15 @@ Recorded so the next agent does not rediscover them. None are fixed as of v4.38.
 5. ~~Size / colour fields only rendered if already set~~ — **fixed in v4.47.0**: a
    "+ Add size / colour" link opens them on any product.
 
-6. **Repo weight.** Measured 2026-09-23: `node_modules` 1.2 GB, `dist/` 597 MB
-   (electron-builder output), `.next/` 161 MB, `out/` 8.1 MB, plus **627 MB of stale
-   Android debug APKs** (`KamaiPlus_v4.18/4.19/4.20_debug.apk`) untracked in the repo
-   root. `dist/`, `.next/` and `out/` all regenerate (`rm -rf dist .next out`); the
-   APKs cannot be rebuilt from this repo — delete only when the owner confirms.
+6. ~~Repo weight~~ — **cleaned in v4.62.0** (owner asked): `dist/` (930 MB of old
+   installers + `win-unpacked`) and `.next/` (205 MB) deleted — both regenerate on the
+   next build; the stale Android APKs were already gone. `release/` (what
+   `release:publish` uploads) is kept. Also removed: `.github/workflows/build-android.yml`
+   (tried to build a Capacitor Android app from this repo on every push — there is no
+   `android/` folder, so it could only fail), `FEATURE_REGISTRY.md`, the stale
+   `firestore.rules`; old docs moved to `docs/archive/`. CI (`deploy.yml`) now runs
+   `tsc`, the test suite and `next build` on every push. `dist/` grows by ~110 MB per
+   build — delete it now and then (`rm -rf dist`).
 
 7. **There is no cloud sync.** The app never signs in to Firebase Auth (login is a
    local master password, `AuthForm.tsx`), but the deployed Firestore rules (owned by

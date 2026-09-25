@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   build:
-    name: Build & Typecheck Verification
+    name: Typecheck, Test Suite & Build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -26,6 +26,14 @@ jobs:
 
       - name: Install dependencies
         run: npm install --legacy-peer-deps
+
+      # Same gate as the local protocol (Bible §11): a push that breaks types or
+      # any money / GST / security invariant turns red here.
+      - name: TypeScript (0 errors)
+        run: npx tsc --noEmit
+
+      - name: Test suite (scripts/e2e_simulation.ts)
+        run: npx tsx scripts/e2e_simulation.ts
 
       - name: Build Next.js Application
         env:

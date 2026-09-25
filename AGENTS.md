@@ -24,9 +24,9 @@ are already solved and must not regress.
 1. **Open it before you plan or edit anything.** It exists so you do not have to scan
    180 files, and so you do not re-break something that was already fixed.
 2. **Never invent a file, component, function or table name.** Verify it exists first
-   (`ls`, `rg`). `FEATURE_REGISTRY.md` is fiction — all 27 component names in it are
-   invented. Do not read or trust it. `SYSTEM_ARCHITECTURE.md`, `HANDOVER.md` and
-   `KamaiPlus_Complete_App_Documentation.md` are stale; the Bible lists exactly how.
+   (`ls`, `rg`). The old hand-written docs (`SYSTEM_ARCHITECTURE.md`, `HANDOVER.md`,
+   `KamaiPlus_Complete_App_Documentation.md`) are stale history in `docs/archive/` — do
+   not plan from them; the Bible is the only current map.
 3. **If you discover the Bible is wrong, correct it in the same commit as your change.**
    A stale map causes the exact double-work and hallucination it was written to prevent.
 4. **Every bug you fix gets an invariant** in SUITE 9 of `scripts/e2e_simulation.ts`

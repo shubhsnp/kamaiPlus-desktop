@@ -1139,12 +1139,11 @@ assert(loggedInStore.name === 'Gupta General Store', 'ensureStarterBusiness pres
 const guestStore = simulateEnsureStarterBusiness(null);
 assert(guestStore.id === 'biz_dummy_starter', 'Unauthenticated guest receives safe isolated starter store');
 
-// 3. Firestore Rules Anti-Resurrection Tombstone Rule
-const rulesFilePath = path.resolve(__dirname, '../firestore.rules');
-const firestoreRulesContent = fs.readFileSync(rulesFilePath, 'utf8');
-assert(firestoreRulesContent.includes('match /deleted_businesses/{businessId}'), 'firestore.rules contains deleted_businesses tombstone matcher');
-assert(firestoreRulesContent.includes('allow read: if true;'), 'firestore.rules allows read on deleted_businesses tombstones');
-assert(firestoreRulesContent.includes('allow write: if false;'), 'firestore.rules strictly forbids write on deleted_businesses tombstones');
+// 3. Firestore rules are owned, tested and deployed by the KamaiPlus Android repo
+// (firebase.json here only has hosting). The stale copy that used to sit in this
+// repo — and the checks that read it — were removed in v4.62.0: they tested a file
+// that is never deployed.
+assert(!fs.existsSync(path.resolve(__dirname, '../firestore.rules')), 'No stale, undeployed firestore.rules copy in the desktop repo');
 
 
 // -------------------------------------------------------------
