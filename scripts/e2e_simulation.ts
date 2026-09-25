@@ -710,6 +710,13 @@ const statusSrc = readSource('components/layout/DesktopStatusBar.tsx');
 assert(!/>Ready<\/span>/.test(statusSrc) && /getPrinters\(\)/.test(statusSrc), 'Status bar printer state comes from the installed Windows printers, not a fixed "Ready"');
 assert(!/Multi-Counter Sync|Real-time cloud sync/.test(readSource('app/cloud-backup/page.tsx')), 'Backup page does not advertise cloud sync the app does not have');
 
+// 8n. Errors on a shop's computer are recorded, not lost.
+const mainJsSrc = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+assert((pkgJson.build?.files || []).includes('errorlog.js'), 'errorlog.js is packaged into the installer');
+assert(/process\.on\('uncaughtException'/.test(mainJsSrc) && /render-process-gone/.test(mainJsSrc), 'Main-process errors and page crashes are logged');
+assert(/<ErrorReporter \/>/.test(readSource('app/layout.tsx')) && fs.existsSync(path.join(SRC_ROOT, 'app', 'error.tsx')) && fs.existsSync(path.join(SRC_ROOT, 'app', 'global-error.tsx')), 'Page errors are logged and a crashed screen shows a friendly message');
+assert(/Copy report for support/.test(readSource('components/settings/HelpSupportTab.tsx')), 'Settings → Help & Support can copy a report for support');
+
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.
 const PRO_OR_AI = /useProSubscription|requirePro|UpgradeModal|ProFeatureBadge|subscriptionService|razorpay|generativelanguage\.googleapis|gemini/i;
 const proOrAiOffenders = ALL_SOURCE.filter((f) => PRO_OR_AI.test(fs.readFileSync(f, 'utf8')));

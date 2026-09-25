@@ -109,6 +109,9 @@ Defined in `main.js` (`ipcMain.handle`), exposed in `preload.js`, typed in
 | `kp:licence-status` | `getLicenceStatus()` | Offline licence check (§2.1) → `{state:'active',…}` or `{state:'required', machineName, reason?}` |
 | `kp:licence-activate` | `activateLicence(key)` | One-time online activation (§2.1) → `{ok, status}` or `{ok:false, error}` |
 | `kp:licence-verify-key` | `verifyLicenceKey(key)` | Forgot master password: `{ok}` only if `key` is the key of the signed licence on THIS PC (offline). The login screen then clears the password so a new one can be set — data untouched. |
+| `kp:log-error` | `logError(entry)` | Page error → `<userData>/logs/errors.log` (§2.4) |
+| `kp:error-report` | `getErrorReport()` | Support report text: version, Windows, masked licence, last 30 errors (§2.4) |
+| `kp:open-logs` | `openLogFolder()` | Opens the log folder (§2.4) |
 | `kp:backup-write` | `writeBackup({json, shopName})` | Writes today's automatic backup (§2.3) |
 | `kp:backup-info` | `getBackupInfo()` | Backup folder, last backup, count, extra folder (§2.3) |
 | `kp:backup-choose-folder` | `chooseBackupFolder()` | Folder picker for the extra (pen drive) copy (§2.3) |
@@ -198,6 +201,20 @@ Cloud sync is off (§12 #7), so the shop's own disk is the only safety net.
 - Since v4.46.0 backups include **`purchase_bills`**. Restoring an older backup (no
   such key) leaves current purchase bills alone instead of wiping them.
 - `backup.js` must stay in `build.files`.
+
+### 2.4 Error log & support report (v4.52.0)
+
+- `errorlog.js` (main) appends JSON lines to `<userData>/logs/errors.log`, rolls to
+  `errors.1.log` at 1 MB, never throws. Sources: main `uncaughtException` /
+  `unhandledRejection`, `render-process-gone` (the window reloads itself after a crash),
+  `unresponsive`, and the page via `kp:log-error`.
+- Page side: `<ErrorReporter>` (root layout) hooks `window.onerror` and unhandled
+  rejections (`lib/diagnostics/errorReporter.ts`, same message at most once per 10 s);
+  `app/error.tsx` and `app/global-error.tsx` replace a blank screen with a friendly
+  one and log the error.
+- Settings → **Help & Support** (`HelpSupportTab`): "Copy report for support" and
+  "Open log folder". The report holds no bills, customers or prices.
+- `errorlog.js` must stay in `build.files`.
 - The old `firebase.json` deployed the whole repo to the default `kamaiplus` site (the
   public website) and `npm run deploy:firebase` would have overwritten it. Both are gone.
 

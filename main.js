@@ -7,6 +7,15 @@ const { pathToFileURL } = require('url');
 const licence = require('./licence');
 const { initAutoUpdate } = require('./updater');
 const backup = require('./backup');
+const errorlog = require('./errorlog');
+
+// Main-process failures are logged instead of vanishing (errorlog.js).
+process.on('uncaughtException', (err) => {
+  errorlog.logError({ source: 'main', message: err && err.message, stack: err && err.stack });
+});
+process.on('unhandledRejection', (reason) => {
+  errorlog.logError({ source: 'main-promise', message: reason && reason.message ? reason.message : String(reason), stack: reason && reason.stack });
+});
 
 /**
  * KamaiPlus desktop shell.
@@ -138,6 +147,15 @@ function createWindow() {
       event.preventDefault();
       if (/^https?:\/\//i.test(url)) shell.openExternal(url);
     }
+  });
+
+  // A crashed or frozen page must at least leave a trace (and come back if it crashed).
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    errorlog.logError({ source: 'renderer-crash', message: `Page process gone: ${details.reason}`, detail: `exitCode ${details.exitCode}` });
+    if (details.reason !== 'clean-exit' && mainWindow && !mainWindow.isDestroyed()) mainWindow.reload();
+  });
+  mainWindow.on('unresponsive', () => {
+    errorlog.logError({ source: 'renderer-hang', message: 'The window stopped responding.' });
   });
 
   mainWindow.loadURL(isDevServer ? DEV_URL : `${appOrigin()}/`);
@@ -354,6 +372,29 @@ ipcMain.handle('kp:licence-status', async () =>
 );
 
 // ---------------------------------------------------------------------------
+// Error log & support report — see errorlog.js
+// ---------------------------------------------------------------------------
+
+ipcMain.handle('kp:log-error', async (_event, entry) => {
+  errorlog.logError({ source: `page:${String((entry && entry.source) || 'error').slice(0, 30)}`, message: entry && entry.message, stack: entry && entry.stack, detail: entry && entry.detail });
+  return { ok: true };
+});
+
+ipcMain.handle('kp:error-report', async () => {
+  const status = licence.getStatus({ userDataDir: app.getPath('userData'), dev: isDevServer });
+  const licenceText = status.state === 'active' ? `${status.key || 'dev'} (${status.shopName || 'no shop name'})` : 'not activated';
+  return { text: errorlog.buildReport({ appVersion: app.getVersion(), licence: licenceText }), count: errorlog.readRecent(1000).length };
+});
+
+ipcMain.handle('kp:open-logs', async () => {
+  const dir = errorlog.logDirPath();
+  if (!dir) return { ok: false, error: 'Log folder not ready.' };
+  fs.mkdirSync(dir, { recursive: true });
+  const error = await shell.openPath(dir);
+  return error ? { ok: false, error } : { ok: true };
+});
+
+// ---------------------------------------------------------------------------
 // Automatic local backup — see backup.js
 // ---------------------------------------------------------------------------
 
@@ -408,6 +449,7 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   app.whenReady().then(() => {
+    errorlog.init(app.getPath('userData'));
     if (!isDevServer) registerAppProtocol();
     createWindow();
     initAutoUpdate({ ipcMain, getWindow: () => mainWindow, enabled: app.isPackaged && !isDevServer });

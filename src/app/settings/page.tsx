@@ -36,6 +36,7 @@ import { StoreProfileTab } from '@/components/settings/StoreProfileTab';
 import { UpiBankingTab } from '@/components/settings/UpiBankingTab';
 import { InvoiceSettingsTab } from '@/components/settings/InvoiceSettingsTab';
 import { DataMaintenanceTab } from '@/components/settings/DataMaintenanceTab';
+import { HelpSupportTab } from '@/components/settings/HelpSupportTab';
 
 
 export default function SettingsPage() {
@@ -526,6 +527,8 @@ export default function SettingsPage() {
       {activeTab === 'data' && (
         <DataMaintenanceTab business={business} />
       )}
+
+      {activeTab === 'help' && <HelpSupportTab />}
 
 
 

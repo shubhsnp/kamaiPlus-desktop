@@ -7,12 +7,13 @@ import {
   Receipt, 
   Sparkles,
   Palette,
-  HardDrive
+  HardDrive,
+  LifeBuoy
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
-export type SettingsTabType = 'profile' | 'upi' | 'invoicing' | 'data';
+export type SettingsTabType = 'profile' | 'upi' | 'invoicing' | 'data' | 'help';
 
 interface SettingsNavTabsProps {
   activeTab: SettingsTabType;
@@ -49,6 +50,12 @@ export const SettingsNavTabs: React.FC<SettingsNavTabsProps> = ({
       label: 'Data & Reset',
       shortLabel: 'Data Clean',
       icon: HardDrive,
+    },
+    {
+      id: 'help' as SettingsTabType,
+      label: 'Help & Support',
+      shortLabel: 'Help',
+      icon: LifeBuoy,
     },
   ];
 

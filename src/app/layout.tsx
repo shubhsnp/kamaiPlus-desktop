@@ -4,6 +4,7 @@ import './globals.css';
 import { I18nProvider } from '@/lib/i18n';
 import { AppShell } from '@/components/layout/AppShell';
 import { LicenceGate } from '@/components/licence/LicenceGate';
+import { ErrorReporter } from '@/components/layout/ErrorReporter';
 
 import { PWAInstallBanner } from '@/components/pwa/PWAInstallBanner';
 
@@ -43,6 +44,7 @@ export default function RootLayout({
       <head />
 
       <body>
+        <ErrorReporter />
         <I18nProvider>
           <LicenceGate>
             <AppShell>
