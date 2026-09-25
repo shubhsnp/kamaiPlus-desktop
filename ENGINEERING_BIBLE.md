@@ -200,6 +200,17 @@ npm run release:promote   # latest.yml = beta.yml — the SAME installer, no reb
 npm run release:publish
 ```
 
+**Download page (v4.59.0).** https://kamaiplus-desktop.web.app/ also serves the public
+download page. Source: `site/index.html` + `site/logo.png` (one self-contained file,
+Inter / Mukta / JetBrains Mono from Google Fonts, dark slate + logo yellow). Every
+`prepare_release.js` run copies `site/` into `release/` and stamps `{{VERSION}}`,
+`{{INSTALLER}}`, `{{SIZE_MB}}`, `{{RELEASE_DATE}}` from `release/latest.yml`; the page also
+re-reads `latest.yml` at runtime, so the button always points at the current stable
+installer. `/`, `/index.html` and both ymls are served `no-cache` (`firebase.json`). The
+page's "try the counter" demo uses the POS rules (integer paise, inclusive GST, the same
+tender chips); its QR is a decorative pattern, never a payable code. Edit the page in
+`site/`, never in `release/`.
+
 `npm run release:desktop` still ships straight to everyone (writes both files).
 `prepare_release.js` never wipes `release/`; it deletes only installers that neither
 yml points at. `release/` is not in git — publish from the machine that holds it.

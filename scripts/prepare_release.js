@@ -70,6 +70,34 @@ for (const f of fs.readdirSync(release)) {
   if (/\.(exe|blockmap)$/.test(f) && !keep.has(f)) fs.rmSync(path.join(release, f));
 }
 
+// Download page (site/ → release/). The stable version is stamped in so the
+// download button works even without JavaScript; the page also re-reads latest.yml.
+const site = path.join(root, 'site');
+const latestPath = path.join(release, 'latest.yml');
+if (fs.existsSync(site) && fs.existsSync(latestPath)) {
+  const latest = fs.readFileSync(latestPath, 'utf8');
+  const exe = ymlInstaller(latest);
+  const sizeBytes = Number((latest.match(/^\s+size:\s*(\d+)/m) || [])[1] || 0);
+  const date = ((latest.match(/^releaseDate:\s*'?([^'\n]+)'?/m) || [])[1] || '').trim();
+  const stamps = {
+    '{{VERSION}}': ymlVersion(latest),
+    '{{INSTALLER}}': exe,
+    '{{SIZE_MB}}': sizeBytes ? (sizeBytes / 1048576).toFixed(0) : '110',
+    '{{RELEASE_DATE}}': date ? `Released ${new Date(date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}` : '',
+  };
+  for (const f of fs.readdirSync(site)) {
+    const from = path.join(site, f);
+    if (/\.html$/.test(f)) {
+      let html = fs.readFileSync(from, 'utf8');
+      for (const [k, v] of Object.entries(stamps)) html = html.split(k).join(v);
+      fs.writeFileSync(path.join(release, f), html);
+    } else {
+      fs.copyFileSync(from, path.join(release, f));
+    }
+  }
+  console.log(`Download page updated for v${stamps['{{VERSION}}']}.`);
+}
+
 console.log('release/ now contains:');
 for (const f of fs.readdirSync(release).sort()) {
   const extra = /\.yml$/.test(f) ? `  → v${ymlVersion(fs.readFileSync(path.join(release, f), 'utf8'))}` : `  (${(fs.statSync(path.join(release, f)).size / 1024 / 1024).toFixed(1)} MB)`;
