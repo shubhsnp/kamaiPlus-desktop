@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useBusiness } from '@/components/layout/BusinessProvider';
@@ -18,7 +18,6 @@ import {
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { useProSubscription } from '@/components/subscription/ProFeatureGate';
 
 // Modular Sub-components
 import { TransactionHeaderActions } from '@/components/transactions/TransactionHeaderActions';
@@ -30,8 +29,11 @@ import { useTransactionFilters, DatePreset, PaymentFilter, SortOption } from '@/
 
 export type { DatePreset, PaymentFilter, SortOption };
 
+// Bill cards rendered per page. Rendering a shop's whole history at once (thousands
+// of cards) made this screen lag; totals above still cover every filtered bill.
+const TX_PAGE_SIZE = 100;
+
 export default function TransactionsPage() {
-  const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
   const { t } = useTranslation();
 
   // Modals State
@@ -76,6 +78,12 @@ export default function TransactionsPage() {
     revenueBillCount,
     clearAllFilters,
   } = useTransactionFilters(allSales, customers);
+
+  // Back to the first page whenever the filters change.
+  const [visibleCount, setVisibleCount] = useState(TX_PAGE_SIZE);
+  useEffect(() => {
+    setVisibleCount(TX_PAGE_SIZE);
+  }, [searchQuery, datePreset, startDate, endDate, paymentFilter, selectedCustomerId, sortBy]);
 
   // Export Filtered Records to CSV
   const handleExportCSV = () => {
@@ -252,25 +260,14 @@ export default function TransactionsPage() {
     <div className="space-y-3.5 pb-20 sm:pb-8 animate-in fade-in duration-150">
       {/* 1. Header & Quick Actions */}
       <TransactionHeaderActions
-        isPro={isPro}
         filteredCount={filteredSales.length}
         totalSalesCount={allSales.length}
         onOpenSalesReturn={() => {
-          if (!isPro) {
-            setIsUpgradeModalOpen(true);
-          } else {
-            setReturnSaleId(undefined);
-            setIsReturnModalOpen(true);
-          }
+          setReturnSaleId(undefined);
+          setIsReturnModalOpen(true);
         }}
         onExportCSV={handleExportCSV}
-        onExportTallyXML={() => {
-          if (!isPro) {
-            setIsUpgradeModalOpen(true);
-          } else {
-            handleExportTallyXML();
-          }
-        }}
+        onExportTallyXML={handleExportTallyXML}
         onBulkDownloadInvoices={handleBulkDownloadInvoices}
         onOpenClearHistory={() => setIsClearHistoryModalOpen(true)}
       />
@@ -351,11 +348,10 @@ export default function TransactionsPage() {
           </div>
         ) : (
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
-            {filteredSales.map((sale) => (
+            {filteredSales.slice(0, visibleCount).map((sale) => (
               <TransactionBillCard
                 key={sale.id}
                 sale={sale}
-                isPro={isPro}
                 onOpenInvoice={handleOpenInvoice}
                 onConvertToInvoice={handleConvertToInvoice}
                 onEditSale={(s) => {
@@ -363,16 +359,27 @@ export default function TransactionsPage() {
                   setIsEditModalOpen(true);
                 }}
                 onReturnSale={(sId) => {
-                  if (!isPro) {
-                    setIsUpgradeModalOpen(true);
-                  } else {
-                    setReturnSaleId(sId);
-                    setIsReturnModalOpen(true);
-                  }
+                  setReturnSaleId(sId);
+                  setIsReturnModalOpen(true);
                 }}
 
               />
             ))}
+            {filteredSales.length > visibleCount && (
+              <div className="p-3 flex items-center justify-center gap-3">
+                <span className="text-[11px] text-slate-500 font-medium">
+                  Showing {visibleCount} of {filteredSales.length}
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setVisibleCount((n) => n + TX_PAGE_SIZE)}
+                  className="text-xs rounded-xl cursor-pointer"
+                >
+                  Show {Math.min(TX_PAGE_SIZE, filteredSales.length - visibleCount)} more
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </Card>
@@ -396,8 +403,6 @@ export default function TransactionsPage() {
         allSalesCount={allSales.length}
         totalRevenuePaise={totalRevenuePaise}
         onConfirmClear={handleClearAllHistory}
-        isUpgradeModalOpen={isUpgradeModalOpen}
-        setIsUpgradeModalOpen={setIsUpgradeModalOpen}
         txToast={txToast}
       />
     </div>

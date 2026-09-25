@@ -18,7 +18,6 @@ import { formatINR, cn } from '@/lib/utils';
 
 interface TransactionBillCardProps {
   sale: Sale;
-  isPro: boolean;
   onOpenInvoice: (sale: Sale) => void;
   onEditSale: (sale: Sale) => void;
   onReturnSale: (saleId: string) => void;
@@ -27,7 +26,6 @@ interface TransactionBillCardProps {
 
 export const TransactionBillCard: React.FC<TransactionBillCardProps> = ({
   sale,
-  isPro,
   onOpenInvoice,
   onEditSale,
   onReturnSale,
@@ -166,7 +164,7 @@ export const TransactionBillCard: React.FC<TransactionBillCardProps> = ({
               e.stopPropagation();
               onReturnSale(sale.id);
             }}
-            title={!isPro ? "Sales Return (Pro)" : "Sales Return"}
+            title="Sales Return"
             className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-amber-50 dark:hover:bg-amber-950/40 text-slate-600 dark:text-slate-300 cursor-pointer shadow-2xs transition active:scale-95"
           >
             <RotateCcw className="w-3 h-3 text-amber-700 dark:text-amber-400" />

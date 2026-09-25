@@ -12,7 +12,6 @@ import {
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { PrintSettingsCard } from '@/components/settings/PrintSettingsCard';
-import { AiScanSettingsCard } from '@/components/settings/AiScanSettingsCard';
 
 import { formatInvoiceNumber } from '@/lib/invoices/invoiceNumberService';
 
@@ -204,9 +203,6 @@ export const InvoiceSettingsTab: React.FC<InvoiceSettingsTabProps> = ({
 
       {/* 3. Printer Setup (per computer) */}
       <PrintSettingsCard />
-
-      {/* 4. AI purchase bill scan key (per computer) */}
-      <AiScanSettingsCard />
     </div>
   );
 };

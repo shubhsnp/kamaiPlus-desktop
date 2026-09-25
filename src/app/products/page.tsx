@@ -14,7 +14,6 @@ import { Package } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { useProSubscription } from '@/components/subscription/ProFeatureGate';
 import { lookupBarcode } from '@/lib/barcode/barcodeDictionary';
 
 // Modular Sub-components
@@ -39,13 +38,8 @@ const BarcodeScannerModal = dynamic(
   () => import('@/components/barcode/BarcodeScannerModal').then((m) => m.BarcodeScannerModal),
   { ssr: false }
 );
-const UpgradeModal = dynamic(
-  () => import('@/components/subscription/UpgradeModal').then((m) => m.UpgradeModal),
-  { ssr: false }
-);
 
 export default function ProductsPage() {
-  const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -111,7 +105,7 @@ export default function ProductsPage() {
     return map;
   }, [categories]);
 
-  // Auto-launch AI Inward/Menu scan sheet if navigated from 1-Tap Onboarding
+  // Auto-launch the bulk inward sheet if navigated with ?scan=auto
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -552,13 +546,6 @@ export default function ProductsPage() {
           setIsPurchaseSheetOpen(false);
           handleOpenAddModal();
         }}
-      />
-
-      {/* Upgrade Modal */}
-      <UpgradeModal
-        isOpen={isUpgradeModalOpen}
-        onClose={() => setIsUpgradeModalOpen(false)}
-        businessName={business?.name || 'Your Store'}
       />
 
       {/* 1-Click Barcode Print Modal */}

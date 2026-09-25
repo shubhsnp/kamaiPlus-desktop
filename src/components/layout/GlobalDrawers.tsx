@@ -59,7 +59,7 @@ export const GlobalDrawers: React.FC = () => {
       {/* --- HISTORY DRAWER --- */}
       {isHistoryOpen && (
         <div 
-          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] transition-opacity animate-in fade-in"
+          className="fixed inset-0 bg-slate-900/50 z-[100]"
           onClick={() => setIsHistoryOpen(false)}
         />
       )}

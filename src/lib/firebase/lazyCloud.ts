@@ -10,8 +10,11 @@
  * is offline, or the SDK fails to load, billing carries on exactly as before.
  */
 
+import { CLOUD_SYNC_ENABLED } from './cloudAvailability';
+
 /** Mirrors one document to Firestore (merge write). Silently no-ops when offline. */
 export async function cloudMerge(path: string, data: Record<string, any>): Promise<void> {
+  if (!CLOUD_SYNC_ENABLED) return;
   try {
     const [{ getFirestoreDb }, { doc, setDoc }, { sanitizeForFirestore }] = await Promise.all([
       import('@/lib/firebase/config'),
@@ -28,7 +31,7 @@ export async function cloudMerge(path: string, data: Record<string, any>): Promi
 
 /** Queues the debounced full backup sync for a business. */
 export async function cloudSyncSoon(businessId: string): Promise<void> {
-  if (!businessId || businessId === 'biz_default') return;
+  if (!CLOUD_SYNC_ENABLED || !businessId || businessId === 'biz_default') return;
   try {
     const { triggerBackgroundSync } = await import('@/lib/firebase/backgroundSync');
     await triggerBackgroundSync(businessId);
@@ -61,7 +64,7 @@ let warmed = false;
  * grid, so the first sale of the day does not pay for the download.
  */
 export function prewarmCloud(): void {
-  if (warmed || typeof window === 'undefined') return;
+  if (!CLOUD_SYNC_ENABLED || warmed || typeof window === 'undefined') return;
   warmed = true;
   const load = () => {
     void import('@/lib/firebase/config');

@@ -45,7 +45,7 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
       {/* Header with Title & Cashier Privacy Toggle */}
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="w-2 h-2 rounded-full bg-emerald-500" />
           <h2 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
             Today's Business Pulse
           </h2>

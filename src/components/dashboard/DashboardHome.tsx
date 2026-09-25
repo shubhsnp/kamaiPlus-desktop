@@ -6,7 +6,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useBusiness } from '@/components/layout/BusinessProvider';
 import { useTranslation } from '@/lib/i18n';
 import { Sale, Product } from '@/types';
-import { triggerBackgroundSync } from '@/lib/firebase/backgroundSync';
+import { cloudSyncSoon } from '@/lib/firebase/lazyCloud';
 import dynamic from 'next/dynamic';
 import { AdvancedAnalyticsBanner } from '@/components/dashboard/AdvancedAnalyticsBanner';
 import { getLocalDayRange, getSaleNetTotal, isRevenueSale } from '@/lib/sales/saleMath';
@@ -146,9 +146,7 @@ export default function DashboardHome() {
         created_at: now,
       });
 
-      try {
-        triggerBackgroundSync(activeBizId);
-      } catch {}
+      void cloudSyncSoon(activeBizId);
 
       setRestockToast(`✅ Added +${quantityToAdd} ${product.unit || 'units'} to ${product.name}!`);
       setTimeout(() => setRestockToast(null), 3500);

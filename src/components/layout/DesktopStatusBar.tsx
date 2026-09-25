@@ -56,11 +56,11 @@ export const DesktopStatusBar: React.FC = () => {
         <span className="text-slate-700">|</span>
 
         {/* Sync Heartbeat */}
-        <div className="flex items-center gap-1.5" title={isOnline ? 'Cloud sync active' : 'Offline mode: saving locally'}>
+        <div className="flex items-center gap-1.5" title={isOnline ? 'Online: bills are saved on this computer' : 'Offline mode: saving locally'}>
           {isOnline ? (
             <>
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-slate-300">Cloud Synced</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              <span className="text-slate-300">Online</span>
             </>
           ) : (
             <>

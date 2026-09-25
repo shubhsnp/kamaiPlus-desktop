@@ -19,9 +19,6 @@ import { Button } from '@/components/ui/Button';
 import { bluetoothPrinter } from '@/lib/hardware/bluetoothPrinter';
 import { ThermalPaperWidth } from '@/lib/hardware/escpos';
 import { playSupermarketBeep } from '@/lib/hardware/barcodeScannerListener';
-import { useProSubscription, ProFeatureBadge, ProFeatureLockedCard } from '@/components/subscription/ProFeatureGate';
-import { UpgradeModal } from '@/components/subscription/UpgradeModal';
-import { Lock } from 'lucide-react';
 
 interface HardwareManagerModalProps {
   isOpen: boolean;
@@ -32,7 +29,6 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
   isOpen,
   onClose,
 }) => {
-  const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
   const [activeTab, setActiveTab] = useState<'printer' | 'scanner'>('printer');
 
   // Printer State
@@ -76,10 +72,6 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
 
   // Connect Bluetooth Printer
   const handleConnectPrinter = async () => {
-    if (!isPro) {
-      setIsUpgradeModalOpen(true);
-      return;
-    }
     setIsConnectingPrinter(true);
     try {
       const dev = await bluetoothPrinter.connect();
@@ -357,11 +349,6 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
           </div>
         )}
       </div>
-
-      <UpgradeModal
-        isOpen={isUpgradeModalOpen}
-        onClose={() => setIsUpgradeModalOpen(false)}
-      />
     </Modal>
   );
 };

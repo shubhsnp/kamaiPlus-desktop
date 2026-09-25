@@ -47,7 +47,6 @@ import {
   validateExpenseData 
 } from '../src/lib/validation/validators';
 import { formatInvoiceNumber, parseInvoiceSequenceNumber } from '../src/lib/invoices/invoiceNumberService';
-import { BILL_SCAN_SYSTEM_PROMPT, PurchaseBillExtractionSchema } from '../src/lib/ai/billScanPrompt';
 import crypto from 'crypto';
 import { buildInvoiceDocument, getPrimaryUpiVpa, paginateInvoiceRows } from '../src/lib/invoices/invoiceDocument';
 import { buildSampleSale } from '../src/lib/invoices/sampleInvoice';
@@ -493,49 +492,8 @@ assert(parseInvoiceSequenceNumber('INV-002') === 2, 'parseInvoiceSequenceNumber 
 assert(parseInvoiceSequenceNumber('BILL-1045') === 1045, 'parseInvoiceSequenceNumber extracts 1045 from BILL-1045');
 assert(parseInvoiceSequenceNumber('CUSTOM-99') === 99, 'parseInvoiceSequenceNumber extracts 99 from CUSTOM-99');
 
-// 📸 SUITE 8: AI Purchase Inward Extraction Verification
-console.log('\n📸 SUITE 8: AI Purchase Inward Extraction Verification');
-assert(BILL_SCAN_SYSTEM_PROMPT.includes('wholesale invoices, distributor bills, cash memos'), 'AI Vision prompt targets Indian retail purchase documents');
-assert(!/menu card|dish|Restaurant/i.test(BILL_SCAN_SYSTEM_PROMPT), 'AI Vision prompt carries no restaurant-vertical instructions');
-assert(BILL_SCAN_SYSTEM_PROMPT.includes('Never invent or hallucinate data'), 'AI Vision prompt keeps the no-hallucination safeguard');
-
-// Schema still accepts a single-line, price-list style entry
-const priceListExtractTest = PurchaseBillExtractionSchema.safeParse({
-  supplier_name: 'Royal Spice Traders',
-  bill_number: null,
-  bill_date: null,
-  total_amount: 220,
-  line_items: [
-    {
-      name: 'Basmati Rice 1kg',
-      quantity: 1,
-      unit: 'pkt',
-      unit_price: 220,
-      total_price: 220,
-      confidence: 'high'
-    }
-  ]
-});
-assert(priceListExtractTest.success === true, 'PurchaseBillExtractionSchema validates a single-line price-list entry');
-
-// Test schema extraction parsing for Wholesale Invoice line item
-const wholesaleExtractTest = PurchaseBillExtractionSchema.safeParse({
-  supplier_name: 'Shree Ganesh Traders',
-  bill_number: 'INV-9901',
-  bill_date: '2026-09-01',
-  total_amount: 1400,
-  line_items: [
-    {
-      name: 'Fortune Sunlite Sunflower Oil 1L',
-      quantity: 10,
-      unit: 'packet',
-      unit_price: 140,
-      total_price: 1400,
-      confidence: 'high'
-    }
-  ]
-});
-assert(wholesaleExtractTest.success === true, 'PurchaseBillExtractionSchema successfully validates wholesale invoice line items');
+// SUITE 8 (AI purchase-bill scan) was removed in v4.43.0 together with the feature.
+// The desktop app is sold as a one-time licence with no AI. Suite 9 §8 keeps it out.
 
 // 🧭 SUITE 9: Universal Product Invariants (no per-vertical branching anywhere)
 console.log('\n🧭 SUITE 9: Universal Product Invariants (no per-vertical branching anywhere)');
@@ -632,10 +590,55 @@ const DELETED = [
   'lib/voice/paytmSoundbox.ts',
   'lib/auth/reverseHandshakeService.ts',
   'lib/api/publicBarcodeLookup.ts',
+  // v4.43.0: no Pro tiers, payments or AI scan in the one-time-licence desktop app.
+  'components/subscription/ProFeatureGate.tsx',
+  'components/subscription/UpgradeModal.tsx',
+  'lib/subscription/subscriptionService.ts',
+  'components/purchases/ScanBillButton.tsx',
+  'components/settings/AiScanSettingsCard.tsx',
+  'lib/ai/geminiClient.ts',
+  'lib/ai/billScanPrompt.ts',
 ];
 for (const rel of DELETED) {
   assert(!fs.existsSync(path.join(SRC_ROOT, rel)), `Dead module ${rel} is not back in the tree`);
 }
+
+// 8a. Completing a bill must not load every sale to pick the next invoice number.
+const invoiceNumberSrc = readSource('lib/invoices/invoiceNumberService.ts');
+assert(!/db\.sales[^;]*\.toArray\(\)/.test(invoiceNumberSrc), 'Invoice numbering never loads the whole sales table (uses index keys + cache)');
+assert(/orderBy\('invoice_number'\)\.uniqueKeys\(\)/.test(invoiceNumberSrc), 'Invoice numbering scans only the invoice_number index keys');
+
+// 8c. No page or component statically imports Firebase: it must go through
+//     lazyCloud.ts (DashboardHome and SettleInvoicesModal both used to).
+const STATIC_FIREBASE = /^import .*from '(firebase\/|@\/lib\/firebase\/(config|firestoreSync|backgroundSync|analytics)|@\/lib\/sync\/syncEngine)/m;
+const uiFiles = ALL_SOURCE.filter((f) => /[\\/](app|components)[\\/]/.test(path.relative(SRC_ROOT, f).replace(/^/, '/')));
+assert(uiFiles.length > 50, `Firebase-import guard actually scans the UI tree (${uiFiles.length} files)`);
+const staticFirebaseOffenders = uiFiles.filter((f) => STATIC_FIREBASE.test(fs.readFileSync(f, 'utf8')));
+assert(
+  staticFirebaseOffenders.length === 0,
+  `No page/component statically imports Firebase (found: ${staticFirebaseOffenders.map((f) => path.relative(SRC_ROOT, f)).join(', ') || 'none'})`
+);
+
+// 8d. Cloud writes are switched off until the desktop app has a Firebase login
+//     (the rules reject every unauthenticated write), and every entry point obeys it.
+assert(/export const CLOUD_SYNC_ENABLED = false;/.test(readSource('lib/firebase/cloudAvailability.ts')), 'Cloud sync stays off until a cloud login exists');
+for (const rel of ['lib/firebase/lazyCloud.ts', 'lib/firebase/backgroundSync.ts', 'lib/sync/syncEngine.ts', 'app/cloud-backup/page.tsx', 'app/onboarding/page.tsx']) {
+  assert(readSource(rel).includes('CLOUD_SYNC_ENABLED'), `${rel} checks CLOUD_SYNC_ENABLED before touching the cloud`);
+}
+assert(!/await setDoc/.test(readSource('components/khata/SettleInvoicesModal.tsx')), 'Khata settlement never waits on a cloud write');
+
+// 8e. Big-history screens stay light.
+assert(/filteredSales\.slice\(0, visibleCount\)/.test(readSource('app/transactions/page.tsx')), 'Transactions renders bills page by page, not the whole history');
+assert(/useMemo\(/.test(readSource('components/transactions/useTransactionFilters.ts')), 'Transaction filters are memoised, not recomputed on every render');
+assert(!/db\.sales\.orderBy\('created_at'\)\.reverse\(\)\.toArray\(\)/.test(readSource('app/khata/page.tsx')), 'Khata loads only the selected customer\'s bills');
+
+// 8b. No Pro gating, payment upsell or AI scan anywhere in the source.
+const PRO_OR_AI = /useProSubscription|requirePro|UpgradeModal|ProFeatureBadge|subscriptionService|razorpay|generativelanguage\.googleapis|gemini/i;
+const proOrAiOffenders = ALL_SOURCE.filter((f) => PRO_OR_AI.test(fs.readFileSync(f, 'utf8')));
+assert(
+  proOrAiOffenders.length === 0,
+  `No Pro gate, payment upsell or AI scan code in src (found: ${proOrAiOffenders.map((f) => path.relative(SRC_ROOT, f)).join(', ') || 'none'})`
+);
 
 // 9. Exactly one live query for the active business, shared through context.
 const bizQuery = ALL_SOURCE.filter((f) => /db\.businesses\.toCollection\(\)\.first\(\)/.test(fs.readFileSync(f, 'utf8')) && /useLiveQuery/.test(fs.readFileSync(f, 'utf8')));
@@ -820,34 +823,7 @@ assert(filteredMerchants[0].id === 'biz_active_1', 'Only active stores remain vi
 // ================================================================
 console.log('\n--- Test Suite 16: Admin 2-Plan Limit, Realtime Pro/Freeze Sync & Dual Auth Binding ---');
 
-// 1. Subscription Plan Restriction (Only 2 official plans: free & pro)
-const officialPlans = ['free', 'pro'];
-const validatePlanChoice = (plan: string) => officialPlans.includes(plan);
-assert(validatePlanChoice('free') === true, 'Free Forever plan is supported');
-assert(validatePlanChoice('pro') === true, 'Pro Enterprise (₹1,499/Year) plan is supported');
-assert(validatePlanChoice('growth') === false, 'Legacy growth plan is removed');
-assert(validatePlanChoice('enterprise') === false, 'Legacy enterprise plan is unified into pro');
-
-// 2. Real-time Pro Upgrade & Downgrade State Transition
-interface MockSubState {
-  tier: 'free' | 'pro';
-  activeUntil?: string;
-}
-const mockSetTierFromCloud = (cloudTier: string, activeUntil?: string): MockSubState => {
-  const normalizedTier: 'free' | 'pro' = (cloudTier === 'pro' || cloudTier === 'enterprise') ? 'pro' : 'free';
-  return {
-    tier: normalizedTier,
-    activeUntil: normalizedTier === 'pro' ? (activeUntil || new Date().toISOString()) : undefined,
-  };
-};
-
-const upgradedState = mockSetTierFromCloud('pro');
-assert(upgradedState.tier === 'pro', 'Cloud pro tier sets local subscription to pro');
-assert(Boolean(upgradedState.activeUntil), 'Pro plan receives valid expiration timestamp');
-
-const downgradedState = mockSetTierFromCloud('free');
-assert(downgradedState.tier === 'free', 'Cloud free tier immediately downgrades local subscription to free');
-assert(downgradedState.activeUntil === undefined, 'Downgraded free tier clears activeUntil date');
+// (Pro plan / tier-sync mocks removed in v4.43.0: the desktop app has no subscription tiers.)
 
 // 3. Real-time Freeze / Block Lockout Enforcement
 const simulateCloudSnapshot = (cloudBiz: { is_active: boolean }) => {
@@ -916,50 +892,7 @@ assert(resolveStoreByEmail(userEmail) === businessId, 'Google login with email o
 // -------------------------------------------------------------
 console.log('\n🔒 SUITE 17: Security & Auth Hardening (Subscription Auth-Bypass, ensureStarterBusiness, Firestore Rules)');
 
-// 1. Subscription activation without session or admin must strictly be rejected
-interface MockActivateReq {
-  cookies: { session?: string };
-  body: { businessId?: string; tier: string; razorpayPaymentId?: string };
-  isAdmin: boolean;
-}
-
-function simulateSubscriptionActivate(req: MockActivateReq): { status: number; error?: string; success?: boolean } {
-  let businessId: string | undefined;
-  if (req.cookies.session === 'valid_merchant_cookie') {
-    businessId = 'biz_merchant_123';
-  }
-
-  if (!businessId) {
-    if (req.isAdmin && req.body.businessId) {
-      businessId = req.body.businessId;
-    } else {
-      return { status: 401, error: 'Unauthorized. Valid merchant login session or admin privileges required.' };
-    }
-  }
-
-  return { status: 200, success: true };
-}
-
-const unauthAttempt = simulateSubscriptionActivate({
-  cookies: {},
-  body: { businessId: 'biz_victim_999', tier: 'pro', razorpayPaymentId: 'pay_fake_123' },
-  isAdmin: false,
-});
-assert(unauthAttempt.status === 401, 'Unauthenticated subscription activation with arbitrary businessId strictly rejected with 401');
-
-const adminAttempt = simulateSubscriptionActivate({
-  cookies: {},
-  body: { businessId: 'biz_customer_555', tier: 'pro' },
-  isAdmin: true,
-});
-assert(adminAttempt.status === 200 && adminAttempt.success === true, 'SuperAdmin can activate subscription for specified businessId');
-
-const merchantAttempt = simulateSubscriptionActivate({
-  cookies: { session: 'valid_merchant_cookie' },
-  body: { businessId: 'biz_tampered_999', tier: 'pro', razorpayPaymentId: 'pay_real_123' },
-  isAdmin: false,
-});
-assert(merchantAttempt.status === 200, 'Merchant with valid session successfully activates subscription');
+// (Subscription-activation mocks removed in v4.43.0: the desktop app has no paid tiers.)
 
 // 2. ensureStarterBusinessIfEmpty identity binding invariant
 function simulateEnsureStarterBusiness(user: { business_id?: string; business_name?: string; phone?: string } | null) {

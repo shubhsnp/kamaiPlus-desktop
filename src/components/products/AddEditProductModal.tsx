@@ -115,7 +115,7 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
       size="lg"
     >
       <form onSubmit={onSubmit} className="space-y-3.5">
-        {/* Bulk Photo AI Inward Suggestion Banner */}
+        {/* Bulk Excel Inward Suggestion Banner */}
         {!editingProduct && onOpenInwardSheet && (
           <div className="p-3 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/20 border border-amber-200/80 dark:border-amber-800/60 flex items-center justify-between gap-3 shadow-2xs">
             <div className="flex items-center gap-2.5 min-w-0">
@@ -124,10 +124,10 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-black text-slate-900 dark:text-slate-100">
-                  Have a Wholesale Bill / Parcha?
+                  Have a Wholesale Bill in Excel?
                 </p>
                 <p className="text-[10.5px] text-slate-600 dark:text-slate-400 truncate">
-                  Don’t type items one by one. Scan distributor invoice photo to auto-add stock!
+                  Don’t type items one by one. Upload the Excel / CSV file to add them all at once.
                 </p>
               </div>
             </div>
@@ -139,7 +139,7 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
               }}
               className="px-2.5 py-1.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-950 text-xs font-black shrink-0 hover:bg-slate-800 cursor-pointer shadow-xs active:scale-95 transition"
             >
-              📸 Inward with AI
+              Bulk Inward (Excel)
             </button>
           </div>
         )}

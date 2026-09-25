@@ -3,9 +3,8 @@
 import React from 'react';
 import { 
   Package, 
-  Plus, 
-  Sparkles,
-  Camera
+  Plus,
+  FileSpreadsheet
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { CashierPrivacyToggleButton } from '@/components/privacy/ProfitMask';
@@ -49,16 +48,16 @@ export const ProductHeaderActions: React.FC<ProductHeaderActionsProps> = ({
       </div>
 
       <div className="flex items-center gap-1.5 self-start sm:self-center shrink-0 flex-wrap">
-        {/* Store-Aware AI Inward Button */}
+        {/* Bulk Inward (Excel / CSV) Button */}
         <Button
           variant="outline"
           size="sm"
           onClick={handleInwardClick}
-          className="text-xs font-black gap-1.5 rounded-xl border-amber-400/60 text-slate-900 dark:text-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/30 hover:from-amber-100 hover:to-orange-100 cursor-pointer shadow-2xs"
-          title="Upload distributor invoice, wholesale parcha, or Excel/CSV"
+          className="text-xs font-black gap-1.5 rounded-xl border-emerald-400/60 text-slate-900 dark:text-emerald-200 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 cursor-pointer shadow-2xs"
+          title="Upload a distributor bill as an Excel / CSV file"
         >
-          <Sparkles className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 animate-pulse" />
-          <span>📸 Inward with AI</span>
+          <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+          <span>Bulk Inward (Excel)</span>
         </Button>
 
         <Button

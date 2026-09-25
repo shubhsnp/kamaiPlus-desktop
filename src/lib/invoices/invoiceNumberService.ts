@@ -34,6 +34,40 @@ export function parseInvoiceSequenceNumber(invoiceNumber: string): number | null
 }
 
 /**
+ * Highest invoice sequence already used, cached against the sales row count.
+ *
+ * Reading every sale on every bill made "Complete Sale" slower as a shop's history
+ * grew. The max is now computed from the `invoice_number` index keys only (no sale
+ * objects are deserialised) and reused while the row count is unchanged. Any write
+ * that adds or removes sales (restore, cloud pull, clear history) changes the count
+ * and forces a rescan.
+ */
+let maxSeqCache: { count: number; maxSeq: number } | null = null;
+
+async function getMaxUsedInvoiceSeq(): Promise<number> {
+  const count = await db.sales.count();
+  if (maxSeqCache && maxSeqCache.count === count) return maxSeqCache.maxSeq;
+
+  const keys = await db.sales.orderBy('invoice_number').uniqueKeys();
+  let maxSeq = 0;
+  for (const key of keys) {
+    const parsed = typeof key === 'string' ? parseInvoiceSequenceNumber(key) : null;
+    if (parsed !== null && parsed > maxSeq) maxSeq = parsed;
+  }
+  maxSeqCache = { count, maxSeq };
+  return maxSeq;
+}
+
+/** Fills the cache ahead of time (called when the POS opens). Never throws. */
+export async function warmInvoiceNumberCache(): Promise<void> {
+  try {
+    await getMaxUsedInvoiceSeq();
+  } catch {
+    // The next bill simply computes it itself.
+  }
+}
+
+/**
  * Computes the guaranteed next unique sequential invoice number for a business.
  * Inspects both the business's configured sequence counter and all existing recorded sales
  * to guarantee that no invoice number is ever duplicated or skipped.
@@ -47,22 +81,15 @@ export async function getNextUniqueInvoiceNumber(businessId = 'biz_default'): Pr
   const prefix = business?.invoice_prefix || 'INV-';
   const configuredNext = business?.next_invoice_number || 1;
 
-  // Retrieve existing sales for this business to prevent collisions
-  const existingSales = await db.sales.where('business_id').equals(businessId).toArray();
-
-  let maxFoundSeq = 0;
-  for (const s of existingSales) {
-    if (s.invoice_number) {
-      const parsed = parseInvoiceSequenceNumber(s.invoice_number);
-      if (parsed !== null && parsed > maxFoundSeq) {
-        maxFoundSeq = parsed;
-      }
-    }
-  }
-
   // Next sequence must be strictly greater than any existing sale sequence
-  const nextSeq = Math.max(configuredNext, maxFoundSeq + 1);
-  const invoiceNumber = formatInvoiceNumber(prefix, nextSeq, 3);
+  let nextSeq = Math.max(configuredNext, (await getMaxUsedInvoiceSeq()) + 1);
+  let invoiceNumber = formatInvoiceNumber(prefix, nextSeq, 3);
+
+  // Belt and braces: an indexed lookup guarantees the number is not already taken.
+  while ((await db.sales.where('invoice_number').equals(invoiceNumber).count()) > 0) {
+    nextSeq += 1;
+    invoiceNumber = formatInvoiceNumber(prefix, nextSeq, 3);
+  }
 
   return {
     invoiceNumber,
@@ -83,5 +110,10 @@ export async function commitNextInvoiceNumber(
     next_invoice_number: nextNum,
     updated_at: new Date().toISOString(),
   });
+  // The sale carrying this number is already saved: keep the cache in step so the
+  // next bill does not rescan the index.
+  const count = await db.sales.count();
+  const prevMax = maxSeqCache ? maxSeqCache.maxSeq : 0;
+  maxSeqCache = { count, maxSeq: Math.max(prevMax, usedSequenceNumber) };
   return nextNum;
 }

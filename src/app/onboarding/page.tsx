@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { db as localDb, seedBusinessStarterData } from '@/lib/db';
 import { BusinessType, Business } from '@/types';
 import { getStoredUser, setStoredUser, AuthUser } from '@/lib/auth';
+import { CLOUD_SYNC_ENABLED } from '@/lib/firebase/cloudAvailability';
 import { 
   Store, 
   ShoppingBag, 
@@ -149,12 +150,16 @@ export default function OnboardingPage() {
       // 2. Write Complete Merchant Document to Firestore `merchants/{uid}`.
       // Firebase (~650 KB) is pulled in here, at the one moment onboarding needs
       // it, rather than with the page — the shop is usable offline without it.
-      const [{ getFirestoreDb }, { doc, setDoc, deleteDoc }, { sanitizeForFirestore }] = await Promise.all([
-        import('@/lib/firebase/config'),
-        import('firebase/firestore'),
-        import('@/lib/firebase/firestoreSync'),
-      ]);
-      const firestore = getFirestoreDb();
+      const [{ getFirestoreDb }, { doc, setDoc, deleteDoc }, { sanitizeForFirestore }] = CLOUD_SYNC_ENABLED
+        ? await Promise.all([
+            import('@/lib/firebase/config'),
+            import('firebase/firestore'),
+            import('@/lib/firebase/firestoreSync'),
+          ])
+        : [{ getFirestoreDb: () => null }, {} as any, {} as any];
+      // Skipped while the desktop app has no cloud login: the writes are rejected, and
+      // awaiting them on a slow connection could stall first-time store setup.
+      const firestore = CLOUD_SYNC_ENABLED ? getFirestoreDb() : null;
       if (firestore) {
         try {
           // Merchant Document

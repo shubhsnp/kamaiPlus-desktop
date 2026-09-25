@@ -2,30 +2,28 @@
 
 import React, { useState } from 'react';
 import dynamic from 'next/dynamic';
-import { Sparkles, WifiOff } from 'lucide-react';
+import { FileSpreadsheet } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Product } from '@/types';
-import { useProSubscription, ProFeatureBadge } from '@/components/subscription/ProFeatureGate';
 // The inward sheet bundles the Excel/CSV parser (xlsx, ~400 KB); load it on first open.
 const PurchaseInwardOptionsSheet = dynamic(
   () => import('./PurchaseInwardOptionsSheet').then((m) => m.PurchaseInwardOptionsSheet),
   { ssr: false }
 );
 
-interface ScanBillButtonProps {
+interface InwardBillButtonProps {
   businessId?: string;
   existingProducts: Product[];
   onScanSuccess?: (billId: string, updatedCount: number, createdCount: number) => void;
   className?: string;
 }
 
-export function ScanBillButton({
+export function InwardBillButton({
   businessId = 'biz_default',
   existingProducts,
   onScanSuccess,
   className = '',
-}: ScanBillButtonProps) {
-  const { isPro } = useProSubscription();
+}: InwardBillButtonProps) {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   return (
@@ -35,15 +33,13 @@ export function ScanBillButton({
         onClick={() => setIsSheetOpen(true)}
         variant="outline"
         size="md"
-        className={`relative group bg-gradient-to-r from-amber-500/10 via-purple-500/10 to-amber-500/10 border-amber-400/40 hover:border-amber-400 text-slate-800 dark:text-amber-300 font-bold text-xs gap-1.5 shadow-xs ${className}`}
-        title="Capture wholesale invoice or upload CSV/PDF"
+        className={`border-emerald-400/60 hover:border-emerald-500 text-slate-800 font-bold text-xs gap-1.5 shadow-xs ${className}`}
+        title="Upload a supplier bill as an Excel / CSV file"
       >
-        <Sparkles className="w-4 h-4 text-amber-500 animate-pulse" />
-        <span>Inward Bill (AI / CSV / PDF)</span>
-        {!isPro && <ProFeatureBadge className="ml-1" />}
+        <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+        <span>Inward Bill (Excel / CSV)</span>
       </Button>
 
-      {/* 4-Way Inward Bottom Sheet */}
       {isSheetOpen && (
       <PurchaseInwardOptionsSheet
         isOpen={isSheetOpen}

@@ -7,7 +7,6 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useBusiness } from '@/components/layout/BusinessProvider';
 import { Product, Supplier } from '@/types';
 import { CheckCircle2, Sparkles } from 'lucide-react';
-import { useProSubscription } from '@/components/subscription/ProFeatureGate';
 
 // Modular Sub-components
 import { InventoryHeaderActions } from '@/components/inventory/InventoryHeaderActions';
@@ -21,13 +20,8 @@ const ExcelInventoryImporter = dynamic(
   () => import('@/components/inventory/ExcelInventoryImporter').then((m) => m.ExcelInventoryImporter),
   { ssr: false }
 );
-const UpgradeModal = dynamic(
-  () => import('@/components/subscription/UpgradeModal').then((m) => m.UpgradeModal),
-  { ssr: false }
-);
 
 export default function InventoryPage() {
-  const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
   const [isExcelImporterOpen, setIsExcelImporterOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<InventoryTabType>('reorder');
   const [invToast, setInvToast] = useState<{ message: string; type?: 'success' | 'info' | 'error' } | null>(null);
@@ -130,12 +124,6 @@ export default function InventoryPage() {
         isOpen={isExcelImporterOpen}
         onClose={() => setIsExcelImporterOpen(false)}
         businessId={business?.id || 'biz_default'}
-      />
-
-      <UpgradeModal
-        isOpen={isUpgradeModalOpen}
-        onClose={() => setIsUpgradeModalOpen(false)}
-        businessName={business?.name || 'Your Store'}
       />
 
       {/* Floating Toast */}

@@ -101,13 +101,6 @@ export const PlatformAnalytics = {
       target_url: targetUrl,
     });
   },
-
-  // Track subscription plan view & upgrade attempts
-  subscriptionViewed: (tier: string) => {
-    trackBusinessEvent('subscription_pricing_viewed', {
-      tier_name: tier,
-    });
-  },
 };
 
 /**

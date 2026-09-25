@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { syncLocalDexieToFirestore, subscribeToMultiDeviceSync } from './firestoreSync';
 import { Unsubscribe } from 'firebase/firestore';
+import { CLOUD_SYNC_ENABLED } from './cloudAvailability';
 
 export type SyncState = 'idle' | 'syncing' | 'synced' | 'offline' | 'error';
 
@@ -34,6 +35,7 @@ function emitSyncState(state: SyncState) {
  * Pushes pending Dexie records to Firestore with safe debounce
  */
 export async function triggerBackgroundSync(businessId?: string): Promise<boolean> {
+  if (!CLOUD_SYNC_ENABLED) return false;
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
     emitSyncState('offline');
     return false;
@@ -72,7 +74,7 @@ export async function triggerBackgroundSync(businessId?: string): Promise<boolea
  * Initializes listeners for online/offline events & starts bidirectional real-time cloud sync
  */
 export function initBackgroundCloudSync(businessId?: string): () => void {
-  if (typeof window === 'undefined') return () => {};
+  if (!CLOUD_SYNC_ENABLED || typeof window === 'undefined') return () => {};
 
   const handleOnline = () => {
     console.log('🌐 Device reconnected to internet. Initiating auto background sync...');

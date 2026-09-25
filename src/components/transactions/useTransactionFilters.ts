@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useDebounce } from 'use-debounce';
 import { Customer, Sale } from '@/types';
 import { getNetPaymentBreakdown, getSaleNetTotal, getSalePaymentBreakdown, isRevenueSale } from '@/lib/sales/saleMath';
 
@@ -22,8 +23,12 @@ export function useTransactionFilters(allSales: Sale[], customers?: Customer[]) 
   const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>('all');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('all');
   const [sortBy, setSortBy] = useState<SortOption>('date-desc');
+  // Filtering walks every bill, so it waits for the cashier to stop typing.
+  const [debouncedSearch] = useDebounce(searchQuery, 250);
 
-  const filteredSales = allSales
+  // Recomputed only when the bills or a filter change — not on every render
+  // (opening a modal or showing a toast used to re-filter the whole history).
+  const filteredSales = useMemo(() => allSales
     .filter((sale) => {
       const saleDate = new Date(sale.created_at);
       const now = new Date();
@@ -73,8 +78,8 @@ export function useTransactionFilters(allSales: Sale[], customers?: Customer[]) 
       }
 
       // 4. Search Query
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
+      if (debouncedSearch.trim()) {
+        const q = debouncedSearch.toLowerCase();
         const matchInv = sale.invoice_number.toLowerCase().includes(q);
         const matchCust = (sale.customer_name && sale.customer_name.toLowerCase().includes(q)) || 
                           (sale.customer_phone && sale.customer_phone.includes(q));
@@ -96,17 +101,22 @@ export function useTransactionFilters(allSales: Sale[], customers?: Customer[]) 
         return a.grand_total - b.grand_total;
       }
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
+    }), [allSales, customers, datePreset, startDate, endDate, paymentFilter, selectedCustomerId, debouncedSearch, sortBy]);
 
   // KPI Calculations on filtered subset. Estimates and fully returned bills are not
   // revenue; cash counts only money kept (no change handed back), splits by their parts.
-  const revenueSales = filteredSales.filter(isRevenueSale);
-  const totalRevenuePaise = revenueSales.reduce((acc, s) => acc + getSaleNetTotal(s), 0);
-  // Net of refunds, like the revenue figure (a cash refund comes out of cash).
-  const breakdowns = revenueSales.map((s) => getNetPaymentBreakdown(s));
-  const totalCashPaise = breakdowns.reduce((acc, p) => acc + p.cash, 0);
-  const totalUpiPaise = breakdowns.reduce((acc, p) => acc + p.upi + p.card, 0);
-  const totalCreditPaise = breakdowns.reduce((acc, p) => acc + p.credit, 0);
+  const { revenueBillCount, totalRevenuePaise, totalCashPaise, totalUpiPaise, totalCreditPaise } = useMemo(() => {
+    const revenueSales = filteredSales.filter(isRevenueSale);
+    // Net of refunds, like the revenue figure (a cash refund comes out of cash).
+    const breakdowns = revenueSales.map((s) => getNetPaymentBreakdown(s));
+    return {
+      revenueBillCount: revenueSales.length,
+      totalRevenuePaise: revenueSales.reduce((acc, s) => acc + getSaleNetTotal(s), 0),
+      totalCashPaise: breakdowns.reduce((acc, p) => acc + p.cash, 0),
+      totalUpiPaise: breakdowns.reduce((acc, p) => acc + p.upi + p.card, 0),
+      totalCreditPaise: breakdowns.reduce((acc, p) => acc + p.credit, 0),
+    };
+  }, [filteredSales]);
 
   const clearAllFilters = () => {
     setSearchQuery('');
@@ -138,7 +148,7 @@ export function useTransactionFilters(allSales: Sale[], customers?: Customer[]) 
     totalCashPaise,
     totalUpiPaise,
     totalCreditPaise,
-    revenueBillCount: revenueSales.length,
+    revenueBillCount,
     clearAllFilters,
   };
 }

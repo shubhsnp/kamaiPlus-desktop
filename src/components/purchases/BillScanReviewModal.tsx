@@ -143,7 +143,7 @@ export function BillScanReviewModal({
               previous_stock: previousStock,
               new_stock: newStock,
               reference_id: purchaseBillId,
-              reason: `AI Bill Inward: ${supplierName || 'Wholesaler'}`,
+              reason: `Bill Inward: ${supplierName || 'Wholesaler'}`,
               created_by: 'owner',
               created_at: now,
             });
@@ -186,7 +186,7 @@ export function BillScanReviewModal({
             previous_stock: 0,
             new_stock: initialStock,
             reference_id: purchaseBillId,
-            reason: `AI Bill Inward (New Product): ${supplierName || 'Wholesaler'}`,
+            reason: `Bill Inward (New Product): ${supplierName || 'Wholesaler'}`,
             created_by: 'owner',
             created_at: now,
           });
@@ -206,7 +206,7 @@ export function BillScanReviewModal({
         line_items: items,
         total_amount: totalAmountPaise,
         status: 'confirmed',
-        ai_model_used: initialBillData.ai_model_used || 'gemini-flash-vision',
+        ai_model_used: initialBillData.ai_model_used || 'csv-direct-parser',
         created_at: now,
         confirmed_at: now,
         sync_status: 'pending',
@@ -224,13 +224,13 @@ export function BillScanReviewModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="AI Purchase Bill Review & Stock Inward">
+    <Modal isOpen={isOpen} onClose={onClose} title="Purchase Bill Review & Stock Inward">
       <div className="space-y-4 max-h-[80vh] overflow-y-auto pr-1">
         {/* Header summary banner */}
         <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-400/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2 text-amber-300 font-bold">
             <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
-            <span>AI extracted {items.length} items from your purchase invoice. Review &amp; confirm below.</span>
+            <span>{items.length} items read from your bill file. Review &amp; confirm below.</span>
           </div>
           <div className="flex items-center gap-2 font-mono shrink-0">
             <span className="px-2 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-300 font-bold">
@@ -349,7 +349,7 @@ export function BillScanReviewModal({
                         {item.confidence === 'low' && (
                           <div className="flex items-center gap-1 text-[10px] text-rose-500 font-bold">
                             <AlertTriangle className="w-3 h-3" />
-                            <span>Low AI Confidence</span>
+                            <span>Check this row</span>
                           </div>
                         )}
                       </div>

@@ -10,11 +10,13 @@ import {
   sanitizeForFirestore 
 } from '@/lib/firebase/firestoreSync';
 import { initBackgroundCloudSync } from '@/lib/firebase/backgroundSync';
+import { CLOUD_SYNC_ENABLED } from '@/lib/firebase/cloudAvailability';
 
 /**
  * Syncs the local business and merchant profile to Cloud Firestore
  */
 export async function syncProfileToCloud(businessId: string): Promise<void> {
+  if (!CLOUD_SYNC_ENABLED) return;
   const firestore = getFirestoreDb();
   if (!firestore || !businessId) return;
 

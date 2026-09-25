@@ -14,8 +14,6 @@ import { generateTallyPrimeXML } from '@/lib/tally/tallyXmlGenerator';
 import { generateCASalesRegisterCSV } from '@/lib/tally/caExcelGenerator';
 import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
-import { useProSubscription } from '@/components/subscription/ProFeatureGate';
-import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 
 // Modular Sub-components
 import { GstHeaderActions } from '@/components/gst/GstHeaderActions';
@@ -27,7 +25,6 @@ import { ProfitMask } from '@/components/privacy/ProfitMask';
 export type GSTPeriodPreset = 'this_month' | 'last_month' | 'q1' | 'q2' | 'q3' | 'q4' | 'all_year';
 
 export default function GSTReportsPage() {
-  const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
   const business = useBusiness();
   const customers = useLiveQuery(async () => db.customers.toArray()) || [];
 
@@ -293,13 +290,6 @@ export default function GSTReportsPage() {
           </div>
         </Card>
       )}
-
-      {/* Upgrade Modal */}
-      <UpgradeModal
-        isOpen={isUpgradeModalOpen}
-        onClose={() => setIsUpgradeModalOpen(false)}
-        businessName={business?.name || 'Your Store'}
-      />
     </div>
   );
 }

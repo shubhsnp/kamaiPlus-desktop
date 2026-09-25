@@ -7,9 +7,7 @@ import { Input } from '@/components/ui/Input';
 import { Sale, Customer, Business, LedgerTransaction } from '@/types';
 import { formatINR } from '@/lib/utils';
 import { db } from '@/lib/db';
-import { getFirestoreDb } from '@/lib/firebase/config';
-import { doc, setDoc } from 'firebase/firestore';
-import { sanitizeForFirestore } from '@/lib/firebase/firestoreSync';
+import { cloudMerge } from '@/lib/firebase/lazyCloud';
 import { 
   CheckCircle2, 
   Receipt, 
@@ -102,17 +100,11 @@ export function SettleInvoicesModal({
         // Persist updated sale in Dexie
         await db.sales.put(updatedSale);
 
-        // Firestore sync
-        try {
-          const firestore = getFirestoreDb();
-          if (firestore && businessId && businessId !== 'biz_default') {
-            await setDoc(
-              doc(firestore, `businesses/${businessId}/sales/${sale.id}`),
-              sanitizeForFirestore(updatedSale),
-              { merge: true }
-            );
-          }
-        } catch {}
+        // Cloud mirror — fire-and-forget. Awaiting it here let a slow network stall
+        // the settlement half-way (bills marked paid, balance not yet reduced).
+        if (businessId !== 'biz_default') {
+          void cloudMerge(`businesses/${businessId}/sales/${sale.id}`, updatedSale);
+        }
 
         remainingSettlement -= allocatedForThisSale;
         remainingPaymentForAllocation = Math.max(0, remainingPaymentForAllocation - allocatedPaidCash);
@@ -152,27 +144,15 @@ export function SettleInvoicesModal({
 
       await db.ledger_transactions.put(newLedgerTx);
 
-      // 4. Cloud Ledger Sync
-      try {
-        const firestore = getFirestoreDb();
-        if (firestore && businessId && businessId !== 'biz_default') {
-          await setDoc(
-            doc(firestore, `businesses/${businessId}/customers/${customer.id}`),
-            sanitizeForFirestore({
-              ...freshCustomer,
-              current_balance: updatedCustomerBalance,
-              updated_at: now,
-            }),
-            { merge: true }
-          );
-
-          await setDoc(
-            doc(firestore, `businesses/${businessId}/ledger_transactions/${ledgerTxId}`),
-            sanitizeForFirestore(newLedgerTx),
-            { merge: true }
-          );
-        }
-      } catch {}
+      // 4. Cloud Ledger Sync (fire-and-forget, never blocks the settlement)
+      if (businessId !== 'biz_default') {
+        void cloudMerge(`businesses/${businessId}/customers/${customer.id}`, {
+          ...freshCustomer,
+          current_balance: updatedCustomerBalance,
+          updated_at: now,
+        });
+        void cloudMerge(`businesses/${businessId}/ledger_transactions/${ledgerTxId}`, newLedgerTx);
+      }
 
       onSuccess(updatedCustomerBalance, selectedSales.length);
       onClose();

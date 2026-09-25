@@ -5,14 +5,12 @@ import {
   Receipt, 
   RotateCcw, 
   Download, 
-  Trash2, 
-  Lock,
+  Trash2,
   FileText
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
 interface TransactionHeaderActionsProps {
-  isPro: boolean;
   filteredCount: number;
   totalSalesCount: number;
   onOpenSalesReturn: () => void;
@@ -23,7 +21,6 @@ interface TransactionHeaderActionsProps {
 }
 
 export const TransactionHeaderActions: React.FC<TransactionHeaderActionsProps> = ({
-  isPro,
   filteredCount,
   totalSalesCount,
   onOpenSalesReturn,
@@ -55,7 +52,6 @@ export const TransactionHeaderActions: React.FC<TransactionHeaderActionsProps> =
         >
           <RotateCcw className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" />
           <span>Sales Return</span>
-          {!isPro && <Lock className="w-3 h-3 text-amber-700 dark:text-amber-400" />}
         </Button>
 
         {/* Export CSV */}
@@ -94,7 +90,6 @@ export const TransactionHeaderActions: React.FC<TransactionHeaderActionsProps> =
         >
           <Download className="w-3.5 h-3.5 text-slate-950" />
           <span>Tally Prime XML</span>
-          {!isPro && <Lock className="w-3 h-3 text-slate-950" />}
         </Button>
 
         {/* Clear History */}

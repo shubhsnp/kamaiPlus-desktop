@@ -49,6 +49,12 @@ Three non-negotiable product truths:
    "restaurant mode" or business-type branching anywhere. See §9.
 3. **Money is integer paise.** Never floats. See §5.
 
+**Business model (since v4.43.0):** the desktop app is sold to a shop for a fixed,
+one-time price. Every feature is unlocked — there are **no Pro tiers, no in-app
+payments / Razorpay and no AI scan** in this app. Suite 9 §8 fails the build if a
+Pro gate, upgrade modal or Gemini call comes back. (A licence-key activation is
+planned; until it lands there is no gate at all.)
+
 ### Verified stack
 
 | Layer | Actual |
@@ -119,7 +125,7 @@ src/components/<feature>/   Feature components, one folder per domain
 src/components/ui/          Button, Card, Input, Modal  (that is all of it)
 src/lib/<domain>/           Engines — see table below
 src/types/index.ts          All domain types. Single file.
-scripts/e2e_simulation.ts   The test suite (§11). 257 assertions.
+scripts/e2e_simulation.ts   The test suite (§11). 263 assertions.
 scripts/bump_version.ts     Version bumper (+0.1 minor)
 public/barcodes/*.json      5 shipped offline barcode dictionaries
 ```
@@ -147,7 +153,7 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 | `reports/advancedReports.ts` | Sales analytics (net of returns, profit only on frozen `cost_price`) |
 | `gst/gstr1Generator.ts` | GSTR-1 + HSN summary |
 | `tally/` | Tally Prime XML + CA sales-register CSV export |
-| `ai/geminiClient.ts` + `ai/billScanPrompt.ts` | Purchase-bill OCR via Gemini |
+| `purchases/matchProductByName.ts` | Matches Excel/CSV bill lines to existing products (bulk inward) |
 | `barcode/barcodeDictionary.ts` | Merged offline barcode lookup (§9) |
 | `i18n/index.tsx` | en / hi / mr from `src/locales/*.json` |
 
@@ -163,7 +169,7 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 | `/billing` | **POS counter.** The most important screen in the app. | yes |
 | `/products` | Catalog master | yes |
 | `/inventory` | Stock, reorder alerts, movements | yes |
-| `/purchases` | Supplier inward + AI bill scan | yes |
+| `/purchases` | Supplier inward (manual + Excel/CSV bill) | yes |
 | `/khata` | Udhar ledger | yes |
 | `/customers` | CRM | yes |
 | `/transactions` | Sales history, returns | yes |
@@ -191,7 +197,7 @@ them readable — assume they touch everything:
 
 | Table | Feature code that writes it |
 | :--- | :--- |
-| **`businesses`** | `app/invoice-designer/page.tsx` (update)<br>`app/settings/page.tsx` (update)<br>`components/layout/Navbar.tsx` (update)<br>`lib/invoices/invoiceNumberService.ts` (update)<br>`lib/subscription/subscriptionService.ts` (update) |
+| **`businesses`** | `app/invoice-designer/page.tsx` (update)<br>`app/settings/page.tsx` (update)<br>`components/layout/Navbar.tsx` (update)<br>`lib/invoices/invoiceNumberService.ts` (update) |
 | **`cash_expenses`** | `app/cash-register/page.tsx` (delete,put)<br>`components/sales/SalesReturnModal.tsx` (put) |
 | **`cash_registers`** | `app/cash-register/page.tsx` (put,update) |
 | **`categories`** | `app/products/page.tsx` (put)<br>`components/settings/DataMaintenanceTab.tsx` (clear)<br>`lib/constants/defaultProducts.ts` (put) |
@@ -369,7 +375,6 @@ There is no global state library. Modules talk through window events:
 | `kamai_payment_received` | payment bridge → billing celebration modal |
 | `print_settings_changed` | settings → print consumers |
 | `privacy_mode_changed` | cashier privacy toggle → ProfitMask |
-| `subscription_changed` | subscriptionService → gates |
 
 ### localStorage keys (complete, verified)
 
@@ -482,7 +487,11 @@ Each was a real bug that cost real time. The test suite guards most of them.
 | 13 | **Re-seeding a deliberately emptied catalog.** | `kamai_products_manually_cleared` flag. |
 | 14 | **Fabricated GSTIN placeholders on bills.** | Blank stays blank. Suite 21. |
 | 15 | **Dead Android-era code.** 16 unreachable modules + 32 scripts targeting a *different Flutter repo* were deleted. SUITE 9 asserts they stay deleted. | Don't restore them. |
-
+| 16 | **Pro gates, upgrade modals and AI bill scan in a one-time-licence product** (v4.43.0). The gates were already pass-throughs; AI scan asked the shop for its own Gemini key. | All removed. Bulk inward is Excel/CSV + manual. SUITE 9 §8/§8b keep them out. |
+| 17 | **"Complete Sale" slowed down as history grew** — `getNextUniqueInvoiceNumber` read every sale on every bill. (~276 ms per bill at 20k sales in a fake-IndexedDB test.) | Max sequence comes from `orderBy('invoice_number').uniqueKeys()` (keys only), cached against `sales.count()`, warmed when the POS opens, plus an indexed "is this number taken" check. ~1–2 ms per bill. Suite 9 §8a. |
+| 18 | **Firebase loaded on screens that never needed it** — `DashboardHome` and `SettleInvoicesModal` imported it statically. The settle modal also `await`-ed each cloud write mid-settlement, so a slow network could stall it half-way. | Both go through `lazyCloud.ts` (fire-and-forget). Suite 9 §8c/§8d forbid static Firebase imports in `app/` and `components/`. |
+| 19 | **`/transactions` rendered the entire history** and re-filtered it on every render (even opening a modal); **`/khata` held every sale** to show one customer. | Transactions: `useMemo` + 250 ms search debounce + 100 bills per page ("Show more"); totals still cover all filtered bills. Khata: live query scoped to the selected customer. Suite 9 §8e. |
+| 20 | **Status bar / navbar claimed "Synced" / "Cloud Synced"** while nothing was synced, with always-on pulse animations on every page. | Labels say "Online • Saved Locally" / "Online"; shell pulses and the history-drawer blur removed. |
 ---
 
 ## 11. Verification protocol (AGENTS.md Rule 6)
@@ -491,13 +500,13 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 257/257, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 263/263, 0 failures
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
 git push origin main
 ```
 
-### Test suite map — `scripts/e2e_simulation.ts` (257 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (263 assertions)
 
 | Suite | Covers |
 | :--- | :--- |
@@ -508,11 +517,11 @@ git push origin main
 | 5 | Payment notification parser & soundbox |
 | 6 | WhatsApp Cloud API & webhook |
 | 7 | Validation & data integrity |
-| 8 | AI purchase-inward extraction |
-| 9 | **Universal-product + performance + anti-regression invariants** |
+| 8 | _Removed in v4.43.0 with the AI scan feature_ |
+| 9 | **Universal-product + performance + anti-regression invariants** (incl. no Pro/AI code) |
 | 10 | WhatsApp summary, khata payment deep-link |
 | 11 | Admin deletion, tombstone persistence, anti-resurrection |
-| 16 | Admin plan limits, realtime Pro/freeze, universal auth binding |
+| 16 | Realtime freeze, universal auth binding |
 | 17 | Security & auth hardening (`ensureStarterBusiness`, Firestore rules) |
 | 18 | Desktop invoice engine (Android `InvoicePdfService` parity) |
 | 19 | Bill-discount GST, returns, cash-drawer money rules |
@@ -555,8 +564,8 @@ Recorded so the next agent does not rediscover them. None are fixed as of v4.38.
    `/privacy-policy`, `/refund-policy`, `/contact-us`, `/features`, `/about`,
    `/download`, `/plans`. Harmless today (dead branches), but do not assume they exist.
 
-4. **`useProSubscription()` always returns Pro.** All Pro gating is decorative.
-   `UpgradeModal`, `ProFeatureBadge` and `requirePro` are pass-throughs.
+4. ~~`useProSubscription()` always returns Pro.~~ **Resolved in v4.43.0** — the whole
+   Pro / subscription layer was deleted (see §10 #16).
 
 5. **Size / colour product fields only render if already set** — so they can never be
    set on a new product. Pre-existing; was hidden behind a dead `isClothing` flag.
@@ -566,6 +575,18 @@ Recorded so the next agent does not rediscover them. None are fixed as of v4.38.
    Android debug APKs** (`KamaiPlus_v4.18/4.19/4.20_debug.apk`) untracked in the repo
    root. `dist/`, `.next/` and `out/` all regenerate (`rm -rf dist .next out`); the
    APKs cannot be rebuilt from this repo — delete only when the owner confirms.
+
+7. **There is no cloud sync.** The app never signs in to Firebase Auth (login is a
+   local master password, `AuthForm.tsx`), but the deployed Firestore rules (owned by
+   the Android repo) require `isBusinessOwner` → `request.auth.uid`, so every write
+   was rejected. **Since v4.43.0 this is explicit:** `CLOUD_SYNC_ENABLED = false` in
+   `lib/firebase/cloudAvailability.ts` short-circuits every cloud path (`lazyCloud`,
+   `backgroundSync`, `syncEngine`, onboarding, Cloud Backup buttons show a message).
+   Turning cloud sync on needs a real Firebase login first — then flip the flag.
+
+8. ~~Every bill read the whole `sales` table~~ — **fixed in v4.43.0**, see §10 #17.
+
+9. ~~Dashboard statically imported Firebase~~ — **fixed in v4.43.0**, see §10 #18.
 
 ---
 

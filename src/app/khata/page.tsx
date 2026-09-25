@@ -122,10 +122,6 @@ function KhataContent() {
     return await db.customers.toArray();
   }) || [];
 
-  const allSales = useLiveQuery(async () => {
-    return await db.sales.orderBy('created_at').reverse().toArray();
-  }) || [];
-
   const customers = useLiveQuery(async () => {
     let list = await db.customers.toArray();
     
@@ -177,6 +173,22 @@ function KhataContent() {
   }, [customers, selectedCustomerId, initialSearch]);
 
   const selectedCustomer = allCustomers.find(c => c.id === selectedCustomerId) || (typeof window !== 'undefined' && window.innerWidth >= 1024 ? customers[0] : null);
+
+  // Only the selected customer's bills (newest first). This page used to hold the
+  // shop's entire sales history in memory just to show one customer's bills.
+  const selectedCustomerIdKey = selectedCustomer?.id;
+  const selectedCustomerPhone = selectedCustomer?.phone;
+  const customerSales = useLiveQuery(async () => {
+    if (!selectedCustomerIdKey) return [];
+    if (!selectedCustomerPhone) {
+      return await db.sales.where('customer_id').equals(selectedCustomerIdKey).reverse().sortBy('created_at');
+    }
+    return await db.sales
+      .orderBy('created_at')
+      .reverse()
+      .filter((s) => s.customer_id === selectedCustomerIdKey || s.customer_phone === selectedCustomerPhone)
+      .toArray();
+  }, [selectedCustomerIdKey, selectedCustomerPhone]) || [];
 
   const transactions = useLiveQuery(async () => {
     if (!selectedCustomer) return [];
@@ -857,9 +869,7 @@ function KhataContent() {
                 </button>
 
                 {(() => {
-                  const custSales = allSales.filter(
-                    (s) => s.customer_id === selectedCustomer.id || (s.customer_phone && selectedCustomer.phone && s.customer_phone === selectedCustomer.phone)
-                  );
+                  const custSales = customerSales;
                   const pendingCount = custSales.filter(
                     (s) => (s.balance_due && s.balance_due > 0) || s.payment_status === 'unpaid' || s.payment_status === 'partial'
                   ).length;
@@ -913,7 +923,7 @@ function KhataContent() {
                 <CustomerPendingInvoicesTab
                   customer={selectedCustomer}
                   business={business}
-                  sales={allSales}
+                  sales={customerSales}
                   onOpenInvoiceModal={(sale) => {
                     setViewingSale(sale);
                     setIsInvoiceModalOpen(true);

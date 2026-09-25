@@ -9,7 +9,7 @@ import { formatINR, parseRupeesToPaise, generateUPILink, cn } from '@/lib/utils'
 import { allocateBillDiscount, computeBillTotals, isLineTaxInclusive } from '@/lib/sales/saleMath';
 import QRCode from 'qrcode';
 import { playBeepSound } from '@/lib/voice/speechParser';
-import { getNextUniqueInvoiceNumber, commitNextInvoiceNumber, formatInvoiceNumber } from '@/lib/invoices/invoiceNumberService';
+import { getNextUniqueInvoiceNumber, commitNextInvoiceNumber, formatInvoiceNumber, warmInvoiceNumberCache } from '@/lib/invoices/invoiceNumberService';
 import { useDebounce } from 'use-debounce';
 import { useBusiness } from '@/components/layout/BusinessProvider';
 import { VirtuosoGrid } from 'react-virtuoso';
@@ -57,7 +57,6 @@ import dynamic from 'next/dynamic';
 import { useHardwareBarcodeScanner } from '@/lib/hardware/barcodeScannerListener';
 
 import { CustomerSearchAutocomplete } from '@/components/customers/CustomerSearchAutocomplete';
-import { useProSubscription } from '@/components/subscription/ProFeatureGate';
 import { Sale } from '@/types';
 
 import { paymentBridge } from '@/lib/payments/paymentBridge';
@@ -84,10 +83,6 @@ const HardwareManagerModal = dynamic(
 );
 const InvoiceModal = dynamic(
   () => import('@/components/invoices/InvoiceModal').then((m) => m.InvoiceModal),
-  { ssr: false }
-);
-const UpgradeModal = dynamic(
-  () => import('@/components/subscription/UpgradeModal').then((m) => m.UpgradeModal),
   { ssr: false }
 );
 const PaymentCelebrationModal = dynamic(
@@ -231,7 +226,6 @@ const PosProductCard = React.memo(({
 });
 
 export default function BillingPage() {
-  const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
   const { language, t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -326,10 +320,6 @@ export default function BillingPage() {
 
   // Tab Actions: Create New Tab, Hold Tab, Close Tab
   const handleCreateNewTab = () => {
-    if (!isPro && tabs.length >= 3) {
-      setIsUpgradeModalOpen(true);
-      return;
-    }
     const nextNum = (tabs.reduce((max, t) => Math.max(max, t.tabNumber), 0) || tabs.length) + 1;
     const newTabId = `tab_${Date.now()}`;
     const newTab: BillTab = {
@@ -350,12 +340,6 @@ export default function BillingPage() {
   };
 
   const handleHoldActiveTab = () => {
-    const heldCount = tabs.filter((t) => t.isHeld).length;
-    if (!isPro && heldCount >= 3) {
-      setIsUpgradeModalOpen(true);
-      return;
-    }
-
     updateActiveTab((tab) => ({
       ...tab,
       isHeld: true,
@@ -367,11 +351,7 @@ export default function BillingPage() {
     if (otherUnheld) {
       setActiveTabId(otherUnheld.id);
     } else {
-      if (!isPro && tabs.length >= 3) {
-        setIsUpgradeModalOpen(true);
-      } else {
-        handleCreateNewTab();
-      }
+      handleCreateNewTab();
     }
   };
 
@@ -496,6 +476,12 @@ export default function BillingPage() {
   // the first bill of the day does not wait for it.
   useEffect(() => {
     prewarmCloud();
+    // Same idea for invoice numbering: scan the invoice-number index once now, so
+    // the first "Complete Sale" of the session uses the cache.
+    const warm = () => { void warmInvoiceNumberCache(); };
+    const ric = (window as any).requestIdleCallback as ((cb: () => void, opts?: { timeout: number }) => number) | undefined;
+    if (ric) ric(warm, { timeout: 3000 });
+    else window.setTimeout(warm, 1000);
   }, []);
 
   useEffect(() => {
@@ -2271,11 +2257,6 @@ export default function BillingPage() {
                 title="POS Hardware (Bluetooth Printer, Laser Scanner)"
               >
                 <Sliders className="w-4 h-4 text-white" />
-                {!isPro && (
-                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-400 text-slate-950 rounded-full flex items-center justify-center text-[8px] font-black shadow-xs">
-                    <Lock className="w-2 h-2" />
-                  </span>
-                )}
               </button>
             </div>
 
@@ -2668,13 +2649,6 @@ export default function BillingPage() {
           }}
         />
       )}
-
-      {/* Razorpay Pro Upgrade Modal */}
-      <UpgradeModal
-        isOpen={isUpgradeModalOpen}
-        onClose={() => setIsUpgradeModalOpen(false)}
-        businessName={business?.name || 'Your Store'}
-      />
 
       {/* Floating In-App Toast Notification */}
       {billingToast && (

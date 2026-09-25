@@ -24,13 +24,10 @@ import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
 import { Product, PurchaseBill } from '@/types';
-import { useProSubscription, ProFeatureBadge } from '@/components/subscription/ProFeatureGate';
-import { UpgradeModal } from '@/components/subscription/UpgradeModal';
-import { ScanBillButton } from '@/components/purchases/ScanBillButton';
+import { InwardBillButton } from '@/components/purchases/InwardBillButton';
 import { CashierPrivacyToggleButton, ProfitMask } from '@/components/privacy/ProfitMask';
 
 export default function PurchasesPage() {
-  const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState('');
   const [quantity, setQuantity] = useState('');
@@ -140,8 +137,8 @@ export default function PurchasesPage() {
         <div className="flex items-center gap-2 flex-wrap">
           <CashierPrivacyToggleButton />
 
-          {/* AI Bill Scanner */}
-          <ScanBillButton
+          {/* Excel / CSV Bill Inward */}
+          <InwardBillButton
             businessId={business?.id}
             existingProducts={products}
             onScanSuccess={(_billId, updated, created) => {
@@ -197,7 +194,7 @@ export default function PurchasesPage() {
           </div>
         </Card>
 
-        {/* Card 2: AI Purchase Bills & Inward Log */}
+        {/* Card 2: Purchase Bills & Inward Log */}
         <Card className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
           <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -212,7 +209,7 @@ export default function PurchasesPage() {
           <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
             {purchaseBills.length === 0 && recentMovements.length === 0 ? (
               <div className="p-8 text-center text-xs text-slate-500 font-mono">
-                No purchase bills recorded yet. Use &ldquo;Scan Bill&rdquo; or &ldquo;Manual Inward&rdquo; to add wholesale bills.
+                No purchase bills recorded yet. Use &ldquo;Inward Bill&rdquo; or &ldquo;Manual Inward&rdquo; to add wholesale bills.
               </div>
             ) : purchaseBills.length > 0 ? (
               purchaseBills.map((bill) => (
@@ -282,18 +279,11 @@ export default function PurchasesPage() {
           <div className="space-y-1">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Supplier / Vendor Name</label>
-              {!isPro && <ProFeatureBadge />}
             </div>
             <Input
               placeholder="e.g. Metro Wholesale"
               value={supplierName}
-              onChange={(e) => {
-                if (!isPro && e.target.value.length > 0) {
-                  setIsUpgradeModalOpen(true);
-                } else {
-                  setSupplierName(e.target.value);
-                }
-              }}
+              onChange={(e) => setSupplierName(e.target.value)}
             />
           </div>
 
@@ -310,12 +300,6 @@ export default function PurchasesPage() {
           </div>
         </form>
       </Modal>
-
-      {/* Razorpay Pro Upgrade Modal */}
-      <UpgradeModal
-        isOpen={isUpgradeModalOpen}
-        onClose={() => setIsUpgradeModalOpen(false)}
-      />
     </div>
   );
 }

@@ -7,7 +7,6 @@ import { InvoiceModal } from '@/components/invoices/InvoiceModal';
 import { EditInvoiceModal } from '@/components/invoices/EditInvoiceModal';
 import { SalesReturnModal } from '@/components/sales/SalesReturnModal';
 import { ClearHistoryModal } from '@/components/transactions/ClearHistoryModal';
-import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 
 interface TransactionModalsProps {
   business: Business | null | undefined;
@@ -31,9 +30,6 @@ interface TransactionModalsProps {
   allSalesCount: number;
   totalRevenuePaise: number;
   onConfirmClear: () => Promise<void>;
-  // Upgrade Modal
-  isUpgradeModalOpen: boolean;
-  setIsUpgradeModalOpen: (open: boolean) => void;
   // Toast
   txToast: { message: string; type?: 'success' | 'info' | 'error' } | null;
 }
@@ -56,8 +52,6 @@ export const TransactionModals: React.FC<TransactionModalsProps> = ({
   allSalesCount,
   totalRevenuePaise,
   onConfirmClear,
-  isUpgradeModalOpen,
-  setIsUpgradeModalOpen,
   txToast,
 }) => {
   return (
@@ -102,13 +96,6 @@ export const TransactionModals: React.FC<TransactionModalsProps> = ({
         totalInvoicesCount={allSalesCount}
         totalRevenuePaise={totalRevenuePaise}
         onConfirmClear={onConfirmClear}
-      />
-
-      {/* Razorpay Pro Upgrade Modal */}
-      <UpgradeModal
-        isOpen={isUpgradeModalOpen}
-        onClose={() => setIsUpgradeModalOpen(false)}
-        businessName={business?.name || 'Your Store'}
       />
 
       {/* Floating In-App Toast Notification */}

@@ -23,18 +23,15 @@ import {
   Sparkles,
   Cloud,
   RefreshCw,
-  Smartphone,
-  Lock
+  Smartphone
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
 import Link from 'next/link';
-import { useProSubscription, ProFeatureBadge } from '@/components/subscription/ProFeatureGate';
-import { UpgradeModal } from '@/components/subscription/UpgradeModal';
+import { CLOUD_SYNC_ENABLED, CLOUD_SYNC_DISABLED_MESSAGE } from '@/lib/firebase/cloudAvailability';
 
 export default function CloudBackupPage() {
-  const { isPro, requirePro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
   const business = useBusiness();
   const productCount = useLiveQuery(async () => db.products.count()) || 0;
   const customerCount = useLiveQuery(async () => db.customers.count()) || 0;
@@ -69,46 +66,50 @@ export default function CloudBackupPage() {
   }, []);
 
   const handleSyncToFirestore = async () => {
-    requirePro(async () => {
-      if (!business) {
-        alert('Please setup your business profile first.');
-        return;
-      }
-      setIsFirestoreSyncing(true);
-      try {
-        const { syncLocalDexieToFirestore } = await import('@/lib/firebase/firestoreSync');
-        const res = await syncLocalDexieToFirestore(business.id);
-        setBackupSuccessMessage(`Cloud Backup Successful: ${res.stats.sales} sales, ${res.stats.products} products, ${res.stats.customers} customers, ${res.stats.ledger} khata records.`);
-        setTimeout(() => setBackupSuccessMessage(null), 6000);
-      } catch (err: any) {
-        alert(`Cloud sync error: ${err.message || 'Check connection'}`);
-      } finally {
-        setIsFirestoreSyncing(false);
-      }
-    });
+    if (!CLOUD_SYNC_ENABLED) {
+      alert(CLOUD_SYNC_DISABLED_MESSAGE);
+      return;
+    }
+    if (!business) {
+      alert('Please setup your business profile first.');
+      return;
+    }
+    setIsFirestoreSyncing(true);
+    try {
+      const { syncLocalDexieToFirestore } = await import('@/lib/firebase/firestoreSync');
+      const res = await syncLocalDexieToFirestore(business.id);
+      setBackupSuccessMessage(`Cloud Backup Successful: ${res.stats.sales} sales, ${res.stats.products} products, ${res.stats.customers} customers, ${res.stats.ledger} khata records.`);
+      setTimeout(() => setBackupSuccessMessage(null), 6000);
+    } catch (err: any) {
+      alert(`Cloud sync error: ${err.message || 'Check connection'}`);
+    } finally {
+      setIsFirestoreSyncing(false);
+    }
   };
 
   const handleRestoreFromFirestore = async () => {
-    requirePro(async () => {
-      if (!business) {
-        alert('Please setup your business profile first.');
-        return;
-      }
-      if (!confirm('Restore all products, sales, customers, and khata records from your secure Cloud Backup into this device?')) {
-        return;
-      }
-      setIsFirestoreRestoring(true);
-      try {
-        const { restoreFirestoreToLocalDexie } = await import('@/lib/firebase/firestoreSync');
-        const res = await restoreFirestoreToLocalDexie(business.id);
-        setRestoreSuccessMessage(`Successfully restored from Cloud Backup: ${res.stats.products} products, ${res.stats.sales} sales.`);
-        setTimeout(() => setRestoreSuccessMessage(null), 6000);
-      } catch (err: any) {
-        alert(`Cloud restore error: ${err.message || 'Check connection'}`);
-      } finally {
-        setIsFirestoreRestoring(false);
-      }
-    });
+    if (!CLOUD_SYNC_ENABLED) {
+      alert(CLOUD_SYNC_DISABLED_MESSAGE);
+      return;
+    }
+    if (!business) {
+      alert('Please setup your business profile first.');
+      return;
+    }
+    if (!confirm('Restore all products, sales, customers, and khata records from your secure Cloud Backup into this device?')) {
+      return;
+    }
+    setIsFirestoreRestoring(true);
+    try {
+      const { restoreFirestoreToLocalDexie } = await import('@/lib/firebase/firestoreSync');
+      const res = await restoreFirestoreToLocalDexie(business.id);
+      setRestoreSuccessMessage(`Successfully restored from Cloud Backup: ${res.stats.products} products, ${res.stats.sales} sales.`);
+      setTimeout(() => setRestoreSuccessMessage(null), 6000);
+    } catch (err: any) {
+      alert(`Cloud restore error: ${err.message || 'Check connection'}`);
+    } finally {
+      setIsFirestoreRestoring(false);
+    }
   };
 
   // 1-Click Local File Download
@@ -129,48 +130,44 @@ export default function CloudBackupPage() {
   };
 
   // Export 1-Click Tally Prime XML
-  const handleExportTallyXML = () => {
-    requirePro(async () => {
-      if (saleCount === 0) {
-        alert('No sales transactions recorded yet.');
-        return;
-      }
-      const [sales, customers] = await Promise.all([db.sales.toArray(), db.customers.toArray()]);
-      const { xml, filename } = generateTallyPrimeXML({
-        business,
-        sales,
-        customers,
-      });
-      const blob = new Blob([xml], { type: 'application/xml;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      link.click();
-      URL.revokeObjectURL(url);
+  const handleExportTallyXML = async () => {
+    if (saleCount === 0) {
+      alert('No sales transactions recorded yet.');
+      return;
+    }
+    const [sales, customers] = await Promise.all([db.sales.toArray(), db.customers.toArray()]);
+    const { xml, filename } = generateTallyPrimeXML({
+      business,
+      sales,
+      customers,
     });
+    const blob = new Blob([xml], { type: 'application/xml;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   // Export CA Master Excel CSV
-  const handleExportCAMasterCSV = () => {
-    requirePro(async () => {
-      if (saleCount === 0) {
-        alert('No sales transactions recorded yet.');
-        return;
-      }
-      const sales = await db.sales.toArray();
-      const { csv, filename } = generateCASalesRegisterCSV({
-        business,
-        sales,
-      });
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      link.click();
-      URL.revokeObjectURL(url);
+  const handleExportCAMasterCSV = async () => {
+    if (saleCount === 0) {
+      alert('No sales transactions recorded yet.');
+      return;
+    }
+    const sales = await db.sales.toArray();
+    const { csv, filename } = generateCASalesRegisterCSV({
+      business,
+      sales,
     });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   // Handle file select for restore
@@ -332,7 +329,6 @@ export default function CloudBackupPage() {
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <h3 className="text-xs font-black text-slate-900 truncate">Cloud Backup &amp; Multi-Counter Sync</h3>
-                <ProFeatureBadge />
               </div>
               <p className="text-[11px] text-slate-500 truncate mt-0.5">
                 Real-time cloud sync across counters &amp; mobile
@@ -397,7 +393,6 @@ export default function CloudBackupPage() {
             >
               <Download className="w-3.5 h-3.5 text-amber-400" />
               <span>Export Tally XML ({saleCount})</span>
-              {!isPro && <Lock className="w-3 h-3 text-amber-400" />}
             </Button>
           </div>
 
@@ -427,7 +422,6 @@ export default function CloudBackupPage() {
               >
                 <Download className="w-3.5 h-3.5 text-white" />
                 <span>Export CSV</span>
-                {!isPro && <Lock className="w-3 h-3 text-white" />}
               </Button>
 
               <Link href="/gst-reports" className="flex-1">
@@ -536,13 +530,6 @@ export default function CloudBackupPage() {
           </div>
         </Modal>
       )}
-
-      {/* Razorpay Pro Upgrade Modal */}
-      <UpgradeModal
-        isOpen={isUpgradeModalOpen}
-        onClose={() => setIsUpgradeModalOpen(false)}
-        businessName={business?.name || 'Your Store'}
-      />
     </div>
   );
 }

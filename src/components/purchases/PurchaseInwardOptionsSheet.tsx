@@ -1,28 +1,17 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { 
-  FileSpreadsheet, 
-  FileText, 
-  Camera, 
-  PackagePlus, 
-  Sparkles, 
-  Zap, 
-  X, 
-  ArrowRight, 
-  Loader2, 
-  UploadCloud,
-  CheckCircle2,
-  AlertTriangle,
-  Search
+import {
+  FileSpreadsheet,
+  PackagePlus,
+  X,
+  ArrowRight,
+  Loader2
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Product, PurchaseBillLineItem } from '@/types';
 import { matchExtractedItemsWithProducts } from '@/lib/purchases/matchProductByName';
 import { BillScanReviewModal } from './BillScanReviewModal';
-import { useProSubscription, ProFeatureBadge } from '@/components/subscription/ProFeatureGate';
-import { UpgradeModal } from '@/components/subscription/UpgradeModal';
-import { scanPurchaseBill } from '@/lib/ai/geminiClient';
 
 interface PurchaseInwardOptionsSheetProps {
   isOpen: boolean;
@@ -34,55 +23,6 @@ interface PurchaseInwardOptionsSheetProps {
   onScanSuccess?: (billId: string, updatedCount: number, createdCount: number) => void;
 }
 
-/**
- * Compresses an image in browser memory before OCR upload
- */
-async function compressImageFile(file: File, maxWidth = 1600, quality = 0.82): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target?.result as string;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-
-        if (width > maxWidth) {
-          height = Math.round((height * maxWidth) / width);
-          width = maxWidth;
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          resolve(event.target?.result as string);
-          return;
-        }
-
-        ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', quality));
-      };
-      img.onerror = () => reject(new Error('Failed to load image for compression'));
-    };
-    reader.onerror = () => reject(new Error('Failed to read image file'));
-  });
-}
-
-/**
- * Reads a PDF file as base64 data URL
- */
-async function readPdfAsBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (event) => resolve(event.target?.result as string);
-    reader.onerror = () => reject(new Error('Failed to read PDF file'));
-    reader.readAsDataURL(file);
-  });
-}
-
 export function PurchaseInwardOptionsSheet({
   isOpen,
   onClose,
@@ -92,7 +32,6 @@ export function PurchaseInwardOptionsSheet({
   onRapidBarcodeClick,
   onScanSuccess,
 }: PurchaseInwardOptionsSheetProps) {
-  const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState('');
   const [reviewData, setReviewData] = useState<{
@@ -105,69 +44,11 @@ export function PurchaseInwardOptionsSheet({
     raw_ai_response: string;
   } | null>(null);
 
-  const imageInputRef = useRef<HTMLInputElement>(null);
-  const pdfInputRef = useRef<HTMLInputElement>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
 
-  if (!isOpen && !reviewData && !isUpgradeModalOpen) return null;
+  if (!isOpen && !reviewData) return null;
 
-  // 1. Image OCR (Camera / Gallery)
-  const handleImageSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = '';
-
-    setIsProcessing(true);
-    setProcessingStatus('Compressing bill photo...');
-
-    try {
-      const compressedBase64 = await compressImageFile(file, 1600, 0.82);
-      setProcessingStatus('AI Vision extracting items & prices...');
-
-      const scanned = await scanPurchaseBill(compressedBase64, 'image/jpeg');
-      setReviewData({
-        ...scanned,
-        line_items: matchExtractedItemsWithProducts(scanned.line_items, existingProducts),
-      });
-      onClose();
-    } catch (err: any) {
-      console.error('Image scan error:', err);
-      alert(err.message || 'Failed to process purchase bill photo. Please verify image and try again.');
-    } finally {
-      setIsProcessing(false);
-      setProcessingStatus('');
-    }
-  };
-
-  // 2. PDF Document OCR
-  const handlePdfSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = '';
-
-    setIsProcessing(true);
-    setProcessingStatus('Reading PDF invoice document...');
-
-    try {
-      const pdfBase64 = await readPdfAsBase64(file);
-      setProcessingStatus('AI Vision parsing PDF tables & tax invoice...');
-
-      const scanned = await scanPurchaseBill(pdfBase64, 'application/pdf');
-      setReviewData({
-        ...scanned,
-        line_items: matchExtractedItemsWithProducts(scanned.line_items, existingProducts),
-      });
-      onClose();
-    } catch (err: any) {
-      console.error('PDF scan error:', err);
-      alert(err.message || 'Failed to process PDF invoice. Please try again or upload a photo.');
-    } finally {
-      setIsProcessing(false);
-      setProcessingStatus('');
-    }
-  };
-
-  // 3. CSV / Excel File Direct Parser
+  // CSV / Excel File Direct Parser
   const handleCsvSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -252,21 +133,7 @@ export function PurchaseInwardOptionsSheet({
 
   return (
     <>
-      {/* Hidden File Inputs */}
-      <input
-        ref={imageInputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleImageSelected}
-        className="hidden"
-      />
-      <input
-        ref={pdfInputRef}
-        type="file"
-        accept="application/pdf"
-        onChange={handlePdfSelected}
-        className="hidden"
-      />
+      {/* Hidden File Input */}
       <input
         ref={csvInputRef}
         type="file"
@@ -294,14 +161,11 @@ export function PurchaseInwardOptionsSheet({
               <div>
                 <div className="flex items-center gap-2">
                   <span className="text-base font-black text-slate-900 dark:text-white">
-                    {'AI Wholesale Invoice & Inward'}
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 text-[10px] font-black uppercase">
-                    AI Vision
+                    {'Wholesale Bill Inward'}
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  {'Scan wholesale invoices, parchas, or upload PDFs to auto-add products, prices & stock.'}
+                  {'Upload an Excel / CSV bill to add products, prices & stock in one go.'}
                 </p>
               </div>
 
@@ -320,71 +184,17 @@ export function PurchaseInwardOptionsSheet({
                 <Loader2 className="w-8 h-8 text-amber-500 animate-spin mx-auto" />
                 <div className="space-y-0.5">
                   <p className="text-sm font-black text-slate-900 dark:text-white">
-                    {processingStatus || 'Processing with AI Vision...'}
+                    {processingStatus || 'Reading file...'}
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">
-                    {'Extracting products, quantities & cost rates from invoice'}
+                    {'Reading products, quantities & cost rates from the file'}
                   </p>
                 </div>
               </div>
             ) : (
               /* Smart Adaptive Options Grid */
               <div className="space-y-2.5">
-                {/* 1. HERO OPTION: Camera Scan (Menu Card or Bill Picture) */}
-                <div
-                  onClick={() => imageInputRef.current?.click()}
-                  className="p-3.5 rounded-2xl border border-amber-300 dark:border-amber-700/80 bg-amber-50/80 dark:bg-amber-950/30 hover:bg-amber-100/80 hover:border-amber-400 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-between gap-3 group shadow-xs ring-1 ring-amber-400/20"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shrink-0 shadow-sm group-hover:scale-105 transition-transform">
-                      <Camera className="w-5 h-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
-                          {'📸 Scan Bill / Parcha Photo'}
-                        </span>
-                        <span className="px-1.5 py-0.2 rounded-md bg-amber-500 text-slate-950 text-[9px] font-black uppercase tracking-tight">
-                          Recommended
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-amber-900 dark:text-amber-300 font-medium truncate mt-0.5">
-                        {'Camera photo of invoice, slip or wholesale parcha'}
-                      </div>
-                    </div>
-                  </div>
-
-                  <ArrowRight className="w-4 h-4 text-amber-700 dark:text-amber-400 group-hover:translate-x-1 transition-transform shrink-0" />
-                </div>
-
-                {/* 2. Upload a PDF File (Invoices / Menus) */}
-                <div
-                  onClick={() => pdfInputRef.current?.click()}
-                  className="p-3.5 rounded-2xl border border-sky-300 dark:border-sky-900/60 bg-sky-50/70 dark:bg-sky-950/20 hover:bg-sky-100/70 hover:border-sky-400 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-between gap-3 group shadow-xs"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-sky-500 text-white flex items-center justify-center font-bold shrink-0 shadow-sm group-hover:scale-105 transition-transform">
-                      <FileText className="w-5 h-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
-                          {'Upload Invoice PDF'}
-                        </span>
-                        <span className="px-1.5 py-0.2 rounded-md bg-sky-600 text-white text-[9px] font-black uppercase tracking-tight">
-                          Faster
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-sky-800 dark:text-sky-300 font-medium truncate mt-0.5">
-                        Single or multi-page digital invoice / tariff document
-                      </div>
-                    </div>
-                  </div>
-
-                  <ArrowRight className="w-4 h-4 text-sky-700 dark:text-sky-400 group-hover:translate-x-1 transition-transform shrink-0" />
-                </div>
-
-                {/* 3. Upload a CSV / Excel File */}
+                {/* 1. Upload a CSV / Excel File */}
                 <div
                   onClick={() => csvInputRef.current?.click()}
                   className="p-3.5 rounded-2xl border border-emerald-300 dark:border-emerald-900/60 bg-emerald-50/70 dark:bg-emerald-950/20 hover:bg-emerald-100/70 hover:border-emerald-400 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-between gap-3 group shadow-xs"
@@ -411,7 +221,7 @@ export function PurchaseInwardOptionsSheet({
                   <ArrowRight className="w-4 h-4 text-emerald-700 dark:text-emerald-400 group-hover:translate-x-1 transition-transform shrink-0" />
                 </div>
 
-                {/* 4. Add Manually (Single Item) */}
+                {/* 2. Add Manually (Single Item) */}
                 <div
                   onClick={() => {
                     onClose();
@@ -445,12 +255,6 @@ export function PurchaseInwardOptionsSheet({
           </div>
         </div>
       )}
-
-      {/* Pro Upgrade Modal Gate */}
-      <UpgradeModal
-        isOpen={isUpgradeModalOpen}
-        onClose={() => setIsUpgradeModalOpen(false)}
-      />
 
       {/* Review & Confirm Inward Modal */}
       {reviewData && (

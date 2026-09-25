@@ -330,15 +330,6 @@ export function subscribeToMultiDeviceSync(businessId: string): Unsubscribe[] {
               window.dispatchEvent(new Event('account_unfrozen'));
             }
 
-            // 2. Instant Real-time Pro Upgrade / Downgrade (Both Mobile & Desktop)
-            if (cloudBiz.subscription_tier) {
-              const { subscriptionService } = await import('@/lib/subscription/subscriptionService');
-              subscriptionService.setTierFromCloud(
-                cloudBiz.subscription_tier,
-                cloudBiz.subscription_valid_until || (cloudBiz as any).subscription_expires_at
-              );
-            }
-
             await db.businesses.put(cloudBiz);
           }
         }

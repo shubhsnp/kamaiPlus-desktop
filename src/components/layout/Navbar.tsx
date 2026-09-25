@@ -118,15 +118,15 @@ export const Navbar: React.FC = () => {
           {isOnline ? (
             <div 
               className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold shadow-2xs"
-              title="Online: Cloud Auto-Sync is Active"
+              title="Online. All bills are saved on this computer."
             >
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Online • Synced</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span>Online • Saved Locally</span>
             </div>
           ) : (
             <div 
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-900 border border-amber-300 text-xs font-bold shadow-xs animate-pulse"
-              title="Offline Mode Active: All bills are safely saved locally on device and will automatically sync to cloud when internet reconnects."
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-900 border border-amber-300 text-xs font-bold shadow-xs"
+              title="Offline Mode: billing works fully offline. All bills are safely saved on this computer."
             >
               <WifiOff className="w-3.5 h-3.5 text-amber-600" />
               <span>Offline Mode • Saved Locally</span>
