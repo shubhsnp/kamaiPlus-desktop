@@ -24,6 +24,7 @@ interface ProductCardProps {
   onDelete: (product: Product) => void;
   onToggleFavorite: (product: Product) => void;
   onQuickStockChange: (product: Product, delta: number) => void;
+  onOpenVariants?: (product: Product) => void;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({
@@ -33,8 +34,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onDelete,
   onToggleFavorite,
   onQuickStockChange,
+  onOpenVariants,
 }) => {
-  const isOutOfStock = !product.is_unlimited_stock && product.current_stock <= 0;
+  const isParent = product.has_variants === true;
+  const isOutOfStock = !isParent && !product.is_unlimited_stock && product.current_stock <= 0;
   const isLowStock = !product.is_unlimited_stock && product.current_stock > 0 && product.current_stock <= (product.min_stock_level || 5);
   const profitMarginPaise = product.selling_price - (product.purchase_price || 0);
 
@@ -50,6 +53,20 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               <span className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">
                 {product.name}
               </span>
+              {isParent && (
+                <button
+                  type="button"
+                  onClick={() => onOpenVariants?.(product)}
+                  className="px-1.5 py-0.2 rounded text-[9.5px] font-black bg-purple-100 text-purple-800 border border-purple-300 cursor-pointer hover:bg-purple-200"
+                >
+                  Variants ▾
+                </button>
+              )}
+              {product.variant_label && (
+                <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                  {product.variant_label}
+                </span>
+              )}
               {product.is_loose_item && (
                 <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-0.5">
                   <Scale className="w-2.5 h-2.5" />
@@ -124,6 +141,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       </div>
 
       {/* Bottom: Stock Status & 1-Tap Quick Adjuster */}
+      {isParent ? (
+        <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+          <button
+            type="button"
+            onClick={() => onOpenVariants?.(product)}
+            className="text-[11px] font-bold text-purple-700 hover:underline cursor-pointer"
+          >
+            Stock is kept per size / colour — see variants
+          </button>
+        </div>
+      ) : (
       <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
           <span className={cn(
@@ -174,6 +202,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </div>
         )}
       </div>
+      )}
     </div>
   );
 };

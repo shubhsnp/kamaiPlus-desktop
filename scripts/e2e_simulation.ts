@@ -63,6 +63,7 @@ import {
 } from '../src/lib/sales/saleMath';
 import { computeDrawerSummary, localDateKey } from '../src/lib/reports/cashDrawer';
 import { nextSupplierBalance } from '../src/lib/suppliers/supplierLedger';
+import { cleanVariantLabels, summarizeVariants, tracksOwnStock } from '../src/lib/products/variants';
 import {
   WALK_IN_ID,
   buildAdvancedReport,
@@ -685,6 +686,18 @@ assert(
   supplierWriters.every((f) => ['lib/suppliers/supplierLedger.ts', 'lib/backup/cloudBackupService.ts', 'lib/firebase/firestoreSync.ts', 'lib/db/index.ts'].includes(f)),
   `Only supplierLedger.ts changes supplier balances (writers: ${supplierWriters.join(', ')})`
 );
+
+// 8k. Variants (Android model): a parent is never sold; children are ordinary products.
+assert(JSON.stringify(cleanVariantLabels([' M', 'm', '', 'XL'])) === JSON.stringify(['M', 'XL']), 'Variant labels are trimmed and de-duplicated case-insensitively');
+assert(!tracksOwnStock({ has_variants: true } as any) && tracksOwnStock({ has_variants: false } as any), 'Stock alerts skip a variant parent (its stock lives in the sizes / colours)');
+assert(summarizeVariants([{ selling_price: 64900, current_stock: 2 }, { selling_price: 59900, current_stock: 3 }] as any).minPricePaise === 59900, 'POS shows a variant parent "from" its cheapest variant');
+assert(/if \(product\.has_variants\) \{\s*setVariantPick/.test(billingSrc), 'Every POS add path opens the variant picker for a parent (never sells the parent)');
+assert(/if \(variantPick\) return;/.test(billingSrc), 'Billing shortcuts (Enter = complete sale) are off while the variant picker is open');
+assert(/searching \|\| !p\.parent_id/.test(billingSrc), 'POS grid hides variants under their parent unless searching');
+assert(/\.\.\.editingProduct,\s*\.\.\.productPayload/.test(readSource('app/products/page.tsx')), 'Editing a product keeps its variant links (parent_id / has_variants)');
+for (const rel of ['app/inventory/page.tsx', 'app/purchases/page.tsx', 'components/dashboard/DashboardHome.tsx']) {
+  assert(readSource(rel).includes('tracksOwnStock('), `${rel} leaves variant parents out of stock alerts`);
+}
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.
 const PRO_OR_AI = /useProSubscription|requirePro|UpgradeModal|ProFeatureBadge|subscriptionService|razorpay|generativelanguage\.googleapis|gemini/i;

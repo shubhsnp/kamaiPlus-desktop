@@ -219,7 +219,7 @@ src/components/<feature>/   Feature components, one folder per domain
 src/components/ui/          Button, Card, Input, Modal  (that is all of it)
 src/lib/<domain>/           Engines — see table below
 src/types/index.ts          All domain types. Single file.
-scripts/e2e_simulation.ts   The test suite (§11). 295 assertions.
+scripts/e2e_simulation.ts   The test suite (§11). 305 assertions.
 scripts/bump_version.ts     Version bumper (+0.1 minor)
 public/barcodes/*.json      5 shipped offline barcode dictionaries
 ```
@@ -300,7 +300,7 @@ them readable — assume they touch everything:
 | **`inventory_movements`** | `app/billing/page.tsx` (put)<br>`app/inventory/page.tsx` (put)<br>`app/products/page.tsx` (put)<br>`app/purchases/page.tsx` (put)<br>`app/transactions/page.tsx` (put)<br>`components/dashboard/DashboardHome.tsx` (put)<br>`components/invoices/EditInvoiceModal.tsx` (put)<br>`components/purchases/BillScanReviewModal.tsx` (put)<br>`components/sales/SalesReturnModal.tsx` (put) |
 | **`ledger_transactions`** | `app/billing/page.tsx` (put)<br>`app/customers/page.tsx` (put)<br>`app/khata/page.tsx` (delete,put,update)<br>`app/transactions/page.tsx` (put)<br>`components/invoices/EditInvoiceModal.tsx` (put)<br>`components/khata/SettleInvoicesModal.tsx` (put)<br>`components/sales/SalesReturnModal.tsx` (put)<br>`lib/suppliers/supplierLedger.ts` (put, modify — `party_type: 'supplier'` rows) |
 | **`marketing_templates`** | _only the four shared modules above_ |
-| **`products`** | `app/billing/page.tsx` (put)<br>`app/inventory/page.tsx` (update)<br>`app/products/page.tsx` (delete,put,update)<br>`app/purchases/page.tsx` (update)<br>`app/transactions/page.tsx` (put)<br>`components/dashboard/DashboardHome.tsx` (update)<br>`components/inventory/ExcelInventoryImporter.tsx` (bulkPut)<br>`components/invoices/EditInvoiceModal.tsx` (update)<br>`components/purchases/BillScanReviewModal.tsx` (put,update)<br>`components/sales/SalesReturnModal.tsx` (update)<br>`lib/constants/defaultProducts.ts` (bulkPut) |
+| **`products`** | `app/billing/page.tsx` (put)<br>`app/inventory/page.tsx` (update)<br>`app/products/page.tsx` (delete,put,update)<br>`app/purchases/page.tsx` (update)<br>`app/transactions/page.tsx` (put)<br>`components/dashboard/DashboardHome.tsx` (update)<br>`components/inventory/ExcelInventoryImporter.tsx` (bulkPut)<br>`components/invoices/EditInvoiceModal.tsx` (update)<br>`components/purchases/BillScanReviewModal.tsx` (put,update)<br>`components/sales/SalesReturnModal.tsx` (update)<br>`lib/constants/defaultProducts.ts` (bulkPut)<br>`lib/products/variants.ts` (put, bulkPut, update, delete — parent + variants in one transaction, §9.1) |
 | **`purchase_bills`** | `components/purchases/BillScanReviewModal.tsx` (put) |
 | **`sales`** | `app/billing/page.tsx` (put)<br>`app/transactions/page.tsx` (clear,put)<br>`components/invoices/EditInvoiceModal.tsx` (put)<br>`components/khata/SettleInvoicesModal.tsx` (put)<br>`components/sales/SalesReturnModal.tsx` (update) |
 | **`sales_returns`** | `app/transactions/page.tsx` (clear)<br>`components/sales/SalesReturnModal.tsx` (put) |
@@ -560,6 +560,34 @@ reads it to make a decision.** Keep it that way.
 What is left in `storeProfiles.ts`: `MASTER_UNITS`, `DEFAULT_UNIT`,
 `RECOMMENDED_UNITS`, `STARTER_CATEGORIES`. That is all it is for now.
 
+### 9.1 Product variants (v4.49.0) — same model as the Android app
+
+Not a per-vertical mode: any shop can use it. `lib/products/variants.ts`.
+
+```
+parent  "Cotton Shirt"        has_variants = true, current_stock = 0 — listed, never sold
+child   "Cotton Shirt (M)"    parent_id = parent.id, variant_label = "M", size = "M"
+child   "Cotton Shirt (XL)"   own selling_price / mrp / current_stock / barcode
+```
+
+- **Create:** Add Product → "Variants (Size / Colour)" switch (new products only) →
+  presets (S…3XL, 28…42, colours) or custom labels → price / MRP / stock / barcode per
+  row. `createProductWithVariants` writes parent + children + opening-stock movements
+  in one transaction. Later sizes: product list → "Variants ▾" → `VariantsManagerModal`.
+- **Children are ordinary products** — billing, stock deduction, returns, reports and
+  barcode scanning need no special case. Lists hide children unless searching.
+- **POS:** every add path goes through `addToCart`; a parent opens
+  `VariantPickerModal` (keys 1–9, out-of-stock rows disabled). While it is open, the
+  billing shortcuts **and** the hardware scanner listener are off (Enter would
+  otherwise complete the sale; scanner digits would pick variants). Parent cards show
+  "from ₹<cheapest>" and "N Variants".
+- **Stock:** a parent has no stock of its own. `tracksOwnStock()` keeps it out of low /
+  out-of-stock alerts (inventory, products, purchases, dashboard) and valuation;
+  manual inward, Edit Invoice and barcode labels do not list parents.
+- Editing any product spreads `...editingProduct` first, so variant links survive.
+- Deleting a parent deletes its children (`deleteProductAndVariants`).
+- No Dexie schema change: children are found by filtering `parent_id` (not indexed).
+
 ---
 
 ## 10. Solved problems — do not regress these
@@ -596,13 +624,13 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 295/295, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 305/305, 0 failures
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
 git push origin main
 ```
 
-### Test suite map — `scripts/e2e_simulation.ts` (295 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (305 assertions)
 
 | Suite | Covers |
 | :--- | :--- |

@@ -7,6 +7,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useBusiness } from '@/components/layout/BusinessProvider';
 import { Product, Supplier } from '@/types';
 import { CheckCircle2, Sparkles } from 'lucide-react';
+import { tracksOwnStock } from '@/lib/products/variants';
 
 // Modular Sub-components
 import { InventoryHeaderActions } from '@/components/inventory/InventoryHeaderActions';
@@ -41,7 +42,7 @@ export default function InventoryPage() {
 
   // Low stock products
   const lowStockProducts = useMemo(() => {
-    return products.filter((p) => !p.is_unlimited_stock && p.current_stock <= (p.min_stock_level || 5));
+    return products.filter((p) => tracksOwnStock(p) && p.current_stock <= (p.min_stock_level || 5));
   }, [products]);
 
 

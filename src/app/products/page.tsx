@@ -24,6 +24,13 @@ import { ProductCard } from '@/components/products/ProductCard';
 import { ProductTableView } from '@/components/products/ProductTableView';
 import { QuickBarcodePrintModal } from '@/components/products/QuickBarcodePrintModal';
 import { AddEditProductModal } from '@/components/products/AddEditProductModal';
+import { VariantRow } from '@/components/products/VariantMatrixEditor';
+import { createProductWithVariants, deleteProductAndVariants, isVariantChild, isVariantParent, tracksOwnStock } from '@/lib/products/variants';
+
+const VariantsManagerModal = dynamic(
+  () => import('@/components/products/VariantsManagerModal').then((m) => m.VariantsManagerModal),
+  { ssr: false }
+);
 
 // Lazy-load heavy sheets & modals
 const PurchaseInwardOptionsSheet = dynamic(
@@ -94,6 +101,11 @@ export default function ProductsPage() {
   const [formColor, setFormColor] = useState('');
   const [formError, setFormError] = useState('');
 
+  // Variants (new products only, like Android) and the per-parent variants modal
+  const [variantsEnabled, setVariantsEnabled] = useState(false);
+  const [variantRows, setVariantRows] = useState<VariantRow[]>([]);
+  const [variantsParent, setVariantsParent] = useState<Product | null>(null);
+
   // Dexie Queries
   const allProducts = useLiveQuery(async () => db.products.toArray()) || [];
   const categories = useLiveQuery(async () => db.categories.toArray()) || [];
@@ -122,6 +134,9 @@ export default function ProductsPage() {
   // Filtered Products List
   const filteredProducts = useMemo(() => {
     return allProducts.filter((p) => {
+      // 0. Variants show under their parent; they appear on their own only in a search
+      if (!debouncedSearch.trim() && isVariantChild(p)) return false;
+
       // 1. Search Query
       if (debouncedSearch.trim()) {
         const q = debouncedSearch.toLowerCase().trim();
@@ -137,7 +152,7 @@ export default function ProductsPage() {
 
       // 3. Low Stock Filter
       if (showLowStockOnly) {
-        if (p.is_unlimited_stock) return false;
+        if (!tracksOwnStock(p)) return false;
         const minAlert = p.min_stock_level || 5;
         if (p.current_stock > minAlert) return false;
       }
@@ -152,12 +167,12 @@ export default function ProductsPage() {
 
   // Financial & Inventory Metrics
   const lowStockCount = useMemo(() => {
-    return allProducts.filter((p) => !p.is_unlimited_stock && p.current_stock <= (p.min_stock_level || 5)).length;
+    return allProducts.filter((p) => tracksOwnStock(p) && p.current_stock <= (p.min_stock_level || 5)).length;
   }, [allProducts]);
 
   const totalStockValuePaise = useMemo(() => {
     return allProducts.reduce((acc, p) => {
-      if (p.is_unlimited_stock) return acc;
+      if (!tracksOwnStock(p)) return acc;
       const cost = p.purchase_price || p.selling_price || 0;
       return acc + (cost * Math.max(0, p.current_stock));
     }, 0);
@@ -183,10 +198,14 @@ export default function ProductsPage() {
 
     setFormSize('');
     setFormColor('');
+    setVariantsEnabled(false);
+    setVariantRows([]);
     setIsModalOpen(true);
   };
 
   const handleOpenEditModal = (p: Product) => {
+    setVariantsEnabled(false);
+    setVariantRows([]);
     setEditingProduct(p);
     setFormError('');
     setFormName(p.name);
@@ -262,12 +281,39 @@ export default function ProductsPage() {
       sync_status: 'synced',
     };
 
+    // Variants: every row needs a price; the parent itself is never sold.
+    const useVariants = !editingProduct && variantsEnabled;
+    if (useVariants) {
+      if (variantRows.length === 0) {
+        setFormError('Add at least one variant (size / colour), or switch variants off.');
+        return;
+      }
+      const badRow = variantRows.find((r) => parseRupeesToPaise(r.price || '0') <= 0);
+      if (badRow) {
+        setFormError(`Enter a selling price for variant "${badRow.label}".`);
+        return;
+      }
+    }
+
     try {
       if (editingProduct) {
+        // Keep fields the form does not show (variant links, supplier, IMEI…).
         await db.products.put({
+          ...editingProduct,
           ...productPayload,
           id: editingProduct.id,
         });
+      } else if (useVariants) {
+        await createProductWithVariants(
+          { ...productPayload, id: `prod_${Date.now()}` },
+          variantRows.map((r) => ({
+            label: r.label,
+            sellingPricePaise: parseRupeesToPaise(r.price || '0'),
+            mrpPaise: r.mrp ? parseRupeesToPaise(r.mrp) : 0,
+            stock: parseFloat(r.stock) || 0,
+            barcode: r.barcode,
+          }))
+        );
       } else {
         const newId = `prod_${Date.now()}`;
         await db.products.put({
@@ -298,8 +344,14 @@ export default function ProductsPage() {
   };
 
   const handleDeleteProduct = async (id: string, name: string) => {
-    if (confirm(`Are you sure you want to delete "${name}"?`)) {
-      await db.products.delete(id);
+    const product = allProducts.find((p) => p.id === id);
+    const variantCount = product && isVariantParent(product) ? allProducts.filter((p) => p.parent_id === id).length : 0;
+    const question = variantCount
+      ? `Delete "${name}" and its ${variantCount} variants?`
+      : `Are you sure you want to delete "${name}"?`;
+    if (confirm(question)) {
+      if (product) await deleteProductAndVariants(product);
+      else await db.products.delete(id);
       setIsModalOpen(false);
     }
   };
@@ -420,6 +472,7 @@ export default function ProductsPage() {
             onQuickStockChange={handleQuickStockChange}
             onQuickPriceChange={handleQuickPriceChange}
             on1ClickBarcodePrint={handle1ClickBarcodePrint}
+            onOpenVariants={setVariantsParent}
           />
         ) : (
           <div className="py-12 text-center text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
@@ -439,6 +492,7 @@ export default function ProductsPage() {
               onDelete={(prod) => handleDeleteProduct(prod.id, prod.name)}
               onToggleFavorite={handleToggleFavorite}
               onQuickStockChange={handleQuickStockChange}
+              onOpenVariants={setVariantsParent}
             />
           ))}
 
@@ -493,7 +547,22 @@ export default function ProductsPage() {
         onSubmit={handleSaveProduct}
         onDeleteProduct={handleDeleteProduct}
         formError={formError}
+        variantsEnabled={variantsEnabled}
+        setVariantsEnabled={setVariantsEnabled}
+        variantRows={variantRows}
+        setVariantRows={setVariantRows}
       />
+
+      {variantsParent && (
+        <VariantsManagerModal
+          parent={variantsParent}
+          onClose={() => setVariantsParent(null)}
+          onEditVariant={(v) => {
+            setVariantsParent(null);
+            handleOpenEditModal(v);
+          }}
+        />
+      )}
 
       {/* Quick Add Category Modal */}
       <Modal

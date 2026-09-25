@@ -7,6 +7,7 @@ import { useBusiness } from '@/components/layout/BusinessProvider';
 import { useTranslation } from '@/lib/i18n';
 import { Sale, Product } from '@/types';
 import { cloudSyncSoon } from '@/lib/firebase/lazyCloud';
+import { tracksOwnStock } from '@/lib/products/variants';
 import dynamic from 'next/dynamic';
 import { AdvancedAnalyticsBanner } from '@/components/dashboard/AdvancedAnalyticsBanner';
 import { getLocalDayRange, getSaleNetTotal, isRevenueSale } from '@/lib/sales/saleMath';
@@ -95,13 +96,13 @@ export default function DashboardHome() {
   // Stock Watchlist (Out of stock & low stock)
   const outOfStockProducts = useMemo(() => {
     return activeProducts.filter(
-      (p) => !p.is_unlimited_stock && Number(p.current_stock ?? 0) <= 0
+      (p) => tracksOwnStock(p) && Number(p.current_stock ?? 0) <= 0
     );
   }, [activeProducts]);
 
   const lowStockProducts = useMemo(() => {
     return activeProducts.filter(
-      (p) => !p.is_unlimited_stock && (Number(p.current_stock ?? 0) <= Number(p.min_stock_level ?? 5) || Number(p.current_stock ?? 0) <= 0)
+      (p) => tracksOwnStock(p) && (Number(p.current_stock ?? 0) <= Number(p.min_stock_level ?? 5) || Number(p.current_stock ?? 0) <= 0)
     );
   }, [activeProducts]);
 

@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Product, Category, ProductUnit } from '@/types';
 import { MASTER_UNITS } from '@/lib/constants/storeProfiles';
+import { VariantMatrixEditor, VariantRow } from '@/components/products/VariantMatrixEditor';
 
 interface AddEditProductModalProps {
   isOpen: boolean;
@@ -58,6 +59,11 @@ interface AddEditProductModalProps {
   onSubmit: (e: React.FormEvent) => Promise<void>;
   onDeleteProduct?: (id: string, name: string) => Promise<void>;
   formError?: string;
+  // Variants matrix — offered only when adding a new product (Android parity)
+  variantsEnabled?: boolean;
+  setVariantsEnabled?: (val: boolean) => void;
+  variantRows?: VariantRow[];
+  setVariantRows?: (rows: VariantRow[]) => void;
 }
 
 export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
@@ -100,6 +106,10 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
   onSubmit,
   onDeleteProduct,
   formError,
+  variantsEnabled = false,
+  setVariantsEnabled,
+  variantRows = [],
+  setVariantRows,
 }) => {
   // Size / colour used to render only when already filled, so a new product could
   // never get them. They now open on demand and stay open once they hold a value.
@@ -326,6 +336,22 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
               onChange={(e) => setFormColor(e.target.value)}
             />
           </div>
+        )}
+
+        {/* Variants matrix: new products only (edit a variant from the Variants list) */}
+        {!editingProduct && setVariantsEnabled && setVariantRows && (
+          <VariantMatrixEditor
+            enabled={variantsEnabled}
+            onToggle={setVariantsEnabled}
+            rows={variantRows}
+            onChange={setVariantRows}
+            defaults={{ price: formSellingPrice, mrp: formMrp, stock: formStock }}
+          />
+        )}
+        {editingProduct?.variant_label && (
+          <p className="text-[11px] text-purple-700 font-bold">
+            This is the &ldquo;{editingProduct.variant_label}&rdquo; variant. Its price and stock are its own.
+          </p>
         )}
 
         {/* Validation Error Banner */}

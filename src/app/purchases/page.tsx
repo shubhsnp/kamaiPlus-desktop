@@ -26,6 +26,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Product, PurchaseBill } from '@/types';
 import { InwardBillButton } from '@/components/purchases/InwardBillButton';
 import { recordSupplierEntry } from '@/lib/suppliers/supplierLedger';
+import { isVariantParent, tracksOwnStock } from '@/lib/products/variants';
 import { CashierPrivacyToggleButton, ProfitMask } from '@/components/privacy/ProfitMask';
 
 export default function PurchasesPage() {
@@ -40,7 +41,9 @@ export default function PurchasesPage() {
   const [modalError, setModalError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const products = useLiveQuery(async () => db.products.toArray()) || [];
+  // A variant parent holds no stock of its own — restock its sizes / colours instead.
+  const products = (useLiveQuery(async () => db.products.toArray()) || []).filter((p) => !isVariantParent(p));
+  const restockItems = products.filter((p) => tracksOwnStock(p) && p.current_stock <= p.min_stock_level);
   const suppliers = useLiveQuery(() => db.suppliers.orderBy('name').toArray()) || [];
   const business = useBusiness();
   const purchaseBills = useLiveQuery(async () => 
@@ -190,17 +193,17 @@ export default function PurchasesPage() {
               <span>Items Needing Restock</span>
             </div>
             <span className="text-[11px] font-mono text-slate-500">
-              {products.filter(p => p.current_stock <= p.min_stock_level).length} items low
+              {restockItems.length} items low
             </span>
           </h3>
 
           <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
-            {products.filter(p => p.current_stock <= p.min_stock_level).length === 0 ? (
+            {restockItems.length === 0 ? (
               <div className="p-8 text-center text-xs text-slate-500 font-mono">
                 All inventory stock levels are healthy! 👍
               </div>
             ) : (
-              products.filter(p => p.current_stock <= p.min_stock_level).map(p => (
+              restockItems.map(p => (
                 <div key={p.id} className="p-3 rounded-xl border border-amber-300 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/20 flex items-center justify-between text-xs gap-2">
                   <div className="min-w-0">
                     <div className="font-bold text-slate-900 dark:text-white truncate">{p.name}</div>

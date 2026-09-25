@@ -147,6 +147,12 @@ export interface Product {
 
   size?: string; // Clothing size (e.g. S, M, L, XL, 32, 34)
   color?: string; // Clothing / Mobile color
+  // Variants (same model as the Android app): a PARENT has has_variants = true and
+  // is never sold itself; each CHILD is a full product (own price, stock, barcode)
+  // with parent_id pointing at the parent and variant_label like "XL" or "Red".
+  parent_id?: string;
+  has_variants?: boolean;
+  variant_label?: string;
   imei_serial?: string; // Electronics IMEI or device serial number
   warranty_period_months?: number; // Brand warranty period
   current_stock: number;

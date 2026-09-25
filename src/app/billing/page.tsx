@@ -90,6 +90,7 @@ const PaymentCelebrationModal = dynamic(
   { ssr: false }
 );
 import { PosItemEditModal } from '@/components/billing/PosItemEditModal';
+import { VariantPickerModal } from '@/components/billing/VariantPickerModal';
 
 export interface BillTab {
   id: string;
@@ -151,6 +152,7 @@ const PosProductCard = React.memo(({
   isOutOfStock,
   isLowStock,
   isHighlighted,
+  variants,
   onAdd
 }: {
   p: any;
@@ -161,6 +163,8 @@ const PosProductCard = React.memo(({
   isOutOfStock: boolean;
   isLowStock: boolean;
   isHighlighted: boolean;
+  /** Set for a parent with sizes / colours: how many, and the cheapest price. */
+  variants?: { count: number; minPricePaise: number };
   onAdd: (p: any) => void;
 }) => {
   return (
@@ -206,20 +210,27 @@ const PosProductCard = React.memo(({
 
       <div className="mt-1.5 pt-1.5 border-t border-slate-100 flex items-baseline justify-between gap-1">
         <div className="truncate">
+          {variants && <span className="text-[10px] text-slate-500 font-medium mr-0.5">from</span>}
           <span className={cn(
             "text-xs sm:text-sm font-black font-mono",
             isOutOfStock ? "text-slate-400 line-through" : "text-slate-900"
           )}>
-            {formatINR(p.selling_price)}
+            {formatINR(variants ? variants.minPricePaise : p.selling_price)}
           </span>
-          <span className="text-[10px] text-slate-500 font-medium ml-0.5">/{p.unit}</span>
+          {!variants && <span className="text-[10px] text-slate-500 font-medium ml-0.5">/{p.unit}</span>}
         </div>
+        {variants ? (
+          <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md shrink-0 bg-indigo-100 text-indigo-700">
+            {variants.count} Variants ▾
+          </span>
+        ) : (
         <span className={cn(
           "text-[10px] font-bold font-mono px-1.5 py-0.5 rounded-md shrink-0 flex items-center gap-1",
           isOutOfStock ? "bg-rose-100 text-rose-700" : isLowStock ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"
         )}>
           {p.is_unlimited_stock ? '∞' : stockNum}
         </span>
+        )}
       </div>
     </button>
   );
@@ -472,6 +483,20 @@ export default function BillingPage() {
   
   const [products, setProducts] = useState<any[]>([]);
 
+  // Variant picker (products with sizes / colours) and each parent's "from ₹X"
+  const [variantPick, setVariantPick] = useState<{ parent: Product; qty: number } | null>(null);
+  const variantInfo = useLiveQuery(async () => {
+    const children = await db.products.filter((p) => Boolean(p.parent_id) && p.is_active !== false).toArray();
+    const map: Record<string, { count: number; minPricePaise: number }> = {};
+    for (const c of children) {
+      const cur = map[c.parent_id!];
+      map[c.parent_id!] = cur
+        ? { count: cur.count + 1, minPricePaise: Math.min(cur.minPricePaise, c.selling_price) }
+        : { count: 1, minPricePaise: c.selling_price };
+    }
+    return map;
+  }, []) || {};
+
   // Pull the cloud-sync bundle in while the cashier is still picking items, so
   // the first bill of the day does not wait for it.
   useEffect(() => {
@@ -488,7 +513,9 @@ export default function BillingPage() {
     let isMounted = true;
     async function fetchProducts() {
       try {
-        let prods = db.products.filter(p => p.is_active !== false);
+        // Variants live under their parent (picker on tap); a search finds them directly.
+        const searching = Boolean(debouncedSearch.trim());
+        let prods = db.products.filter(p => p.is_active !== false && (searching || !p.parent_id));
 
         // Filter by Category
         if (selectedCategory !== 'all') {
@@ -605,6 +632,13 @@ export default function BillingPage() {
   // Cart operations
   const addToCart = (product: Product, quantityToAdd: number = 1) => {
     if (product.is_active === false) return;
+
+    // A parent with sizes / colours is never sold itself: ask which variant.
+    // Every add path (grid, search Enter, scanner) comes through here.
+    if (product.has_variants) {
+      setVariantPick({ parent: product, qty: quantityToAdd });
+      return;
+    }
 
     // Out-of-Stock and Maximum Stock Enforcement
     if (!product.is_unlimited_stock) {
@@ -841,7 +875,8 @@ export default function BillingPage() {
 
   useHardwareBarcodeScanner({
     onScan: handleBarcodeScanned,
-    enabled: !isBarcodeModalOpen && !isRapidScanModeOpen && !isInvoiceModalOpen,
+    // Off while the variant picker is open: scanner digits would pick variants 1–9.
+    enabled: !isBarcodeModalOpen && !isRapidScanModeOpen && !isInvoiceModalOpen && !variantPick,
   });
 
   const handleSaveQuickAddItem = async (e: React.FormEvent) => {
@@ -1246,6 +1281,10 @@ export default function BillingPage() {
   // Desktop POS High-Speed Keyboard Shortcuts Handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // The variant picker owns the keyboard while open — otherwise Enter on a
+      // focused variant would also run "Complete sale".
+      if (variantPick) return;
+
       // Tab switching via Ctrl + 1..9
       if ((e.ctrlKey || e.metaKey) && e.key >= '1' && e.key <= '9') {
         const tabIdx = parseInt(e.key, 10) - 1;
@@ -1280,8 +1319,13 @@ export default function BillingPage() {
           const targetProd = (highlightedIndex >= 0 && products[highlightedIndex]) || (products.length > 0 ? products[0] : null);
           if (targetProd) {
             const stockNum = Number(targetProd.current_stock ?? 0);
-            const isOutOfStock = !targetProd.is_unlimited_stock && stockNum <= 0;
-            if (isOutOfStock) {
+            const isOutOfStock = !targetProd.has_variants && !targetProd.is_unlimited_stock && stockNum <= 0;
+            if (targetProd.has_variants) {
+              // Opens the size / colour picker; the chosen variant is added from there.
+              addToCart(targetProd, 1);
+              setSearchQuery('');
+              setHighlightedIndex(-1);
+            } else if (isOutOfStock) {
               playBeepSound('alert');
               showBillingToast(`Out of Stock: "${targetProd.name}"`, 'error');
             } else {
@@ -1360,7 +1404,7 @@ export default function BillingPage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cart, searchQuery, handleCompleteSale, products, highlightedIndex, tabs]);
+  }, [cart, searchQuery, handleCompleteSale, products, highlightedIndex, tabs, variantPick]);
 
   // Reusable Checkout Panel Component for Desktop side-panel and Mobile Bottom Drawer
   const renderCheckoutPanel = () => (
@@ -2340,8 +2384,10 @@ export default function BillingPage() {
                     const inCartQuantity = cart.find((i) => i.product_id === p.id)?.quantity || 0;
                     const availableStock = getAvailableStockForProduct(p);
                     const stockNum = Number(p.current_stock ?? 0);
-                    const isOutOfStock = !p.is_unlimited_stock && (stockNum <= 0 || availableStock <= 0);
-                    const isLowStock = !p.is_unlimited_stock && !isOutOfStock && availableStock <= (p.min_stock_level || 5);
+                    const variants = p.has_variants ? variantInfo[p.id] || { count: 0, minPricePaise: p.selling_price } : undefined;
+                    // A variant parent's stock lives in its sizes / colours; the picker shows those.
+                    const isOutOfStock = !variants && !p.is_unlimited_stock && (stockNum <= 0 || availableStock <= 0);
+                    const isLowStock = !variants && !p.is_unlimited_stock && !isOutOfStock && availableStock <= (p.min_stock_level || 5);
                     const isHighlighted = highlightedIndex === idx;
 
                     return (
@@ -2355,6 +2401,7 @@ export default function BillingPage() {
                         isOutOfStock={isOutOfStock}
                         isLowStock={isLowStock}
                         isHighlighted={isHighlighted}
+                        variants={variants}
                         onAdd={(prod) => {
                           if (isOutOfStock) {
                             playBeepSound('alert');
@@ -2423,6 +2470,20 @@ export default function BillingPage() {
           {renderCheckoutPanel()}
         </div>
       </Modal>
+
+      {/* Variant picker: which size / colour of a parent product */}
+      {variantPick && (
+        <VariantPickerModal
+          parent={variantPick.parent}
+          inCart={(id) => getTotalCartQuantityForProduct(id)}
+          onClose={() => setVariantPick(null)}
+          onPick={(variant) => {
+            const qty = variantPick.qty;
+            setVariantPick(null);
+            addToCart(variant, qty);
+          }}
+        />
+      )}
 
       {/* Quick Edit Cart Item Modal */}
       <PosItemEditModal

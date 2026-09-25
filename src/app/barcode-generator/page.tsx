@@ -68,7 +68,8 @@ export default function BarcodeGeneratorPage() {
   const business = useBusiness();
   const allProducts = useLiveQuery(async () => {
     const prods = await db.products.toArray();
-    return prods.filter((p) => p.is_active !== false);
+    // Labels are printed per size / colour (each variant has its own barcode), not for the parent.
+    return prods.filter((p) => p.is_active !== false && !p.has_variants);
   }) || [];
 
   // Print Layout State

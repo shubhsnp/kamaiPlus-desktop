@@ -61,7 +61,8 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
 
   const products = useLiveQuery(async () => {
     const list = await db.products.toArray();
-    return list.filter((p) => p.is_active !== false);
+    // A variant parent is never sold itself; its sizes / colours are listed by name.
+    return list.filter((p) => p.is_active !== false && !p.has_variants);
   }) || [];
 
   const businesses = useLiveQuery(() => db.businesses.toArray()) || [];
