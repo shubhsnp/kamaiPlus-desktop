@@ -624,7 +624,7 @@ assert(
 // 8d. Cloud writes are switched off until the desktop app has a Firebase login
 //     (the rules reject every unauthenticated write), and every entry point obeys it.
 assert(/export const CLOUD_SYNC_ENABLED = false;/.test(readSource('lib/firebase/cloudAvailability.ts')), 'Cloud sync stays off until a cloud login exists');
-for (const rel of ['lib/firebase/lazyCloud.ts', 'lib/firebase/backgroundSync.ts', 'lib/sync/syncEngine.ts', 'app/cloud-backup/page.tsx', 'app/onboarding/page.tsx']) {
+for (const rel of ['lib/firebase/lazyCloud.ts', 'lib/firebase/backgroundSync.ts', 'lib/sync/syncEngine.ts', 'app/onboarding/page.tsx']) {
   assert(readSource(rel).includes('CLOUD_SYNC_ENABLED'), `${rel} checks CLOUD_SYNC_ENABLED before touching the cloud`);
 }
 assert(!/await setDoc/.test(readSource('components/khata/SettleInvoicesModal.tsx')), 'Khata settlement never waits on a cloud write');
@@ -704,6 +704,11 @@ const authFormSrc = readSource('components/auth/AuthForm.tsx');
 assert(/Forgot password\?/.test(authFormSrc) && /verifyLicenceKey\(/.test(authFormSrc), 'Login screen offers "Forgot password?" via the licence key');
 assert(/async function verifyOwnKey/.test(licenceJs) && /verifyLicence\(record\)/.test(licenceJs.slice(licenceJs.indexOf('async function verifyOwnKey'))), 'Recovery checks the key against the SIGNED licence of this PC');
 assert(!/db\.|indexedDB|clear\(\)/.test(readSource('lib/auth/masterPassword.ts')), 'Password recovery never touches shop data');
+
+// 8m. No status that claims something the app does not do.
+const statusSrc = readSource('components/layout/DesktopStatusBar.tsx');
+assert(!/>Ready<\/span>/.test(statusSrc) && /getPrinters\(\)/.test(statusSrc), 'Status bar printer state comes from the installed Windows printers, not a fixed "Ready"');
+assert(!/Multi-Counter Sync|Real-time cloud sync/.test(readSource('app/cloud-backup/page.tsx')), 'Backup page does not advertise cloud sync the app does not have');
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.
 const PRO_OR_AI = /useProSubscription|requirePro|UpgradeModal|ProFeatureBadge|subscriptionService|razorpay|generativelanguage\.googleapis|gemini/i;

@@ -21,15 +21,12 @@ import {
   BookOpen,
   ArrowRight,
   Sparkles,
-  Cloud,
-  RefreshCw,
   Smartphone
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
 import Link from 'next/link';
-import { CLOUD_SYNC_ENABLED, CLOUD_SYNC_DISABLED_MESSAGE } from '@/lib/firebase/cloudAvailability';
 import { AutoBackupCard } from '@/components/backup/AutoBackupCard';
 
 export default function CloudBackupPage() {
@@ -54,10 +51,6 @@ export default function CloudBackupPage() {
   const [isRestoring, setIsRestoring] = useState(false);
   const [restoreSuccessMessage, setRestoreSuccessMessage] = useState<string | null>(null);
 
-  // Firestore Live Cloud Sync State
-  const [isFirestoreSyncing, setIsFirestoreSyncing] = useState(false);
-  const [isFirestoreRestoring, setIsFirestoreRestoring] = useState(false);
-
   // Load last backup timestamp on mount
   useEffect(() => {
     try {
@@ -65,53 +58,6 @@ export default function CloudBackupPage() {
       if (lastTime) setLastBackupTime(lastTime);
     } catch (e) {}
   }, []);
-
-  const handleSyncToFirestore = async () => {
-    if (!CLOUD_SYNC_ENABLED) {
-      alert(CLOUD_SYNC_DISABLED_MESSAGE);
-      return;
-    }
-    if (!business) {
-      alert('Please setup your business profile first.');
-      return;
-    }
-    setIsFirestoreSyncing(true);
-    try {
-      const { syncLocalDexieToFirestore } = await import('@/lib/firebase/firestoreSync');
-      const res = await syncLocalDexieToFirestore(business.id);
-      setBackupSuccessMessage(`Cloud Backup Successful: ${res.stats.sales} sales, ${res.stats.products} products, ${res.stats.customers} customers, ${res.stats.ledger} khata records.`);
-      setTimeout(() => setBackupSuccessMessage(null), 6000);
-    } catch (err: any) {
-      alert(`Cloud sync error: ${err.message || 'Check connection'}`);
-    } finally {
-      setIsFirestoreSyncing(false);
-    }
-  };
-
-  const handleRestoreFromFirestore = async () => {
-    if (!CLOUD_SYNC_ENABLED) {
-      alert(CLOUD_SYNC_DISABLED_MESSAGE);
-      return;
-    }
-    if (!business) {
-      alert('Please setup your business profile first.');
-      return;
-    }
-    if (!confirm('Restore all products, sales, customers, and khata records from your secure Cloud Backup into this device?')) {
-      return;
-    }
-    setIsFirestoreRestoring(true);
-    try {
-      const { restoreFirestoreToLocalDexie } = await import('@/lib/firebase/firestoreSync');
-      const res = await restoreFirestoreToLocalDexie(business.id);
-      setRestoreSuccessMessage(`Successfully restored from Cloud Backup: ${res.stats.products} products, ${res.stats.sales} sales.`);
-      setTimeout(() => setRestoreSuccessMessage(null), 6000);
-    } catch (err: any) {
-      alert(`Cloud restore error: ${err.message || 'Check connection'}`);
-    } finally {
-      setIsFirestoreRestoring(false);
-    }
-  };
 
   // 1-Click Local File Download
   const handleDownloadBackup = async () => {
@@ -323,45 +269,6 @@ export default function CloudBackupPage() {
           </div>
         </div>
 
-        {/* CARD 3: CLOUD BACKUP & MULTI-COUNTER SYNC (Compact Single-Row) */}
-        <div className="p-3 sm:p-3.5 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-white border border-amber-300/80 rounded-xl shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center font-bold shadow-2xs shrink-0">
-              <Cloud className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <h3 className="text-xs font-black text-slate-900 truncate">Cloud Backup &amp; Multi-Counter Sync</h3>
-              </div>
-              <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                Real-time cloud sync across counters &amp; mobile
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1.5 shrink-0">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleRestoreFromFirestore}
-              disabled={isFirestoreRestoring || isFirestoreSyncing}
-              className="text-xs font-bold gap-1 px-2.5 py-1.5 rounded-lg h-8 border-slate-300 hover:bg-white cursor-pointer shadow-2xs"
-            >
-              <RefreshCw className={`w-3 h-3 ${isFirestoreRestoring ? 'animate-spin' : ''}`} />
-              <span>{isFirestoreRestoring ? 'Restoring...' : 'Restore'}</span>
-            </Button>
-
-            <Button
-              size="sm"
-              onClick={handleSyncToFirestore}
-              disabled={isFirestoreSyncing || isFirestoreRestoring}
-              className="text-xs font-bold gap-1 px-2.5 py-1.5 rounded-lg h-8 bg-slate-900 hover:bg-slate-800 text-white cursor-pointer shadow-2xs"
-            >
-              <Cloud className={`w-3 h-3 text-amber-400 ${isFirestoreSyncing ? 'animate-pulse' : ''}`} />
-              <span>{isFirestoreSyncing ? 'Syncing...' : 'Backup to Cloud'}</span>
-            </Button>
-          </div>
-        </div>
       </div>
 
       {/* ---------------- SECTION 2: TALLY PRIME & CA MASTER EXCEL BRIDGE (Compact) ---------------- */}
