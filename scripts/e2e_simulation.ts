@@ -756,6 +756,16 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(pkgJson.scripts?.['test:electron'] === 'node scripts/electron_e2e.mjs' && !JSON.stringify(pkgJson.build?.win || {}).includes('publisherName'), 'Electron E2E script is wired up; no publisherName until the first signed release');
 }
 
+// 8t. Lock on launch: the unlock lives in sessionStorage (gone when the app closes),
+// and a locked shell renders no shop page (Bible §12 #10).
+{
+  const mpSrc = readSource('lib/auth/masterPassword.ts');
+  const shellSrc = readSource('components/layout/AppShell.tsx');
+  const authSrc = readSource('components/auth/AuthForm.tsx');
+  assert(/sessionStorage\.setItem\(UNLOCK_KEY/.test(mpSrc) && !/localStorage\.setItem\(UNLOCK_KEY/.test(mpSrc), 'Master-password unlock is kept for this app session only (sessionStorage), so every restart asks again');
+  assert(/currentUser\.business_id === 'biz_pending' \|\| locked\)/.test(shellSrc) && /if \(user && locked\)/.test(shellSrc) && /markUnlocked\(\)/.test(authSrc), 'A locked app renders no shop page and redirects to the password screen; only a correct password unlocks');
+}
+
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.
 const PRO_OR_AI = /useProSubscription|requirePro|UpgradeModal|ProFeatureBadge|subscriptionService|razorpay|generativelanguage\.googleapis|gemini/i;
 const proOrAiOffenders = ALL_SOURCE.filter((f) => PRO_OR_AI.test(fs.readFileSync(f, 'utf8')));

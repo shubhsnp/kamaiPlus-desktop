@@ -214,21 +214,22 @@ async function run() {
   {
     const { app, page } = await launch(dataDir);
     try {
-      // Today a signed-in shop stays signed in across restarts; the master
-      // password is asked after "Logout". If a lock-on-launch is added later,
-      // the password branch below exercises it.
-      await page.getByText('E2E Kirana Store').or(page.getByPlaceholder('••••••••')).first().waitFor({ state: 'visible', timeout: 20000 });
-      check(!(await page.getByText('Activate KamaiPlus Desktop').count()), 'After a restart the licence is still valid offline (no activation screen)');
+      // Lock on launch (v4.58.0): a signed-in shop still needs the password after a restart.
       const pw = page.getByPlaceholder('••••••••');
-      const asked = await pw.isVisible();
+      const asked = await pw.waitFor({ state: 'visible', timeout: 20000 }).then(() => true, () => false);
+      check(!(await page.getByText('Activate KamaiPlus Desktop').count()), 'After a restart the licence is still valid offline (no activation screen)');
+      check(asked, 'After a restart the app asks for the master password before showing anything');
       if (asked) {
+        await page.evaluate(() => { window.location.href = '/billing/'; });
+        await page.waitForTimeout(2500);
+        check((await pw.isVisible()) && !(await page.getByText('Complete Sale').count()), 'Opening /billing directly while locked still shows only the password screen');
         await pw.fill('wrong-password');
         await pw.press('Enter');
-        await page.waitForTimeout(800);
-        check(await pw.isVisible(), 'A wrong master password does not open the app');
+        await page.waitForTimeout(1000);
+        check((await pw.isVisible()) && !(await page.getByText('E2E Kirana Store').count()), 'A wrong master password does not open the app');
         await pw.fill(PASSWORD);
         await pw.press('Enter');
-        await page.waitForTimeout(2000);
+        check(await textVisible(page, 'E2E Kirana Store'), 'The right password opens the shop with its own name (signed-in user kept)');
       }
       const sales = await readStore(page, 'sales');
       const product = (await readStore(page, 'products')).find((p) => p.id === productId);

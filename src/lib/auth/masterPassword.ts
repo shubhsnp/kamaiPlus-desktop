@@ -45,6 +45,29 @@ export function clearMasterPasswordAfterRecovery(): void {
   } catch {}
 }
 
+/*
+ * Lock on launch. A successful unlock is remembered in sessionStorage only, which
+ * Electron empties when the app closes — so every start asks for the password,
+ * while moving between pages (or a crash reload) does not.
+ */
+const UNLOCK_KEY = 'kamai_unlocked';
+
+export function markUnlocked(): void {
+  try {
+    sessionStorage.setItem(UNLOCK_KEY, '1');
+  } catch {}
+}
+
+/** True while a master password exists and has not been entered since the app started. */
+export function isAppLocked(): boolean {
+  if (!hasMasterPassword()) return false;
+  try {
+    return sessionStorage.getItem(UNLOCK_KEY) !== '1';
+  } catch {
+    return true;
+  }
+}
+
 export async function setMasterPassword(password: string): Promise<void> {
   const salt = toHex(crypto.getRandomValues(new Uint8Array(16)));
   localStorage.setItem(KEY, `${PREFIX}${salt}$${await digest(salt, password)}`);

@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { setStoredUser, AuthUser } from '@/lib/auth';
+import { getStoredUser, setStoredUser, AuthUser } from '@/lib/auth';
 import { db as localDb } from '@/lib/db';
-import { clearMasterPasswordAfterRecovery, hasMasterPassword, setMasterPassword, verifyMasterPassword } from '@/lib/auth/masterPassword';
+import { clearMasterPasswordAfterRecovery, hasMasterPassword, markUnlocked, setMasterPassword, verifyMasterPassword } from '@/lib/auth/masterPassword';
 import { getDesktopApi } from '@/lib/desktop/desktopBridge';
 import { 
   CheckCircle2, 
@@ -112,8 +112,18 @@ export const AuthForm: React.FC = () => {
   };
 
   const performLocalLogin = async () => {
+    markUnlocked();
     // Generate or fetch local offline user
     let localBiz = await localDb.businesses.toCollection().first();
+
+    // Unlocking a shop that is still signed in (app restart): keep its user as it
+    // is (owner name etc.), only renew the session time.
+    const existing = getStoredUser();
+    if (localBiz && existing && existing.business_id === localBiz.id) {
+      setStoredUser({ ...existing, login_timestamp: Date.now() });
+      setTimeout(() => router.replace('/'), 500);
+      return;
+    }
     let bizId = localBiz?.id || 'biz_pending';
     let bizName = localBiz?.name || 'My Offline Store';
 

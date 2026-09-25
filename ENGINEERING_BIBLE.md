@@ -684,7 +684,7 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 326/326, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 328/328, 0 failures
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
 git push origin main
@@ -695,21 +695,21 @@ billing), also run the real app:
 
 ```bash
 npx next build                      # out/ must be current
-npm run test:electron               # scripts/electron_e2e.mjs — 17/17
+npm run test:electron               # scripts/electron_e2e.mjs — 21/21
 ```
 
 `electron_e2e.mjs` launches the actual Electron app with Playwright (`playwright-core`,
 no browser download) and checks: no licence / forged licence → activation screen only;
 signed licence → master password → store setup → sell one starter item → one cash bill
-in paise, stock −1, no page errors; restart → still licensed offline, data kept, error
-log empty. Its data goes to a temp folder via `KAMAI_E2E_DIR` (main.js honours it only
+in paise, stock −1, no page errors; restart → still licensed offline, master password
+asked (even for `/billing`), wrong one refused, data kept, error log empty. Its data goes to a temp folder via `KAMAI_E2E_DIR` (main.js honours it only
 when `!app.isPackaged`). The licence is **signed for this PC with the private key** in
 `%USERPROFILE%\KamaiPlus-Secrets\` (or `KAMAI_LICENCE_PRIVATE_KEY`) — nothing is
 bypassed; without the key only the no-licence checks run. The script removes
 `ELECTRON_RUN_AS_NODE` (set by VS Code terminals), which otherwise stops Electron
 launching. Failure screenshots go to `%TEMP%\kamaiplus-e2e-shots\`.
 
-### Test suite map — `scripts/e2e_simulation.ts` (326 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (328 assertions)
 
 | Suite | Covers |
 | :--- | :--- |
@@ -791,13 +791,17 @@ Recorded so the next agent does not rediscover them. None are fixed as of v4.38.
 
 9. ~~Dashboard statically imported Firebase~~ — **fixed in v4.43.0**, see §10 #18.
 
-10. **The master password is not asked when the app restarts.** Found by
-    `electron_e2e.mjs` (v4.57.0): the signed-in user stays in localStorage
-    (`getStoredUser()`), so closing and reopening the app goes straight to the
-    dashboard; the password is asked only after Logout. Anyone at the counter PC can
-    open the shop's books. Not changed yet — a lock on launch (and optionally after
-    idle) is a product decision for the owner. The E2E restart step already handles a
-    password prompt if one is added.
+10. ~~The master password was not asked when the app restarted~~ — **fixed in
+    v4.58.0** (owner asked for it). Found by `electron_e2e.mjs`: the signed-in user
+    stays in localStorage, so a restart went straight to the dashboard. Now
+    `masterPassword.ts` keeps a `kamai_unlocked` flag in **sessionStorage** (Electron
+    empties it when the app closes; page changes and crash reloads keep it).
+    `AppShell` treats a signed-in user without it as locked: only `/auth` (and the
+    customer `/invoice`, `/pay` links) render, every other route redirects there.
+    `AuthForm.performLocalLogin()` sets the flag; unlocking a still-signed-in shop
+    keeps its stored user (owner name) and only renews the session time. No idle lock.
+    Electron E2E checks it (restart → password, `/billing` blocked, wrong password
+    refused).
 
 ---
 

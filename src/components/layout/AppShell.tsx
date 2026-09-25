@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { db as localDb } from '@/lib/db';
 import { AuthUser, getStoredUser, setStoredUser } from '@/lib/auth';
+import { isAppLocked } from '@/lib/auth/masterPassword';
 import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
 import { DesktopStatusBar } from './DesktopStatusBar';
@@ -17,6 +18,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const router = useRouter();
   const [isClient, setIsClient] = useState<boolean>(false);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  // Signed in but the master password not yet entered since the app started.
+  const [locked, setLocked] = useState<boolean>(true);
   const [accountLockout, setAccountLockout] = useState<{ isFrozen: boolean; message: string } | null>(null);
   // Ask the OS not to evict the shop's local database.
   useEffect(() => {
@@ -29,10 +32,12 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     
     const initialUser = getStoredUser();
     setCurrentUser(initialUser);
+    setLocked(isAppLocked());
 
     const handleAuthChange = () => {
       const u = getStoredUser();
       setCurrentUser(u);
+      setLocked(isAppLocked());
     };
 
     const handleAccountFrozen = (e: any) => {
@@ -126,7 +131,10 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     const isRootMarketing = pathname === '/' && !user;
     const isPublicRoute = isCustomerInvoice || isLegalOrPublic || isAuthRoute || isOnboardingRoute || isRootMarketing;
 
-    if (!user) {
+    if (user && locked) {
+      // Lock on launch: the password screen first, whatever page was open.
+      if (!isAuthRoute && !isCustomerInvoice) router.replace('/auth');
+    } else if (!user) {
       if (!isPublicRoute && pathname !== '/auth') {
         router.replace('/auth');
       }
@@ -143,7 +151,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         }
       }
     }
-  }, [pathname, currentUser, isClient, router]);
+  }, [pathname, currentUser, locked, isClient, router]);
 
   if (!isClient) {
     return <main className="min-h-screen bg-slate-50" />;
@@ -161,8 +169,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     return <main className="min-h-screen bg-slate-950">{children}</main>;
   }
 
-  // Protected routes check
-  if (!currentUser || !currentUser.business_id || currentUser.business_id === 'biz_pending') {
+  // Protected routes check (a locked app never renders a shop page)
+  if (!currentUser || !currentUser.business_id || currentUser.business_id === 'biz_pending' || locked) {
     return (
       <main className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-400" />
