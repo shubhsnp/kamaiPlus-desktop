@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { setStoredUser, AuthUser } from '@/lib/auth';
 import { db as localDb } from '@/lib/db';
-import { hasMasterPassword, setMasterPassword, verifyMasterPassword } from '@/lib/auth/masterPassword';
+import { clearMasterPasswordAfterRecovery, hasMasterPassword, setMasterPassword, verifyMasterPassword } from '@/lib/auth/masterPassword';
+import { getDesktopApi } from '@/lib/desktop/desktopBridge';
 import { 
   CheckCircle2, 
   AlertCircle, 
@@ -24,6 +25,35 @@ export const AuthForm: React.FC = () => {
   const [hasPassword, setHasPassword] = useState<boolean | null>(null);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
+  // Forgot password: the licence key of this computer lets the owner set a new one.
+  const [recovering, setRecovering] = useState(false);
+  const [recoveryKey, setRecoveryKey] = useState('');
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const handleRecover = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    const api = getDesktopApi();
+    if (!api) {
+      setError('Password recovery works in the installed KamaiPlus Desktop app.');
+      return;
+    }
+    setLoading(true);
+    const res = await api.verifyLicenceKey(recoveryKey).catch(() => ({ ok: false, error: 'Could not check the key. Please try again.' }));
+    setLoading(false);
+    if (!res.ok) {
+      setError(res.error || 'That key did not match.');
+      return;
+    }
+    clearMasterPasswordAfterRecovery();
+    setRecovering(false);
+    setRecoveryKey('');
+    setPassword('');
+    setConfirmPassword('');
+    setHasPassword(false);
+    setNotice('Licence key verified. Set a new password — all your bills and data are safe.');
+  };
 
   // Check if a master password already exists
   useEffect(() => {
@@ -146,7 +176,46 @@ export const AuthForm: React.FC = () => {
         </div>
       )}
 
-      {hasPassword ? (
+      {notice && !error && (
+        <div className="mb-4 p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-start gap-2.5">
+          <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>{notice}</span>
+        </div>
+      )}
+
+      {recovering ? (
+        <form onSubmit={handleRecover} className="space-y-4">
+          <p className="text-xs text-slate-400 leading-relaxed">
+            Forgot your password? Enter the <span className="font-bold text-slate-200">licence key</span> you received when you
+            bought KamaiPlus (it starts with <span className="font-mono">KPD-</span>). Your bills and data are not touched.
+          </p>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+              <KeyRound className="h-4 w-4 text-slate-500" />
+            </div>
+            <input
+              required
+              autoFocus
+              spellCheck={false}
+              value={recoveryKey}
+              onChange={(e) => setRecoveryKey(e.target.value.toUpperCase())}
+              className="block w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-2xl text-white text-sm font-mono tracking-wider focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 outline-none placeholder:text-slate-600"
+              placeholder="KPD-XXXX-XXXX-XXXX-XXXX"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={loading || !recoveryKey.trim()}
+            className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm disabled:opacity-60 disabled:pointer-events-none"
+          >
+            {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+            <span>Verify Key &amp; Reset Password</span>
+          </button>
+          <button type="button" onClick={() => { setRecovering(false); setError(''); }} className="w-full text-xs text-slate-400 hover:text-white cursor-pointer">
+            Back to unlock
+          </button>
+        </form>
+      ) : hasPassword ? (
         <form onSubmit={handleUnlock} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-400 mb-1.5 ml-1">Master Password / PIN</label>
@@ -172,6 +241,13 @@ export const AuthForm: React.FC = () => {
           >
             {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
             <span>Unlock App</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => { setRecovering(true); setError(''); setNotice(null); }}
+            className="w-full text-xs font-semibold text-slate-400 hover:text-amber-400 cursor-pointer"
+          >
+            Forgot password?
           </button>
         </form>
       ) : (

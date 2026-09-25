@@ -379,6 +379,11 @@ ipcMain.handle('kp:backup-clear-folder', async () => {
   return backup.getInfo(backupPaths());
 });
 
+// Master-password recovery: the shop proves ownership with this PC's licence key.
+ipcMain.handle('kp:licence-verify-key', async (_event, key) =>
+  licence.verifyOwnKey({ userDataDir: app.getPath('userData'), key })
+);
+
 ipcMain.handle('kp:licence-activate', async (_event, key) =>
   licence.activate({
     userDataDir: app.getPath('userData'),

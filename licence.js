@@ -132,6 +132,35 @@ function getStatus({ userDataDir, dev }) {
   return activeStatus(payload);
 }
 
+/** "kpd 7f3k-9qxm…" and "KPD-7F3K-9QXM-…" compare equal. */
+function normalizeKey(key) {
+  let s = String(key || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (s.length > 16 && s.startsWith('KPD')) s = s.slice(3);
+  return s;
+}
+
+/**
+ * Master-password recovery: true only if `key` is the key of the valid, signed
+ * licence activated on THIS computer. Works offline. The small delay makes
+ * guessing pointless on top of the key's ~79 bits.
+ */
+async function verifyOwnKey({ userDataDir, key }) {
+  await new Promise((r) => setTimeout(r, 600));
+  let record = null;
+  try {
+    record = JSON.parse(fs.readFileSync(licencePath(userDataDir), 'utf8'));
+  } catch {
+    return { ok: false, error: 'No licence is activated on this computer.' };
+  }
+  const payload = verifyLicence(record);
+  if (!payload) return { ok: false, error: 'The licence on this computer is not valid.' };
+  const typed = normalizeKey(key);
+  if (!typed || typed !== normalizeKey(payload.key)) {
+    return { ok: false, error: 'This is not the licence key of this computer. Check the key you received when you bought KamaiPlus.' };
+  }
+  return { ok: true };
+}
+
 /** One-time online activation. Never throws; returns { ok, status } or { ok:false, error }. */
 async function activate({ userDataDir, key, appVersion, fetchImpl }) {
   const cleanKey = String(key || '').trim();
@@ -183,4 +212,4 @@ async function activate({ userDataDir, key, appVersion, fetchImpl }) {
   return { ok: true, status: activeStatus(payload) };
 }
 
-module.exports = { getMachineId, getMachineName, maskKey, verifyLicence, getStatus, activate, LICENCE_PUBLIC_KEY };
+module.exports = { getMachineId, getMachineName, maskKey, verifyLicence, getStatus, activate, verifyOwnKey, LICENCE_PUBLIC_KEY };

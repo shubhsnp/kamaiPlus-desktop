@@ -699,6 +699,12 @@ for (const rel of ['app/inventory/page.tsx', 'app/purchases/page.tsx', 'componen
   assert(readSource(rel).includes('tracksOwnStock('), `${rel} leaves variant parents out of stock alerts`);
 }
 
+// 8l. A forgotten master password must never lock a shop out of its own data.
+const authFormSrc = readSource('components/auth/AuthForm.tsx');
+assert(/Forgot password\?/.test(authFormSrc) && /verifyLicenceKey\(/.test(authFormSrc), 'Login screen offers "Forgot password?" via the licence key');
+assert(/async function verifyOwnKey/.test(licenceJs) && /verifyLicence\(record\)/.test(licenceJs.slice(licenceJs.indexOf('async function verifyOwnKey'))), 'Recovery checks the key against the SIGNED licence of this PC');
+assert(!/db\.|indexedDB|clear\(\)/.test(readSource('lib/auth/masterPassword.ts')), 'Password recovery never touches shop data');
+
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.
 const PRO_OR_AI = /useProSubscription|requirePro|UpgradeModal|ProFeatureBadge|subscriptionService|razorpay|generativelanguage\.googleapis|gemini/i;
 const proOrAiOffenders = ALL_SOURCE.filter((f) => PRO_OR_AI.test(fs.readFileSync(f, 'utf8')));

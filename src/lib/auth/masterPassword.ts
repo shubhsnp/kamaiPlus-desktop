@@ -34,6 +34,17 @@ export function hasMasterPassword(): boolean {
   }
 }
 
+/**
+ * Forgot-password path: call only after the licence key of this computer has been
+ * verified (kp:licence-verify-key). Removes the password; shop data is untouched and
+ * the owner sets a new password straight away.
+ */
+export function clearMasterPasswordAfterRecovery(): void {
+  try {
+    localStorage.removeItem(KEY);
+  } catch {}
+}
+
 export async function setMasterPassword(password: string): Promise<void> {
   const salt = toHex(crypto.getRandomValues(new Uint8Array(16)));
   localStorage.setItem(KEY, `${PREFIX}${salt}$${await digest(salt, password)}`);

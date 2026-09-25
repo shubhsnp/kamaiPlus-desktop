@@ -56,6 +56,8 @@ export interface KamaiDesktopApi {
   getAppInfo(): Promise<{ version: string; documentsDir: string }>;
   getLicenceStatus(): Promise<LicenceStatus>;
   activateLicence(key: string): Promise<LicenceActivationResult>;
+  /** Master-password recovery: is this the key of the licence activated on this PC? */
+  verifyLicenceKey(key: string): Promise<{ ok: boolean; error?: string }>;
   writeBackup(opts: { json: string; shopName: string }): Promise<BackupWriteResult>;
   getBackupInfo(): Promise<BackupInfo>;
   chooseBackupFolder(): Promise<BackupInfo>;
