@@ -86,150 +86,11 @@ const InvoiceModal = dynamic(
 );
 import { PosItemEditModal } from '@/components/billing/PosItemEditModal';
 import { VariantPickerModal } from '@/components/billing/VariantPickerModal';
+import { PosProductCard } from '@/components/billing/PosProductCard';
+import { BillingToast, BillingToastData, FullscreenUpiQrModal, QuickAddCustomerModal, QuickAddScannedProductModal } from '@/components/billing/PosDialogs';
+import { CashTenderPanel, SplitPaymentPanel, UpiQrCard } from '@/components/billing/PosPaymentPanels';
+import { BillTab, getInitialTabs, TABS_STORAGE_KEY } from '@/lib/billing/billTabs';
 
-export interface BillTab {
-  id: string;
-  tabNumber: number;
-  cart: CartItem[];
-  selectedCustomerId: string;
-  paymentMethod: PaymentMethod;
-  amountReceivedInput: string;
-  splitCash: string;
-  splitUpi: string;
-  splitCard: string;
-  splitCredit: string;
-  billDiscountType?: 'flat' | 'percentage';
-  billDiscountValue?: string;
-  isHeld: boolean;
-  heldAt?: string;
-  holdNote?: string;
-}
-
-const TABS_STORAGE_KEY = 'kamai_pos_tabs';
-
-function getInitialTabs(): { tabs: BillTab[]; activeTabId: string } {
-  if (typeof window !== 'undefined') {
-    try {
-      const stored = localStorage.getItem(TABS_STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return { tabs: parsed, activeTabId: parsed[0].id };
-        }
-      }
-    } catch {}
-  }
-  const defaultTab: BillTab = {
-    id: 'tab_1',
-    tabNumber: 1,
-    cart: [],
-    selectedCustomerId: '',
-    paymentMethod: 'cash',
-    amountReceivedInput: '',
-    splitCash: '',
-    splitUpi: '',
-    splitCard: '',
-    splitCredit: '',
-    billDiscountType: 'flat',
-    billDiscountValue: '',
-    isHeld: false,
-  };
-  return { tabs: [defaultTab], activeTabId: 'tab_1' };
-}
-
-// Memoized Product Card to prevent re-rendering the entire 200-item grid on every cart update
-const PosProductCard = React.memo(({
-  p,
-  idx,
-  inCartQuantity,
-  availableStock,
-  stockNum,
-  isOutOfStock,
-  isLowStock,
-  isHighlighted,
-  variants,
-  onAdd
-}: {
-  p: any;
-  idx: number;
-  inCartQuantity: number;
-  availableStock: number;
-  stockNum: number;
-  isOutOfStock: boolean;
-  isLowStock: boolean;
-  isHighlighted: boolean;
-  /** Set for a parent with sizes / colours: how many, and the cheapest price. */
-  variants?: { count: number; minPricePaise: number };
-  onAdd: (p: any) => void;
-}) => {
-  return (
-    <button
-      type="button"
-      onClick={() => onAdd(p)}
-      className={cn(
-        'p-2.5 rounded-xl border text-left flex flex-col justify-between relative transition-all min-h-[105px] sm:min-h-[110px] h-full',
-        isOutOfStock
-          ? 'border-rose-300/80 bg-rose-50/40 opacity-70 hover:border-rose-400 cursor-not-allowed select-none'
-          : isHighlighted
-          ? 'cursor-pointer bg-emerald-50/80 border-emerald-500 ring-2 ring-emerald-500 shadow-md scale-[1.01]'
-          : inCartQuantity > 0 && !isOutOfStock
-          ? 'cursor-pointer bg-amber-50/40 border-amber-400 ring-1.5 ring-amber-400/50 shadow-2xs active:scale-[0.98]'
-          : 'cursor-pointer bg-white hover:border-slate-400 hover:shadow-2xs border-slate-200 shadow-2xs active:scale-[0.98]'
-      )}
-    >
-      {isOutOfStock ? (
-        <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-rose-600 text-white text-[9px] font-black uppercase tracking-wider shadow-xs">
-          Out of Stock
-        </div>
-      ) : isHighlighted ? (
-        <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-emerald-600 text-white text-[9px] font-black font-mono shadow-xs">
-          ↵ Enter
-        </div>
-      ) : inCartQuantity > 0 ? (
-        <div className="absolute top-1.5 right-1.5 px-1.5 py-0.2 rounded-md bg-amber-400 text-slate-950 text-[9px] font-black shadow-xs">
-          {inCartQuantity} in cart
-        </div>
-      ) : null}
-
-      <div className="pr-12">
-        <span className="text-[9px] uppercase font-extrabold tracking-wider block leading-tight text-slate-400">
-          {p.category_name || 'Item'}
-        </span>
-        <h4 className={cn(
-          "text-xs sm:text-sm font-bold line-clamp-2 mt-0.5 leading-snug",
-          isOutOfStock ? "text-slate-500 line-through" : "text-slate-900"
-        )}>
-          {p.name}
-        </h4>
-      </div>
-
-      <div className="mt-1.5 pt-1.5 border-t border-slate-100 flex items-baseline justify-between gap-1">
-        <div className="truncate">
-          {variants && <span className="text-[10px] text-slate-500 font-medium mr-0.5">from</span>}
-          <span className={cn(
-            "text-xs sm:text-sm font-black font-mono",
-            isOutOfStock ? "text-slate-400 line-through" : "text-slate-900"
-          )}>
-            {formatINR(variants ? variants.minPricePaise : p.selling_price)}
-          </span>
-          {!variants && <span className="text-[10px] text-slate-500 font-medium ml-0.5">/{p.unit}</span>}
-        </div>
-        {variants ? (
-          <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md shrink-0 bg-indigo-100 text-indigo-700">
-            {variants.count} Variants ▾
-          </span>
-        ) : (
-        <span className={cn(
-          "text-[10px] font-bold font-mono px-1.5 py-0.5 rounded-md shrink-0 flex items-center gap-1",
-          isOutOfStock ? "bg-rose-100 text-rose-700" : isLowStock ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"
-        )}>
-          {p.is_unlimited_stock ? '∞' : stockNum}
-        </span>
-        )}
-      </div>
-    </button>
-  );
-});
 
 export default function BillingPage() {
   const { language, t } = useTranslation();
@@ -237,7 +98,7 @@ export default function BillingPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const searchInputRef = React.useRef<HTMLInputElement>(null);
   const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
-  const [billingToast, setBillingToast] = useState<{ message: string; type?: 'success' | 'info' | 'error' } | null>(null);
+  const [billingToast, setBillingToast] = useState<BillingToastData | null>(null);
 
   const showBillingToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
     setBillingToast({ message, type });
@@ -1726,257 +1587,35 @@ export default function BillingPage() {
       )}
 
       {/* If Split / Multi-Mode Payment: Render Breakdown Inputs */}
-      {paymentMethod === 'split' && cart.length > 0 && (() => {
-        const cVal = parseFloat(splitCash || '0') || 0;
-        const uVal = parseFloat(splitUpi || '0') || 0;
-        const crVal = parseFloat(splitCredit || '0') || 0;
-        const cardVal = parseFloat(splitCard || '0') || 0;
-        const allocatedPaise = Math.round((cVal + uVal + crVal + cardVal) * 100);
-        const remainingPaise = grandTotalPaise - allocatedPaise;
-
-        return (
-          <div className="p-3 bg-slate-50 border border-slate-300 rounded-xl space-y-2 text-xs">
-            <div className="flex items-center justify-between font-bold text-slate-800 pb-1 border-b border-slate-200">
-              <span>Split Payment Breakdown:</span>
-              <span className={remainingPaise === 0 ? 'text-emerald-700 font-extrabold' : 'text-amber-800 font-extrabold'}>
-                {remainingPaise === 0 ? '✓ Matched Exactly' : remainingPaise > 0 ? `₹${(remainingPaise / 100).toFixed(2)} Remaining` : `₹${Math.abs(remainingPaise / 100).toFixed(2)} Overpaid`}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-[10px] font-bold text-slate-600 uppercase block mb-0.5">Cash (₹)</label>
-                <input
-                  type="number"
-                  step="1"
-                  placeholder="0"
-                  value={splitCash}
-                  onChange={(e) => setSplitCash(e.target.value)}
-                  className="w-full bg-white border border-slate-300 text-slate-900 font-mono font-bold text-xs rounded p-1.5 focus:outline-none focus:border-slate-900"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-slate-600 uppercase block mb-0.5">UPI / QR (₹)</label>
-                <input
-                  type="number"
-                  step="1"
-                  placeholder="0"
-                  value={splitUpi}
-                  onChange={(e) => setSplitUpi(e.target.value)}
-                  className="w-full bg-white border border-slate-300 text-slate-900 font-mono font-bold text-xs rounded p-1.5 focus:outline-none focus:border-slate-900"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-slate-600 uppercase block mb-0.5">Card (₹)</label>
-                <input
-                  type="number"
-                  step="1"
-                  placeholder="0"
-                  value={splitCard}
-                  onChange={(e) => setSplitCard(e.target.value)}
-                  className="w-full bg-white border border-slate-300 text-slate-900 font-mono font-bold text-xs rounded p-1.5 focus:outline-none focus:border-slate-900"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-slate-600 uppercase block mb-0.5">Credit / Udhar (₹)</label>
-                <input
-                  type="number"
-                  step="1"
-                  placeholder="0"
-                  value={splitCredit}
-                  onChange={(e) => setSplitCredit(e.target.value)}
-                  className="w-full bg-white border border-slate-300 text-slate-900 font-mono font-bold text-xs rounded p-1.5 focus:outline-none focus:border-slate-900"
-                />
-              </div>
-            </div>
-
-            {/* Quick Split Presets */}
-            <div className="flex items-center gap-1.5 pt-0.5 overflow-x-auto scrollbar-none">
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Preset:</span>
-              <button
-                type="button"
-                onClick={() => {
-                  // Split in paise so the two halves always add up to the bill exactly
-                  // (rounding each half to whole rupees overcharged odd totals like ₹101.50).
-                  const cashPaise = Math.floor(grandTotalPaise / 2);
-                  const upiPaise = grandTotalPaise - cashPaise;
-                  setSplitCash((cashPaise / 100).toFixed(2));
-                  setSplitUpi((upiPaise / 100).toFixed(2));
-                  setSplitCard('0');
-                  setSplitCredit('0');
-                }}
-                className="px-2 py-0.5 bg-white hover:bg-slate-100 text-slate-700 rounded-md border border-slate-300 text-[10px] font-bold cursor-pointer"
-              >
-                50% Cash + 50% UPI
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setSplitCash((grandTotalPaise / 100).toString());
-                  setSplitUpi('0');
-                  setSplitCard('0');
-                  setSplitCredit('0');
-                }}
-                className="px-2 py-0.5 bg-white hover:bg-slate-100 text-slate-700 rounded-md border border-slate-300 text-[10px] font-bold cursor-pointer"
-              >
-                All Cash
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setSplitCash('0');
-                  setSplitUpi((grandTotalPaise / 100).toString());
-                  setSplitCard('0');
-                  setSplitCredit('0');
-                }}
-                className="px-2 py-0.5 bg-white hover:bg-slate-100 text-slate-700 rounded-md border border-slate-300 text-[10px] font-bold cursor-pointer"
-              >
-                All UPI
-              </button>
-            </div>
-          </div>
-        );
-      })()}
+      {paymentMethod === 'split' && cart.length > 0 && (
+        <SplitPaymentPanel
+          grandTotalPaise={grandTotalPaise}
+          splitCash={splitCash} setSplitCash={setSplitCash}
+          splitUpi={splitUpi} setSplitUpi={setSplitUpi}
+          splitCard={splitCard} setSplitCard={setSplitCard}
+          splitCredit={splitCredit} setSplitCredit={setSplitCredit}
+        />
+      )}
 
       {/* If Cash: Amount Received Input for Change calculation with Quick Tender Chips */}
-      {paymentMethod === 'cash' && cart.length > 0 && (() => {
-        const totalRupees = Math.ceil(grandTotalPaise / 100);
-        const chips: number[] = [totalRupees];
-        if (totalRupees % 50 !== 0) {
-          const next50 = Math.ceil(totalRupees / 50) * 50;
-          if (next50 > totalRupees && !chips.includes(next50)) chips.push(next50);
-        } else if (totalRupees % 100 !== 0) {
-          const next100 = Math.ceil(totalRupees / 100) * 100;
-          if (next100 > totalRupees && !chips.includes(next100)) chips.push(next100);
-        }
-        const commonNotes = [100, 200, 500, 1000, 2000];
-        for (const n of commonNotes) {
-          if (n > totalRupees && !chips.includes(n) && chips.length < 5) {
-            chips.push(n);
-          }
-        }
-
-        return (
-          <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2 text-xs">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-slate-700">Cash Tendered / Received:</span>
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="number"
-                  step="1"
-                  placeholder={totalRupees.toString()}
-                  value={amountReceivedInput}
-                  onChange={(e) => setAmountReceivedInput(e.target.value)}
-                  className="w-24 bg-white border border-slate-300 text-slate-900 text-right font-mono font-bold text-xs rounded-lg px-2 py-1 focus:outline-none focus:border-slate-900"
-                />
-                {amountReceivedInput && (
-                  <button
-                    type="button"
-                    onClick={() => setAmountReceivedInput('')}
-                    className="text-slate-400 hover:text-slate-600 text-[10px] font-bold"
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Quick Currency Tender Chips */}
-            <div className="flex items-center gap-1.5 pt-0.5 overflow-x-auto scrollbar-none">
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Tender:</span>
-              {chips.map((chip, idx) => (
-                <button
-                  key={chip}
-                  type="button"
-                  onClick={() => setAmountReceivedInput(chip.toString())}
-                  className={cn(
-                    "px-2 py-0.5 rounded-md font-mono text-[11px] font-bold transition cursor-pointer border shadow-2xs",
-                    amountReceivedInput === chip.toString()
-                      ? "bg-slate-900 text-white border-slate-900"
-                      : "bg-white text-slate-700 hover:bg-slate-100 border-slate-300"
-                  )}
-                >
-                  {idx === 0 ? `Exact ₹${chip}` : `₹${chip}`}
-                </button>
-              ))}
-            </div>
-
-            {amountReceivedInput && parseFloat(amountReceivedInput) * 100 > grandTotalPaise && (
-              <div className="p-2 bg-emerald-50 rounded-lg border border-emerald-200 flex items-center justify-between font-bold text-emerald-900">
-                <span>💵 Return Change to Customer:</span>
-                <span className="font-mono text-sm font-black text-emerald-700">
-                  {formatINR(Math.round(parseFloat(amountReceivedInput) * 100 - grandTotalPaise))}
-                </span>
-              </div>
-            )}
-          </div>
-        );
-      })()}
+      {paymentMethod === 'cash' && cart.length > 0 && (
+        <CashTenderPanel
+          grandTotalPaise={grandTotalPaise}
+          amountReceivedInput={amountReceivedInput}
+          setAmountReceivedInput={setAmountReceivedInput}
+        />
+      )}
 
       {/* If UPI (or Split with UPI): Real-Time Dynamic Amount QR Code Card */}
       {((paymentMethod === 'upi') || (paymentMethod === 'split' && parseFloat(splitUpi || '0') > 0)) && cart.length > 0 && (
-        <div className="p-3 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 text-white rounded-xl border border-slate-700 shadow-md space-y-2.5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400">
-              <QrCode className="w-4 h-4 text-amber-400" />
-              <span>Dynamic UPI Payment QR</span>
-            </div>
-            <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono font-black text-[10px]">
-              Exact {formatINR(paymentMethod === 'split' ? Math.round(parseFloat(splitUpi || '0') * 100) : grandTotalPaise)}
-            </span>
-          </div>
-
-          {posQrDataUrl ? (
-            <div className="flex flex-col sm:flex-row items-center gap-3 bg-white p-2.5 rounded-lg text-slate-900">
-              <div 
-                onClick={() => setIsEnlargeQrModalOpen(true)}
-                className="relative group cursor-pointer flex-shrink-0"
-                title="Click to enlarge QR on counter display"
-              >
-                <img
-                  src={posQrDataUrl}
-                  alt="Dynamic UPI QR"
-                  className="w-24 h-24 sm:w-28 sm:h-28 object-contain rounded border border-slate-200"
-                />
-                <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 rounded flex items-center justify-center text-white text-[10px] font-bold transition-opacity">
-                  <span>Enlarge 📺</span>
-                </div>
-              </div>
-
-              <div className="space-y-1 text-center sm:text-left flex-1 min-w-0">
-                <div className="text-[11px] font-bold text-slate-800 truncate">
-                  Pay to: <b>{business?.name}</b>
-                </div>
-                <div className="text-xs font-mono font-black text-emerald-700 truncate">
-                  {business?.upi_id || ''}
-                </div>
-                <div className="text-[10px] text-slate-500 font-medium leading-tight">
-                  Customer scans with Google Pay, PhonePe, Paytm or BHIM — <b>amount auto-fills instantly</b>.
-                </div>
-                <div className="flex items-center gap-1.5 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => setIsEnlargeQrModalOpen(true)}
-                    className="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold text-[10.5px] inline-flex items-center gap-1 cursor-pointer transition shadow-2xs"
-                  >
-                    <QrCode className="w-3 h-3 text-slate-700" />
-                    <span>Fullscreen 📺</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="p-3 bg-slate-800/80 rounded-lg text-center text-xs text-slate-300 space-y-1">
-              <p className="font-bold text-amber-300">No UPI Address Configured</p>
-              <p className="text-[11px] text-slate-400">
-                Add your UPI ID in Settings to enable real-time dynamic amount QR codes.
-              </p>
-            </div>
-          )}
-        </div>
+        <UpiQrCard
+          paymentMethod={paymentMethod}
+          splitUpi={splitUpi}
+          grandTotalPaise={grandTotalPaise}
+          posQrDataUrl={posQrDataUrl}
+          business={business}
+          setIsEnlargeQrModalOpen={setIsEnlargeQrModalOpen}
+        />
       )}
 
       {/* Bill-Level Discount Field */}
@@ -2452,95 +2091,29 @@ export default function BillingPage() {
       />
 
       {/* Quick Add Customer Modal */}
-      <Modal
+      <QuickAddCustomerModal
         isOpen={isAddCustomerModalOpen}
         onClose={() => setIsAddCustomerModalOpen(false)}
-        title="Quick Add Customer"
-        size="md"
-      >
-        <form onSubmit={handleSaveQuickCustomer} className="space-y-3 p-1">
-          <div>
-            <label className="text-xs font-bold text-slate-700 block mb-1">Customer Name *</label>
-            <Input
-              placeholder="e.g. Anil Verma"
-              value={newCustName}
-              onChange={(e) => setNewCustName(e.target.value)}
-              required
-              autoFocus
-            />
-          </div>
-
-          <div>
-            <label className="text-xs font-bold text-slate-700 block mb-1">WhatsApp / Phone Number</label>
-            <Input
-              placeholder="e.g. 9876543210"
-              value={newCustPhone}
-              onChange={(e) => setNewCustPhone(e.target.value)}
-              type="tel"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs font-bold text-slate-700 block mb-1">Address / Landmark</label>
-            <Input
-              placeholder="e.g. Flat 201, Green Society"
-              value={newCustAddress}
-              onChange={(e) => setNewCustAddress(e.target.value)}
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" size="sm" type="button" onClick={() => setIsAddCustomerModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button size="sm" type="submit" className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold">
-              Save & Select Customer
-            </Button>
-          </div>
-        </form>
-      </Modal>
+        onSubmit={handleSaveQuickCustomer}
+        name={newCustName}
+        setName={setNewCustName}
+        phone={newCustPhone}
+        setPhone={setNewCustPhone}
+        address={newCustAddress}
+        setAddress={setNewCustAddress}
+      />
 
       {/* Quick Add Scanned Product Modal */}
-      <Modal
+      <QuickAddScannedProductModal
         isOpen={isQuickAddModalOpen}
         onClose={() => setIsQuickAddModalOpen(false)}
-        title={`Add Scanned Barcode (${scannedUnknownBarcode || ''})`}
-        size="md"
-      >
-        <form onSubmit={handleSaveQuickAddItem} className="space-y-3 p-1">
-          <div>
-            <label className="text-xs font-bold text-slate-700 block mb-1">Product Name *</label>
-            <Input
-              value={quickAddName}
-              onChange={(e) => setQuickAddName(e.target.value)}
-              placeholder="e.g. Parle-G Biscuit 250g"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="text-xs font-bold text-slate-700 block mb-1">Selling Price (₹) *</label>
-            <Input
-              type="number"
-              step="0.01"
-              value={quickAddPrice}
-              onChange={(e) => setQuickAddPrice(e.target.value)}
-              placeholder="e.g. 25"
-              required
-              autoFocus
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" size="sm" type="button" onClick={() => setIsQuickAddModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button size="sm" type="submit" className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold">
-              Save to Catalog & Add to Cart
-            </Button>
-          </div>
-        </form>
-      </Modal>
+        onSubmit={handleSaveQuickAddItem}
+        barcode={scannedUnknownBarcode}
+        name={quickAddName}
+        setName={setQuickAddName}
+        price={quickAddPrice}
+        setPrice={setQuickAddPrice}
+      />
 
       {/* Barcode Camera Scanner Modal */}
       <BarcodeScannerModal
@@ -2588,75 +2161,17 @@ export default function BillingPage() {
       )}
 
       {/* Customer Fullscreen Dynamic UPI QR Modal */}
-      <Modal
+      <FullscreenUpiQrModal
         isOpen={isEnlargeQrModalOpen}
         onClose={() => setIsEnlargeQrModalOpen(false)}
-        title="UPI Payment Counter QR"
-        size="md"
-      >
-        <div className="p-4 flex flex-col items-center text-center space-y-4">
-          <div className="space-y-1">
-            <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-950 text-xs font-black uppercase tracking-wider">
-              Scan to Pay Exact Amount
-            </span>
-            <div className="text-3xl font-black text-slate-900 font-mono tracking-tight pt-1">
-              {formatINR(paymentMethod === 'split' ? Math.round(parseFloat(splitUpi || '0') * 100) : grandTotalPaise)}
-            </div>
-            <p className="text-xs text-slate-500 font-medium">
-              Paying to: <b className="text-slate-900">{business?.name}</b>{business?.upi_id ? ` (${business.upi_id})` : ''}
-            </p>
-          </div>
-
-          {posQrDataUrl && (
-            <div className="p-3 bg-white rounded-2xl border-2 border-slate-900 shadow-lg">
-              <img
-                src={posQrDataUrl}
-                alt="Dynamic UPI QR"
-                className="w-64 h-64 sm:w-72 sm:h-72 object-contain"
-              />
-            </div>
-          )}
-
-          {/* Supported UPI Apps Row */}
-          <div className="space-y-1.5 w-full pt-1">
-            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-              Accepted on Any UPI App
-            </div>
-            <div className="flex items-center justify-center gap-2 text-xs font-bold text-slate-700 flex-wrap">
-              <span className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200">Google Pay</span>
-              <span className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200">PhonePe</span>
-              <span className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200">Paytm</span>
-              <span className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200">BHIM</span>
-              <span className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200">CRED</span>
-            </div>
-          </div>
-
-          <div className="w-full pt-2 flex justify-center">
-            <Button
-              onClick={() => setIsEnlargeQrModalOpen(false)}
-              className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-6 py-2 rounded-xl"
-            >
-              Done / Payment Received
-            </Button>
-          </div>
-        </div>
-      </Modal>
+        amountPaise={paymentMethod === 'split' ? Math.round(parseFloat(splitUpi || '0') * 100) : grandTotalPaise}
+        businessName={business?.name}
+        upiId={business?.upi_id}
+        qrDataUrl={posQrDataUrl}
+      />
 
       {/* Floating In-App Toast Notification */}
-      {billingToast && (
-        <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-2xl shadow-2xl border text-xs font-bold flex items-center gap-2.5 animate-in slide-in-from-bottom-3 duration-200 ${
-          billingToast.type === 'success'
-            ? 'bg-emerald-950/95 border-emerald-500/50 text-emerald-100 shadow-emerald-950/40'
-            : billingToast.type === 'info'
-            ? 'bg-slate-900/95 border-slate-700 text-slate-100 shadow-slate-950/40'
-            : 'bg-rose-950/95 border-rose-500/50 text-rose-100 shadow-rose-950/40'
-        }`}>
-          {billingToast.type === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
-          {billingToast.type === 'info' && <Sparkles className="w-4 h-4 text-sky-400 shrink-0 animate-pulse" />}
-          {billingToast.type === 'error' && <span className="text-sm shrink-0">⚠️</span>}
-          <span>{billingToast.message}</span>
-        </div>
-      )}
+      <BillingToast toast={billingToast} />
     </div>
   );
 }

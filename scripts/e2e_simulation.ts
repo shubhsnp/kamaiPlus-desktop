@@ -732,12 +732,21 @@ assert(Boolean(pkgJson.scripts?.['release:beta']?.includes('--beta')) && Boolean
 assert(!/rmSync\(release,/.test(prepSrc) && /keep\.has\(f\)/.test(prepSrc), 'Preparing a release never wipes release/; only unreferenced installers are removed');
 
 // 8q. A bill is marked paid only by the cashier — never by a simulated payment.
-assert(!/simulatePayment|paymentBridge|Test Pay Received/.test(billingSrc.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')), 'POS has no "Test Pay Received" / simulated-payment path that saves a bill as UPI-paid');
+const paymentPanelsSrc = readSource('components/billing/PosPaymentPanels.tsx');
+assert(!/simulatePayment|paymentBridge|Test Pay Received/.test((billingSrc + paymentPanelsSrc).replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')), 'POS has no "Test Pay Received" / simulated-payment path that saves a bill as UPI-paid');
 assert(/const handleCompleteSale = async \(\) =>/.test(billingSrc), 'Complete Sale takes no argument (a click event can never be read as a payment)');
 {
   const total = 10150; const cash = Math.floor(total / 2); const upi = total - cash;
-  assert(cash + upi === total && /Math\.floor\(grandTotalPaise \/ 2\)/.test(billingSrc), '50/50 split preset adds up to the bill to the paisa (₹101.50 → ₹50.75 + ₹50.75)');
+  assert(cash + upi === total && /Math\.floor\(grandTotalPaise \/ 2\)/.test(paymentPanelsSrc), '50/50 split preset adds up to the bill to the paisa (₹101.50 → ₹50.75 + ₹50.75)');
 }
+
+// 8r. The POS page stays split: presentational pieces live in their own files.
+assert(
+  ["from '@/components/billing/PosProductCard'", "from '@/components/billing/PosDialogs'", "from '@/components/billing/PosPaymentPanels'", "from '@/lib/billing/billTabs'"].every((s) => billingSrc.includes(s)) &&
+    !/const PosProductCard = React\.memo|function getInitialTabs/.test(billingSrc),
+  'POS page imports its product card, dialogs, payment panels and bill-tab storage instead of defining them inline'
+);
+assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (now ${billingSrc.split('\n').length})`);
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.
 const PRO_OR_AI = /useProSubscription|requirePro|UpgradeModal|ProFeatureBadge|subscriptionService|razorpay|generativelanguage\.googleapis|gemini/i;
