@@ -86,15 +86,24 @@ function resolveExportFile(urlPath) {
 function registerAppProtocol() {
   protocol.handle(SCHEME, async (request) => {
     try {
-      const { pathname } = new URL(request.url);
+      const { pathname, searchParams } = new URL(request.url);
       const filePath = resolveExportFile(pathname);
       const ext = path.extname(filePath).toLowerCase();
-      const mime = MIME_TYPES[ext] || 'application/octet-stream';
+      // Page changes fetch the next page's RSC payload (out/<route>.txt). Next.js
+      // accepts it only as text/x-component; anything else makes it reload the
+      // whole app on every sidebar click (the black "blink" between pages).
+      const isRscRequest = searchParams.has('_rsc') || request.headers.get('rsc') === '1';
+      if (isRscRequest && ext !== '.txt') {
+        // No payload for this route: a clean 404 lets Next.js fall back to a normal load.
+        return new Response('Not Found', { status: 404 });
+      }
+      const mime = isRscRequest ? 'text/x-component' : MIME_TYPES[ext] || 'application/octet-stream';
       const data = await fs.promises.readFile(filePath);
       return new Response(data, {
         headers: {
           'content-type': mime,
-          'cache-control': 'public, max-age=31536000, immutable',
+          // Pages and payloads change with every update; hashed chunks never do.
+          'cache-control': ext === '.html' || ext === '.txt' ? 'no-cache' : 'public, max-age=31536000, immutable',
         },
       });
     } catch {

@@ -202,6 +202,22 @@ async function run() {
       const after = (await readStore(page, 'products')).find((p) => p.id === productId);
       check(after && Number(after.current_stock) === stockBefore - 1, `Stock goes down by 1 after the sale (${stockBefore} → ${after && after.current_stock})`);
 
+      // Sidebar navigation must swap only the page (a full reload flashed the
+      // black licence screen between pages). The new bill must show elsewhere too.
+      step = 'navigation';
+      await page.getByRole('button', { name: /New Bill/i }).first().click(); // close the "Sale Completed" modal
+      await page.waitForTimeout(400);
+      await page.evaluate(() => { window.__kpNoReload = true; });
+      let billSeenInTransactions = false;
+      for (const [label, route] of [['Products', '/products'], ['Khata Ledger', '/khata'], ['Transactions', '/transactions'], ['Billing POS', '/billing']]) {
+        await page.locator('aside a').filter({ hasText: label }).first().click();
+        await page.waitForURL((u) => u.pathname.startsWith(route), { waitUntil: 'commit', timeout: 10000 });
+        await page.waitForTimeout(500);
+        if (route === '/transactions') billSeenInTransactions = await textVisible(page, sale.invoice_number, 8000);
+      }
+      check(await page.evaluate(() => window.__kpNoReload === true), 'Sidebar navigation changes pages without reloading the app (no black blink)');
+      check(billSeenInTransactions, `The new bill (${sale.invoice_number}) shows up in Transactions after navigating there`);
+
       step = 'errors';
       check(pageErrors.length === 0, `No uncaught page errors during the flow${pageErrors.length ? `: ${pageErrors.slice(0, 3).join(' | ')}` : ''}`);
     } catch (err) {

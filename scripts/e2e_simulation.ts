@@ -786,6 +786,13 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(/notes: 'Balance corrected in customer details'/.test(custSrc), 'A balance changed in customer details is written to the khata ledger');
 }
 
+// 8v. Page changes stay inside the app: the app:// handler serves Next.js RSC
+// payloads as text/x-component (anything else = full reload + black blink).
+{
+  const mainJsSrc = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+  assert(/const isRscRequest = searchParams\.has\('_rsc'\) \|\| request\.headers\.get\('rsc'\) === '1';/.test(mainJsSrc) && /isRscRequest \? 'text\/x-component'/.test(mainJsSrc), 'app:// serves RSC page payloads as text/x-component (sidebar clicks do not reload the app)');
+}
+
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.
 const PRO_OR_AI = /useProSubscription|requirePro|UpgradeModal|ProFeatureBadge|subscriptionService|razorpay|generativelanguage\.googleapis|gemini/i;
 const proOrAiOffenders = ALL_SOURCE.filter((f) => PRO_OR_AI.test(fs.readFileSync(f, 'utf8')));
