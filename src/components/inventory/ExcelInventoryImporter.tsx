@@ -241,6 +241,9 @@ export function ExcelInventoryImporter({
 
     try {
       const now = new Date().toISOString();
+      // Imported products follow Settings → "Default GST Calculation", like products added by hand.
+      const shop = businessId ? await db.businesses.get(businessId) : undefined;
+      const taxInclusive = shop?.gst_pricing_mode !== 'exclusive';
       const newProducts: Product[] = validRows.map((r, idx) => ({
         id: `prod_imp_${Date.now()}_${idx}`,
         business_id: businessId || 'biz_default',
@@ -255,8 +258,9 @@ export function ExcelInventoryImporter({
         min_stock_level: 5,
         unit: (r.unit as any) || 'packet',
         tax_rate: r.tax_rate || 0,
-        is_tax_inclusive: true,
-        hsn_code: r.hsn_code || '1905',
+        is_tax_inclusive: taxInclusive,
+        // No HSN in the sheet = no HSN (a made-up code would go into the GST/HSN report).
+        hsn_code: r.hsn_code || undefined,
         is_favorite: false,
         is_active: true,
         created_at: now,

@@ -266,7 +266,8 @@ export default function ProductsPage() {
       purchase_price: purchasePricePaise,
       mrp: mrpPaise,
       tax_rate: formTaxRate,
-      is_tax_inclusive: true,
+      // New products follow Settings → "Default GST Calculation"; an edited product keeps its own.
+      is_tax_inclusive: editingProduct?.is_tax_inclusive ?? business?.gst_pricing_mode !== 'exclusive',
       is_loose_item: formIsLooseItem,
       is_unlimited_stock: formIsUnlimitedStock,
       current_stock: stockNum,

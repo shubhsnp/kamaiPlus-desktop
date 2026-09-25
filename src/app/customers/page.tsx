@@ -83,12 +83,34 @@ export default function CustomersPage() {
     const now = new Date().toISOString();
 
     if (editingCustomer) {
+      // A balance typed into this form is applied as a change on top of the saved
+      // balance (bills may have been added meanwhile) and written to the khata
+      // ledger, so the statement and the balance never disagree.
+      const fresh = (await db.customers.get(editingCustomer.id)) || editingCustomer;
+      const deltaPaise = data.current_balance - (editingCustomer.current_balance || 0);
+      const newBalance = (fresh.current_balance || 0) + deltaPaise;
       const updated: Customer = {
-        ...editingCustomer,
+        ...fresh,
         ...data,
+        current_balance: newBalance,
         updated_at: now,
       };
       await db.customers.put(updated);
+      if (deltaPaise !== 0) {
+        await db.ledger_transactions.put({
+          id: `ledg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          business_id: fresh.business_id || business?.id || 'biz_default',
+          party_type: 'customer',
+          party_id: fresh.id,
+          party_name: updated.name,
+          transaction_type: deltaPaise > 0 ? 'CREDIT_SALE' : 'PAYMENT_RECEIVED',
+          amount: Math.abs(deltaPaise),
+          balance_after: newBalance,
+          notes: 'Balance corrected in customer details',
+          created_at: now,
+          sync_status: 'synced',
+        });
+      }
       showCustToast(`✅ Updated customer: ${updated.name}`, 'success');
     } else {
       const custId = `cust_${Date.now()}`;

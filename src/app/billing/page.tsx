@@ -97,6 +97,8 @@ export default function BillingPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const searchInputRef = React.useRef<HTMLInputElement>(null);
+  // True while a sale is being saved (see handleCompleteSale).
+  const completingSaleRef = React.useRef(false);
   const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
   const [billingToast, setBillingToast] = useState<BillingToastData | null>(null);
 
@@ -520,7 +522,8 @@ export default function BillingPage() {
 
       if (existing) {
         const newQty = existing.quantity + allowedQty;
-        const price = product.selling_price;
+        // Keep a rate the cashier edited on this line; adding more must not reset it.
+        const price = existing.unit_price;
         const lineTotal = Math.max(0, Math.round(newQty * price) - (existing.discount_amount || 0));
         const taxRate = existing.tax_rate || 0;
         const taxAmt = calculateItemTax(lineTotal, taxRate, product.is_tax_inclusive);
@@ -532,7 +535,7 @@ export default function BillingPage() {
                 unit_price: price, 
                 total_amount: lineTotal, 
                 tax_amount: taxAmt,
-                is_tax_inclusive: product.is_tax_inclusive,
+                is_tax_inclusive: product.is_tax_inclusive ?? !isBusinessGstExclusive,
               }
             : item
         );
@@ -556,7 +559,7 @@ export default function BillingPage() {
             tax_rate: taxRate,
             tax_amount: taxAmt,
             total_amount: lineTotal,
-            is_tax_inclusive: product.is_tax_inclusive,
+            is_tax_inclusive: product.is_tax_inclusive ?? !isBusinessGstExclusive,
             // Buying rate frozen on the bill, so later price edits never rewrite past profit.
             cost_price: product.purchase_price > 0 ? product.purchase_price : undefined,
 
@@ -593,7 +596,7 @@ export default function BillingPage() {
           if (item.product_id === productId) {
             const newQty = item.quantity + delta;
             if (newQty <= 0) return null;
-            const price = product.selling_price;
+            const price = item.unit_price; // the line's own (possibly edited) rate
             const lineTotal = Math.max(0, Math.round(newQty * price) - (item.discount_amount || 0));
             const taxRate = item.tax_rate || 0;
             const taxAmt = calculateItemTax(lineTotal, taxRate, item.is_tax_inclusive ?? product.is_tax_inclusive);
@@ -850,7 +853,18 @@ export default function BillingPage() {
 
   const handleCompleteSale = async () => {
     if (cart.length === 0) return;
+    // A double Enter / double click must never save the same cart twice
+    // (two bills, stock deducted twice, same invoice number).
+    if (completingSaleRef.current) return;
+    completingSaleRef.current = true;
+    try {
+      await completeSale();
+    } finally {
+      completingSaleRef.current = false;
+    }
+  };
 
+  const completeSale = async () => {
     // Resolve target customer reliably from state or Dexie
     let targetCustomer = selectedCustomer;
     if (!targetCustomer && selectedCustomerId) {
@@ -864,6 +878,28 @@ export default function BillingPage() {
       showBillingToast('Customer name is mandatory for Credit (Udhar) sale. Please select or add a customer.', 'error');
       setIsAddCustomerModalOpen(true);
       return;
+    }
+
+    // Cash "received" is typed only in cash mode; in UPI / card / credit a value left
+    // over from cash mode is not on screen and must not change what is recorded.
+    const typedCashPaise = paymentMethod === 'cash' && amountReceivedInput
+      ? Math.round((parseFloat(amountReceivedInput) || 0) * 100)
+      : null;
+    if (typedCashPaise !== null && typedCashPaise < grandTotalPaise && !targetCustomer) {
+      playBeepSound('alert');
+      showBillingToast(`Cash received is ${formatINR(grandTotalPaise - typedCashPaise)} short. Correct the amount, or select a customer to put the rest on udhar.`, 'error');
+      return;
+    }
+
+    // Split: more than the bill is only possible as change from the cash part.
+    if (paymentMethod === 'split') {
+      const parts = [splitCash, splitUpi, splitCard, splitCredit].map((v) => (v ? Math.round((parseFloat(v) || 0) * 100) : 0));
+      const excess = parts.reduce((a, b) => a + b, 0) - grandTotalPaise;
+      if (excess > parts[0]) {
+        playBeepSound('alert');
+        showBillingToast(`Split amounts are ${formatINR(excess)} more than the bill. Only the cash part can include change — please correct the split.`, 'error');
+        return;
+      }
     }
 
     try {
@@ -888,11 +924,14 @@ export default function BillingPage() {
         
         const allocatedP = cashP + upiP + cardP + creditP;
         const unassigned = Math.max(0, grandTotalPaise - allocatedP);
+        // Overpaid (checked above to fit inside the cash part) = change handed back.
+        const excessP = Math.max(0, allocatedP - grandTotalPaise);
         const finalCreditP = creditP + (targetCustomer ? unassigned : 0);
-        const finalCashP = cashP + (!targetCustomer ? unassigned : 0);
+        const finalCashP = cashP - excessP + (!targetCustomer ? unassigned : 0);
 
         receivedPaise = finalCashP + upiP + cardP;
         balanceDuePaise = finalCreditP;
+        changeReturnedPaise = excessP;
         paymentSplitData = {
           cash_amount: finalCashP,
           upi_amount: upiP,
@@ -900,7 +939,7 @@ export default function BillingPage() {
           credit_amount: finalCreditP,
         };
       } else {
-        receivedPaise = amountReceivedInput ? Math.round(parseFloat(amountReceivedInput) * 100) : (paymentMethod === 'credit' ? 0 : grandTotalPaise);
+        receivedPaise = typedCashPaise ?? (paymentMethod === 'credit' ? 0 : grandTotalPaise);
         const isCredit = paymentMethod === 'credit' || receivedPaise < grandTotalPaise;
         balanceDuePaise = isCredit ? Math.max(0, grandTotalPaise - receivedPaise) : 0;
         changeReturnedPaise = !isCredit && receivedPaise > grandTotalPaise ? receivedPaise - grandTotalPaise : 0;

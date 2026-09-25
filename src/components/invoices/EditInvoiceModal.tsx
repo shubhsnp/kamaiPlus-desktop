@@ -181,7 +181,7 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
           tax_rate: taxRate,
           tax_amount: taxAmt,
           total_amount: lineTotal,
-          is_tax_inclusive: product.is_tax_inclusive,
+          is_tax_inclusive: product.is_tax_inclusive ?? !isBusinessGstExclusive,
           cost_price: product.purchase_price > 0 ? product.purchase_price : undefined,
         },
       ]);

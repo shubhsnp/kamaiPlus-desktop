@@ -676,6 +676,7 @@ Each was a real bug that cost real time. The test suite guards most of them.
 | 18 | **Firebase loaded on screens that never needed it** — `DashboardHome` and `SettleInvoicesModal` imported it statically. The settle modal also `await`-ed each cloud write mid-settlement, so a slow network could stall it half-way. | Both go through `lazyCloud.ts` (fire-and-forget). Suite 9 §8c/§8d forbid static Firebase imports in `app/` and `components/`. |
 | 19 | **`/transactions` rendered the entire history** and re-filtered it on every render (even opening a modal); **`/khata` held every sale** to show one customer. | Transactions: `useMemo` + 250 ms search debounce + 100 bills per page ("Show more"); totals still cover all filtered bills. Khata: live query scoped to the selected customer. Suite 9 §8e. |
 | 20 | **Status bar / navbar claimed "Synced" / "Cloud Synced"** while nothing was synced, with always-on pulse animations on every page. | Labels say "Online • Saved Locally" / "Online"; shell pulses and the history-drawer blur removed. |
+| 21 | **Wiring & calculation audit (v4.59.0).** (a) A double Enter / click on Complete Sale could save the cart twice (two bills, stock cut twice, same invoice number). (b) Cash typed in cash mode stayed in the tab and turned a later UPI / card / credit bill into a part payment. (c) Short cash with no customer saved an udhar nobody owed. (d) An overpaid split counted the excess as drawer cash. (e) +/− or re-scanning reset a rate the cashier had edited to the catalogue price. (f) Settings → "Default GST Calculation" did nothing: every product was saved tax-inclusive. (g) Excel import stamped HSN `1905` on every product without one. (h) Changing a balance in customer details wrote no ledger entry. | (a) `completingSaleRef` guard. (b)(c) `typedCashPaise` is read only in cash mode; short cash needs a customer. (d) excess must fit in the cash part and is recorded as `change_returned`. (e) existing lines keep `unit_price`. (f) new / imported products take the shop mode, edited ones keep theirs; cart lines store the resolved mode so POS tax and `saleMath` agree. (g) no HSN = none. (h) the change goes to the ledger on top of the fresh balance. Suite 9 §8u; Electron E2E double-clicks Complete Sale. |
 ---
 
 ## 11. Verification protocol (AGENTS.md Rule 6)
@@ -684,7 +685,7 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 328/328, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 338/338, 0 failures
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
 git push origin main
@@ -709,7 +710,7 @@ bypassed; without the key only the no-licence checks run. The script removes
 `ELECTRON_RUN_AS_NODE` (set by VS Code terminals), which otherwise stops Electron
 launching. Failure screenshots go to `%TEMP%\kamaiplus-e2e-shots\`.
 
-### Test suite map — `scripts/e2e_simulation.ts` (328 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (338 assertions)
 
 | Suite | Covers |
 | :--- | :--- |

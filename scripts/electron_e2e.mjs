@@ -182,7 +182,8 @@ async function run() {
       await page.locator('button', { hasText: target.name }).first().click();
       const completeBtn = page.getByRole('button', { name: /Complete Sale/i }).first();
       await completeBtn.waitFor({ state: 'visible', timeout: 10000 });
-      await completeBtn.click();
+      // A hurried double click must still save exactly one bill.
+      await completeBtn.dblclick();
 
       step = 'sale saved';
       let sales = [];
@@ -190,7 +191,9 @@ async function run() {
         await page.waitForTimeout(500);
         sales = await readStore(page, 'sales');
       }
-      check(sales.length === 1, 'Completing the sale saves exactly one bill');
+      await page.waitForTimeout(1500); // give a second (wrong) save time to land
+      sales = await readStore(page, 'sales');
+      check(sales.length === 1, 'Double-clicking Complete Sale saves exactly one bill');
       const sale = sales[0] || {};
       const saleTotal = Number(sale.total_amount ?? sale.grand_total ?? sale.total ?? NaN);
       check(saleTotal === priceSold, `Bill total equals the item price in paise (${saleTotal} = ${priceSold})`);

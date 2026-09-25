@@ -766,6 +766,26 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(/currentUser\.business_id === 'biz_pending' \|\| locked\)/.test(shellSrc) && /if \(user && locked\)/.test(shellSrc) && /markUnlocked\(\)/.test(authSrc), 'A locked app renders no shop page and redirects to the password screen; only a correct password unlocks');
 }
 
+// 8u. Wiring & calculation audit (v4.59.0).
+{
+  const pos = billingSrc;
+  assert(/if \(completingSaleRef\.current\) return;\s*completingSaleRef\.current = true;/.test(pos), 'Complete Sale ignores a second Enter / click while the first sale is saving (no double bill, no double stock cut)');
+  assert(/const typedCashPaise = paymentMethod === 'cash' && amountReceivedInput/.test(pos) && /receivedPaise = typedCashPaise \?\?/.test(pos), 'Cash typed in cash mode never leaks into a UPI / card / credit bill as a part payment');
+  assert(/typedCashPaise < grandTotalPaise && !targetCustomer/.test(pos), 'Short cash without a customer is refused (no untracked udhar)');
+  assert(/if \(excess > parts\[0\]\)/.test(pos) && /changeReturnedPaise = excessP;/.test(pos), 'Overpaid split: the excess is change from the cash part, never counted in the drawer');
+  assert(/const price = existing\.unit_price;/.test(pos) && /const price = item\.unit_price;/.test(pos) && (pos.match(/const price = product\.selling_price;/g) || []).length === 1, 'Adding more of a line keeps the rate the cashier edited (only a new line takes the catalogue price)');
+  assert((pos.match(/is_tax_inclusive: product\.is_tax_inclusive \?\? !isBusinessGstExclusive/g) || []).length === 2, 'Cart lines store a resolved tax mode, so POS tax and bill totals (saleMath) agree');
+  // Split overpay arithmetic: 848.00 bill, 900 cash + 0 UPI -> 52.00 change, 848.00 kept.
+  const grand = 84800; const cash = 90000; const excess = cash - grand;
+  assert(excess === 5200 && cash - excess === grand, 'Split overpay: cash kept + change = cash tendered, kept cash = bill');
+  const productsSrc = readSource('app/products/page.tsx');
+  const importSrc = readSource('components/inventory/ExcelInventoryImporter.tsx');
+  assert(/is_tax_inclusive: editingProduct\?\.is_tax_inclusive \?\? business\?\.gst_pricing_mode !== 'exclusive'/.test(productsSrc) && /is_tax_inclusive: taxInclusive/.test(importSrc), 'New and imported products follow Settings → Default GST Calculation (the setting is wired)');
+  assert(!/hsn_code: r\.hsn_code \|\| '1905'/.test(importSrc), 'Excel import never invents an HSN code');
+  const custSrc = readSource('app/customers/page.tsx');
+  assert(/notes: 'Balance corrected in customer details'/.test(custSrc), 'A balance changed in customer details is written to the khata ledger');
+}
+
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.
 const PRO_OR_AI = /useProSubscription|requirePro|UpgradeModal|ProFeatureBadge|subscriptionService|razorpay|generativelanguage\.googleapis|gemini/i;
 const proOrAiOffenders = ALL_SOURCE.filter((f) => PRO_OR_AI.test(fs.readFileSync(f, 'utf8')));
