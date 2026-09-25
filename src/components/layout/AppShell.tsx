@@ -9,6 +9,7 @@ import { Sidebar } from './Sidebar';
 import { DesktopStatusBar } from './DesktopStatusBar';
 import { GlobalDrawers } from './GlobalDrawers';
 import { BusinessProvider } from './BusinessProvider';
+import { UpdateReadyBanner } from './UpdateReadyBanner';
 
 export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
@@ -211,6 +212,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       </div>
       <DesktopStatusBar />
       <GlobalDrawers />
+      <UpdateReadyBanner />
     </div>
     </BusinessProvider>
   );

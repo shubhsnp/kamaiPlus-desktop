@@ -1,5 +1,14 @@
 {
   "projects": {
     "default": "kamaiplus"
+  },
+  "targets": {
+    "kamaiplus": {
+      "hosting": {
+        "updates": [
+          "kamaiplus-desktop"
+        ]
+      }
+    }
   }
 }

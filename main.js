@@ -5,6 +5,7 @@ const os = require('os');
 const path = require('path');
 const { pathToFileURL } = require('url');
 const licence = require('./licence');
+const { initAutoUpdate } = require('./updater');
 
 /**
  * KamaiPlus desktop shell.
@@ -377,6 +378,7 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(() => {
     if (!isDevServer) registerAppProtocol();
     createWindow();
+    initAutoUpdate({ ipcMain, getWindow: () => mainWindow, enabled: app.isPackaged && !isDevServer });
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });

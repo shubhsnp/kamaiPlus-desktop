@@ -108,6 +108,9 @@ Defined in `main.js` (`ipcMain.handle`), exposed in `preload.js`, typed in
 | `kp:app-info` | `getAppInfo()` | `{version, documentsDir}` |
 | `kp:licence-status` | `getLicenceStatus()` | Offline licence check (§2.1) → `{state:'active',…}` or `{state:'required', machineName, reason?}` |
 | `kp:licence-activate` | `activateLicence(key)` | One-time online activation (§2.1) → `{ok, status}` or `{ok:false, error}` |
+| `kp:update-status` | `getUpdateStatus()` | `{enabled, readyVersion}` (§2.2) |
+| `kp:update-install` | `installUpdate()` | Silent install + relaunch, only when an update has downloaded (§2.2) |
+| _event_ `kp:update-ready` | `onUpdateReady(cb)` | Main → page when a new version has finished downloading (§2.2) |
 
 `getDesktopApi()` returns `null` in a plain browser, and every caller must fall back to
 the browser print dialog. Do not assume Electron.
@@ -145,6 +148,36 @@ Admin Console (KamaiPlus Android repo, admin_console/) → Desktop Licences
 - `licence.js` must stay in `package.json` → `build.files`, or the installer ships
   without it and the app cannot start.
 
+### 2.2 Auto-update (v4.45.0)
+
+The repo is private, so updates are **not** on GitHub. They are static files on the
+Firebase Hosting site **`kamaiplus-desktop`** (`https://kamaiplus-desktop.web.app/`,
+hosting target `updates` in `.firebaserc`, `firebase.json` publishes `release/`).
+
+```
+npm run version:bump                 # new version number (required — same version = no update)
+npm run release:desktop              # next build → electron-builder → scripts/prepare_release.js
+                                     #   copies latest.yml + KamaiPlus-Desktop-Setup-<v>.exe(+.blockmap) into release/
+npm run release:publish              # firebase deploy --only hosting:updates
+```
+
+- `updater.js` (main process, electron-updater, `provider: generic`): first check 60 s
+  after launch, then every 4 h; downloads silently; sends `kp:update-ready`.
+- `<UpdateReadyBanner>` (in `AppShell`) offers **Restart & Update** / **Later**. The app
+  **never restarts by itself** (a bill may be open); otherwise the update installs
+  silently on quit (`autoInstallOnAppQuit`).
+- Disabled unless `app.isPackaged` and not `--dev`.
+- User data (IndexedDB under `app://kamaiplus`, `licence.json`) lives in the user-data
+  folder, which an NSIS update does not touch. The installer file name must keep no
+  spaces (`nsis.artifactName`) so `latest.yml` URLs resolve on Hosting.
+- `win.icon` is the ready-made `build/icon.ico` (7 sizes). electron-builder's own
+  PNG→ICO conversion fails with `EINVAL` when it runs the icon tool on this PC (the tool
+  works when run by hand), so do not point it back at `public/icon-512.png`.
+- Shops on v4.44.0 or older have no updater: they install the first updater build
+  (v4.45.0+) by hand once; every version after that arrives automatically.
+- The old `firebase.json` deployed the whole repo to the default `kamaiplus` site (the
+  public website) and `npm run deploy:firebase` would have overwritten it. Both are gone.
+
 ---
 
 ## 3. Directory map
@@ -152,6 +185,8 @@ Admin Console (KamaiPlus Android repo, admin_console/) → Desktop Licences
 ```
 main.js / preload.js        Electron shell + IPC bridge
 licence.js                  Licence check + one-time activation (main process, §2.1)
+updater.js                  Auto-update from kamaiplus-desktop.web.app (main process, §2.2)
+scripts/prepare_release.js  dist/ → release/ for the update site (§2.2)
 next.config.js              output:'export', images.unoptimized, TS errors NOT ignored
 src/app/<route>/page.tsx    19 routes (§4)
 src/app/layout.tsx          RootLayout → I18nProvider → AppShell → PWAInstallBanner

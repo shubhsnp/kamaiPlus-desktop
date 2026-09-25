@@ -11,7 +11,9 @@
 /out/
 
 # production
-/build
+/build/*
+# ...except the Windows installer icon electron-builder uses (package.json → build.win.icon)
+!/build/icon.ico
 
 # misc
 .DS_Store
@@ -43,3 +45,6 @@ repomix-output.*
 *.log
 *.apk
 /dist/
+
+# Auto-update files published to kamaiplus-desktop.web.app (scripts/prepare_release.js)
+/release/

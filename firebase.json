@@ -1,29 +1,23 @@
 {
-  "hosting": {
-    "source": ".",
-    "cleanUrls": true,
-    "trailingSlash": false,
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
-    "redirects": [
-      {
-        "source": "/login",
-        "destination": "/auth",
-        "type": 301
-      },
-      {
-        "source": "/privacy",
-        "destination": "/privacy-policy",
-        "type": 301
-      },
-      {
-        "source": "/terms",
-        "destination": "/terms-of-service",
-        "type": 301
-      }
-    ]
-  }
+  "hosting": [
+    {
+      "target": "updates",
+      "public": "release",
+      "ignore": [
+        "firebase.json",
+        "**/.*"
+      ],
+      "headers": [
+        {
+          "source": "/latest.yml",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache, no-store, must-revalidate"
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }

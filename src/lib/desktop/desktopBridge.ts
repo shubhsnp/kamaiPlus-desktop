@@ -37,6 +37,10 @@ export interface KamaiDesktopApi {
   getAppInfo(): Promise<{ version: string; documentsDir: string }>;
   getLicenceStatus(): Promise<LicenceStatus>;
   activateLicence(key: string): Promise<LicenceActivationResult>;
+  getUpdateStatus(): Promise<{ enabled: boolean; readyVersion: string | null }>;
+  installUpdate(): Promise<DesktopResult>;
+  /** Fires once a newer version has finished downloading. Returns an unsubscribe. */
+  onUpdateReady(callback: (info: { version: string }) => void): () => void;
 }
 
 declare global {

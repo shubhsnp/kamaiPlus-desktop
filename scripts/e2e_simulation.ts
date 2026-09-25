@@ -643,6 +643,18 @@ assert((pkgJson.build?.files || []).includes('licence.js'), 'licence.js is packa
 const gateSrc = readSource('components/licence/LicenceGate.tsx');
 assert(!/localStorage/.test(gateSrc), 'The licence decision never comes from localStorage (main process only)');
 
+// 8g. Auto-update: packaged, pointed at our own Hosting site, never restarts on its own.
+const updaterJs = fs.readFileSync(path.join(__dirname, '..', 'updater.js'), 'utf8');
+assert((pkgJson.build?.files || []).includes('updater.js'), 'updater.js is packaged into the installer');
+assert(Boolean(pkgJson.dependencies?.['electron-updater']), 'electron-updater is a runtime dependency (packaged)');
+assert(pkgJson.build?.publish?.[0]?.url === 'https://kamaiplus-desktop.web.app/', 'Updates come from kamaiplus-desktop.web.app');
+assert(!/\s/.test(pkgJson.build?.nsis?.artifactName || ' '), 'Installer file name has no spaces (latest.yml URLs must resolve)');
+assert(/quitAndInstall/.test(updaterJs) && /ipcMain\.handle\('kp:update-install'/.test(updaterJs) && (updaterJs.match(/quitAndInstall\(/g) || []).length === 1, 'The app restarts for an update only when the user clicks Restart & Update');
+assert(/enabled: app\.isPackaged && !isDevServer/.test(fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8')), 'Auto-update is off in development');
+assert(pkgJson.build?.win?.icon === 'build/icon.ico' && fs.existsSync(path.join(__dirname, '..', 'build', 'icon.ico')), 'Windows icon is a ready .ico (electron-builder\'s PNG→ICO step fails with EINVAL on this PC)');
+const firebaseJson = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'firebase.json'), 'utf8'));
+assert(Array.isArray(firebaseJson.hosting) && firebaseJson.hosting.every((h: any) => h.target === 'updates' && h.public === 'release'), 'firebase.json can only deploy the update site, never the public website');
+
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.
 const PRO_OR_AI = /useProSubscription|requirePro|UpgradeModal|ProFeatureBadge|subscriptionService|razorpay|generativelanguage\.googleapis|gemini/i;
 const proOrAiOffenders = ALL_SOURCE.filter((f) => PRO_OR_AI.test(fs.readFileSync(f, 'utf8')));
