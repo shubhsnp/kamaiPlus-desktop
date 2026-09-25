@@ -62,6 +62,7 @@ import {
   isRevenueSale,
 } from '../src/lib/sales/saleMath';
 import { computeDrawerSummary, localDateKey } from '../src/lib/reports/cashDrawer';
+import { nextSupplierBalance } from '../src/lib/suppliers/supplierLedger';
 import {
   WALK_IN_ID,
   buildAdvancedReport,
@@ -671,6 +672,19 @@ for (const [key] of [['F1'], ['F2'], ['F4'], ['F8'], ['F9'], ['F10']]) {
 }
 assert(/pathname === '\/pay'/.test(readSource('components/layout/AppShell.tsx')), '/pay (customer UPI link) opens without a shop login');
 assert(/\+ Add size \/ colour/.test(readSource('components/products/AddEditProductModal.tsx')), 'Size / colour can be added to a new product');
+
+// 8j. Supplier accounts: paise math, one transaction per change, cash payments hit the drawer.
+assert(nextSupplierBalance(500000, 'purchase', 120050) === 620050, 'Supplier purchase on credit adds to what the shop owes (paise)');
+assert(nextSupplierBalance(100000, 'payment', 150000) === -50000, 'Paying a supplier more than owed becomes an advance (negative balance)');
+const supplierLedgerSrc = readSource('lib/suppliers/supplierLedger.ts');
+assert(/db\.transaction\('rw', db\.suppliers, db\.ledger_transactions, db\.cash_expenses/.test(supplierLedgerSrc), 'Supplier balance, ledger row and cash expense are written in one transaction');
+assert(/category: 'supplier_payout'/.test(supplierLedgerSrc) && /mode === 'cash'/.test(supplierLedgerSrc), 'Only CASH supplier payments create a cash-drawer expense');
+assert(/current_balance \|\| 0\) !== 0/.test(supplierLedgerSrc), 'A supplier with a balance cannot be deleted');
+const supplierWriters = ALL_SOURCE.filter((f) => /db\.suppliers\.(put|update|delete|bulkPut|add)\(/.test(fs.readFileSync(f, 'utf8'))).map((f) => path.relative(SRC_ROOT, f).replace(/\\/g, '/'));
+assert(
+  supplierWriters.every((f) => ['lib/suppliers/supplierLedger.ts', 'lib/backup/cloudBackupService.ts', 'lib/firebase/firestoreSync.ts', 'lib/db/index.ts'].includes(f)),
+  `Only supplierLedger.ts changes supplier balances (writers: ${supplierWriters.join(', ')})`
+);
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.
 const PRO_OR_AI = /useProSubscription|requirePro|UpgradeModal|ProFeatureBadge|subscriptionService|razorpay|generativelanguage\.googleapis|gemini/i;

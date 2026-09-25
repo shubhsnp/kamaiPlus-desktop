@@ -211,7 +211,7 @@ updater.js                  Auto-update from kamaiplus-desktop.web.app (main pro
 backup.js                   Daily automatic backup files (main process, §2.3)
 scripts/prepare_release.js  dist/ → release/ for the update site (§2.2)
 next.config.js              output:'export', images.unoptimized, TS errors NOT ignored
-src/app/<route>/page.tsx    19 routes (§4)
+src/app/<route>/page.tsx    20 routes (§4)
 src/app/layout.tsx          RootLayout → I18nProvider → AppShell → PWAInstallBanner
 src/components/layout/      The app shell: AppShell, Navbar, Sidebar,
                             DesktopStatusBar, GlobalDrawers, BusinessProvider
@@ -219,7 +219,7 @@ src/components/<feature>/   Feature components, one folder per domain
 src/components/ui/          Button, Card, Input, Modal  (that is all of it)
 src/lib/<domain>/           Engines — see table below
 src/types/index.ts          All domain types. Single file.
-scripts/e2e_simulation.ts   The test suite (§11). 289 assertions.
+scripts/e2e_simulation.ts   The test suite (§11). 295 assertions.
 scripts/bump_version.ts     Version bumper (+0.1 minor)
 public/barcodes/*.json      5 shipped offline barcode dictionaries
 ```
@@ -255,7 +255,7 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 
 ## 4. Routes
 
-19 pages. All are `'use client'`. **There are no API routes.**
+20 pages. All are `'use client'`. **There are no API routes.**
 
 | Route | Purpose | Shell? |
 | :--- | :--- | :--- |
@@ -263,7 +263,8 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 | `/billing` | **POS counter.** The most important screen in the app. | yes |
 | `/products` | Catalog master | yes |
 | `/inventory` | Stock, reorder alerts, movements | yes |
-| `/purchases` | Supplier inward (manual + Excel/CSV bill) | yes |
+| `/purchases` | Supplier inward (manual + Excel/CSV bill); manual inward can put the value on a saved supplier's account | yes |
+| `/suppliers` | Supplier accounts (v4.48.0): what you owe, purchases on credit, payments — `lib/suppliers/supplierLedger.ts` | yes |
 | `/khata` | Udhar ledger | yes |
 | `/customers` | CRM | yes |
 | `/transactions` | Sales history, returns | yes |
@@ -292,18 +293,18 @@ them readable — assume they touch everything:
 | Table | Feature code that writes it |
 | :--- | :--- |
 | **`businesses`** | `app/invoice-designer/page.tsx` (update)<br>`app/settings/page.tsx` (update)<br>`components/layout/Navbar.tsx` (update)<br>`lib/invoices/invoiceNumberService.ts` (update) |
-| **`cash_expenses`** | `app/cash-register/page.tsx` (delete,put)<br>`components/sales/SalesReturnModal.tsx` (put) |
+| **`cash_expenses`** | `app/cash-register/page.tsx` (delete,put)<br>`components/sales/SalesReturnModal.tsx` (put)<br>`lib/suppliers/supplierLedger.ts` (put — cash supplier payments, category `supplier_payout`) |
 | **`cash_registers`** | `app/cash-register/page.tsx` (put,update) |
 | **`categories`** | `app/products/page.tsx` (put)<br>`components/settings/DataMaintenanceTab.tsx` (clear)<br>`lib/constants/defaultProducts.ts` (put) |
 | **`customers`** | `app/billing/page.tsx` (put,update)<br>`app/customers/page.tsx` (delete,put)<br>`app/khata/page.tsx` (put,update)<br>`app/transactions/page.tsx` (update)<br>`components/invoices/EditInvoiceModal.tsx` (update)<br>`components/khata/SettleInvoicesModal.tsx` (update)<br>`components/sales/SalesReturnModal.tsx` (update) |
 | **`inventory_movements`** | `app/billing/page.tsx` (put)<br>`app/inventory/page.tsx` (put)<br>`app/products/page.tsx` (put)<br>`app/purchases/page.tsx` (put)<br>`app/transactions/page.tsx` (put)<br>`components/dashboard/DashboardHome.tsx` (put)<br>`components/invoices/EditInvoiceModal.tsx` (put)<br>`components/purchases/BillScanReviewModal.tsx` (put)<br>`components/sales/SalesReturnModal.tsx` (put) |
-| **`ledger_transactions`** | `app/billing/page.tsx` (put)<br>`app/customers/page.tsx` (put)<br>`app/khata/page.tsx` (delete,put,update)<br>`app/transactions/page.tsx` (put)<br>`components/invoices/EditInvoiceModal.tsx` (put)<br>`components/khata/SettleInvoicesModal.tsx` (put)<br>`components/sales/SalesReturnModal.tsx` (put) |
+| **`ledger_transactions`** | `app/billing/page.tsx` (put)<br>`app/customers/page.tsx` (put)<br>`app/khata/page.tsx` (delete,put,update)<br>`app/transactions/page.tsx` (put)<br>`components/invoices/EditInvoiceModal.tsx` (put)<br>`components/khata/SettleInvoicesModal.tsx` (put)<br>`components/sales/SalesReturnModal.tsx` (put)<br>`lib/suppliers/supplierLedger.ts` (put, modify — `party_type: 'supplier'` rows) |
 | **`marketing_templates`** | _only the four shared modules above_ |
 | **`products`** | `app/billing/page.tsx` (put)<br>`app/inventory/page.tsx` (update)<br>`app/products/page.tsx` (delete,put,update)<br>`app/purchases/page.tsx` (update)<br>`app/transactions/page.tsx` (put)<br>`components/dashboard/DashboardHome.tsx` (update)<br>`components/inventory/ExcelInventoryImporter.tsx` (bulkPut)<br>`components/invoices/EditInvoiceModal.tsx` (update)<br>`components/purchases/BillScanReviewModal.tsx` (put,update)<br>`components/sales/SalesReturnModal.tsx` (update)<br>`lib/constants/defaultProducts.ts` (bulkPut) |
 | **`purchase_bills`** | `components/purchases/BillScanReviewModal.tsx` (put) |
 | **`sales`** | `app/billing/page.tsx` (put)<br>`app/transactions/page.tsx` (clear,put)<br>`components/invoices/EditInvoiceModal.tsx` (put)<br>`components/khata/SettleInvoicesModal.tsx` (put)<br>`components/sales/SalesReturnModal.tsx` (update) |
 | **`sales_returns`** | `app/transactions/page.tsx` (clear)<br>`components/sales/SalesReturnModal.tsx` (put) |
-| **`suppliers`** | _only the four shared modules above_ |
+| **`suppliers`** | `lib/suppliers/supplierLedger.ts` (put, update, delete) — the only writer; every balance change is one Dexie transaction with its ledger row |
 
 
 ### Route guard (`AppShell.tsx`)
@@ -595,13 +596,13 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 289/289, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 295/295, 0 failures
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
 git push origin main
 ```
 
-### Test suite map — `scripts/e2e_simulation.ts` (289 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (295 assertions)
 
 | Suite | Covers |
 | :--- | :--- |

@@ -25,6 +25,7 @@ import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
 import { Product, PurchaseBill } from '@/types';
 import { InwardBillButton } from '@/components/purchases/InwardBillButton';
+import { recordSupplierEntry } from '@/lib/suppliers/supplierLedger';
 import { CashierPrivacyToggleButton, ProfitMask } from '@/components/privacy/ProfitMask';
 
 export default function PurchasesPage() {
@@ -33,10 +34,14 @@ export default function PurchasesPage() {
   const [quantity, setQuantity] = useState('');
   const [costPrice, setCostPrice] = useState('');
   const [supplierName, setSupplierName] = useState('');
+  // A saved supplier from /suppliers ('' = none, typed name only).
+  const [supplierId, setSupplierId] = useState('');
+  const [onCredit, setOnCredit] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const products = useLiveQuery(async () => db.products.toArray()) || [];
+  const suppliers = useLiveQuery(() => db.suppliers.orderBy('name').toArray()) || [];
   const business = useBusiness();
   const purchaseBills = useLiveQuery(async () => 
     db.purchase_bills.orderBy('created_at').reverse().limit(10).toArray()
@@ -80,6 +85,9 @@ export default function PurchasesPage() {
     const now = new Date().toISOString();
     const previousStock = prod.current_stock;
     const newStock = previousStock + qtyNum;
+    const supplier = suppliers.find((s) => s.id === supplierId);
+    const vendorName = supplier?.name || supplierName.trim();
+    const movementId = `mov_pur_${Date.now()}`;
 
     // 1. Update product stock and purchase price
     await db.products.update(prod.id, {
@@ -90,7 +98,7 @@ export default function PurchasesPage() {
 
     // 2. Add inventory movement record
     await db.inventory_movements.put({
-      id: `mov_pur_${Date.now()}`,
+      id: movementId,
       business_id: business?.id || 'biz_default',
       product_id: prod.id,
       product_name: prod.name,
@@ -98,18 +106,37 @@ export default function PurchasesPage() {
       quantity: qtyNum,
       previous_stock: previousStock,
       new_stock: newStock,
-      reason: `Vendor Restock: ${supplierName || 'General Supplier'}`,
+      reason: `Vendor Restock: ${vendorName || 'General Supplier'}`,
       created_by: 'owner',
       created_at: now,
     });
+
+    // 3. Bought on credit from a saved supplier: add the value to what the shop owes them.
+    let creditNote = '';
+    if (supplier && onCredit) {
+      const valuePaise = Math.round(costPaise * qtyNum);
+      if (valuePaise > 0) {
+        const res = await recordSupplierEntry({
+          supplierId: supplier.id,
+          kind: 'purchase',
+          amountPaise: valuePaise,
+          note: `Stock inward: ${prod.name} × ${qtyNum}`,
+          referenceId: movementId,
+          date: now,
+        });
+        creditNote = res.ok ? ` • ${formatINR(valuePaise)} added to ${supplier.name}'s account` : ` • Could not update ${supplier.name}'s account: ${res.error}`;
+      }
+    }
 
     setIsModalOpen(false);
     setSelectedProductId('');
     setQuantity('');
     setCostPrice('');
     setSupplierName('');
+    setSupplierId('');
+    setOnCredit(false);
     setModalError(null);
-    showToast(`Stock updated for ${prod.name} (+${qtyNum} ${prod.unit})`);
+    showToast(`Stock updated for ${prod.name} (+${qtyNum} ${prod.unit})${creditNote}`);
   };
 
   return (
@@ -278,13 +305,36 @@ export default function PurchasesPage() {
           <Input label="Purchase Cost Price (₹ per unit)" placeholder="0.00" type="number" step="0.01" value={costPrice} onChange={(e) => setCostPrice(e.target.value)} />
           <div className="space-y-1">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Supplier / Vendor Name</label>
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Supplier / Vendor</label>
             </div>
-            <Input
-              placeholder="e.g. Metro Wholesale"
-              value={supplierName}
-              onChange={(e) => setSupplierName(e.target.value)}
-            />
+            {suppliers.length > 0 && (
+              <select
+                value={supplierId}
+                onChange={(e) => {
+                  setSupplierId(e.target.value);
+                  if (!e.target.value) setOnCredit(false);
+                }}
+                className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl p-2.5 text-xs font-semibold focus:border-slate-900 focus:outline-none min-h-[38px]"
+              >
+                <option value="">-- Not a saved supplier --</option>
+                {suppliers.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}{s.phone ? ` (${s.phone})` : ''}</option>
+                ))}
+              </select>
+            )}
+            {!supplierId && (
+              <Input
+                placeholder="e.g. Metro Wholesale"
+                value={supplierName}
+                onChange={(e) => setSupplierName(e.target.value)}
+              />
+            )}
+            {supplierId && (
+              <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer pt-1">
+                <input type="checkbox" checked={onCredit} onChange={(e) => setOnCredit(e.target.checked)} className="w-4 h-4 accent-rose-600" />
+                Bought on credit — add quantity × cost to what I owe this supplier
+              </label>
+            )}
           </div>
 
           {modalError && (

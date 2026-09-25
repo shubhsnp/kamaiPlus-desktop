@@ -20,6 +20,7 @@ import {
   FileSpreadsheet, 
   HardDrive,
   LineChart,
+  Truck,
   PanelLeftClose,
   PanelLeftOpen
 } from 'lucide-react';
@@ -98,6 +99,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { href: '/products', label: t('nav.products') || 'Products', icon: Package, iconBg: 'bg-blue-100 text-blue-800', activeIcon: 'text-blue-300' },
         { href: '/inventory', label: 'Inventory & Stock', icon: Boxes, iconBg: 'bg-cyan-100 text-cyan-800', activeIcon: 'text-cyan-300' },
         { href: '/purchases', label: 'Purchases & Bills', icon: ShoppingBag, iconBg: 'bg-amber-100 text-amber-800', activeIcon: 'text-amber-300' },
+        { href: '/suppliers', label: 'Suppliers', icon: Truck, iconBg: 'bg-orange-100 text-orange-800', activeIcon: 'text-orange-300' },
       ],
     },
     {
