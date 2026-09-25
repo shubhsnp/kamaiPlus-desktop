@@ -118,6 +118,8 @@ Defined in `main.js` (`ipcMain.handle`), exposed in `preload.js`, typed in
 | `kp:backup-clear-folder` | `clearBackupFolder()` | Stop the extra copy (§2.3) |
 | `kp:update-status` | `getUpdateStatus()` | `{enabled, readyVersion}` (§2.2) |
 | `kp:update-install` | `installUpdate()` | Silent install + relaunch, only when an update has downloaded (§2.2) |
+| `kp:update-check` | `checkForUpdates()` | "Check for updates now" (§2.2) |
+| `kp:update-set-beta` | `setBetaUpdates(on)` | Per-computer beta channel on/off (§2.2) |
 | _event_ `kp:update-ready` | `onUpdateReady(cb)` | Main → page when a new version has finished downloading (§2.2) |
 
 `getDesktopApi()` returns `null` in a plain browser, and every caller must fall back to
@@ -183,6 +185,24 @@ npm run release:publish              # firebase deploy --only hosting:updates
   works when run by hand), so do not point it back at `public/icon-512.png`.
 - Shops on v4.44.0 or older have no updater: they install the first updater build
   (v4.45.0+) by hand once; every version after that arrives automatically.
+
+**Staged rollout (v4.54.0).** Normal installs read `latest.yml`; a computer with
+Settings → Help & Support → "Get early updates (beta)" reads `beta.yml`
+(`<userData>/update-settings.json`). `updater.js` sets `autoUpdater.channel` and then
+forces `allowDowngrade = false` (setting a channel silently turns downgrades on).
+
+```
+npm run version:bump
+npm run release:beta      # build → release/beta.yml (stable latest.yml untouched)
+npm run release:publish   # beta computers update; everyone else stays put
+…try it on 2–3 shops…
+npm run release:promote   # latest.yml = beta.yml — the SAME installer, no rebuild
+npm run release:publish
+```
+
+`npm run release:desktop` still ships straight to everyone (writes both files).
+`prepare_release.js` never wipes `release/`; it deletes only installers that neither
+yml points at. `release/` is not in git — publish from the machine that holds it.
 
 ### 2.3 Automatic local backup (v4.46.0)
 

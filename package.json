@@ -1,6 +1,6 @@
 {
   "name": "kamai-plus-desktop",
-  "version": "4.53.0",
+  "version": "4.54.0",
   "private": true,
   "description": "KamaiPlus Desktop Application",
   "scripts": {
@@ -15,7 +15,9 @@
     "build:desktop": "next build && electron-builder --win",
     "electron:dev": "electron . --dev",
     "release:desktop": "next build && electron-builder --win && node scripts/prepare_release.js",
-    "release:publish": "firebase deploy --only hosting:updates"
+    "release:publish": "firebase deploy --only hosting:updates",
+    "release:beta": "next build && electron-builder --win && node scripts/prepare_release.js --beta",
+    "release:promote": "node scripts/prepare_release.js --promote"
   },
   "dependencies": {
     "@capacitor/core": "^8.5.2",

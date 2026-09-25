@@ -1,12 +1,18 @@
 /**
- * Copies the files the auto-updater needs from dist/ into release/, which is what
- * `npm run release:publish` uploads to https://kamaiplus-desktop.web.app/.
+ * Prepares release/ — what `npm run release:publish` uploads to
+ * https://kamaiplus-desktop.web.app/ — for the auto-updater (updater.js).
  *
- *   latest.yml                                  <- every installed app checks this
- *   KamaiPlus-Desktop-Setup-<version>.exe        <- the update itself
- *   KamaiPlus-Desktop-Setup-<version>.exe.blockmap  (lets the updater download only the changed parts)
+ *   node scripts/prepare_release.js            stable: everyone gets this build
+ *   node scripts/prepare_release.js --beta     beta only: computers with "early updates" on
+ *   node scripts/prepare_release.js --promote  make the current beta build stable (no rebuild)
  *
- * release/ is emptied first, so only the newest version is ever published.
+ * latest.yml is read by normal installs, beta.yml by beta installs. A stable
+ * release also becomes the beta (beta users are never behind stable). After each
+ * step, installers that neither file points at are deleted, so the site holds at
+ * most two versions.
+ *
+ * Staged rollout:  npm run version:bump → npm run release:beta → release:publish
+ *                  → try it on 2–3 shops → npm run release:promote → release:publish
  */
 const fs = require('fs');
 const path = require('path');
@@ -14,31 +20,62 @@ const path = require('path');
 const root = path.join(__dirname, '..');
 const dist = path.join(root, 'dist');
 const release = path.join(root, 'release');
-const { version } = require(path.join(root, 'package.json'));
+const mode = process.argv.includes('--promote') ? 'promote' : process.argv.includes('--beta') ? 'beta' : 'stable';
 
-const installer = `KamaiPlus-Desktop-Setup-${version}.exe`;
-const files = ['latest.yml', installer, `${installer}.blockmap`];
+const ymlInstaller = (text) => ((text.match(/^path:\s*(.+)$/m) || [])[1] || '').trim();
+const ymlVersion = (text) => ((text.match(/^version:\s*(.+)$/m) || [])[1] || '').trim();
+const fail = (msg) => {
+  console.error(msg);
+  process.exit(1);
+};
 
-for (const f of files) {
-  if (!fs.existsSync(path.join(dist, f))) {
-    console.error(`Missing dist/${f}. Run "npm run release:desktop" (it builds the installer first).`);
-    process.exit(1);
+fs.mkdirSync(release, { recursive: true });
+
+if (mode === 'promote') {
+  const betaFile = path.join(release, 'beta.yml');
+  if (!fs.existsSync(betaFile)) fail('No release/beta.yml to promote. Run "npm run release:beta" first.');
+  const beta = fs.readFileSync(betaFile, 'utf8');
+  const exe = ymlInstaller(beta);
+  if (!exe || !fs.existsSync(path.join(release, exe))) fail(`release/${exe || '<installer>'} is missing — cannot promote.`);
+  fs.writeFileSync(path.join(release, 'latest.yml'), beta);
+  console.log(`Promoted beta v${ymlVersion(beta)} to stable (latest.yml).`);
+} else {
+  const { version } = require(path.join(root, 'package.json'));
+  const installer = `KamaiPlus-Desktop-Setup-${version}.exe`;
+  for (const f of ['latest.yml', installer, `${installer}.blockmap`]) {
+    if (!fs.existsSync(path.join(dist, f))) fail(`Missing dist/${f}. Build the installer first (npm run release:desktop / release:beta).`);
+  }
+  const yml = fs.readFileSync(path.join(dist, 'latest.yml'), 'utf8');
+  if (ymlVersion(yml) !== version) fail(`dist/latest.yml is for v${ymlVersion(yml)}, not v${version}. Rebuild the installer.`);
+  fs.copyFileSync(path.join(dist, installer), path.join(release, installer));
+  fs.copyFileSync(path.join(dist, `${installer}.blockmap`), path.join(release, `${installer}.blockmap`));
+  fs.writeFileSync(path.join(release, 'beta.yml'), yml);
+  if (mode === 'stable') fs.writeFileSync(path.join(release, 'latest.yml'), yml);
+  console.log(mode === 'beta' ? `v${version} ready for BETA computers only (beta.yml).` : `v${version} ready for everyone (latest.yml + beta.yml).`);
+}
+
+// Keep only installers that latest.yml or beta.yml point at.
+const keep = new Set();
+for (const y of ['latest.yml', 'beta.yml']) {
+  const p = path.join(release, y);
+  if (fs.existsSync(p)) {
+    const exe = ymlInstaller(fs.readFileSync(p, 'utf8'));
+    if (exe) {
+      keep.add(exe);
+      keep.add(`${exe}.blockmap`);
+    }
   }
 }
-
-const latest = fs.readFileSync(path.join(dist, 'latest.yml'), 'utf8');
-if (!latest.includes(`version: ${version}`)) {
-  console.error(`dist/latest.yml is not for v${version}. Rebuild the installer.`);
-  process.exit(1);
+for (const f of fs.readdirSync(release)) {
+  if (/\.(exe|blockmap)$/.test(f) && !keep.has(f)) fs.rmSync(path.join(release, f));
 }
 
-fs.rmSync(release, { recursive: true, force: true });
-fs.mkdirSync(release);
-for (const f of files) fs.copyFileSync(path.join(dist, f), path.join(release, f));
-
-console.log(`release/ ready for v${version}:`);
-for (const f of files) {
-  const mb = (fs.statSync(path.join(release, f)).size / 1024 / 1024).toFixed(1);
-  console.log(`  ${f}  (${mb} MB)`);
+console.log('release/ now contains:');
+for (const f of fs.readdirSync(release).sort()) {
+  const extra = /\.yml$/.test(f) ? `  → v${ymlVersion(fs.readFileSync(path.join(release, f), 'utf8'))}` : `  (${(fs.statSync(path.join(release, f)).size / 1024 / 1024).toFixed(1)} MB)`;
+  console.log(`  ${f}${extra}`);
+}
+if (!fs.existsSync(path.join(release, 'latest.yml'))) {
+  console.warn('WARNING: release/ has no latest.yml — publishing now would leave normal installs without updates.');
 }
 console.log('Next: npm run release:publish');

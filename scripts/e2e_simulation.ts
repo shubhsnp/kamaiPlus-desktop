@@ -724,6 +724,13 @@ assert(popupOffenders.length === 0, `No browser alert()/confirm() popups (found:
 assert(/<DialogHost \/>/.test(readSource('app/layout.tsx')), 'The in-app dialog host is mounted once in the root layout');
 assert(/addEventListener\('keydown', onKey, true\)/.test(readSource('components/ui/DialogHost.tsx')), 'Dialogs capture Enter/Esc so page shortcuts (Enter = complete sale) cannot fire underneath');
 
+// 8p. Staged rollout: beta channel, never a downgrade, promote without rebuilding.
+const updaterSrc = fs.readFileSync(path.join(__dirname, '..', 'updater.js'), 'utf8');
+assert(/autoUpdater\.channel = beta \? 'beta' : 'latest';\s*[\s\S]{0,200}autoUpdater\.allowDowngrade = false;/.test(updaterSrc), 'Switching update channel never allows a downgrade');
+const prepSrc = fs.readFileSync(path.join(__dirname, 'prepare_release.js'), 'utf8');
+assert(Boolean(pkgJson.scripts?.['release:beta']?.includes('--beta')) && Boolean(pkgJson.scripts?.['release:promote']?.includes('--promote')), 'release:beta and release:promote scripts exist');
+assert(!/rmSync\(release,/.test(prepSrc) && /keep\.has\(f\)/.test(prepSrc), 'Preparing a release never wipes release/; only unreferenced installers are removed');
+
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.
 const PRO_OR_AI = /useProSubscription|requirePro|UpgradeModal|ProFeatureBadge|subscriptionService|razorpay|generativelanguage\.googleapis|gemini/i;
 const proOrAiOffenders = ALL_SOURCE.filter((f) => PRO_OR_AI.test(fs.readFileSync(f, 'utf8')));

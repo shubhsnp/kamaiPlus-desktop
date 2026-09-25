@@ -27,6 +27,15 @@ export type LicenceActivationResult =
   | { ok: true; status: LicenceStatus }
   | { ok: false; error: string };
 
+/** Auto-update state from `updater.js` in the Electron main process. */
+export interface UpdateStatus {
+  enabled: boolean;
+  readyVersion: string | null;
+  beta?: boolean;
+  currentVersion?: string;
+  lastCheck?: { at: string; result: 'up-to-date' | 'downloading' | 'error'; version?: string; error?: string } | null;
+}
+
 /** Automatic local backup state from `backup.js` in the Electron main process. */
 export interface BackupInfo {
   folder: string;
@@ -65,8 +74,10 @@ export interface KamaiDesktopApi {
   getBackupInfo(): Promise<BackupInfo>;
   chooseBackupFolder(): Promise<BackupInfo>;
   clearBackupFolder(): Promise<BackupInfo>;
-  getUpdateStatus(): Promise<{ enabled: boolean; readyVersion: string | null }>;
+  getUpdateStatus(): Promise<UpdateStatus>;
   installUpdate(): Promise<DesktopResult>;
+  checkForUpdates(): Promise<{ ok: boolean; status?: UpdateStatus; error?: string }>;
+  setBetaUpdates(on: boolean): Promise<UpdateStatus>;
   /** Fires once a newer version has finished downloading. Returns an unsubscribe. */
   onUpdateReady(callback: (info: { version: string }) => void): () => void;
 }

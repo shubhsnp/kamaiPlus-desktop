@@ -452,7 +452,13 @@ if (!app.requestSingleInstanceLock()) {
     errorlog.init(app.getPath('userData'));
     if (!isDevServer) registerAppProtocol();
     createWindow();
-    initAutoUpdate({ ipcMain, getWindow: () => mainWindow, enabled: app.isPackaged && !isDevServer });
+    initAutoUpdate({
+      ipcMain,
+      getWindow: () => mainWindow,
+      enabled: app.isPackaged && !isDevServer,
+      userDataDir: app.getPath('userData'),
+      currentVersion: app.getVersion(),
+    });
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });

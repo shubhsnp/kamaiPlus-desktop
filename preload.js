@@ -22,6 +22,8 @@ contextBridge.exposeInMainWorld('kamaiDesktop', {
   clearBackupFolder: () => ipcRenderer.invoke('kp:backup-clear-folder'),
   getUpdateStatus: () => ipcRenderer.invoke('kp:update-status'),
   installUpdate: () => ipcRenderer.invoke('kp:update-install'),
+  checkForUpdates: () => ipcRenderer.invoke('kp:update-check'),
+  setBetaUpdates: (on) => ipcRenderer.invoke('kp:update-set-beta', on),
   onUpdateReady: (callback) => {
     const listener = (_event, info) => callback(info);
     ipcRenderer.on('kp:update-ready', listener);
