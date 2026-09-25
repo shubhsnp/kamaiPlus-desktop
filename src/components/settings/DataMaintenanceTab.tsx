@@ -1,4 +1,5 @@
 'use client';
+import { showAlert, showConfirm } from '@/lib/ui/dialogs';
 
 import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -63,10 +64,10 @@ export const DataMaintenanceTab: React.FC<DataMaintenanceTabProps> = ({ business
 
   const handleRestoreStarterProducts = async () => {
     if (!business?.id) {
-      alert('Business profile not loaded.');
+      showAlert('Business profile not loaded.');
       return;
     }
-    if (!confirm('Sample retail products restore karna chahte hain?')) return;
+    if (!await showConfirm('Sample retail products restore karna chahte hain?')) return;
 
     setIsRestoring(true);
     setFeedbackMessage(null);

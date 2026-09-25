@@ -1,4 +1,5 @@
 'use client';
+import { showAlert } from '@/lib/ui/dialogs';
 
 import React, { useEffect, useState } from 'react';
 import { db } from '@/lib/db';
@@ -226,7 +227,7 @@ export default function TransactionsPage() {
   // Export 1-Click Tally Prime XML
   const handleExportTallyXML = () => {
     if (filteredSales.length === 0) {
-      alert('No transactions to export.');
+      showAlert('No transactions to export.');
       return;
     }
     const { xml, filename } = generateTallyPrimeXML({

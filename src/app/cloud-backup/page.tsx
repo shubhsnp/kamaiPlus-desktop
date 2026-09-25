@@ -1,4 +1,5 @@
 'use client';
+import { showAlert } from '@/lib/ui/dialogs';
 
 import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/db';
@@ -70,7 +71,7 @@ export default function CloudBackupPage() {
       setBackupSuccessMessage(`Backup successfully downloaded: ${filename}`);
       setTimeout(() => setBackupSuccessMessage(null), 5000);
     } catch (err: any) {
-      alert(err.message || 'Download failed.');
+      showAlert(err.message || 'Download failed.');
     } finally {
       setIsBackingUp(false);
     }
@@ -79,7 +80,7 @@ export default function CloudBackupPage() {
   // Export 1-Click Tally Prime XML
   const handleExportTallyXML = async () => {
     if (saleCount === 0) {
-      alert('No sales transactions recorded yet.');
+      showAlert('No sales transactions recorded yet.');
       return;
     }
     const [sales, customers] = await Promise.all([db.sales.toArray(), db.customers.toArray()]);
@@ -100,7 +101,7 @@ export default function CloudBackupPage() {
   // Export CA Master Excel CSV
   const handleExportCAMasterCSV = async () => {
     if (saleCount === 0) {
-      alert('No sales transactions recorded yet.');
+      showAlert('No sales transactions recorded yet.');
       return;
     }
     const sales = await db.sales.toArray();
@@ -132,7 +133,7 @@ export default function CloudBackupPage() {
         setRestorePayload(json);
         setIsRestoreModalOpen(true);
       } catch (err: any) {
-        alert(err.message || 'Failed to read JSON backup file.');
+        showAlert(err.message || 'Failed to read JSON backup file.');
       }
     };
     reader.readAsText(file);
@@ -150,7 +151,7 @@ export default function CloudBackupPage() {
       setRestoreSuccessMessage(res.message);
       setTimeout(() => setRestoreSuccessMessage(null), 5000);
     } catch (err: any) {
-      alert(err.message || 'Database restore failed.');
+      showAlert(err.message || 'Database restore failed.');
     } finally {
       setIsRestoring(false);
     }

@@ -1,4 +1,5 @@
 'use client';
+import { showAlert } from '@/lib/ui/dialogs';
 
 import { useState, useEffect } from 'react';
 import { isDesktopApp } from '@/lib/desktop/desktopBridge';
@@ -115,7 +116,7 @@ export function usePWAInstall() {
 
   const triggerInstall = async (): Promise<boolean> => {
     if (isInstalled) {
-      alert('KamaiPlus is already installed on your device!');
+      showAlert('KamaiPlus is already installed on your device!');
       return false;
     }
 
@@ -136,7 +137,7 @@ export function usePWAInstall() {
       setShowIOSModal(true);
     } else {
       // Desktop Chrome / Edge fallback manual instruction
-      alert('To install KamaiPlus on your PC:\n1. Click the Install icon (⊞ or ⬇) in your browser address bar.\n2. Or click the 3 dots menu ⋮ ➔ "Install KamaiPlus" / "Add shortcut".');
+      showAlert('To install KamaiPlus on your PC:\n1. Click the Install icon (⊞ or ⬇) in your browser address bar.\n2. Or click the 3 dots menu ⋮ ➔ "Install KamaiPlus" / "Add shortcut".');
     }
     return false;
   };

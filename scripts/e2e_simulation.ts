@@ -717,6 +717,13 @@ assert(/process\.on\('uncaughtException'/.test(mainJsSrc) && /render-process-gon
 assert(/<ErrorReporter \/>/.test(readSource('app/layout.tsx')) && fs.existsSync(path.join(SRC_ROOT, 'app', 'error.tsx')) && fs.existsSync(path.join(SRC_ROOT, 'app', 'global-error.tsx')), 'Page errors are logged and a crashed screen shows a friendly message');
 assert(/Copy report for support/.test(readSource('components/settings/HelpSupportTab.tsx')), 'Settings → Help & Support can copy a report for support');
 
+// 8o. No browser alert() / confirm() popups — in-app dialogs only.
+const popupOffenders = ALL_SOURCE.filter((f) => !f.endsWith(path.join('lib', 'ui', 'dialogs.ts')))
+  .filter((f) => /(?<![\w.'"`])(?:window\.)?(?:alert|confirm)\(/.test(fs.readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')));
+assert(popupOffenders.length === 0, `No browser alert()/confirm() popups (found: ${popupOffenders.map((f) => path.relative(SRC_ROOT, f)).join(', ') || 'none'})`);
+assert(/<DialogHost \/>/.test(readSource('app/layout.tsx')), 'The in-app dialog host is mounted once in the root layout');
+assert(/addEventListener\('keydown', onKey, true\)/.test(readSource('components/ui/DialogHost.tsx')), 'Dialogs capture Enter/Esc so page shortcuts (Enter = complete sale) cannot fire underneath');
+
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.
 const PRO_OR_AI = /useProSubscription|requirePro|UpgradeModal|ProFeatureBadge|subscriptionService|razorpay|generativelanguage\.googleapis|gemini/i;
 const proOrAiOffenders = ALL_SOURCE.filter((f) => PRO_OR_AI.test(fs.readFileSync(f, 'utf8')));

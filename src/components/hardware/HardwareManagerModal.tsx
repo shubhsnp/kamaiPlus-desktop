@@ -1,4 +1,5 @@
 'use client';
+import { showAlert } from '@/lib/ui/dialogs';
 
 import React, { useState, useEffect } from 'react';
 import { 
@@ -79,7 +80,7 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
       setPrinterName(dev.name);
     } catch (err: any) {
       console.warn('Printer connect error:', err);
-      alert(err.message || 'Could not connect to Bluetooth printer.');
+      showAlert(err.message || 'Could not connect to Bluetooth printer.');
     } finally {
       setIsConnectingPrinter(false);
     }
@@ -124,7 +125,7 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
       setPrintSuccessMsg(`Test receipt sent to printer (${paperWidth}mm)!`);
       setTimeout(() => setPrintSuccessMsg(''), 4000);
     } catch (err: any) {
-      alert(err.message || 'Printing failed. Make sure printer is turned on and paired.');
+      showAlert(err.message || 'Printing failed. Make sure printer is turned on and paired.');
     }
   };
 

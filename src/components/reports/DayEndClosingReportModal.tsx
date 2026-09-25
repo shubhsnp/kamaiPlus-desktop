@@ -1,3 +1,4 @@
+import { showAlert } from '@/lib/ui/dialogs';
 import React, { useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
@@ -111,7 +112,7 @@ export const DayEndClosingReportModal: React.FC<DayEndClosingReportModalProps> =
       setCopied(true);
       setTimeout(() => setCopied(false), 3000);
     } catch (err) {
-      alert('Failed to copy text.');
+      showAlert('Failed to copy text.');
     }
   };
 
@@ -135,7 +136,7 @@ export const DayEndClosingReportModal: React.FC<DayEndClosingReportModalProps> =
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err: any) {
-      alert(err.message || 'Failed to generate Closing PDF.');
+      showAlert(err.message || 'Failed to generate Closing PDF.');
     } finally {
       setIsGeneratingPdf(false);
     }

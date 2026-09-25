@@ -1,4 +1,5 @@
 'use client';
+import { showConfirm } from '@/lib/ui/dialogs';
 
 import React from 'react';
 import { 
@@ -230,7 +231,7 @@ export const StoreProfileTab: React.FC<StoreProfileTabProps> = ({
           <button
             type="button"
             onClick={async () => {
-              if (confirm('Are you sure you want to log out from this device?')) {
+              if (await showConfirm('Are you sure you want to log out from this device?')) {
                 const { logoutUser } = await import('@/lib/auth');
                 await logoutUser();
               }

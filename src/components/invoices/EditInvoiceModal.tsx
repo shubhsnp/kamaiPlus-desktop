@@ -1,4 +1,5 @@
 'use client';
+import { showAlert } from '@/lib/ui/dialogs';
 
 import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/db';
@@ -213,18 +214,18 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
   const handleSaveInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
     if (items.length === 0) {
-      alert('Invoice must have at least 1 item.');
+      showAlert('Invoice must have at least 1 item.');
       return;
     }
     if (sale.status === 'returned' || sale.status === 'partial_return') {
-      alert('This bill has a sales return against it, so it cannot be edited. The return already adjusted stock and khata.');
+      showAlert('This bill has a sales return against it, so it cannot be edited. The return already adjusted stock and khata.');
       return;
     }
     const requestedNumber = invoiceNumber.trim();
     if (requestedNumber && requestedNumber !== sale.invoice_number) {
       const clash = await db.sales.where('invoice_number').equals(requestedNumber).first();
       if (clash && clash.id !== sale.id) {
-        alert(`Invoice number ${requestedNumber} is already used by another bill.`);
+        showAlert(`Invoice number ${requestedNumber} is already used by another bill.`);
         return;
       }
     }
@@ -354,7 +355,7 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
       onClose();
     } catch (err: any) {
       console.error('Error saving edited invoice:', err);
-      alert('Failed to save invoice changes. Please try again.');
+      showAlert('Failed to save invoice changes. Please try again.');
     } finally {
       setIsSaving(false);
     }

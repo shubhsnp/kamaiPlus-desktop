@@ -1,4 +1,5 @@
 'use client';
+import { showAlert } from '@/lib/ui/dialogs';
 
 import React, { useState, useRef } from 'react';
 import {
@@ -65,7 +66,7 @@ export function PurchaseInwardOptionsSheet({
       const rawRows = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet, { defval: '' });
 
       if (rawRows.length === 0) {
-        alert('The uploaded spreadsheet contains no data rows.');
+        showAlert('The uploaded spreadsheet contains no data rows.');
         return;
       }
 
@@ -105,7 +106,7 @@ export function PurchaseInwardOptionsSheet({
       }
 
       if (items.length === 0) {
-        alert('Could not find item names in the file. Please check column headers.');
+        showAlert('Could not find item names in the file. Please check column headers.');
         return;
       }
 
@@ -124,7 +125,7 @@ export function PurchaseInwardOptionsSheet({
       onClose();
     } catch (err: any) {
       console.error('CSV parse error:', err);
-      alert('Failed to read CSV/Excel file. Please check format.');
+      showAlert('Failed to read CSV/Excel file. Please check format.');
     } finally {
       setIsProcessing(false);
       setProcessingStatus('');

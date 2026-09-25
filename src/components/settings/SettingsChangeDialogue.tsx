@@ -1,4 +1,5 @@
 'use client';
+import { showConfirm } from '@/lib/ui/dialogs';
 
 import React, { useState } from 'react';
 import { 
@@ -297,8 +298,8 @@ export function SettingsReviewModal({
         <div className="p-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-2.5">
           <button
             type="button"
-            onClick={() => {
-              if (confirm('Discard all pending changes and restore previous settings?')) {
+            onClick={async () => {
+              if (await showConfirm('Discard all pending changes and restore previous settings?', { danger: true, confirmLabel: 'Discard' })) {
                 onDiscard();
                 onClose();
               }

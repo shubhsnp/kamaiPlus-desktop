@@ -1,4 +1,5 @@
 'use client';
+import { showAlert } from '@/lib/ui/dialogs';
 
 import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/db';
@@ -62,13 +63,13 @@ export const SalesReturnModal: React.FC<SalesReturnModalProps> = ({
     if (found) {
       handleSelectSale(found);
     } else {
-      alert(`Invoice #${searchInvoice} not found.`);
+      showAlert(`Invoice #${searchInvoice} not found.`);
     }
   };
 
   const handleSelectSale = async (sale: Sale) => {
     if (isEstimate(sale)) {
-      alert('This is an estimate / quotation — nothing was sold, so there is nothing to return.');
+      showAlert('This is an estimate / quotation — nothing was sold, so there is nothing to return.');
       return;
     }
     const previous = await db.sales_returns.where('original_sale_id').equals(sale.id).toArray();
@@ -98,7 +99,7 @@ export const SalesReturnModal: React.FC<SalesReturnModalProps> = ({
     if (!selectedSale || totalRefundPaise <= 0) return;
     const needsCustomer = refundMethod === 'khata_deduction' || refundMethod === 'store_credit';
     if (needsCustomer && !selectedSale.customer_id) {
-      alert('Store credit / khata adjustment needs a customer on the bill. Choose Cash or UPI refund for a walk-in sale.');
+      showAlert('Store credit / khata adjustment needs a customer on the bill. Choose Cash or UPI refund for a walk-in sale.');
       return;
     }
 
@@ -236,7 +237,7 @@ export const SalesReturnModal: React.FC<SalesReturnModalProps> = ({
       }
     } catch (err) {
       console.error('Failed to process sales return:', err);
-      alert('Return processing failed. Nothing was changed.');
+      showAlert('Return processing failed. Nothing was changed.');
     } finally {
       setIsProcessing(false);
     }

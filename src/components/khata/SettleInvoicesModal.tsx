@@ -1,4 +1,5 @@
 'use client';
+import { showAlert } from '@/lib/ui/dialogs';
 
 import React, { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/Modal';
@@ -64,7 +65,7 @@ export function SettleInvoicesModal({
     const totalSettlementPaise = enteredPayPaise + enteredDiscPaise;
 
     if (totalSettlementPaise <= 0) {
-      alert('Please enter a valid payment amount greater than ₹0.');
+      showAlert('Please enter a valid payment amount greater than ₹0.');
       return;
     }
 
@@ -158,7 +159,7 @@ export function SettleInvoicesModal({
       onClose();
     } catch (err: any) {
       console.error('Failed to settle invoices:', err);
-      alert(`Error settling invoices: ${err?.message || 'Unknown error'}`);
+      showAlert(`Error settling invoices: ${err?.message || 'Unknown error'}`);
     } finally {
       setIsSubmitting(false);
     }

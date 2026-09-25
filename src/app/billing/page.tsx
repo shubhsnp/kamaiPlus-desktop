@@ -1,4 +1,5 @@
 'use client';
+import { showAlert } from '@/lib/ui/dialogs';
 
 import React, { useState, useEffect } from 'react';
 import { db, ensureStarterBusinessIfEmpty, seedBusinessStarterData } from '@/lib/db';
@@ -625,7 +626,7 @@ export default function BillingPage() {
       addToCart(updatedProduct, billQty);
     } catch (err) {
       console.error('Failed to quick restock from POS:', err);
-      alert('Failed to restock item. Please check inventory.');
+      showAlert('Failed to restock item. Please check inventory.');
     }
   };
 
@@ -778,7 +779,7 @@ export default function BillingPage() {
     const unitPricePaise = Math.round((parseFloat(editItemPrice) || 0) * 100);
 
     if (isNaN(qty) || qty <= 0 || isNaN(unitPricePaise) || unitPricePaise < 0) {
-      alert('Please enter valid numeric values.');
+      showAlert('Please enter valid numeric values.');
       return;
     }
 
@@ -794,7 +795,7 @@ export default function BillingPage() {
 
     const product = products.find((p) => p.id === editingCartItem.product_id);
     if (product && !product.is_unlimited_stock && qty > product.current_stock) {
-      alert(`Entered quantity (${qty}) exceeds available stock (${product.current_stock}).`);
+      showAlert(`Entered quantity (${qty}) exceeds available stock (${product.current_stock}).`);
       return;
     }
 
@@ -1274,7 +1275,7 @@ export default function BillingPage() {
       }
     } catch (saleErr) {
       console.error('Sale completion encountered an error:', saleErr);
-      alert('Encountered an unexpected error completing the sale. Please verify inventory.');
+      showAlert('Encountered an unexpected error completing the sale. Please verify inventory.');
     }
   };
 

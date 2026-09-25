@@ -1,4 +1,5 @@
 'use client';
+import { showConfirm } from '@/lib/ui/dialogs';
 
 import dynamic from 'next/dynamic';
 
@@ -141,7 +142,7 @@ export default function CashRegisterPage() {
   };
 
   const handleDeleteExpense = async (id: string) => {
-    if (confirm('Are you sure you want to delete this cash expense?')) {
+    if (await showConfirm('Are you sure you want to delete this cash expense?', { danger: true, confirmLabel: 'Delete' })) {
       await db.cash_expenses.delete(id);
     }
   };

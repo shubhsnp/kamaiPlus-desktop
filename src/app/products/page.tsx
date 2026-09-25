@@ -1,4 +1,5 @@
 'use client';
+import { showConfirm } from '@/lib/ui/dialogs';
 
 import React, { useState, useMemo, useEffect } from 'react';
 import dynamic from 'next/dynamic';
@@ -349,7 +350,7 @@ export default function ProductsPage() {
     const question = variantCount
       ? `Delete "${name}" and its ${variantCount} variants?`
       : `Are you sure you want to delete "${name}"?`;
-    if (confirm(question)) {
+    if (await showConfirm(question, { danger: true, confirmLabel: 'Delete' })) {
       if (product) await deleteProductAndVariants(product);
       else await db.products.delete(id);
       setIsModalOpen(false);

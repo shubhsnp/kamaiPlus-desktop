@@ -1,4 +1,5 @@
 'use client';
+import { showConfirm } from '@/lib/ui/dialogs';
 
 import React, { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -45,7 +46,7 @@ export default function SuppliersPage() {
   const selected = suppliers.find((s) => s.id === selectedId) || null;
 
   const handleDelete = async (s: Supplier) => {
-    if (!confirm(`Delete supplier "${s.name}"? Their account history stays in your records.`)) return;
+    if (!await showConfirm(`Delete supplier "${s.name}"? Their account history stays in your records.`, { danger: true, confirmLabel: 'Delete' })) return;
     const res = await deleteSupplier(s.id);
     if (!res.ok) return showToast(res.error || 'Could not delete.', false);
     setSelectedId(null);

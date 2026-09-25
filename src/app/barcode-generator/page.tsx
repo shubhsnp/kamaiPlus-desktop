@@ -1,4 +1,5 @@
 'use client';
+import { showAlert } from '@/lib/ui/dialogs';
 
 import React, { useState, useMemo, useRef } from 'react';
 import { db } from '@/lib/db';
@@ -287,7 +288,7 @@ export default function BarcodeGeneratorPage() {
 
       await bluetoothPrinter.sendRawBytes(enc.getBytes());
     } catch (err: any) {
-      alert(err.message || 'Bluetooth label printing failed.');
+      showAlert(err.message || 'Bluetooth label printing failed.');
     }
   };
 

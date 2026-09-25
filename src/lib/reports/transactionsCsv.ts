@@ -1,3 +1,4 @@
+import { showAlert } from '@/lib/ui/dialogs';
 import { Sale } from '@/types';
 
 /**
@@ -5,7 +6,7 @@ import { Sale } from '@/types';
  */
 export function exportTransactionsCSV(sales: Sale[]): void {
   if (sales.length === 0) {
-    alert('No transactions to export.');
+    showAlert('No transactions to export.');
     return;
   }
 

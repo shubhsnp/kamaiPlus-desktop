@@ -1,4 +1,5 @@
 'use client';
+import { showAlert } from '@/lib/ui/dialogs';
 
 import React, { useState } from 'react';
 import { db } from '@/lib/db';
@@ -101,7 +102,7 @@ export function BillScanReviewModal({
   // Confirm and inward into Dexie
   const handleConfirmInward = async () => {
     if (items.length === 0) {
-      alert('No items to inward. Please add at least one line item.');
+      showAlert('No items to inward. Please add at least one line item.');
       return;
     }
 
@@ -217,7 +218,7 @@ export function BillScanReviewModal({
       onSuccess(purchaseBillId, updatedCount, createdCount);
     } catch (err: any) {
       console.error('Failed to confirm bill inward:', err);
-      alert('Error recording purchase bill: ' + (err.message || 'Unknown error'));
+      showAlert('Error recording purchase bill: ' + (err.message || 'Unknown error'));
     } finally {
       setIsSaving(false);
     }

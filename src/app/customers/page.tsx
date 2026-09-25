@@ -1,4 +1,5 @@
 'use client';
+import { showConfirm } from '@/lib/ui/dialogs';
 
 import React, { useState } from 'react';
 import { db } from '@/lib/db';
@@ -124,7 +125,7 @@ export default function CustomersPage() {
   };
 
   const handleDeleteCustomer = async (id: string, customerName: string) => {
-    if (!window.confirm(`Are you sure you want to delete customer "${customerName}"?`)) {
+    if (!await showConfirm(`Are you sure you want to delete customer "${customerName}"?`, { danger: true, confirmLabel: 'Delete' })) {
       return;
     }
     await db.customers.delete(id);

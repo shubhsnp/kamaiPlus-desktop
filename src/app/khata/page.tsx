@@ -1,4 +1,5 @@
 'use client';
+import { showConfirm } from '@/lib/ui/dialogs';
 
 import React, { useState, useEffect, Suspense } from 'react';
 import dynamic from 'next/dynamic';
@@ -405,7 +406,7 @@ function KhataContent() {
   // Delete Transaction
   const handleDeleteTx = async (txId: string) => {
     if (!selectedCustomer) return;
-    if (!window.confirm('Are you sure you want to delete this ledger entry?')) return;
+    if (!await showConfirm('Are you sure you want to delete this ledger entry?', { danger: true, confirmLabel: 'Delete' })) return;
 
     await db.ledger_transactions.delete(txId);
     await recalculateCustomerBalance(selectedCustomer.id);

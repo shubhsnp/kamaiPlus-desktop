@@ -1,4 +1,5 @@
 'use client';
+import { showAlert } from '@/lib/ui/dialogs';
 
 import React, { useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
@@ -149,7 +150,7 @@ export function ExcelInventoryImporter({
       const rawRows = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet, { defval: '' });
 
       if (rawRows.length === 0) {
-        alert('The uploaded spreadsheet contains no data rows.');
+        showAlert('The uploaded spreadsheet contains no data rows.');
         setIsProcessing(false);
         return;
       }
@@ -209,7 +210,7 @@ export function ExcelInventoryImporter({
       });
     } catch (err: any) {
       console.error('Spreadsheet parse error:', err);
-      alert('Failed to read spreadsheet. Please ensure it is a valid .xlsx, .xls or .csv file.');
+      showAlert('Failed to read spreadsheet. Please ensure it is a valid .xlsx, .xls or .csv file.');
     } finally {
       setIsProcessing(false);
     }
@@ -231,7 +232,7 @@ export function ExcelInventoryImporter({
   const handleCommitImport = async () => {
     const validRows = parsedItems.filter((r) => r.isValid);
     if (validRows.length === 0) {
-      alert('No valid items found to import.');
+      showAlert('No valid items found to import.');
       return;
     }
 
@@ -273,7 +274,7 @@ export function ExcelInventoryImporter({
       onImportComplete?.(newProducts.length);
     } catch (err: any) {
       console.error('Import commit error:', err);
-      alert('Failed to commit items to local database.');
+      showAlert('Failed to commit items to local database.');
     } finally {
       setIsImporting(false);
     }
