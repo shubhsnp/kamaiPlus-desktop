@@ -33,6 +33,14 @@ const DEV_URL = 'http://localhost:3000';
 const hasExport = fs.existsSync(path.join(OUT_DIR, 'index.html'));
 const isDevServer = process.argv.includes('--dev') || !hasExport;
 
+// Electron end-to-end test (scripts/electron_e2e.mjs): keep the test's shop data,
+// licence and backups in a throw-away folder, never the real ones. Unpackaged
+// runs only — the installed app ignores this. The licence is still checked.
+if (process.env.KAMAI_E2E_DIR && !app.isPackaged) {
+  app.setPath('userData', path.join(process.env.KAMAI_E2E_DIR, 'userData'));
+  app.setPath('documents', path.join(process.env.KAMAI_E2E_DIR, 'documents'));
+}
+
 // ── Performance: safe GPU rendering without buggy zero-copy driver deadlocks ──
 app.commandLine.appendSwitch('enable-gpu-rasterization');
 

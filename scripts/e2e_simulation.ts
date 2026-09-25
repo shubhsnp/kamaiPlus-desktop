@@ -748,6 +748,14 @@ assert(
 );
 assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (now ${billingSrc.split('\n').length})`);
 
+// 8s. The Electron E2E data folder hook can never redirect an installed shop's data,
+// and no update-publisher lock is set before a signed build exists (Bible §2.2).
+{
+  const mainJsSrc = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+  assert(/if \(process\.env\.KAMAI_E2E_DIR && !app\.isPackaged\)/.test(mainJsSrc) && (mainJsSrc.match(/KAMAI_E2E_DIR/g) || []).length === 3, 'KAMAI_E2E_DIR (test data folder) is honoured only by unpackaged runs');
+  assert(pkgJson.scripts?.['test:electron'] === 'node scripts/electron_e2e.mjs' && !JSON.stringify(pkgJson.build?.win || {}).includes('publisherName'), 'Electron E2E script is wired up; no publisherName until the first signed release');
+}
+
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.
 const PRO_OR_AI = /useProSubscription|requirePro|UpgradeModal|ProFeatureBadge|subscriptionService|razorpay|generativelanguage\.googleapis|gemini/i;
 const proOrAiOffenders = ALL_SOURCE.filter((f) => PRO_OR_AI.test(fs.readFileSync(f, 'utf8')));

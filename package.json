@@ -1,6 +1,6 @@
 {
   "name": "kamai-plus-desktop",
-  "version": "4.56.0",
+  "version": "4.57.0",
   "private": true,
   "description": "KamaiPlus Desktop Application",
   "scripts": {
@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "test:e2e": "npx tsx scripts/e2e_simulation.ts",
+    "test:electron": "node scripts/electron_e2e.mjs",
     "version:bump": "npx tsx scripts/bump_version.ts",
     "electron": "electron . --dev",
     "electron:prod": "electron .",
@@ -46,6 +47,7 @@
     "jspdf": "^4.2.1",
     "lucide-react": "^0.475.0",
     "next": "^16.3.1",
+    "playwright-core": "^1.63.0",
     "postcss": "^8.5.2",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",

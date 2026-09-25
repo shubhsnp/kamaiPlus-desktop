@@ -204,6 +204,28 @@ npm run release:publish
 `prepare_release.js` never wipes `release/`; it deletes only installers that neither
 yml points at. `release/` is not in git — publish from the machine that holds it.
 
+**Code signing — not yet (needs a purchased certificate).** Installers are unsigned,
+so Windows SmartScreen shows "Windows protected your PC → More info → Run anyway" and
+some antivirus tools flag new versions. Nothing in the repo has to change to sign:
+electron-builder signs every `.exe` it builds when a certificate is supplied through
+the environment, and skips signing (as today) when it is not.
+
+1. Buy an OV code-signing certificate in the company name (EV only if the budget
+   allows — it builds SmartScreen reputation faster). Since 2023 the private key must
+   live on a hardware token or a cloud HSM, so pick a CA whose delivery works with
+   `signtool` on this PC (cloud signing service or USB token + its driver).
+2. Build with the certificate in the environment — never in `package.json` or git:
+   - `.pfx` file: `CSC_LINK=<path to .pfx>` and `CSC_KEY_PASSWORD=<password>`.
+   - Token / cloud HSM: follow the CA's `signtool` instructions and set
+     `win.signtoolOptions` (`certificateSubjectName` or `certificateSha1`) to pick the
+     certificate from the Windows store.
+3. Check: right-click the installer → Properties → Digital Signatures shows the
+   company name.
+4. **Only after the first signed version is live**, add
+   `win.signtoolOptions.publisherName` (exact certificate subject CN). electron-updater
+   then refuses any update not signed by that publisher. Adding it earlier — or letting
+   the certificate lapse later — makes every shop reject every update.
+
 ### 2.3 Automatic local backup (v4.46.0)
 
 Cloud sync is off (§12 #7), so the shop's own disk is the only safety net.
@@ -662,13 +684,32 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 305/305, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 326/326, 0 failures
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
 git push origin main
 ```
 
-### Test suite map — `scripts/e2e_simulation.ts` (305 assertions)
+Before a **release** (and after touching main.js, licence, login, onboarding or
+billing), also run the real app:
+
+```bash
+npx next build                      # out/ must be current
+npm run test:electron               # scripts/electron_e2e.mjs — 17/17
+```
+
+`electron_e2e.mjs` launches the actual Electron app with Playwright (`playwright-core`,
+no browser download) and checks: no licence / forged licence → activation screen only;
+signed licence → master password → store setup → sell one starter item → one cash bill
+in paise, stock −1, no page errors; restart → still licensed offline, data kept, error
+log empty. Its data goes to a temp folder via `KAMAI_E2E_DIR` (main.js honours it only
+when `!app.isPackaged`). The licence is **signed for this PC with the private key** in
+`%USERPROFILE%\KamaiPlus-Secrets\` (or `KAMAI_LICENCE_PRIVATE_KEY`) — nothing is
+bypassed; without the key only the no-licence checks run. The script removes
+`ELECTRON_RUN_AS_NODE` (set by VS Code terminals), which otherwise stops Electron
+launching. Failure screenshots go to `%TEMP%\kamaiplus-e2e-shots\`.
+
+### Test suite map — `scripts/e2e_simulation.ts` (326 assertions)
 
 | Suite | Covers |
 | :--- | :--- |
@@ -749,6 +790,14 @@ Recorded so the next agent does not rediscover them. None are fixed as of v4.38.
 8. ~~Every bill read the whole `sales` table~~ — **fixed in v4.43.0**, see §10 #17.
 
 9. ~~Dashboard statically imported Firebase~~ — **fixed in v4.43.0**, see §10 #18.
+
+10. **The master password is not asked when the app restarts.** Found by
+    `electron_e2e.mjs` (v4.57.0): the signed-in user stays in localStorage
+    (`getStoredUser()`), so closing and reopening the app goes straight to the
+    dashboard; the password is asked only after Logout. Anyone at the counter PC can
+    open the shop's books. Not changed yet — a lock on launch (and optionally after
+    idle) is a product decision for the owner. The E2E restart step already handles a
+    password prompt if one is added.
 
 ---
 
