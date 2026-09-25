@@ -340,6 +340,10 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
             : undefined,
         amount_received: estimate ? 0 : enteredReceivedPaise,
         balance_due: balanceDuePaise,
+        // A bill already part-settled from khata keeps its counter udhar, shifted by this edit only.
+        balance_due_at_sale: sale.balance_due_at_sale !== undefined
+          ? Math.max(0, sale.balance_due_at_sale + (balanceDuePaise - (sale.balance_due || 0)))
+          : undefined,
         change_returned: changeReturnedPaise,
         payment_status: estimate ? 'unpaid' : balanceDuePaise === 0 ? 'paid' : balanceDuePaise < grandTotalPaise ? 'partial' : 'unpaid',
         notes: notes.trim() || undefined,

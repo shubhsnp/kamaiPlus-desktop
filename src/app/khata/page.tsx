@@ -5,6 +5,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import { db } from '@/lib/db';
 import { localDateKey } from '@/lib/reports/cashDrawer';
+import { allocatePaymentToOpenBills, undoBillAllocations } from '@/lib/khata/billAllocationDb';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useBusiness } from '@/components/layout/BusinessProvider';
 import { useTranslation } from '@/lib/i18n';
@@ -290,6 +291,11 @@ function KhataContent() {
       ? currentBal + amountPaise
       : currentBal - amountPaise;
 
+    // A payment clears the customer's unpaid bills, oldest first.
+    const billAllocations = entryType === 'PAYMENT_RECEIVED'
+      ? await allocatePaymentToOpenBills(selectedCustomer.id, amountPaise, now)
+      : undefined;
+
     const newTx: LedgerTransaction = {
       id: `ledg_${Date.now()}`,
       business_id: business?.id || 'biz_default',
@@ -301,6 +307,7 @@ function KhataContent() {
       payment_method: entryType === 'PAYMENT_RECEIVED' ? entryPaymentMode : undefined,
       notes: entryNotes.trim() || undefined,
       balance_after: balanceAfter,
+      bill_allocations: billAllocations && billAllocations.length ? billAllocations : undefined,
       created_at: txDate,
       sync_status: 'synced',
     };
@@ -392,10 +399,18 @@ function KhataContent() {
     const newAmountPaise = Math.round(parseFloat(editTxAmount || '0') * 100);
     if (!newAmountPaise || newAmountPaise <= 0) return;
 
+    // Undo what the old entry cleared on bills, then clear bills for the new amount.
+    const now = new Date().toISOString();
+    await undoBillAllocations(editingTx.bill_allocations, now);
+    const billAllocations = editTxType === 'PAYMENT_RECEIVED'
+      ? await allocatePaymentToOpenBills(selectedCustomer.id, newAmountPaise, now)
+      : [];
+
     await db.ledger_transactions.update(editingTx.id, {
       amount: newAmountPaise,
       transaction_type: editTxType,
       notes: editTxNotes.trim() || undefined,
+      bill_allocations: billAllocations.length ? billAllocations : undefined,
     });
 
     await recalculateCustomerBalance(selectedCustomer.id);
@@ -408,6 +423,9 @@ function KhataContent() {
     if (!selectedCustomer) return;
     if (!await showConfirm('Are you sure you want to delete this ledger entry?', { danger: true, confirmLabel: 'Delete' })) return;
 
+    // A deleted payment no longer pays the bills it had cleared.
+    const tx = await db.ledger_transactions.get(txId);
+    await undoBillAllocations(tx?.bill_allocations, new Date().toISOString());
     await db.ledger_transactions.delete(txId);
     await recalculateCustomerBalance(selectedCustomer.id);
     showToast('Deleted ledger entry');

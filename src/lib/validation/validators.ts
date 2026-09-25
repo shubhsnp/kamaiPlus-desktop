@@ -242,11 +242,12 @@ export function validateProductData(input: ProductValidationInput): ValidationRe
   }
 
   // 6. Tax Rate Slab Check
-  const validTaxRates = [0, 0.25, 3, 5, 12, 18, 28];
+  // 40% is the luxury / sin-goods slab from the 22 Sep 2025 rate change; 12% and 28% stay valid for older items.
+  const validTaxRates = [0, 0.25, 3, 5, 12, 18, 28, 40];
   if (input.taxRate !== undefined && !validTaxRates.includes(input.taxRate)) {
     return {
       isValid: false,
-      error: `GST Rate must be an official Indian GST slab (0%, 3%, 5%, 12%, 18%, or 28%).`,
+      error: `GST Rate must be an official Indian GST slab (0%, 0.25%, 3%, 5%, 18% or 40%; 12% / 28% for older items).`,
     };
   }
 

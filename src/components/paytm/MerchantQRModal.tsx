@@ -59,6 +59,14 @@ export const MerchantQRModal: React.FC<MerchantQRModalProps> = ({
     }
   }, [isOpen, upiLink]);
 
+  // Esc closes it, like every other dialog in the app.
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
 

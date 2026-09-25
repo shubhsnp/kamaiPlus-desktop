@@ -48,6 +48,8 @@ interface AddEditProductModalProps {
   setFormMinStock: (val: string) => void;
   formBarcode: string;
   setFormBarcode: (val: string) => void;
+  formHsn: string;
+  setFormHsn: (val: string) => void;
 
   formSize: string;
   setFormSize: (val: string) => void;
@@ -95,6 +97,8 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
   setFormMinStock,
   formBarcode,
   setFormBarcode,
+  formHsn,
+  setFormHsn,
 
   formSize,
   setFormSize,
@@ -249,8 +253,8 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
           </div>
         </div>
 
-        {/* Barcode & GST Rate */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* Barcode, HSN & GST Rate */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
@@ -272,6 +276,20 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
             />
           </div>
 
+          {/* HSN / SAC: printed on GST invoices and grouped in the GSTR-1 HSN summary */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+              HSN / SAC Code
+            </label>
+            <Input
+              placeholder="e.g. 3401"
+              inputMode="numeric"
+              maxLength={8}
+              value={formHsn}
+              onChange={(e) => setFormHsn(e.target.value.replace(/\D/g, ''))}
+            />
+          </div>
+
           <div>
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
               GST Tax Rate (%)
@@ -281,11 +299,14 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
               onChange={(e) => setFormTaxRate(Number(e.target.value))}
               className="w-full h-10 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-sky-500"
             >
+              {/* Slabs since the 22 Sep 2025 GST rate change; 12% / 28% kept for items still billed at the old rate. */}
               <option value={0}>0% (Exempt / Nil Rated)</option>
-              <option value={5}>5% (Essential Goods)</option>
-              <option value={12}>12% (Standard FMCG / Apparel)</option>
-              <option value={18}>18% (General Retail / Hardware)</option>
-              <option value={28}>28% (Luxury / Electronics)</option>
+              <option value={3}>3% (Gold / Silver / Jewellery)</option>
+              <option value={5}>5% (Essential / Daily Use)</option>
+              <option value={18}>18% (Standard Rate)</option>
+              <option value={40}>40% (Luxury / Sin Goods)</option>
+              <option value={12}>12% (old slab)</option>
+              <option value={28}>28% (old slab)</option>
             </select>
           </div>
         </div>

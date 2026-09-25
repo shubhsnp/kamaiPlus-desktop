@@ -1,7 +1,7 @@
 'use client';
 import { showAlert } from '@/lib/ui/dialogs';
 
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   FileSpreadsheet,
   PackagePlus,
@@ -46,6 +46,14 @@ export function PurchaseInwardOptionsSheet({
   } | null>(null);
 
   const csvInputRef = useRef<HTMLInputElement>(null);
+
+  // Esc closes the options sheet (the review modal handles Esc itself).
+  useEffect(() => {
+    if (!isOpen || reviewData || isProcessing) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, reviewData, isProcessing, onClose]);
 
   if (!isOpen && !reviewData) return null;
 

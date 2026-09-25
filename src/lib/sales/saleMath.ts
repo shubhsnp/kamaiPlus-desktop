@@ -132,7 +132,9 @@ export function getSalePaymentBreakdown(sale: Sale): PaymentBreakdown {
     };
   }
 
-  const credit = Math.min(grand, Math.max(0, sale.balance_due || 0));
+  // What was left on udhar at the counter. A later khata payment is khata cash on
+  // its own day (cashDrawer.ts), never a cash sale on the bill's date.
+  const credit = Math.min(grand, Math.max(0, sale.balance_due_at_sale ?? sale.balance_due ?? 0));
   const paid = grand - credit;
   switch (sale.payment_method) {
     case 'upi':

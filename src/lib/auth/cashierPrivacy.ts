@@ -2,18 +2,25 @@
 
 const PIN_STORAGE_KEY = 'kamai_cashier_owner_pin';
 const PRIVACY_MODE_KEY = 'kamai_cashier_privacy_locked';
-const DEFAULT_PIN = '1234';
 
-/**
- * Gets the current Owner PIN (defaults to 1234)
+/*
+ * There is no default PIN. A built-in "1234" (printed on the PIN screen) let any
+ * staff member see profit and cost prices. The owner now sets the PIN — and can
+ * reset it — with the master password (OwnerPinSetup).
  */
+
+/** The owner's PIN, or '' when none has been set yet. */
 export function getOwnerCashierPin(): string {
-  if (typeof window === 'undefined') return DEFAULT_PIN;
+  if (typeof window === 'undefined') return '';
   try {
-    return localStorage.getItem(PIN_STORAGE_KEY) || DEFAULT_PIN;
+    return localStorage.getItem(PIN_STORAGE_KEY) || '';
   } catch {
-    return DEFAULT_PIN;
+    return '';
   }
+}
+
+export function hasOwnerPin(): boolean {
+  return getOwnerCashierPin().length === 4;
 }
 
 /**
@@ -58,5 +65,5 @@ export function setProfitHidden(hidden: boolean) {
  */
 export function verifyOwnerPin(enteredPin: string): boolean {
   const currentPin = getOwnerCashierPin();
-  return enteredPin.trim() === currentPin.trim();
+  return currentPin.length === 4 && enteredPin.trim() === currentPin;
 }

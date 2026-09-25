@@ -3,6 +3,7 @@ import { showAlert } from '@/lib/ui/dialogs';
 
 import React, { useState } from 'react';
 import { db } from '@/lib/db';
+import { generalCategoryId } from '@/lib/products/defaultCategory';
 import { Product, PurchaseBill, PurchaseBillLineItem, ProductUnit } from '@/types';
 import { formatINR, parseRupeesToPaise } from '@/lib/utils';
 import { 
@@ -159,7 +160,7 @@ export function BillScanReviewModal({
           await db.products.put({
             id: newProdId,
             business_id: businessId,
-            category_id: 'cat_general',
+            category_id: generalCategoryId(await db.categories.toArray()),
             name: item.raw_name.trim(),
             unit: (item.unit as ProductUnit) || 'piece',
             selling_price: item.selling_price || Math.round(item.unit_price * 1.25),

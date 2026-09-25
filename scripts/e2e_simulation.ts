@@ -59,9 +59,13 @@ import {
   getNetPaymentBreakdown,
   getReturnedQtyByLine,
   getSaleNetTotal,
+  getSalePaymentBreakdown,
   isRevenueSale,
 } from '../src/lib/sales/saleMath';
 import { computeDrawerSummary, localDateKey } from '../src/lib/reports/cashDrawer';
+import { makeEmptyTab, tabsAfterClosing } from '../src/lib/billing/billTabs';
+import { applyPaymentToBill, openBillsOldestFirst, planBillAllocation } from '../src/lib/khata/billAllocation';
+import { generalCategoryId } from '../src/lib/products/defaultCategory';
 import { nextSupplierBalance } from '../src/lib/suppliers/supplierLedger';
 import { cleanVariantLabels, summarizeVariants, tracksOwnStock } from '../src/lib/products/variants';
 import {
@@ -784,6 +788,65 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(!/hsn_code: r\.hsn_code \|\| '1905'/.test(importSrc), 'Excel import never invents an HSN code');
   const custSrc = readSource('app/customers/page.tsx');
   assert(/notes: 'Balance corrected in customer details'/.test(custSrc), 'A balance changed in customer details is written to the khata ledger');
+}
+
+// 8w. Live A–Z audit (v4.61.0) — every fix below was found by driving the real app.
+{
+  // (a) A finished bill leaves nothing behind, and the next bill is never a held one.
+  const held = { ...makeEmptyTab('t_held', 1), isHeld: true, cart: [{ product_id: 'x' } as any] };
+  const done = { ...makeEmptyTab('t_done', 2), selectedCustomerId: 'c1', paymentMethod: 'split' as const, splitCash: '90', billDiscountType: 'percentage' as const, billDiscountValue: '10' };
+  const after1 = tabsAfterClosing([held, done], 't_done', 't_new');
+  const fresh = after1.tabs.find((t) => t.id === after1.activeTabId)!;
+  assert(after1.activeTabId === 't_new' && fresh.cart.length === 0 && fresh.selectedCustomerId === '' && fresh.paymentMethod === 'cash' && !fresh.splitCash && !fresh.billDiscountValue && after1.tabs.find((t) => t.id === 't_held')!.cart.length === 1,
+    'After a sale the next bill is blank (no customer, discount, split) and a held bill is never reused');
+  const waiting = makeEmptyTab('t_wait', 3);
+  const after2 = tabsAfterClosing([held, done, waiting], 't_done', 't_new');
+  assert(after2.activeTabId === 't_wait' && after2.tabs.length === 2, 'After a sale an open (not held) bill is shown next');
+  const after3 = tabsAfterClosing([done], 't_done', 't_new');
+  assert(after3.tabs.length === 1 && after3.tabs[0].tabNumber === 1 && after3.tabs[0].cart.length === 0, 'Single bill: completing it leaves one blank bill');
+  const billingPos = readSource('app/billing/page.tsx');
+  assert(!/onNewBill=\{\(\) => \{[\s\S]{0,300}setCart\(\[\]\)/.test(billingPos), '"New Bill" after a sale never clears the cart of the bill now on screen');
+
+  // (b) Khata payments clear bills oldest-first and are never counted twice in the drawer.
+  const mkSale = (id: string, at: string, due: number) => ({ id, customer_id: 'c1', created_at: at, grand_total: due, balance_due: due, amount_received: 0, payment_method: 'credit', status: 'completed', invoice_number: id } as any);
+  const bills = [mkSale('s2', '2026-09-02', 12000), mkSale('s1', '2026-09-01', 5000)];
+  const plan = planBillAllocation(openBillsOldestFirst(bills, 'c1'), 7000);
+  assert(plan.length === 2 && plan[0].sale_id === 's1' && plan[0].amount === 5000 && plan[1].amount === 2000, 'A ₹70 khata payment clears the oldest bill (₹50) first, then ₹20 of the next');
+  const paid = applyPaymentToBill(bills[0], 2000, '2026-09-03');
+  const bd = getSalePaymentBreakdown(paid);
+  assert(paid.balance_due === 10000 && paid.payment_status === 'partial' && bd.credit === 12000 && bd.cash === 0, 'A later khata payment is not turned into a cash sale on the bill date (no double count in the drawer)');
+  const undone = applyPaymentToBill(paid, -2000, '2026-09-04');
+  assert(undone.balance_due === 12000 && undone.payment_status === 'unpaid' && undone.amount_received === 0, 'Deleting a khata payment puts the bill back to unpaid');
+  const khataSrc = readSource('app/khata/page.tsx');
+  const settleSrc = readSource('components/khata/SettleInvoicesModal.tsx');
+  assert(/allocatePaymentToOpenBills\(/.test(khataSrc) && (khataSrc.match(/undoBillAllocations\(/g) || []).length >= 2 && /balance_due_at_sale: sale\.balance_due_at_sale \?\? currentSaleDue/.test(settleSrc),
+    'Khata payment / edit / delete and Settle Invoices keep bills and the drawer consistent');
+
+  // (c) No default owner PIN ("1234" used to be printed on the PIN screen).
+  const privacySrc = readSource('lib/auth/cashierPrivacy.ts') + readSource('components/privacy/CashierPinModal.tsx') + readSource('components/privacy/OwnerPinPrompt.tsx');
+  assert(!/DEFAULT_PIN|Default PIN is|Default is 1234/.test(privacySrc) && /verifyMasterPassword/.test(readSource('components/privacy/OwnerPinSetup.tsx')), 'There is no default owner PIN; the owner sets / resets it with the master password');
+
+  // (d) Every custom overlay closes with Esc.
+  for (const f of ['components/paytm/MerchantQRModal.tsx', 'components/billing/RapidScanMode.tsx', 'components/layout/GlobalDrawers.tsx', 'components/purchases/PurchaseInwardOptionsSheet.tsx']) {
+    assert(/'Escape'/.test(readSource(f)), `${f.split('/').pop()} closes with Esc`);
+  }
+
+  // (e) No Tailwind class that does not exist (pl-8.5 put search icons on top of the text).
+  const badSpacing = ALL_SOURCE.filter((f) => /\b(p|px|py|pl|pr|pt|pb|m|mx|my|ml|mr|mt|mb|gap|w|h|top|left|right|bottom)-(4|5|6|7|8|9|10|11|12)\.5\b/.test(fs.readFileSync(f, 'utf8')));
+  assert(badSpacing.length === 0, `No non-existent Tailwind half-step spacing classes${badSpacing.length ? ': ' + badSpacing.join(', ') : ''}`);
+
+  // (f) No file saved in the wrong encoding (₹ turned into "â‚¹" once already).
+  const mojibake = ALL_SOURCE.filter((f) => /â‚¹|â€”|â€™|Ã©|ðŸ/.test(fs.readFileSync(f, 'utf8')));
+  assert(mojibake.length === 0, `No source file has broken characters (wrong encoding)${mojibake.length ? ': ' + mojibake.join(', ') : ''}`);
+
+  // (g) Products land in the real "General" category; HSN can be entered; current GST slabs.
+  assert(generalCategoryId([{ id: 'cat_x', name: 'FMCG' }, { id: 'cat_123_0', name: 'General' }]) === 'cat_123_0' && !/category_id: 'cat_general'/.test(readSource('app/billing/page.tsx') + readSource('app/products/page.tsx') + readSource('components/purchases/BillScanReviewModal.tsx')),
+    'New products go into the shop\'s real "General" category (not a missing id)');
+  const productForm = readSource('components/products/AddEditProductModal.tsx');
+  assert(/HSN \/ SAC Code/.test(productForm) && /hsn_code: formHsn\.trim\(\) \|\| undefined/.test(readSource('app/products/page.tsx')), 'The product form takes an HSN / SAC code');
+  assert(/<option value=\{40\}>/.test(productForm) && /<option value=\{3\}>/.test(productForm) && validateProductData({ name: 'Premium Cigar Box', sellingPricePaise: 45000, mrpPaise: 50000, purchasePricePaise: 40000, currentStock: 20, minStockLevel: 5, taxRate: 40 }).isValid,
+    'GST slabs include 3% and the 40% slab (22 Sep 2025 rates)');
+  assert(!/8 popular items for General Retail/.test(readSource('app/onboarding/page.tsx')), 'Onboarding describes the starter catalogue it really adds');
 }
 
 // 8v. Page changes stay inside the app: the app:// handler serves Next.js RSC

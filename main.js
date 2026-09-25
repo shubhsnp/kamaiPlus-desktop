@@ -72,6 +72,13 @@ const MIME_TYPES = {
 function resolveExportFile(urlPath) {
   const rel = decodeURIComponent(urlPath).replace(/^\/+/, '').replace(/\/+$/, '');
   const candidates = rel === '' ? ['index.html'] : [rel, `${rel}.html`, path.join(rel, 'index.html')];
+  // Link prefetch asks for "khata/__next.khata.__PAGE__.txt"; the export stores
+  // it as "khata/__next.khata/__PAGE__.txt" (one folder per route segment).
+  const seg = path.basename(rel).match(/^__next\.(.+)\.txt$/);
+  if (seg) {
+    const parts = seg[1].split('.');
+    if (parts.length > 1) candidates.push(path.join(path.dirname(rel), `__next.${parts[0]}`, ...parts.slice(1)) + '.txt');
+  }
   for (const candidate of candidates) {
     const full = path.normalize(path.join(OUT_DIR, candidate));
     if (!full.startsWith(OUT_DIR)) continue;

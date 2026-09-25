@@ -25,6 +25,14 @@ export const GlobalDrawers: React.FC = () => {
     setIsHistoryOpen(false);
   }, [pathname]);
 
+  // Esc closes the history drawer (an open bill preview handles Esc itself).
+  useEffect(() => {
+    if (!isHistoryOpen || selectedSaleForInvoice) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setIsHistoryOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isHistoryOpen, selectedSaleForInvoice]);
+
   const business = useBusiness();
   
   const recentSales = useLiveQuery(async () => {

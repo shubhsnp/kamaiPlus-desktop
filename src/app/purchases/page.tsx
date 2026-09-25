@@ -232,7 +232,9 @@ export default function PurchasesPage() {
               <span>Recent Inward Orders &amp; Bills</span>
             </div>
             <span className="text-[11px] font-mono text-slate-500">
-              {purchaseBills.length} bills recorded
+              {purchaseBills.length > 0 || recentMovements.length === 0
+                ? `${purchaseBills.length} bills recorded`
+                : `${recentMovements.length} stock inward${recentMovements.length === 1 ? '' : 's'}`}
             </span>
           </h3>
 

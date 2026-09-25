@@ -382,7 +382,7 @@ export default function OnboardingPage() {
                     Pre-load starter product catalog
                   </span>
                   <span className="text-[10.5px] text-slate-400 block leading-tight mt-0.5">
-                    Automatically seeds 8 popular items for General Retail with standard prices.
+                    Adds 10 sample products (fireworks) with prices and stock — edit or delete them anytime.
                   </span>
                 </div>
               </label>

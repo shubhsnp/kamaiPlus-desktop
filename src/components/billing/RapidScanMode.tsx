@@ -114,6 +114,16 @@ export const RapidScanMode: React.FC<RapidScanModeProps> = ({
     }
   };
 
+  // Esc closes the scanner (and stops the camera), like every other dialog.
+  const closeRef = useRef(handleClose);
+  closeRef.current = handleClose;
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeRef.current(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (

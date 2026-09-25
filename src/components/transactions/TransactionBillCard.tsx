@@ -102,7 +102,7 @@ export const TransactionBillCard: React.FC<TransactionBillCardProps> = ({
       </div>
 
       {/* Bottom Row: Timestamp + Items (Left) ... Status + Quick Actions (Right) */}
-      <div className="flex items-center justify-between gap-2 mt-1.5 pl-10.5 text-[11px]">
+      <div className="flex items-center justify-between gap-2 mt-1.5 pl-11 text-[11px]">
         <div className="text-slate-400 flex items-center gap-1.5 truncate min-w-0 flex-1">
           <span className="whitespace-nowrap font-medium text-slate-500 dark:text-slate-400">
             {new Date(sale.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}, {new Date(sale.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}

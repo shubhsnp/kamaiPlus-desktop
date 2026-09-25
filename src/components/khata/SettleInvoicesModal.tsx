@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Sale, Customer, Business, LedgerTransaction } from '@/types';
+import { Sale, Customer, Business, LedgerTransaction, BillAllocation } from '@/types';
 import { formatINR } from '@/lib/utils';
 import { db } from '@/lib/db';
 import { cloudMerge } from '@/lib/firebase/lazyCloud';
@@ -78,6 +78,7 @@ export function SettleInvoicesModal({
       // 1. Allocate settlement amount across selected invoices (in order)
       let remainingSettlement = totalSettlementPaise;
       let remainingPaymentForAllocation = enteredPayPaise;
+      const billAllocations: BillAllocation[] = [];
 
       for (const sale of selectedSales) {
         if (remainingSettlement <= 0) break;
@@ -92,6 +93,8 @@ export function SettleInvoicesModal({
 
         const updatedSale: Sale = {
           ...sale,
+          // Keep the counter's udhar: this payment is khata cash today, not a cash sale on the bill's date.
+          balance_due_at_sale: sale.balance_due_at_sale ?? currentSaleDue,
           amount_received: newAmountReceived,
           balance_due: newBalanceDue,
           payment_status: newPaymentStatus,
@@ -107,6 +110,7 @@ export function SettleInvoicesModal({
           void cloudMerge(`businesses/${businessId}/sales/${sale.id}`, updatedSale);
         }
 
+        if (allocatedForThisSale > 0) billAllocations.push({ sale_id: sale.id, amount: allocatedForThisSale });
         remainingSettlement -= allocatedForThisSale;
         remainingPaymentForAllocation = Math.max(0, remainingPaymentForAllocation - allocatedPaidCash);
       }
@@ -138,6 +142,7 @@ export function SettleInvoicesModal({
         payment_method: paymentMode,
         balance_after: updatedCustomerBalance,
         reference_id: selectedSales.map((s) => s.id).join(','),
+        bill_allocations: billAllocations.length ? billAllocations : undefined,
         notes: noteDetails,
         created_at: txDate,
         sync_status: 'synced',

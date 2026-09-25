@@ -260,7 +260,14 @@ export interface Sale {
   payment_method: PaymentMethod;
   payment_split?: PaymentSplit;
   amount_received: number; // in paise
-  balance_due: number; // in paise (added to Udhar Khata)
+  balance_due: number; // in paise (added to Udhar Khata) — what is still owed now
+  /**
+   * Udhar left on the bill when it was sold. Set the first time a later khata
+   * payment settles the bill, so the day's payment split (cash drawer, reports)
+   * keeps what happened at the counter instead of counting the later payment as
+   * a cash sale on the bill's date (the payment is counted as khata cash on its own day).
+   */
+  balance_due_at_sale?: number; // in paise
   change_returned: number; // in paise
   payment_status: PaymentStatus;
   status: SaleStatus;
@@ -326,8 +333,15 @@ export interface LedgerTransaction {
   reference_id?: string;
   notes?: string;
   balance_after: number; // in paise
+  /** Bills this payment cleared (oldest first), so deleting / editing it can undo that. */
+  bill_allocations?: BillAllocation[];
   created_at: string;
   sync_status?: 'synced' | 'pending';
+}
+
+export interface BillAllocation {
+  sale_id: string;
+  amount: number; // in paise
 }
 
 export interface CashRegister {

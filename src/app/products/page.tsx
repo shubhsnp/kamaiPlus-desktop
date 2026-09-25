@@ -4,6 +4,7 @@ import { showConfirm } from '@/lib/ui/dialogs';
 import React, { useState, useMemo, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { db } from '@/lib/db';
+import { generalCategoryId } from '@/lib/products/defaultCategory';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useBusiness } from '@/components/layout/BusinessProvider';
 import { useDebounce } from 'use-debounce';
@@ -94,6 +95,7 @@ export default function ProductsPage() {
   const [formStock, setFormStock] = useState('');
   const [formMinStock, setFormMinStock] = useState('5');
   const [formBarcode, setFormBarcode] = useState('');
+  const [formHsn, setFormHsn] = useState('');
   const [formIsFavorite, setFormIsFavorite] = useState(false);
 
   // Dynamic Store Specific Attributes
@@ -195,6 +197,7 @@ export default function ProductsPage() {
     setFormStock('0');
     setFormMinStock('5');
     setFormBarcode('');
+    setFormHsn('');
     setFormIsFavorite(false);
 
     setFormSize('');
@@ -221,6 +224,7 @@ export default function ProductsPage() {
     setFormStock(p.current_stock.toString());
     setFormMinStock((p.min_stock_level || 5).toString());
     setFormBarcode(p.barcode || '');
+    setFormHsn(p.hsn_code || '');
     setFormIsFavorite(Boolean(p.is_favorite));
 
     setFormSize(p.size || '');
@@ -257,10 +261,13 @@ export default function ProductsPage() {
 
     const now = new Date().toISOString();
 
+    const categoryId = formCategory || generalCategoryId(categories);
     const productPayload: Omit<Product, 'id'> = {
       business_id: business?.id || 'biz_default',
       name: formName.trim(),
-      category_id: formCategory || 'cat_general',
+      category_id: categoryId,
+      // Shown on the POS card and in reports; kept in step with the chosen category.
+      category_name: categories.find((c) => c.id === categoryId)?.name || 'General',
       unit: formUnit,
       selling_price: sellingPricePaise,
       purchase_price: purchasePricePaise,
@@ -273,6 +280,7 @@ export default function ProductsPage() {
       current_stock: stockNum,
       min_stock_level: minStockNum,
       barcode: formBarcode.trim() || undefined,
+      hsn_code: formHsn.trim() || undefined,
 
       size: formSize.trim() || undefined,
       color: formColor.trim() || undefined,
@@ -538,6 +546,8 @@ export default function ProductsPage() {
         setFormMinStock={setFormMinStock}
         formBarcode={formBarcode}
         setFormBarcode={setFormBarcode}
+        formHsn={formHsn}
+        setFormHsn={setFormHsn}
 
         formSize={formSize}
         setFormSize={setFormSize}

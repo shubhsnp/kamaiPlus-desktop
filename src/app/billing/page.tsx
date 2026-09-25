@@ -87,9 +87,10 @@ const InvoiceModal = dynamic(
 import { PosItemEditModal } from '@/components/billing/PosItemEditModal';
 import { VariantPickerModal } from '@/components/billing/VariantPickerModal';
 import { PosProductCard } from '@/components/billing/PosProductCard';
+import { generalCategoryId } from '@/lib/products/defaultCategory';
 import { BillingToast, BillingToastData, FullscreenUpiQrModal, QuickAddCustomerModal, QuickAddScannedProductModal } from '@/components/billing/PosDialogs';
 import { CashTenderPanel, SplitPaymentPanel, UpiQrCard } from '@/components/billing/PosPaymentPanels';
-import { BillTab, getInitialTabs, TABS_STORAGE_KEY } from '@/lib/billing/billTabs';
+import { BillTab, getInitialTabs, makeEmptyTab, tabsAfterClosing, TABS_STORAGE_KEY } from '@/lib/billing/billTabs';
 
 
 export default function BillingPage() {
@@ -191,19 +192,7 @@ export default function BillingPage() {
   const handleCreateNewTab = () => {
     const nextNum = (tabs.reduce((max, t) => Math.max(max, t.tabNumber), 0) || tabs.length) + 1;
     const newTabId = `tab_${Date.now()}`;
-    const newTab: BillTab = {
-      id: newTabId,
-      tabNumber: nextNum,
-      cart: [],
-      selectedCustomerId: '',
-      paymentMethod: 'cash',
-      amountReceivedInput: '',
-      splitCash: '',
-      splitUpi: '',
-      splitCard: '',
-      splitCredit: '',
-      isHeld: false,
-    };
+    const newTab: BillTab = makeEmptyTab(newTabId, nextNum);
     setTabs((prev) => [...prev, newTab]);
     setActiveTabId(newTabId);
   };
@@ -228,27 +217,17 @@ export default function BillingPage() {
     e.stopPropagation();
     if (tabs.length === 1) {
       // Reset single tab
-      setTabs([{
-        id: 'tab_1',
-        tabNumber: 1,
-        cart: [],
-        selectedCustomerId: '',
-        paymentMethod: 'cash',
-        amountReceivedInput: '',
-        splitCash: '',
-        splitUpi: '',
-        splitCard: '',
-        splitCredit: '',
-        isHeld: false,
-      }]);
+      setTabs([makeEmptyTab('tab_1', 1)]);
       setActiveTabId('tab_1');
       return;
     }
 
-    const remaining = tabs.filter((t) => t.id !== tabId);
-    setTabs(remaining);
     if (activeTabId === tabId) {
-      setActiveTabId(remaining[0].id);
+      const next = tabsAfterClosing(tabs, tabId, `tab_${Date.now()}`);
+      setTabs(next.tabs);
+      setActiveTabId(next.activeTabId);
+    } else {
+      setTabs(tabs.filter((t) => t.id !== tabId));
     }
   };
 
@@ -747,8 +726,8 @@ export default function BillingPage() {
       id: prodId,
       business_id: businessId,
       name: quickAddName.trim(),
-      category_id: 'cat_general',
-      category_name: 'General Store',
+      category_id: generalCategoryId(categories),
+      category_name: 'General',
       unit: 'packet',
       purchase_price: 0, // unknown until the shopkeeper enters it — never guessed
       selling_price: pricePaise,
@@ -1123,15 +1102,11 @@ export default function BillingPage() {
       }
       setIsMobileCartOpen(false);
 
-      // 7. Remove completed tab or reset if single
-      if (tabs.length > 1) {
-        const remainingTabs = tabs.filter((t) => t.id !== activeTabId);
-        setTabs(remainingTabs);
-        setActiveTabId(remainingTabs[0].id);
-      } else {
-        setCart([]);
-        setAmountReceivedInput('');
-      }
+      // 7. The finished bill goes away completely; the next customer starts on a
+      // waiting (not held) bill or a blank one — no leftover customer, discount or split.
+      const next = tabsAfterClosing(tabs, activeTabId, `tab_${Date.now()}`);
+      setTabs(next.tabs);
+      setActiveTabId(next.activeTabId);
     } catch (saleErr) {
       console.error('Sale completion encountered an error:', saleErr);
       showAlert('Encountered an unexpected error completing the sale. Please verify inventory.');
@@ -2186,11 +2161,10 @@ export default function BillingPage() {
             setActiveSaleForInvoice(null);
           }}
           onNewBill={() => {
+            // The finished bill was already cleared when it was saved. Do not touch
+            // the cart here: the tab now on screen may be another customer's bill.
             setIsInvoiceModalOpen(false);
             setActiveSaleForInvoice(null);
-            setCart([]);
-            setAmountReceivedInput('');
-            setSelectedCustomerId('');
           }}
           sale={activeSaleForInvoice}
           business={business || null}

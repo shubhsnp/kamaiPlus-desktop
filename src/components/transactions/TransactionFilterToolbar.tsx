@@ -75,7 +75,7 @@ export const TransactionFilterToolbar: React.FC<TransactionFilterToolbarProps> =
             placeholder="Search invoice #, customer, phone, or item..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full bg-slate-50 dark:bg-slate-800 hover:bg-white dark:hover:bg-slate-800/80 focus:bg-white dark:focus:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:border-slate-800 dark:focus:border-slate-300 rounded-xl pl-8.5 pr-8 py-2 text-xs text-slate-900 dark:text-slate-100 font-medium placeholder:text-slate-400 focus:outline-none transition shadow-2xs"
+            className="w-full bg-slate-50 dark:bg-slate-800 hover:bg-white dark:hover:bg-slate-800/80 focus:bg-white dark:focus:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:border-slate-800 dark:focus:border-slate-300 rounded-xl pl-9 pr-8 py-2 text-xs text-slate-900 dark:text-slate-100 font-medium placeholder:text-slate-400 focus:outline-none transition shadow-2xs"
           />
           {searchQuery && (
             <button

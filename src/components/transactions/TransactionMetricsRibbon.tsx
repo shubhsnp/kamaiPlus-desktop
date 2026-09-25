@@ -73,7 +73,8 @@ export const TransactionMetricsRibbon: React.FC<TransactionMetricsRibbonProps> =
           <div className="flex items-center justify-between text-[10.5px] sm:text-[11px] font-bold text-amber-800 dark:text-amber-400 uppercase tracking-wider">
             <span className="flex items-center gap-1">
               <BookOpen className="w-3 h-3 text-amber-600 dark:text-amber-400" />
-              <span>Credit Due</span>
+              {/* Udhar given on these bills at the counter; what is still owed is on each bill and in Khata. */}
+              <span>Udhar Given</span>
             </span>
           </div>
           <div className="text-base sm:text-lg font-black text-amber-900 dark:text-amber-300 font-mono mt-0.5 leading-tight truncate">
