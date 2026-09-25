@@ -18,6 +18,15 @@ export interface DesktopResult {
   error?: string;
 }
 
+/** Offline licence check result from `licence.js` in the Electron main process. */
+export type LicenceStatus =
+  | { state: 'active'; key: string; shopName: string; machineName: string; dev?: boolean }
+  | { state: 'required'; machineName: string; reason?: string };
+
+export type LicenceActivationResult =
+  | { ok: true; status: LicenceStatus }
+  | { ok: false; error: string };
+
 export interface KamaiDesktopApi {
   isDesktop: true;
   printToPdf(opts: { html: string; fileName: string; folder: 'Invoices' | 'Reports' | 'Statements' }): Promise<DesktopResult>;
@@ -26,6 +35,8 @@ export interface KamaiDesktopApi {
   openPath(path: string): Promise<DesktopResult>;
   showItemInFolder(path: string): Promise<DesktopResult>;
   getAppInfo(): Promise<{ version: string; documentsDir: string }>;
+  getLicenceStatus(): Promise<LicenceStatus>;
+  activateLicence(key: string): Promise<LicenceActivationResult>;
 }
 
 declare global {

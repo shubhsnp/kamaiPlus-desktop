@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { I18nProvider } from '@/lib/i18n';
 import { AppShell } from '@/components/layout/AppShell';
+import { LicenceGate } from '@/components/licence/LicenceGate';
 
 import { PWAInstallBanner } from '@/components/pwa/PWAInstallBanner';
 
@@ -43,10 +44,12 @@ export default function RootLayout({
 
       <body>
         <I18nProvider>
-          <AppShell>
-            {children}
-          </AppShell>
-          <PWAInstallBanner />
+          <LicenceGate>
+            <AppShell>
+              {children}
+            </AppShell>
+            <PWAInstallBanner />
+          </LicenceGate>
         </I18nProvider>
       </body>
     </html>

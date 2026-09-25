@@ -4,6 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { pathToFileURL } = require('url');
+const licence = require('./licence');
 
 /**
  * KamaiPlus desktop shell.
@@ -341,6 +342,23 @@ ipcMain.handle('kp:show-in-folder', async (_event, target) => {
 });
 
 ipcMain.handle('kp:app-info', async () => ({ version: app.getVersion(), documentsDir: documentsRoot() }));
+
+// ---------------------------------------------------------------------------
+// Licence (one-time purchase, one key = one computer) — see licence.js
+// ---------------------------------------------------------------------------
+
+ipcMain.handle('kp:licence-status', async () =>
+  licence.getStatus({ userDataDir: app.getPath('userData'), dev: isDevServer })
+);
+
+ipcMain.handle('kp:licence-activate', async (_event, key) =>
+  licence.activate({
+    userDataDir: app.getPath('userData'),
+    key,
+    appVersion: app.getVersion(),
+    fetchImpl: (url, opts) => net.fetch(url, opts),
+  })
+);
 
 // ---------------------------------------------------------------------------
 // Lifecycle — one instance only, so two windows never fight over the local database.

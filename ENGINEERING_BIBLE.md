@@ -52,8 +52,8 @@ Three non-negotiable product truths:
 **Business model (since v4.43.0):** the desktop app is sold to a shop for a fixed,
 one-time price. Every feature is unlocked — there are **no Pro tiers, no in-app
 payments / Razorpay and no AI scan** in this app. Suite 9 §8 fails the build if a
-Pro gate, upgrade modal or Gemini call comes back. (A licence-key activation is
-planned; until it lands there is no gate at all.)
+Pro gate, upgrade modal or Gemini call comes back. **Since v4.44.0 every copy needs a
+licence key** (one key = one computer, no trial) — see §2.1.
 
 ### Verified stack
 
@@ -106,9 +106,44 @@ Defined in `main.js` (`ipcMain.handle`), exposed in `preload.js`, typed in
 | `kp:open-path` | `openPath(target)` | Opens a saved file — **only inside `Documents/KamaiPlus`** |
 | `kp:show-in-folder` | `showItemInFolder(target)` | Same path restriction |
 | `kp:app-info` | `getAppInfo()` | `{version, documentsDir}` |
+| `kp:licence-status` | `getLicenceStatus()` | Offline licence check (§2.1) → `{state:'active',…}` or `{state:'required', machineName, reason?}` |
+| `kp:licence-activate` | `activateLicence(key)` | One-time online activation (§2.1) → `{ok, status}` or `{ok:false, error}` |
 
 `getDesktopApi()` returns `null` in a plain browser, and every caller must fall back to
 the browser print dialog. Do not assume Electron.
+
+### 2.1 Licence (v4.44.0) — one key = one computer, no trial
+
+```
+Admin Console (KamaiPlus Android repo, admin_console/) → Desktop Licences
+   creates desktop_licences/{KPD-XXXX-XXXX-XXXX-XXXX}   (admin-only in firestore.rules)
+        │  key sent to the shop
+        ▼
+<LicenceGate> (src/components/licence/LicenceGate.tsx) wraps AppShell in layout.tsx
+   └─ kp:licence-status → licence.js getStatus()        OFFLINE, every launch
+        no valid licence.json → activation screen, nothing else opens
+   └─ kp:licence-activate → licence.js activate()        ONLINE, once
+        POST https://us-central1-kamaiplus.cloudfunctions.net/desktopLicence
+             { action:'activate', key, machine_id, machine_name, app_version }
+        server (functions/licence_core.js) binds key → machine in a transaction,
+        returns { licence: base64url(JSON), signature } signed with Ed25519
+        licence.js verifies with LICENCE_PUBLIC_KEY, writes <userData>/licence.json
+```
+
+- **Machine id** = SHA-256 of Windows `MachineGuid` (fallback: hostname + CPU + RAM).
+  Survives app updates and reinstalls; changes with a Windows reinstall → admin uses
+  "Move to a new computer" in the console.
+- **Verification is in the main process** (`licence.js`), not the page. The payload must
+  be signed by the server key **and** name this machine, so copying or editing
+  `licence.json` fails.
+- **Dev:** `electron . --dev` (or no `out/` build) and a plain browser skip the gate.
+- **Private key** is the Firebase secret `DESKTOP_LICENCE_SIGNING_KEY`; it is in no repo.
+  Rotating it means shipping a new `LICENCE_PUBLIC_KEY` and re-activating every PC —
+  don't.
+- Revoking a key in the console stops **new** activations only; a PC that already
+  activated keeps working offline (a consequence of offline use, accepted).
+- `licence.js` must stay in `package.json` → `build.files`, or the installer ships
+  without it and the app cannot start.
 
 ---
 
@@ -116,6 +151,7 @@ the browser print dialog. Do not assume Electron.
 
 ```
 main.js / preload.js        Electron shell + IPC bridge
+licence.js                  Licence check + one-time activation (main process, §2.1)
 next.config.js              output:'export', images.unoptimized, TS errors NOT ignored
 src/app/<route>/page.tsx    19 routes (§4)
 src/app/layout.tsx          RootLayout → I18nProvider → AppShell → PWAInstallBanner
@@ -125,7 +161,7 @@ src/components/<feature>/   Feature components, one folder per domain
 src/components/ui/          Button, Card, Input, Modal  (that is all of it)
 src/lib/<domain>/           Engines — see table below
 src/types/index.ts          All domain types. Single file.
-scripts/e2e_simulation.ts   The test suite (§11). 263 assertions.
+scripts/e2e_simulation.ts   The test suite (§11). 268 assertions.
 scripts/bump_version.ts     Version bumper (+0.1 minor)
 public/barcodes/*.json      5 shipped offline barcode dictionaries
 ```
@@ -500,13 +536,13 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 263/263, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 268/268, 0 failures
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
 git push origin main
 ```
 
-### Test suite map — `scripts/e2e_simulation.ts` (263 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (268 assertions)
 
 | Suite | Covers |
 | :--- | :--- |

@@ -632,6 +632,17 @@ assert(/filteredSales\.slice\(0, visibleCount\)/.test(readSource('app/transactio
 assert(/useMemo\(/.test(readSource('components/transactions/useTransactionFilters.ts')), 'Transaction filters are memoised, not recomputed on every render');
 assert(!/db\.sales\.orderBy\('created_at'\)\.reverse\(\)\.toArray\(\)/.test(readSource('app/khata/page.tsx')), 'Khata loads only the selected customer\'s bills');
 
+// 8f. Licence gate (one key = one computer, no trial). Nothing may open without it.
+const layoutSrc = readSource('app/layout.tsx');
+assert(/<LicenceGate>\s*<AppShell>/.test(layoutSrc), 'LicenceGate wraps the whole AppShell (no screen opens unlicensed)');
+const licenceJs = fs.readFileSync(path.join(__dirname, '..', 'licence.js'), 'utf8');
+assert(/-----BEGIN PUBLIC KEY-----/.test(licenceJs) && !/PRIVATE KEY/.test(licenceJs), 'licence.js ships only the public key');
+assert(/crypto\.verify\(/.test(licenceJs) && /payload\.machine_id !== getMachineId\(\)/.test(licenceJs), 'licence.js verifies the signature AND the machine id');
+const pkgJson = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+assert((pkgJson.build?.files || []).includes('licence.js'), 'licence.js is packaged into the installer (build.files)');
+const gateSrc = readSource('components/licence/LicenceGate.tsx');
+assert(!/localStorage/.test(gateSrc), 'The licence decision never comes from localStorage (main process only)');
+
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.
 const PRO_OR_AI = /useProSubscription|requirePro|UpgradeModal|ProFeatureBadge|subscriptionService|razorpay|generativelanguage\.googleapis|gemini/i;
 const proOrAiOffenders = ALL_SOURCE.filter((f) => PRO_OR_AI.test(fs.readFileSync(f, 'utf8')));
