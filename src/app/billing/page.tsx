@@ -60,8 +60,6 @@ import { useHardwareBarcodeScanner } from '@/lib/hardware/barcodeScannerListener
 import { CustomerSearchAutocomplete } from '@/components/customers/CustomerSearchAutocomplete';
 import { Sale } from '@/types';
 
-import { paymentBridge } from '@/lib/payments/paymentBridge';
-import { ParsedPaymentEvent } from '@/lib/payments/notificationParser';
 import { cloudMerge, cloudSyncSoon, cloudTrackInvoice, prewarmCloud } from '@/lib/firebase/lazyCloud';
 import { getDesktopApi } from '@/lib/desktop/desktopBridge';
 import { resolveInvoiceConfig } from '@/lib/invoices/themeDefaults';
@@ -84,10 +82,6 @@ const HardwareManagerModal = dynamic(
 );
 const InvoiceModal = dynamic(
   () => import('@/components/invoices/InvoiceModal').then((m) => m.InvoiceModal),
-  { ssr: false }
-);
-const PaymentCelebrationModal = dynamic(
-  () => import('@/components/payments/PaymentCelebrationModal').then((m) => m.PaymentCelebrationModal),
   { ssr: false }
 );
 import { PosItemEditModal } from '@/components/billing/PosItemEditModal';
@@ -431,10 +425,6 @@ export default function BillingPage() {
   const [posQrDataUrl, setPosQrDataUrl] = useState<string>('');
   const [isEnlargeQrModalOpen, setIsEnlargeQrModalOpen] = useState<boolean>(false);
   const [selectedUpiIndex, setSelectedUpiIndex] = useState<number>(0);
-
-  // Real-Time Payment Bridge & Celebration States
-  const [celebrationPayment, setCelebrationPayment] = useState<ParsedPaymentEvent | null>(null);
-  const [isCelebrationOpen, setIsCelebrationOpen] = useState<boolean>(false);
 
   const [isSeedingProducts, setIsSeedingProducts] = useState(false);
 
@@ -993,35 +983,11 @@ export default function BillingPage() {
     }
   }, [business, grandTotalPaise, paymentMethod, splitUpi, selectedUpiIndex]);
 
-  // Live Payment Bridge: Automatically matches incoming UPI payments with active cart amount
-  useEffect(() => {
-    if (cart.length === 0) return;
+  // No automatic "payment received → complete sale" on desktop. The Android app reads
+  // UPI notifications; a PC cannot, and the only thing that ever fed this path here was
+  // a "Test Pay Received" button that saved the bill as UPI-paid with no money received.
 
-    const unsubscribe = paymentBridge.subscribe((incomingPayment) => {
-      // Calculate target payable amount for UPI
-      let targetPaise = grandTotalPaise;
-      if (paymentMethod === 'split') {
-        const splitUpiPaise = splitUpi ? Math.round(parseFloat(splitUpi) * 100) : 0;
-        if (splitUpiPaise > 0) targetPaise = splitUpiPaise;
-      }
-
-      // Check if incoming payment matches active cart amount
-      if (incomingPayment.amountPaise === targetPaise) {
-        // 1. Open Top-Tier Celebration Modal
-        setCelebrationPayment(incomingPayment);
-        setIsCelebrationOpen(true);
-
-        // 3. Complete sale automatically
-        handleCompleteSale(incomingPayment);
-      }
-    });
-
-    return () => {
-      unsubscribe();
-    };
-  }, [cart, grandTotalPaise, paymentMethod, splitUpi, business, selectedCustomer, products]);
-
-  const handleCompleteSale = async (explicitPayment?: ParsedPaymentEvent) => {
+  const handleCompleteSale = async () => {
     if (cart.length === 0) return;
 
     // Resolve target customer reliably from state or Dexie
@@ -1047,17 +1013,13 @@ export default function BillingPage() {
 
       const finalInvoiceNumber = invoiceNumber;
 
-      let finalMethod: PaymentMethod = explicitPayment ? 'upi' : paymentMethod;
+      const finalMethod: PaymentMethod = paymentMethod;
       let receivedPaise = 0;
       let balanceDuePaise = 0;
       let changeReturnedPaise = 0;
       let paymentSplitData: any = undefined;
 
-      if (explicitPayment) {
-        receivedPaise = grandTotalPaise;
-        balanceDuePaise = 0;
-        changeReturnedPaise = 0;
-      } else if (paymentMethod === 'split') {
+      if (paymentMethod === 'split') {
         const cashP = splitCash ? Math.round(parseFloat(splitCash) * 100) : 0;
         const upiP = splitUpi ? Math.round(parseFloat(splitUpi) * 100) : 0;
         const cardP = splitCard ? Math.round(parseFloat(splitCard) * 100) : 0;
@@ -1106,9 +1068,6 @@ export default function BillingPage() {
         change_returned: changeReturnedPaise,
         payment_status: balanceDuePaise === 0 ? 'paid' : balanceDuePaise < grandTotalPaise ? 'partial' : 'unpaid',
         status: 'completed',
-        notes: explicitPayment?.referenceNumber
-          ? `UPI Ref / UTR: ${explicitPayment.referenceNumber} (${explicitPayment.sourceApp})`
-          : undefined,
         created_by: 'owner',
         created_at: now,
         updated_at: now,
@@ -1840,10 +1799,12 @@ export default function BillingPage() {
               <button
                 type="button"
                 onClick={() => {
-                  const half = Math.round(grandTotalPaise / 200);
-                  const rem = Math.round((grandTotalPaise - half * 100) / 100);
-                  setSplitCash(half.toString());
-                  setSplitUpi(rem.toString());
+                  // Split in paise so the two halves always add up to the bill exactly
+                  // (rounding each half to whole rupees overcharged odd totals like ₹101.50).
+                  const cashPaise = Math.floor(grandTotalPaise / 2);
+                  const upiPaise = grandTotalPaise - cashPaise;
+                  setSplitCash((cashPaise / 100).toFixed(2));
+                  setSplitUpi((upiPaise / 100).toFixed(2));
                   setSplitCard('0');
                   setSplitCredit('0');
                 }}
@@ -2003,18 +1964,6 @@ export default function BillingPage() {
                   >
                     <QrCode className="w-3 h-3 text-slate-700" />
                     <span>Fullscreen 📺</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const simAmt = (paymentMethod === 'split' ? Math.round(parseFloat(splitUpi || '0') * 100) : grandTotalPaise) / 100;
-                      paymentBridge.simulatePayment(simAmt, 'Rahul Sharma', 'PhonePe');
-                    }}
-                    className="px-2 py-1 rounded bg-emerald-100 hover:bg-emerald-200 text-emerald-950 font-bold text-[10.5px] inline-flex items-center gap-1 cursor-pointer transition shadow-2xs"
-                    title="Simulate incoming PhonePe / Bank SMS payment"
-                  >
-                    <Sparkles className="w-3 h-3 text-emerald-700" />
-                    <span>⚡ Test Pay Received</span>
                   </button>
                 </div>
               </div>
@@ -2692,25 +2641,6 @@ export default function BillingPage() {
           </div>
         </div>
       </Modal>
-
-      {/* Top-Tier Payment Celebration Modal */}
-      {celebrationPayment && (
-        <PaymentCelebrationModal
-          isOpen={isCelebrationOpen}
-          onClose={() => {
-            setIsCelebrationOpen(false);
-            setCelebrationPayment(null);
-          }}
-          payment={celebrationPayment}
-          storeName={business?.name || 'Your Store'}
-          invoiceNumber={activeSaleForInvoice?.invoice_number}
-          onPrintReceipt={() => {
-            if (activeSaleForInvoice) {
-              setIsInvoiceModalOpen(true);
-            }
-          }}
-        />
-      )}
 
       {/* Floating In-App Toast Notification */}
       {billingToast && (

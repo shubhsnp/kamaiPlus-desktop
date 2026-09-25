@@ -731,6 +731,14 @@ const prepSrc = fs.readFileSync(path.join(__dirname, 'prepare_release.js'), 'utf
 assert(Boolean(pkgJson.scripts?.['release:beta']?.includes('--beta')) && Boolean(pkgJson.scripts?.['release:promote']?.includes('--promote')), 'release:beta and release:promote scripts exist');
 assert(!/rmSync\(release,/.test(prepSrc) && /keep\.has\(f\)/.test(prepSrc), 'Preparing a release never wipes release/; only unreferenced installers are removed');
 
+// 8q. A bill is marked paid only by the cashier — never by a simulated payment.
+assert(!/simulatePayment|paymentBridge|Test Pay Received/.test(billingSrc.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')), 'POS has no "Test Pay Received" / simulated-payment path that saves a bill as UPI-paid');
+assert(/const handleCompleteSale = async \(\) =>/.test(billingSrc), 'Complete Sale takes no argument (a click event can never be read as a payment)');
+{
+  const total = 10150; const cash = Math.floor(total / 2); const upi = total - cash;
+  assert(cash + upi === total && /Math\.floor\(grandTotalPaise \/ 2\)/.test(billingSrc), '50/50 split preset adds up to the bill to the paisa (₹101.50 → ₹50.75 + ₹50.75)');
+}
+
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.
 const PRO_OR_AI = /useProSubscription|requirePro|UpgradeModal|ProFeatureBadge|subscriptionService|razorpay|generativelanguage\.googleapis|gemini/i;
 const proOrAiOffenders = ALL_SOURCE.filter((f) => PRO_OR_AI.test(fs.readFileSync(f, 'utf8')));
