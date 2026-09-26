@@ -82,6 +82,8 @@ import { generateGSTR1Report, getStateName } from '../src/lib/gst/gstr1Generator
 import { SUPPORT_EMAIL, SUPPORT_PHONE_DIGITS, supportEmailUrl, supportWhatsAppUrl } from '../src/lib/support/contact';
 import { DEFAULT_IDLE_LOCK_MINUTES, parseIdleLockMinutes, safeReturnPath, shouldIdleLock } from '../src/lib/auth/idleLock';
 import { buildGstr1Json, gstPeriodRange } from '../src/lib/gst/gstr1Json';
+import { CHANGELOG, WHATS_NEW_BASELINE, compareVersions, unseenReleases } from '../src/lib/whatsNew/changelog';
+import { APP_VERSION } from '../src/lib/constants/version';
 
 let totalTests = 0;
 let passedTests = 0;
@@ -961,6 +963,22 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(/const destination = unlockDestination\(\);[\s\S]{0,200}router\.replace\(destination\)/.test(readSource('components/auth/AuthForm.tsx')), 'The password screen reads the saved page before the shell clears it (no bounce to Home)');
   const idleSrc = readSource('components/layout/IdleLock.tsx');
   assert(/'keydown'/.test(idleSrc) && /'pointerdown'/.test(idleSrc) && /shouldIdleLock\(last, Date\.now\(\), minutes\)/.test(idleSrc), 'Keyboard, scanner and mouse use keep the app open; the check uses the clock (locks after PC sleep too)');
+}
+
+// 9a. "What's new" (v4.67.0): shown once after an update, never to a brand-new shop,
+// always reachable from the status-bar version and Help & Support.
+{
+  assert(compareVersions('4.10.0', '4.9.0') > 0 && compareVersions('4.67.0', '4.67.0') === 0 && compareVersions('4.6', '4.6.0') === 0, 'Versions compare by number (4.10 is newer than 4.9)');
+  const versions = CHANGELOG.map((r) => r.version);
+  assert(versions.every((v, i) => i === 0 || compareVersions(versions[i - 1], v) > 0) && CHANGELOG.every((r) => r.items.length > 0) && compareVersions(versions[0], APP_VERSION) <= 0,
+    'Changelog is newest first, no duplicates, no empty release, nothing newer than the app');
+  const fromOld = unseenReleases(null, '4.67.0').map((r) => r.version);
+  assert(fromOld.length > 0 && fromOld.every((v) => compareVersions(v, WHATS_NEW_BASELINE) > 0) && !fromOld.includes('4.61.0'), 'A shop updating from before "What\'s new" sees the releases since 4.62');
+  assert(unseenReleases('4.65.0', '4.67.0').map((r) => r.version).join() === '4.67.0,4.66.0' && unseenReleases('4.67.0', '4.67.0').length === 0 && unseenReleases('4.60.0', '4.61.0').map((r) => r.version).join() === '4.61.0',
+    'Only releases after the last seen one and up to the running version are shown');
+  assert(/markWhatsNewSeen\(APP_VERSION\);\s*setStoredUser\(completeAuthUser\)/.test(readSource('app/onboarding/page.tsx')), 'A new shop is marked up to date before its first screen (no pop-up on day one)');
+  assert(/<WhatsNewModal \/>/.test(readSource('components/layout/AppShell.tsx')) && /onClick=\{openWhatsNew\}/.test(readSource('components/layout/DesktopStatusBar.tsx')) && /<WhatsNewCard \/>/.test(readSource('components/settings/HelpSupportTab.tsx')),
+    '"What\'s new" opens after an update, from the status-bar version and from Help & Support');
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.

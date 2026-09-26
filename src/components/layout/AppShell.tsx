@@ -6,6 +6,7 @@ import { db as localDb } from '@/lib/db';
 import { AuthUser, getStoredUser, setStoredUser } from '@/lib/auth';
 import { clearUnlockDestination, isAppLocked, unlockDestination } from '@/lib/auth/masterPassword';
 import { IdleLock } from './IdleLock';
+import { WhatsNewModal } from '@/components/whatsNew/WhatsNewModal';
 import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
 import { DesktopStatusBar } from './DesktopStatusBar';
@@ -236,6 +237,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       <UpdateReadyBanner />
       <AutoBackupScheduler />
       <IdleLock />
+      <WhatsNewModal />
     </div>
     </BusinessProvider>
   );

@@ -1,12 +1,37 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Copy, FolderOpen, LifeBuoy, CheckCircle2, AlertTriangle, RefreshCw, Download, MessageCircle, Mail } from 'lucide-react';
+import { Copy, FolderOpen, LifeBuoy, CheckCircle2, AlertTriangle, RefreshCw, Download, MessageCircle, Mail, Sparkles } from 'lucide-react';
 import { getDesktopApi, UpdateStatus } from '@/lib/desktop/desktopBridge';
 import { tr } from '@/lib/i18n/core';
 import { useBusiness } from '@/components/layout/BusinessProvider';
 import { SupportContactCard } from '@/components/support/SupportContact';
 import { supportEmailUrl, supportGreeting, supportWhatsAppUrl } from '@/lib/support/contact';
+import { CHANGELOG, compareVersions } from '@/lib/whatsNew/changelog';
+import { APP_VERSION } from '@/lib/constants/version';
+import { openWhatsNew, ReleaseList } from '@/components/whatsNew/WhatsNewModal';
+
+/** The newest "What's new" entry, with a button for the full list. */
+function WhatsNewCard() {
+  const latest = CHANGELOG.find((r) => compareVersions(r.version, APP_VERSION) <= 0);
+  if (!latest) return null;
+  return (
+    <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-2xs space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-9 h-9 rounded-xl bg-violet-100 text-violet-700 flex items-center justify-center shrink-0">
+            <Sparkles className="w-4 h-4" />
+          </div>
+          <h3 className="text-sm font-black text-slate-900">{tr("What's new")}</h3>
+        </div>
+        <button type="button" onClick={openWhatsNew} className="h-9 px-3 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-800 text-xs font-bold cursor-pointer shrink-0">
+          {tr('All updates')}
+        </button>
+      </div>
+      <ReleaseList releases={[latest]} />
+    </div>
+  );
+}
 
 /** Version, "Check for updates now" and the per-computer beta (early updates) switch. */
 function UpdatesCard() {
@@ -129,6 +154,7 @@ export function HelpSupportTab() {
     <div className="space-y-4 max-w-2xl">
       <SupportContactCard shopName={business?.name} />
       <UpdatesCard />
+      <WhatsNewCard />
 
       <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-2xs space-y-3">
         <div className="flex items-center gap-2.5">

@@ -27,6 +27,8 @@ import {
 import { Button } from '@/components/ui/Button';
 import { getLanguage, tr } from '@/lib/i18n/core';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
+import { markWhatsNewSeen } from '@/lib/whatsNew/changelog';
+import { APP_VERSION } from '@/lib/constants/version';
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -231,6 +233,8 @@ export default function OnboardingPage() {
         shop_name: cleanStoreName,
         role: 'admin',
       };
+      // A new shop starts up to date: no "What's new" pop-up on its first screen.
+      markWhatsNewSeen(APP_VERSION);
       setStoredUser(completeAuthUser);
 
       // Sync profile to cloud

@@ -9,6 +9,7 @@ import { db } from '@/lib/db';
 import { getDesktopApi } from '@/lib/desktop/desktopBridge';
 import { getPrintSettings, printerForFormat } from '@/lib/hardware/printSettings';
 import { msg, tr } from '@/lib/i18n/core';
+import { openWhatsNew } from '@/components/whatsNew/WhatsNewModal';
 
 // Keep in step with the keydown handler in app/billing/page.tsx. The bar used to
 // advertise F1 Billing / F2 Products / F4 Register everywhere — none of which existed.
@@ -170,9 +171,14 @@ export const DesktopStatusBar: React.FC = () => {
 
         <span className="text-slate-700 hidden sm:inline">|</span>
 
-        <span className="font-mono text-[10px] text-slate-400 hidden sm:inline">
+        <button
+          type="button"
+          onClick={openWhatsNew}
+          title={tr("What's new in KamaiPlus")}
+          className="font-mono text-[10px] text-slate-400 hover:text-amber-400 hidden sm:inline cursor-pointer"
+        >
           {tr('v')}{APP_VERSION}
-        </span>
+        </button>
       </div>
     </footer>
   );

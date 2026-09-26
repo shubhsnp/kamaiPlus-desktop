@@ -305,7 +305,7 @@ src/components/<feature>/   Feature components, one folder per domain
 src/components/ui/          Button, Card, Input, Modal  (that is all of it)
 src/lib/<domain>/           Engines — see table below
 src/types/index.ts          All domain types. Single file.
-scripts/e2e_simulation.ts   The test suite (§11). 399 assertions.
+scripts/e2e_simulation.ts   The test suite (§11). 405 assertions.
 scripts/bump_version.ts     Version bumper (+0.1 minor)
 public/barcodes/*.json      5 shipped offline barcode dictionaries
 ```
@@ -578,7 +578,7 @@ There is no global state library. Modules talk through window events:
 ### localStorage keys (complete, verified)
 
 `kamai_user` · `kamai_session_timestamp` · `kamai_pos_tabs` (open POS bills) ·
-`kamai_master_password` (salted hash) · `kamai_idle_lock_minutes` ·
+`kamai_master_password` (salted hash) · `kamai_idle_lock_minutes` · `kamai_whats_new_seen` ·
 `kamai_sidebar_collapsed` · `kamai_products_view_mode` · `kamai_products_manually_cleared` ·
 `kamai_thermal_paper_width` · `kamai_silent_print` · `kamai_print_upi_qr` ·
 `kamai_cash_drawer_enabled` · `kamai_saved_bt_printer_mac` ·
@@ -768,7 +768,7 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 399/399, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 405/405, 0 failures
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
 git push origin main
@@ -793,7 +793,7 @@ bypassed; without the key only the no-licence checks run. The script removes
 `ELECTRON_RUN_AS_NODE` (set by VS Code terminals), which otherwise stops Electron
 launching. Failure screenshots go to `%TEMP%\kamaiplus-e2e-shots\`.
 
-### Test suite map — `scripts/e2e_simulation.ts` (399 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (405 assertions)
 
 | Suite | Covers |
 | :--- | :--- |
@@ -938,5 +938,20 @@ rg "export (const|function|class) <Name>" src/
    `src/components/layout/` — grep every consumer first (AGENTS.md Rule 3) and explain
    the blast radius to the user in Hinglish before proceeding.
 5. Add an invariant to SUITE 9 (or the fitting suite) for anything you fixed.
-6. `npx tsc --noEmit` → `npx tsx scripts/e2e_simulation.ts` → bump → commit → push.
-7. **Update this file** if anything here became wrong. Same commit.
+6. New screen text → `tr()` + Hindi / Marathi lines in `src/locales/` (§7.1).
+7. A change the shop will notice → one short line in `src/lib/whatsNew/changelog.ts`
+   under the version the bump will give (+ its hi / mr lines). It pops up once after the
+   update. Internal changes get no entry.
+8. `npx tsc --noEmit` → `npx tsx scripts/bump_version.ts` → `npx tsx scripts/e2e_simulation.ts`
+   (the suite checks the changelog is not newer than the app) → commit → push.
+9. **Update this file** if anything here became wrong. Same commit.
+
+### "What's new" (v4.67.0)
+
+`lib/whatsNew/changelog.ts` (`CHANGELOG`, newest first, texts are `msg()` ids) +
+`components/whatsNew/WhatsNewModal.tsx` in the unlocked shell. It opens once when this
+computer has not seen the running version (localStorage `kamai_whats_new_seen`; a shop
+without the key — updated from before v4.67 — sees everything after
+`WHATS_NEW_BASELINE` 4.62.0). Onboarding writes the key **before** `setStoredUser`, so a
+brand-new shop never gets the pop-up. Also opened by the status-bar version number and
+Settings → Help & Support ("What's new" card, "All updates"). Suite 9 §9a.
