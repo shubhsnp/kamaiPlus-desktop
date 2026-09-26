@@ -249,6 +249,22 @@ async function run() {
         await pw.fill(PASSWORD);
         await pw.press('Enter');
         check(await textVisible(page, 'E2E Kirana Store'), 'The right password opens the shop with its own name (signed-in user kept)');
+
+        // Lock now (v4.65.0): store menu → password screen → back on the same page.
+        await page.locator('aside a[href="/products"]').first().click();
+        await page.waitForURL(/\/products/, { waitUntil: 'commit', timeout: 10000 }).catch(() => {});
+        await page.waitForTimeout(800);
+        await page.locator('header button[title="Click for Store Menu, Language & Settings"]').click();
+        await page.getByRole('button', { name: /Lock now/ }).click();
+        const relocked = await pw.waitFor({ state: 'visible', timeout: 10000 }).then(() => true, () => false);
+        check(relocked && !(await page.locator('aside').count()), '"Lock now" hides the shop behind the master password');
+        if (relocked) {
+          await pw.fill(PASSWORD);
+          await pw.press('Enter');
+          await page.waitForURL(/\/products/, { waitUntil: 'commit', timeout: 10000 }).catch(() => {});
+          await page.waitForTimeout(800);
+          check(new URL(page.url()).pathname.replace(/\/$/, '') === '/products' && (await page.locator('aside').count()) > 0, 'After the password the app returns to the page that was open (Products)');
+        }
       }
       const sales = await readStore(page, 'sales');
       const product = (await readStore(page, 'products')).find((p) => p.id === productId);

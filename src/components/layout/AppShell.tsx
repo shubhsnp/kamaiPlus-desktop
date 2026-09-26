@@ -4,7 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { db as localDb } from '@/lib/db';
 import { AuthUser, getStoredUser, setStoredUser } from '@/lib/auth';
-import { isAppLocked } from '@/lib/auth/masterPassword';
+import { clearUnlockDestination, isAppLocked, unlockDestination } from '@/lib/auth/masterPassword';
+import { IdleLock } from './IdleLock';
 import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
 import { DesktopStatusBar } from './DesktopStatusBar';
@@ -150,7 +151,10 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         }
       } else {
         if (isAuthRoute || isOnboardingRoute) {
-          router.replace('/');
+          // Back to the page that was open when the app locked (Lock now / idle), else home.
+          router.replace(unlockDestination());
+        } else if (unlockDestination() === pathname) {
+          clearUnlockDestination();
         }
       }
     }
@@ -231,6 +235,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       <GlobalDrawers />
       <UpdateReadyBanner />
       <AutoBackupScheduler />
+      <IdleLock />
     </div>
     </BusinessProvider>
   );

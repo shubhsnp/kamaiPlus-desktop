@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getStoredUser, setStoredUser, AuthUser } from '@/lib/auth';
 import { db as localDb } from '@/lib/db';
-import { clearMasterPasswordAfterRecovery, hasMasterPassword, markUnlocked, setMasterPassword, verifyMasterPassword } from '@/lib/auth/masterPassword';
+import { clearMasterPasswordAfterRecovery, hasMasterPassword, markUnlocked, setMasterPassword, unlockDestination, verifyMasterPassword } from '@/lib/auth/masterPassword';
 import { getDesktopApi } from '@/lib/desktop/desktopBridge';
 import { 
   CheckCircle2, 
@@ -123,8 +123,10 @@ export const AuthForm: React.FC = () => {
     // is (owner name etc.), only renew the session time.
     const existing = getStoredUser();
     if (localBiz && existing && existing.business_id === localBiz.id) {
+      // Read before the shell navigates (it clears the saved page once it gets there).
+      const destination = unlockDestination();
       setStoredUser({ ...existing, login_timestamp: Date.now() });
-      setTimeout(() => router.replace('/'), 500);
+      setTimeout(() => router.replace(destination), 500);
       return;
     }
     let bizId = localBiz?.id || 'biz_pending';

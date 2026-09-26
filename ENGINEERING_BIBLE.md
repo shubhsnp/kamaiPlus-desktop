@@ -305,7 +305,7 @@ src/components/<feature>/   Feature components, one folder per domain
 src/components/ui/          Button, Card, Input, Modal  (that is all of it)
 src/lib/<domain>/           Engines — see table below
 src/types/index.ts          All domain types. Single file.
-scripts/e2e_simulation.ts   The test suite (§11). 375 assertions.
+scripts/e2e_simulation.ts   The test suite (§11). 383 assertions.
 scripts/bump_version.ts     Version bumper (+0.1 minor)
 public/barcodes/*.json      5 shipped offline barcode dictionaries
 ```
@@ -398,9 +398,23 @@ them readable — assume they touch everything:
 
 ```
 no user            → redirect /auth               (unless public route)
+user, locked       → redirect /auth               (master password not entered, §12 #10)
 user, no business  → redirect /onboarding
-user + business    → /auth and /onboarding bounce back to /
+user + business    → /auth and /onboarding bounce to unlockDestination() (the saved page, else /)
 ```
+
+**Lock now / auto-lock when idle (v4.65.0).** `lockApp(pathname)` in
+`lib/auth/masterPassword.ts` removes the sessionStorage unlock flag, saves the page in
+sessionStorage `kamai_return_to` (only a shop page — `safeReturnPath`) and fires
+`auth_changed`; AppShell then shows the password screen. After the password
+`unlockDestination()` sends the shop back there (AuthForm reads it *before* the shell
+clears it on arrival). Triggers: Navbar store menu → **Lock now**, and
+`components/layout/IdleLock.tsx` (inside the unlocked shell) — pointer / key / wheel /
+touch use resets the timer; a 15 s check compares against the clock, so a PC that slept
+past the limit locks on wake. Time per computer in localStorage `kamai_idle_lock_minutes`
+(Off / 5 / 10 / 15 / 30 / 60, default **10**), chosen in the store menu. Open bills
+survive (they are in `kamai_pos_tabs`). Suite 9 §8z; Electron E2E "Lock now" → back on
+Products.
 
 ---
 
@@ -562,7 +576,8 @@ There is no global state library. Modules talk through window events:
 
 ### localStorage keys (complete, verified)
 
-`kamai_user` · `kamai_session_timestamp` · `kamai_tabs_v2` (open POS bills) ·
+`kamai_user` · `kamai_session_timestamp` · `kamai_pos_tabs` (open POS bills) ·
+`kamai_master_password` (salted hash) · `kamai_idle_lock_minutes` ·
 `kamai_sidebar_collapsed` · `kamai_products_view_mode` · `kamai_products_manually_cleared` ·
 `kamai_thermal_paper_width` · `kamai_silent_print` · `kamai_print_upi_qr` ·
 `kamai_cash_drawer_enabled` · `kamai_saved_bt_printer_mac` ·
@@ -571,6 +586,8 @@ There is no global state library. Modules talk through window events:
 `kamai_soundbox_lang` · `kamai_soundbox_vol` · `kamai_last_backup_time` ·
 `kamai_last_backup_type` · `kamai_last_restore_time` · `kamai_app_installed` ·
 `kamai_pwa_banner_dismissed` · `vyapar_language`
+
+sessionStorage (emptied when the app closes): `kamai_unlocked` · `kamai_return_to`.
 
 > Note the legacy prefixes: the DB is `VyaparSetuDB` and the language key is
 > `vyapar_language`. **Do not "tidy" these** — renaming them orphans real shops' data.
@@ -749,7 +766,7 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 375/375, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 383/383, 0 failures
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
 git push origin main
@@ -760,7 +777,7 @@ billing), also run the real app:
 
 ```bash
 npx next build                      # out/ must be current
-npm run test:electron               # scripts/electron_e2e.mjs — 23/23
+npm run test:electron               # scripts/electron_e2e.mjs — 25/25
 ```
 
 `electron_e2e.mjs` launches the actual Electron app with Playwright (`playwright-core`,
@@ -774,7 +791,7 @@ bypassed; without the key only the no-licence checks run. The script removes
 `ELECTRON_RUN_AS_NODE` (set by VS Code terminals), which otherwise stops Electron
 launching. Failure screenshots go to `%TEMP%\kamaiplus-e2e-shots\`.
 
-### Test suite map — `scripts/e2e_simulation.ts` (375 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (383 assertions)
 
 | Suite | Covers |
 | :--- | :--- |
@@ -868,9 +885,9 @@ Recorded so the next agent does not rediscover them. None are fixed as of v4.38.
     `AppShell` treats a signed-in user without it as locked: only `/auth` (and the
     customer `/invoice`, `/pay` links) render, every other route redirects there.
     `AuthForm.performLocalLogin()` sets the flag; unlocking a still-signed-in shop
-    keeps its stored user (owner name) and only renews the session time. No idle lock.
+    keeps its stored user (owner name) and only renews the session time.
     Electron E2E checks it (restart → password, `/billing` blocked, wrong password
-    refused).
+    refused). **Idle lock + "Lock now" added in v4.65.0** — see the route-guard section (§4).
 
 ---
 

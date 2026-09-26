@@ -5,6 +5,8 @@
  * their next successful unlock.
  */
 
+import { safeReturnPath } from './idleLock';
+
 const KEY = 'kamai_master_password';
 const PREFIX = 'sha256$';
 
@@ -66,6 +68,39 @@ export function isAppLocked(): boolean {
   } catch {
     return true;
   }
+}
+
+/*
+ * Lock now / auto-lock when idle: forget the unlock, remember the page, and let
+ * AppShell (listening to auth_changed) show the password screen. The shop stays
+ * signed in; after the password it goes back to that page.
+ */
+const RETURN_KEY = 'kamai_return_to';
+
+export function lockApp(returnTo?: string): void {
+  if (!hasMasterPassword()) return;
+  try {
+    sessionStorage.removeItem(UNLOCK_KEY);
+    const path = safeReturnPath(returnTo);
+    if (path) sessionStorage.setItem(RETURN_KEY, path);
+    else sessionStorage.removeItem(RETURN_KEY);
+  } catch {}
+  window.dispatchEvent(new Event('auth_changed'));
+}
+
+/** Where to go after the password: the page open when the app locked, else home. */
+export function unlockDestination(): string {
+  try {
+    return safeReturnPath(sessionStorage.getItem(RETURN_KEY)) || '/';
+  } catch {
+    return '/';
+  }
+}
+
+export function clearUnlockDestination(): void {
+  try {
+    sessionStorage.removeItem(RETURN_KEY);
+  } catch {}
 }
 
 export async function setMasterPassword(password: string): Promise<void> {

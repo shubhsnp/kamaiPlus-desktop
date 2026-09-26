@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useTranslation } from '@/lib/i18n';
 import { SupportedLanguage } from '@/types';
 import { db } from '@/lib/db';
@@ -22,7 +22,9 @@ import {
   Sparkles,
   Settings,
   ChevronDown,
-  Crown
+  Crown,
+  Lock,
+  Timer
 } from 'lucide-react';
 // Counter QR standee pulls in jsPDF + html2canvas (~600 KB). It sits in the app
 // shell, so importing it statically made every page pay that cost on load.
@@ -33,14 +35,18 @@ const MerchantQRModal = dynamic(
 
 import { AuthUser, getStoredUser, setStoredUser, logoutUser } from '@/lib/auth';
 import { tr } from '@/lib/i18n/core';
+import { lockApp } from '@/lib/auth/masterPassword';
+import { getIdleLockMinutes, IDLE_LOCK_OPTIONS, setIdleLockMinutes } from '@/lib/auth/idleLock';
 
 
 export const Navbar: React.FC = () => {
   const router = useRouter();
+  const pathname = usePathname();
   const { language, setLanguage, t } = useTranslation();
   const [isOnline, setIsOnline] = useState<boolean>(true);
   const [showStoreMenu, setShowStoreMenu] = useState<boolean>(false);
   const [isQrModalOpen, setIsQrModalOpen] = useState<boolean>(false);
+  const [idleMinutes, setIdleMinutes] = useState<number>(getIdleLockMinutes);
 
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
 
@@ -228,6 +234,37 @@ export const Navbar: React.FC = () => {
 
 
 
+              {/* App lock: auto-lock after idle minutes (per computer) */}
+              <div className="px-4 py-2 border-b border-slate-100">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 mb-1.5">
+                  <Timer className="w-3.5 h-3.5 text-slate-500" />
+                  <span>{tr('Auto-lock when idle')}</span>
+                </div>
+                <div className="grid grid-cols-6 gap-1">
+                  {IDLE_LOCK_OPTIONS.map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => {
+                        setIdleLockMinutes(m);
+                        setIdleMinutes(m);
+                      }}
+                      aria-pressed={idleMinutes === m}
+                      className={`h-7 rounded-lg text-[11px] font-bold text-center transition-all cursor-pointer ${
+                        idleMinutes === m ? 'bg-slate-900 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      {m === 0 ? tr('Off') : tr('{m}m', { m })}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-slate-500 mt-1.5 leading-snug">
+                  {idleMinutes === 0
+                    ? tr('The app stays open until you lock it or close it.')
+                    : tr('Asks for the master password after {m} minutes with no use. Open bills are kept.', { m: idleMinutes })}
+                </p>
+              </div>
+
               {/* Navigation & Actions */}
               <div className="pt-1 px-1">
                 <button
@@ -239,6 +276,18 @@ export const Navbar: React.FC = () => {
                 >
                   <Settings className="w-4 h-4 text-slate-500" />
                   <span>{tr('Store Profile & Print Settings')}</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setShowStoreMenu(false);
+                    lockApp(pathname);
+                  }}
+                  className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 rounded-lg flex items-center gap-2.5 font-semibold cursor-pointer"
+                >
+                  <Lock className="w-4 h-4 text-slate-500" />
+                  <span className="flex-1">{tr('Lock now')}</span>
+                  <span className="text-[10px] font-normal text-slate-400">{tr('password to open again')}</span>
                 </button>
 
                 <button

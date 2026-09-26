@@ -80,6 +80,7 @@ import {
 } from '../src/lib/reports/advancedReports';
 import { generateGSTR1Report, getStateName } from '../src/lib/gst/gstr1Generator';
 import { SUPPORT_EMAIL, SUPPORT_PHONE_DIGITS, supportEmailUrl, supportWhatsAppUrl } from '../src/lib/support/contact';
+import { DEFAULT_IDLE_LOCK_MINUTES, parseIdleLockMinutes, safeReturnPath, shouldIdleLock } from '../src/lib/auth/idleLock';
 
 let totalTests = 0;
 let passedTests = 0;
@@ -938,6 +939,27 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     'Licence screen, locked-account screen and forgotten-password screen show WhatsApp + e-mail support');
   const helpSrc = readSource('components/settings/HelpSupportTab.tsx');
   assert(/<SupportContactCard/.test(helpSrc) && /sendReport\('whatsapp'\)/.test(helpSrc) && /sendReport\('email'\)/.test(helpSrc), 'Help & Support has the contact card and sends the problem report on WhatsApp / e-mail');
+}
+
+// 8z. Idle lock + Lock now (v4.65.0): the app locks itself after N idle minutes
+// (per computer, default 10, Off possible) and returns to the same page after the password.
+{
+  assert(parseIdleLockMinutes(null) === DEFAULT_IDLE_LOCK_MINUTES && DEFAULT_IDLE_LOCK_MINUTES === 10 && parseIdleLockMinutes('5') === 5 && parseIdleLockMinutes('0') === 0 && parseIdleLockMinutes('7') === 10 && parseIdleLockMinutes('abc') === 10,
+    'Idle-lock time: 10 min by default, Off / 5 / 10 / 15 / 30 / 60 allowed, anything else falls back to 10');
+  const min = 60_000;
+  assert(shouldIdleLock(0, 5 * min, 5) && !shouldIdleLock(0, 5 * min - 1, 5) && !shouldIdleLock(0, 24 * 60 * min, 0), 'Locks exactly when the idle time is reached, never when Off');
+  assert(safeReturnPath('/billing') === '/billing' && safeReturnPath('/invoice-designer') === '/invoice-designer' && safeReturnPath('/auth') === null && safeReturnPath('/onboarding') === null
+    && safeReturnPath('/invoice?id=1') === null && safeReturnPath('//evil.example') === null && safeReturnPath('https://evil.example') === null,
+    'After unlocking, the app only returns to one of its own shop pages');
+  const mpSrc = readSource('lib/auth/masterPassword.ts');
+  const shellSrc = readSource('components/layout/AppShell.tsx');
+  const navSrc = readSource('components/layout/Navbar.tsx');
+  assert(/export function lockApp[\s\S]{0,300}sessionStorage\.removeItem\(UNLOCK_KEY\)[\s\S]{0,300}dispatchEvent\(new Event\('auth_changed'\)\)/.test(mpSrc), 'Locking forgets the unlock and tells the shell (auth_changed)');
+  assert(/<IdleLock \/>/.test(shellSrc) && /router\.replace\(unlockDestination\(\)\)/.test(shellSrc), 'The unlocked shell runs the idle timer and returns to the saved page after the password');
+  assert(/lockApp\(pathname\)/.test(navSrc) && /IDLE_LOCK_OPTIONS\.map/.test(navSrc), 'Store menu has "Lock now" and the auto-lock choices');
+  assert(/const destination = unlockDestination\(\);[\s\S]{0,200}router\.replace\(destination\)/.test(readSource('components/auth/AuthForm.tsx')), 'The password screen reads the saved page before the shell clears it (no bounce to Home)');
+  const idleSrc = readSource('components/layout/IdleLock.tsx');
+  assert(/'keydown'/.test(idleSrc) && /'pointerdown'/.test(idleSrc) && /shouldIdleLock\(last, Date\.now\(\), minutes\)/.test(idleSrc), 'Keyboard, scanner and mouse use keep the app open; the check uses the clock (locks after PC sleep too)');
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.
