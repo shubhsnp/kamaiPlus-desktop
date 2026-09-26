@@ -5,11 +5,12 @@ import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useBusiness } from '@/components/layout/BusinessProvider';
 import { formatINR } from '@/lib/utils';
-import { 
-  generateGSTR1Report, 
-  generateGSTOfflineJSON, 
-  GSTR1ReportData 
+import {
+  generateGSTR1Report,
+  GSTR1ReportData
 } from '@/lib/gst/gstr1Generator';
+import { buildGstr1Json, gstPeriodRange, GSTPeriodPreset, Gstr1JsonIssue } from '@/lib/gst/gstr1Json';
+import { showAlert, showConfirm } from '@/lib/ui/dialogs';
 import { generateTallyPrimeXML } from '@/lib/tally/tallyXmlGenerator';
 import { generateCASalesRegisterCSV } from '@/lib/tally/caExcelGenerator';
 import { Card } from '@/components/ui/Card';
@@ -23,7 +24,20 @@ import { GstHsnSummaryTable } from '@/components/gst/GstHsnSummaryTable';
 import { ProfitMask } from '@/components/privacy/ProfitMask';
 import { tr } from '@/lib/i18n/core';
 
-export type GSTPeriodPreset = 'this_month' | 'last_month' | 'q1' | 'q2' | 'q3' | 'q4' | 'all_year';
+/** One line per problem the GST portal would reject, for the confirm dialog before download. */
+function describeIssue(issue: Gstr1JsonIssue): string {
+  const eg = issue.examples.length ? ` (${issue.examples.join(', ')}${issue.count > issue.examples.length ? ', …' : ''})` : '';
+  switch (issue.kind) {
+    case 'no_gstin':
+      return tr('• Your shop GSTIN is missing or not valid — add it in Settings → Store & GST Profile.');
+    case 'missing_hsn':
+      return tr('• {count} item(s) have no HSN code{eg} — add HSN in Products.', { count: issue.count, eg });
+    case 'bad_buyer_gstin':
+      return tr('• {count} bill(s) have a wrong customer GSTIN{eg} — they were counted as B2C.', { count: issue.count, eg });
+    case 'long_invoice_no':
+      return tr('• {count} B2B invoice number(s) are longer than 16 characters or use other symbols{eg}.', { count: issue.count, eg });
+  }
+}
 
 export default function GSTReportsPage() {
   const business = useBusiness();
@@ -35,51 +49,18 @@ export default function GSTReportsPage() {
   const [hsnSearch, setHsnSearch] = useState('');
   const [isTallyGuideOpen, setIsTallyGuideOpen] = useState(false);
 
-  // Date boundaries
+  // Date boundaries (Indian financial year; quarters are their latest occurrence) and the GSTR-1 period.
   const dateRange = useMemo(() => {
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth();
-
-    let start: Date;
-    let end: Date;
-
-    if (periodPreset === 'this_month') {
-      start = new Date(currentYear, currentMonth, 1, 0, 0, 0);
-      end = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999);
-    } else if (periodPreset === 'last_month') {
-      const lastM = currentMonth === 0 ? 11 : currentMonth - 1;
-      const lastY = currentMonth === 0 ? currentYear - 1 : currentYear;
-      start = new Date(lastY, lastM, 1, 0, 0, 0);
-      end = new Date(lastY, lastM + 1, 0, 23, 59, 59, 999);
-    } else if (periodPreset === 'q1') {
-      start = new Date(currentYear, 3, 1, 0, 0, 0);
-      end = new Date(currentYear, 6, 0, 23, 59, 59, 999);
-    } else if (periodPreset === 'q2') {
-      start = new Date(currentYear, 6, 1, 0, 0, 0);
-      end = new Date(currentYear, 9, 0, 23, 59, 59, 999);
-    } else if (periodPreset === 'q3') {
-      start = new Date(currentYear, 9, 1, 0, 0, 0);
-      end = new Date(currentYear, 12, 0, 23, 59, 59, 999);
-    } else if (periodPreset === 'q4') {
-      start = new Date(currentYear, 0, 1, 0, 0, 0);
-      end = new Date(currentYear, 3, 0, 23, 59, 59, 999);
-    } else {
-      start = new Date(currentYear, 0, 1, 0, 0, 0);
-      end = new Date(currentYear, 12, 0, 23, 59, 59, 999);
-    }
-
-    return {
-      startStr: start.toISOString(),
-      endStr: end.toISOString(),
-    };
+    const { start, end, fp } = gstPeriodRange(periodPreset);
+    return { start, end, fp, startStr: start.toISOString(), endStr: end.toISOString() };
   }, [periodPreset]);
 
-  // Query sales in selected period
-  const sales = useLiveQuery(async () => {
-    const raw = await db.sales.where('created_at').between(dateRange.startStr, dateRange.endStr, true, true).toArray();
-    return raw.filter((s) => s.status !== 'cancelled');
-  }, [dateRange]) || [];
+  // Query sales in selected period (cancelled bills only count in GSTR-1 "documents issued")
+  const periodSales = useLiveQuery(
+    async () => db.sales.where('created_at').between(dateRange.startStr, dateRange.endStr, true, true).toArray(),
+    [dateRange]
+  );
+  const sales = useMemo(() => (periodSales || []).filter((s) => s.status !== 'cancelled'), [periodSales]);
 
   // Generate GSTR-1 Data
   const gstr1Data: GSTR1ReportData = useMemo(() => {
@@ -125,16 +106,28 @@ export default function GSTReportsPage() {
     document.body.removeChild(link);
   };
 
-  const handleExportJSON = () => {
-    const jsonStr = JSON.stringify(generateGSTOfflineJSON(gstr1Data), null, 2);
-    const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8;' });
+  const handleExportJSON = async () => {
+    if (!dateRange.fp) {
+      await showAlert(tr('GSTR-1 is filed for one month (or one quarter under QRMP). Choose a month or a quarter, then download the JSON.'), { title: tr('GSTR-1 JSON') });
+      return;
+    }
+    const { json, issues, fileName } = buildGstr1Json({ sales: periodSales || [], customers, business: business || { gstin: '', name: '' }, fp: dateRange.fp });
+    if (issues.length) {
+      const go = await showConfirm(
+        `${tr('Please fix these before filing on the GST portal:')}\n\n${issues.map(describeIssue).join('\n')}\n\n${tr('Download the JSON anyway?')}`,
+        { title: tr('Check before filing'), confirmLabel: tr('Download anyway'), cancelLabel: tr('Cancel') }
+      );
+      if (!go) return;
+    }
+    const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `GSTR1_Offline_${periodPreset}.json`);
+    link.setAttribute('download', fileName);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -142,6 +135,9 @@ export default function GSTReportsPage() {
       {/* 1. Header Actions */}
       <GstHeaderActions
         periodPreset={periodPreset}
+        periodStart={dateRange.start}
+        periodEnd={dateRange.end}
+        returnPeriod={dateRange.fp}
         onPeriodChange={setPeriodPreset}
         onExportCsv={handleExportCSV}
         onExportTally={handleExportTallyXML}

@@ -81,6 +81,7 @@ import {
 import { generateGSTR1Report, getStateName } from '../src/lib/gst/gstr1Generator';
 import { SUPPORT_EMAIL, SUPPORT_PHONE_DIGITS, supportEmailUrl, supportWhatsAppUrl } from '../src/lib/support/contact';
 import { DEFAULT_IDLE_LOCK_MINUTES, parseIdleLockMinutes, safeReturnPath, shouldIdleLock } from '../src/lib/auth/idleLock';
+import { buildGstr1Json, gstPeriodRange } from '../src/lib/gst/gstr1Json';
 
 let totalTests = 0;
 let passedTests = 0;
@@ -1416,6 +1417,60 @@ assert(gstrReport.total_taxable_value === 10000 && gstrReport.total_cgst + gstrR
 assert(gstrReport.total_invoices_count === 1 && gstrReport.doc_from_num === 'INV-g1', 'Estimates are not reported as supplies or documents');
 assert(gstrReport.business_gstin === '', 'Missing store GSTIN stays blank — never a placeholder GSTIN');
 assert(getStateName('29') === 'Karnataka' && getStateName('88') === '88', 'State names cover every code and unknown codes are not called Maharashtra');
+
+// GSTR-1 JSON for the GST portal / offline tool (v4.66.0). The old export repeated a
+// B2B invoice once per line, used yyyy-mm-dd dates, "canc", no HSN rate, and always fp 082026.
+{
+  const gl = (id: string, total: number, rate: number, hsn: string, qty = 1): any => ({ ...discLine(id, total, rate, true), hsn_code: hsn, quantity: qty, unit: 'pcs' });
+  const on = new Date(2026, 8, 5, 11, 0).toISOString();
+  const gSales: any[] = [
+    { ...mk('101', 'cB', [gl('soap', 11800, 18, '3401'), gl('oil', 10500, 5, '1512'), gl('rice', 5000, 0, '1006')]), created_at: on, customer_gstin: '27AAACB1234C1Z5' },
+    { ...mk('102', 'cK', [gl('soap', 11800, 18, '3401')]), created_at: on, customer_gstin: '29AAACK1234C1Z5' },
+    { ...mk('103', undefined, [gl('soap', 23600, 18, '3401', 2), gl('pen', 1180, 18, '')]), created_at: on },
+    { ...mk('104', undefined, [gl('soap', 11800, 18, '3401')]), created_at: on, status: 'cancelled' },
+    { ...mk('E9', undefined, [gl('soap', 11800, 18, '3401')]), created_at: on, status: 'draft', invoice_number: 'EST-9' },
+  ];
+  const res = buildGstr1Json({ sales: gSales, customers: [], business: invBiz, fp: gstPeriodRange('this_month', new Date(2026, 8, 20)).fp! });
+  const j: any = res.json;
+  assert(j.fp === '092026' && j.gstin === '27ABCDE1234F1Z5' && !('cur_gt' in j), 'GSTR-1 JSON has the shop GSTIN and the return period as MMYYYY (092026)');
+  const allInv = j.b2b.flatMap((c: any) => c.inv);
+  assert(allInv.length === 2 && new Set(allInv.map((i: any) => i.inum)).size === 2, 'Each B2B invoice appears once (not once per line)');
+  const inv101 = j.b2b.find((c: any) => c.ctin === '27AAACB1234C1Z5').inv[0];
+  assert(inv101.idt === '05-09-2026' && inv101.pos === '27' && inv101.inv_typ === 'R' && inv101.rchrg === 'N' && inv101.val === 273,
+    'B2B invoice: date dd-mm-yyyy, place of supply = state code, regular invoice, full bill value');
+  assert(inv101.itms.length === 2 && inv101.itms.every((it: any) => 'camt' in it.itm_det && 'samt' in it.itm_det && !('iamt' in it.itm_det)),
+    'B2B items are grouped per GST rate; within the state CGST + SGST only; the 0 % line is not in B2B');
+  const inv102 = j.b2b.find((c: any) => c.ctin === '29AAACK1234C1Z5').inv[0];
+  assert(inv102.pos === '29' && inv102.itms[0].itm_det.iamt === 18 && !('camt' in inv102.itms[0].itm_det), 'Inter-state B2B (Karnataka buyer) reports IGST with place of supply 29');
+  assert(j.b2cs.length === 1 && j.b2cs[0].typ === 'OE' && j.b2cs[0].sply_ty === 'INTRA' && j.b2cs[0].pos === '27' && j.b2cs[0].rt === 18 && j.b2cs[0].txval === 210 && j.b2cs[0].camt === 18.9,
+    'B2C sales: one OE row per state and rate (₹210 taxable, CGST ₹18.90)');
+  assert(j.nil?.inv?.length === 1 && j.nil.inv[0].sply_ty === 'INTRAB2B' && j.nil.inv[0].nil_amt === 50, 'The 0 % line is reported in Table 8 (nil rated)');
+  assert(Array.isArray(j.hsn?.hsn_b2b) && Array.isArray(j.hsn?.hsn_b2c) && [...j.hsn.hsn_b2b, ...j.hsn.hsn_b2c].every((h: any) => 'rt' in h && !('val' in h)),
+    'HSN summary is split into B2B and B2C, with the rate on every row');
+  const soapB2b = j.hsn.hsn_b2b.find((h: any) => h.hsn_sc === '3401' && h.rt === 18);
+  assert(soapB2b.qty === 2 && soapB2b.txval === 200 && soapB2b.iamt === 18 && soapB2b.camt === 9 && soapB2b.samt === 9 && soapB2b.uqc === 'PCS',
+    'HSN row adds up both B2B bills: qty 2, ₹200 taxable, IGST 18 + CGST 9 + SGST 9');
+  const docs = j.doc_issue.doc_det[0].docs;
+  assert(j.doc_issue.doc_det[0].doc_num === 1 && docs.length === 1 && docs[0].from === 'INV-101' && docs[0].to === 'INV-104' && docs[0].totnum === 4 && docs[0].cancel === 1 && docs[0].net_issue === 3,
+    'Documents issued: INV-101 … INV-104, 1 cancelled, estimates not counted');
+  assert(res.issues.some((i) => i.kind === 'missing_hsn' && i.examples.includes('pen')) && !res.issues.some((i) => i.kind === 'no_gstin') && res.fileName === 'GSTR1_27ABCDE1234F1Z5_092026.json',
+    'Items without HSN are named before download; file name has GSTIN and period');
+  const noGst = buildGstr1Json({ sales: [], customers: [], business: { gstin: '', name: 'x' }, fp: '092026' });
+  assert(noGst.issues[0]?.kind === 'no_gstin' && !('b2b' in noGst.json) && !('hsn' in noGst.json), 'A shop without GSTIN is warned; empty tables are left out');
+
+  const sep = new Date(2026, 8, 20);
+  const q2 = gstPeriodRange('q2', sep), q3 = gstPeriodRange('q3', sep), q4 = gstPeriodRange('q4', sep), fy = gstPeriodRange('all_year', sep);
+  assert(q2.fp === '092026' && q3.fp === '122025' && q3.start.getFullYear() === 2025 && q4.fp === '032026' && q4.start.getMonth() === 0,
+    'Quarters are their latest occurrence (Sep 2026: Q3 = Oct–Dec 2025, Q4 = Jan–Mar 2026); fp = last month of the quarter');
+  assert(fy.fp === null && fy.start.getFullYear() === 2026 && fy.start.getMonth() === 3 && fy.end.getFullYear() === 2027 && fy.end.getMonth() === 2,
+    'Financial year = Apr 2026 – Mar 2027 and has no GSTR-1 period');
+  const jan = new Date(2027, 0, 10);
+  assert(gstPeriodRange('last_month', jan).fp === '122026' && gstPeriodRange('q4', jan).fp === '032027' && gstPeriodRange('q1', jan).fp === '062026',
+    'In January: last month = Dec of the old year, Q4 = the running Jan–Mar, Q1 = the past Apr–Jun');
+  const gstPageSrc = readSource('app/gst-reports/page.tsx');
+  assert(/buildGstr1Json\(/.test(gstPageSrc) && /showConfirm\(/.test(gstPageSrc) && !/generateGSTOfflineJSON|'082026'/.test(gstPageSrc + readSource('lib/gst/gstr1Generator.ts')),
+    'The GST page uses the new builder and warns before download; the old builder (always 082026) is gone');
+}
 assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.499 - Dettol - ?', 'ESC/POS text maps ₹ / • / — to ASCII and never sends raw UTF-8 bytes');
 
 // -------------------------------------------------------------

@@ -305,7 +305,7 @@ src/components/<feature>/   Feature components, one folder per domain
 src/components/ui/          Button, Card, Input, Modal  (that is all of it)
 src/lib/<domain>/           Engines — see table below
 src/types/index.ts          All domain types. Single file.
-scripts/e2e_simulation.ts   The test suite (§11). 383 assertions.
+scripts/e2e_simulation.ts   The test suite (§11). 399 assertions.
 scripts/bump_version.ts     Version bumper (+0.1 minor)
 public/barcodes/*.json      5 shipped offline barcode dictionaries
 ```
@@ -331,7 +331,8 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 | `auth.ts` | `getStoredUser` / `setStoredUser` / `logoutUser` / `purgeLocalDeviceData`, 24h session |
 | `auth/cashierPrivacy.ts` | Owner PIN + profit-masking for staff |
 | `reports/advancedReports.ts` | Sales analytics (net of returns, profit only on frozen `cost_price`) |
-| `gst/gstr1Generator.ts` | GSTR-1 + HSN summary |
+| `gst/gstr1Generator.ts` | GSTR-1 + HSN summary for the screen and the CSV |
+| `gst/gstr1Json.ts` | **GSTR-1 JSON for the GST portal / offline tool** (`buildGstr1Json`) and the GST page periods (`gstPeriodRange`, Indian FY) — see §10 #25 |
 | `tally/` | Tally Prime XML + CA sales-register CSV export |
 | `purchases/matchProductByName.ts` | Matches Excel/CSV bill lines to existing products (bulk inward) |
 | `barcode/barcodeDictionary.ts` | Merged offline barcode lookup (§9) |
@@ -756,6 +757,7 @@ Each was a real bug that cost real time. The test suite guards most of them.
 | 20 | **Status bar / navbar claimed "Synced" / "Cloud Synced"** while nothing was synced, with always-on pulse animations on every page. | Labels say "Online • Saved Locally" / "Online"; shell pulses and the history-drawer blur removed. |
 | 23 | **Live A–Z audit (v4.61.0)** — the real app was driven through setup, products, 4 kinds of bills, khata, returns, purchases, suppliers, cash register, settings, PIN, backup, logout / login. Found: (a) after a sale the next bill kept the customer, payment mode, split amounts and bill discount (next customer silently got the discount / the old udhar customer), and with several tabs the app jumped onto a **held** bill and "New Bill" cleared it; (b) Settle Invoices lowered `balance_due`, so `getSalePaymentBreakdown` turned the settled udhar into a cash sale on the bill's date while the khata payment was also counted — cash drawer counted the money twice; a plain khata "You Got" payment left every bill showing its old "Due"; (c) owner PIN defaulted to **1234**, printed on the PIN screen; (d) Store QR / history drawer / rapid scan / purchase sheet ignored Esc; (e) `pl-8.5` (not a Tailwind class) put search icons over the text; (f) new products got `category_id: 'cat_general'`, which no category has ("ITEM" on cards, General count 0); (g) no HSN field in the product form; GST dropdown lacked 3% / 40%; (h) onboarding promised "8 General Retail items" but adds 10 fireworks; (i) "0 bills recorded" beside an inward entry; (j) Link prefetch asked for `route/__next.route.__PAGE__.txt`, stored as `route/__next.route/__PAGE__.txt` → 404s. | (a) `lib/billing/billTabs.ts` `makeEmptyTab` / `tabsAfterClosing`: the finished bill is dropped, the next is a waiting (never held) or blank bill; "New Bill" only closes the dialog; the app opens on a waiting bill. (b) `Sale.balance_due_at_sale` keeps the counter udhar and the breakdown reads it; `lib/khata/billAllocation(.Db).ts` clears bills oldest-first for every khata payment, stores `bill_allocations` on the ledger entry and undoes them on edit / delete; Settle does the same. Transactions ribbon says "Udhar Given". (c) no default PIN — `OwnerPinSetup` sets / resets it with the master password. (d) Esc handlers. (e) `pl-9` / `pl-11`. (f) `lib/products/defaultCategory.ts` → the real "General" id, `category_name` saved. (g) HSN / SAC input; slabs 0, 3, 5, 18, 40 (+12 / 28 as old). (h)(i) text. (j) `resolveExportFile` maps segment payloads. Suite 9 §8w (20 checks, incl. no mojibake / no bad spacing classes). |
 | 22 | **Every sidebar click reloaded the whole app (v4.60.0)** — the screen went black for a moment between pages (the `LicenceGate` "checking" screen of the fresh load). `<Link>` navigation fetches `out/<route>.txt?_rsc=…`; `main.js` served it as `application/octet-stream`, Next.js rejects anything but `text/x-component` and falls back to a full page load. | The `app://` handler serves RSC requests (`_rsc` param or `RSC: 1` header) as `text/x-component`, answers a missing payload with a real 404, and sends `.html` / `.txt` with `no-cache`. Layout (sidebar, navbar, status bar) now stays mounted; pages swap in place. Suite 9 §8v; Electron E2E clicks 4 sidebar links and checks the app was never reloaded. |
+| 25 | **"GSTR-1 JSON" could not be filed (before v4.66.0).** `fp` was taken from the preset name (`'this_month'` has no digits) so every file said **082026**; dates were `yyyy-mm-dd`; a B2B bill was repeated once per line; HSN rows had no `rt` and an old `val`; B2CS was always INTRA; 0 % lines sat in B2B / B2CS; `doc_issue` used `canc`; `cur_gt` was the period's taxable value. The GST page quarters used the calendar year (in Jan 2027 "Q1" would be the future Apr–Jun 2027) and "Full Year" was Jan–Dec. | `lib/gst/gstr1Json.ts` builds the file from the bills: `fp` MMYYYY (quarter = its last month), `idt` dd-mm-yyyy, `b2b` ctin → one `inv` per bill (`inv_typ` R) → items per rate, CGST+SGST or IGST keys only, `b2cs` per state + rate with `typ` OE, 0 % lines → `nil`, `hsn` split into `hsn_b2b` / `hsn_b2c` with `rt`, `doc_issue` per invoice series with `cancel`. Before download the page lists what the portal would reject (no shop GSTIN, items without HSN, wrong buyer GSTIN, B2B invoice number > 16 chars) and asks. Full year → no JSON (GSTR-1 is monthly / quarterly). Periods on the Indian FY; quarters = latest occurrence. **Limits:** counter customers without GSTIN are taken as within the shop's state (no B2CL); partial returns are reported net (no CDNR credit-note table); cess is 0. The `version` string is a best guess — the shop / CA should import the file in the GSTN offline tool once before uploading. Suite 21 (15 checks). |
 | 24 | **Language menu changed almost nothing (before v4.63.0)** — `t()` existed but only the Navbar used it; `en.json` held ~40 unused keys, every screen was hard-coded English. | ~1,940 texts wrapped in `tr()` across ~115 files, full Hindi + Marathi tables, badge / period-chip label helpers, language pills before login. Suite 9 §8x (every text translated, placeholders kept, no bare JSX text, no dynamic `tr()`). Live-checked 16 screens in हिंदी and मराठी: only shop data, brands and print previews stay English. |
 | 21 | **Wiring & calculation audit (v4.59.0).** (a) A double Enter / click on Complete Sale could save the cart twice (two bills, stock cut twice, same invoice number). (b) Cash typed in cash mode stayed in the tab and turned a later UPI / card / credit bill into a part payment. (c) Short cash with no customer saved an udhar nobody owed. (d) An overpaid split counted the excess as drawer cash. (e) +/− or re-scanning reset a rate the cashier had edited to the catalogue price. (f) Settings → "Default GST Calculation" did nothing: every product was saved tax-inclusive. (g) Excel import stamped HSN `1905` on every product without one. (h) Changing a balance in customer details wrote no ledger entry. | (a) `completingSaleRef` guard. (b)(c) `typedCashPaise` is read only in cash mode; short cash needs a customer. (d) excess must fit in the cash part and is recorded as `change_returned`. (e) existing lines keep `unit_price`. (f) new / imported products take the shop mode, edited ones keep theirs; cart lines store the resolved mode so POS tax and `saleMath` agree. (g) no HSN = none. (h) the change goes to the ledger on top of the fresh balance. Suite 9 §8u; Electron E2E double-clicks Complete Sale. |
 ---
@@ -766,7 +768,7 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 383/383, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 399/399, 0 failures
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
 git push origin main
@@ -791,7 +793,7 @@ bypassed; without the key only the no-licence checks run. The script removes
 `ELECTRON_RUN_AS_NODE` (set by VS Code terminals), which otherwise stops Electron
 launching. Failure screenshots go to `%TEMP%\kamaiplus-e2e-shots\`.
 
-### Test suite map — `scripts/e2e_simulation.ts` (383 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (399 assertions)
 
 | Suite | Covers |
 | :--- | :--- |

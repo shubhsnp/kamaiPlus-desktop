@@ -10,13 +10,19 @@ import {
   Calendar 
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { GSTPeriodPreset } from '@/app/gst-reports/page';
+import type { GSTPeriodPreset } from '@/lib/gst/gstr1Json';
 import { cn } from '@/lib/utils';
 import { CashierPrivacyToggleButton } from '@/components/privacy/ProfitMask';
 import { tr } from '@/lib/i18n/core';
 
+const dayLabel = (d: Date) => d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+
 interface GstHeaderActionsProps {
   periodPreset: GSTPeriodPreset;
+  periodStart: Date;
+  periodEnd: Date;
+  /** GSTR-1 return period "MMYYYY", or null for a full year. */
+  returnPeriod: string | null;
   onPeriodChange: (p: GSTPeriodPreset) => void;
   onExportCsv: () => void;
   onExportTally: () => void;
@@ -26,6 +32,9 @@ interface GstHeaderActionsProps {
 
 export const GstHeaderActions: React.FC<GstHeaderActionsProps> = ({
   periodPreset,
+  periodStart,
+  periodEnd,
+  returnPeriod,
   onPeriodChange,
   onExportCsv,
   onExportTally,
@@ -39,7 +48,7 @@ export const GstHeaderActions: React.FC<GstHeaderActionsProps> = ({
     { id: 'q2', label: tr('Q2 (Jul-Sep)') },
     { id: 'q3', label: tr('Q3 (Oct-Dec)') },
     { id: 'q4', label: tr('Q4 (Jan-Mar)') },
-    { id: 'all_year', label: tr('Full Year') },
+    { id: 'all_year', label: tr('Financial Year') },
   ];
 
   return (
@@ -117,6 +126,16 @@ export const GstHeaderActions: React.FC<GstHeaderActionsProps> = ({
           </button>
         ))}
       </div>
+      <p className="text-[11px] text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+        <Calendar className="w-3.5 h-3.5 text-slate-400" />
+        <span className="font-semibold text-slate-700 dark:text-slate-200">{dayLabel(periodStart)} – {dayLabel(periodEnd)}</span>
+        <span>•</span>
+        {returnPeriod ? (
+          <span>{tr('GSTR-1 JSON period: {fp}', { fp: `${returnPeriod.slice(0, 2)}/${returnPeriod.slice(2)}` })}</span>
+        ) : (
+          <span>{tr('For the GSTR-1 JSON choose a month or a quarter')}</span>
+        )}
+      </p>
     </div>
   );
 };
