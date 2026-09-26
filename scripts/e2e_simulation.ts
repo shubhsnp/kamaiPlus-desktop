@@ -79,6 +79,7 @@ import {
   sortReport,
 } from '../src/lib/reports/advancedReports';
 import { generateGSTR1Report, getStateName } from '../src/lib/gst/gstr1Generator';
+import { SUPPORT_EMAIL, SUPPORT_PHONE_DIGITS, supportEmailUrl, supportWhatsAppUrl } from '../src/lib/support/contact';
 
 let totalTests = 0;
 let passedTests = 0;
@@ -918,6 +919,25 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   const layoutSrc = readSource('app/layout.tsx');
   assert(layoutSrc.indexOf('<I18nProvider>') > -1 && layoutSrc.indexOf('<I18nProvider>') < layoutSrc.indexOf('<LicenceGate>'), 'The language provider wraps the licence screen too');
   assert(/language: getLanguage\(\)/.test(readSource('app/onboarding/page.tsx')), 'A new store saves the language picked on the setup screen (not always Hindi)');
+}
+
+// 8y. Support contacts (v4.64.0): WhatsApp / call +91 86699 97711, kamaiplus.app@gmail.com —
+// written once in lib/support/contact.ts, reachable from every "stuck" screen.
+{
+  const wa = supportWhatsAppUrl('Namaste — test & 100%');
+  const mail = supportEmailUrl('Help', 'Body');
+  assert(SUPPORT_PHONE_DIGITS === '918669997711' && SUPPORT_EMAIL === 'kamaiplus.app@gmail.com', 'Support number is 8669997711 and e-mail is kamaiplus.app@gmail.com');
+  assert(wa.startsWith('https://wa.me/918669997711?text=') && decodeURIComponent(wa.split('text=')[1]) === 'Namaste — test & 100%', 'WhatsApp support link opens a chat with the message typed (special characters kept)');
+  assert(mail.startsWith('https://mail.google.com/') && new URL(mail).searchParams.get('to') === 'kamaiplus.app@gmail.com', 'E-mail support link opens a Gmail compose to support (https, so main.js opens it in the browser)');
+  assert(decodeURIComponent(supportWhatsAppUrl('x'.repeat(5000)).split('text=')[1]).length < 2000, 'A long error report is cut so the WhatsApp link still opens');
+  const oldAddress = ALL_SOURCE.filter((f) => /info@proventure\.in/.test(fs.readFileSync(f, 'utf8')));
+  const siteHtml = fs.readFileSync(path.join(__dirname, '..', 'site', 'index.html'), 'utf8');
+  assert(oldAddress.length === 0 && !/info@proventure\.in/.test(siteHtml) && /wa\.me\/918669997711/.test(siteHtml) && /kamaiplus\.app@gmail\.com/.test(siteHtml),
+    'The old info@proventure.in address is gone from the app and the download page', oldAddress.join(', '));
+  assert(/<SupportContactLine/.test(readSource('components/licence/LicenceGate.tsx')) && /<SupportContactLine/.test(readSource('components/layout/AppShell.tsx')) && /<SupportContactLine/.test(readSource('components/auth/AuthForm.tsx')),
+    'Licence screen, locked-account screen and forgotten-password screen show WhatsApp + e-mail support');
+  const helpSrc = readSource('components/settings/HelpSupportTab.tsx');
+  assert(/<SupportContactCard/.test(helpSrc) && /sendReport\('whatsapp'\)/.test(helpSrc) && /sendReport\('email'\)/.test(helpSrc), 'Help & Support has the contact card and sends the problem report on WhatsApp / e-mail');
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.

@@ -270,6 +270,19 @@ Cloud sync is off (§12 #7), so the shop's own disk is the only safety net.
 - Settings → **Help & Support** (`HelpSupportTab`): "Copy report for support" and
   "Open log folder". The report holds no bills, customers or prices.
 - `errorlog.js` must stay in `build.files`.
+
+### 2.5 Support contacts (v4.64.0)
+
+- **WhatsApp / call +91 86699 97711 · kamaiplus.app@gmail.com** — written once in
+  `lib/support/contact.ts` (`supportWhatsAppUrl`, `supportEmailUrl`, `supportGreeting`).
+  `site/index.html` repeats them by hand. The old `info@proventure.in` is gone (§8y).
+- Links are `https://wa.me/…` and a Gmail compose URL, never `mailto:` — main.js only
+  hands `http(s)` to `shell.openExternal`, and many shop PCs have no mail app.
+- `components/support/SupportContact.tsx`: `SupportContactCard` (top of Help & Support:
+  WhatsApp chat, call number + copy, email + copy) and `SupportContactLine` (licence
+  screen with the machine name in the message, locked-account modal, forgotten
+  password). Help & Support also sends the problem report straight into WhatsApp /
+  Gmail (cut to 1,800 chars so the link opens).
 - The old `firebase.json` deployed the whole repo to the default `kamaiplus` site (the
   public website) and `npm run deploy:firebase` would have overwritten it. Both are gone.
 
@@ -292,7 +305,7 @@ src/components/<feature>/   Feature components, one folder per domain
 src/components/ui/          Button, Card, Input, Modal  (that is all of it)
 src/lib/<domain>/           Engines — see table below
 src/types/index.ts          All domain types. Single file.
-scripts/e2e_simulation.ts   The test suite (§11). 368 assertions.
+scripts/e2e_simulation.ts   The test suite (§11). 375 assertions.
 scripts/bump_version.ts     Version bumper (+0.1 minor)
 public/barcodes/*.json      5 shipped offline barcode dictionaries
 ```
@@ -324,6 +337,7 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 | `barcode/barcodeDictionary.ts` | Merged offline barcode lookup (§9) |
 | `i18n/core.ts` | `tr()` / `msg()` / `paymentMethodLabel` / `expenseCategoryLabel`; lazy-loads `src/locales/hi.json` / `mr.json` (§7.1) |
 | `i18n/index.tsx` | `I18nProvider` + `useTranslation()` (language state, remount on change) |
+| `support/contact.ts` | Support WhatsApp / phone / e-mail and their links (§2.5) |
 
 ---
 
@@ -735,7 +749,7 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 368/368, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 375/375, 0 failures
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
 git push origin main
@@ -760,7 +774,7 @@ bypassed; without the key only the no-licence checks run. The script removes
 `ELECTRON_RUN_AS_NODE` (set by VS Code terminals), which otherwise stops Electron
 launching. Failure screenshots go to `%TEMP%\kamaiplus-e2e-shots\`.
 
-### Test suite map — `scripts/e2e_simulation.ts` (368 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (375 assertions)
 
 | Suite | Covers |
 | :--- | :--- |

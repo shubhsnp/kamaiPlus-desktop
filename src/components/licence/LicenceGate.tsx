@@ -5,6 +5,8 @@ import { KeyRound, Monitor, ShieldCheck, Loader2, AlertCircle, Wifi } from 'luci
 import { getDesktopApi, LicenceStatus } from '@/lib/desktop/desktopBridge';
 import { tr } from '@/lib/i18n/core';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
+import { SupportContactLine } from '@/components/support/SupportContact';
+import { supportGreeting } from '@/lib/support/contact';
 
 /**
  * Nothing in the app opens until this computer holds a valid licence.
@@ -144,9 +146,12 @@ const ActivationScreen: React.FC<{
           )}
         </div>
 
-        <div className="pt-3 border-t border-slate-800 text-center text-xs text-slate-500">
-          {tr('Need a key or moving to a new computer? Contact KamaiPlus support:')}{' '}
-          <span className="font-mono font-bold text-slate-300 select-all">info@proventure.in</span>
+        <div className="pt-3 border-t border-slate-800 text-center text-xs text-slate-500 space-y-1.5">
+          <div>{tr('Need a key or moving to a new computer? Contact KamaiPlus support:')}</div>
+          <SupportContactLine
+            className="text-slate-300"
+            message={`${supportGreeting()}\n${tr('I need a licence key for this computer:')} ${status.machineName || '—'}`}
+          />
         </div>
       </form>
     </main>

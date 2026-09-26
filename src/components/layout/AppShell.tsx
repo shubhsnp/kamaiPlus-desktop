@@ -13,6 +13,8 @@ import { BusinessProvider } from './BusinessProvider';
 import { UpdateReadyBanner } from './UpdateReadyBanner';
 import { AutoBackupScheduler } from './AutoBackupScheduler';
 import { tr } from '@/lib/i18n/core';
+import { SupportContactLine } from '@/components/support/SupportContact';
+import { supportGreeting } from '@/lib/support/contact';
 
 export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
@@ -197,9 +199,12 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                 {accountLockout.message}
               </p>
             </div>
-            <div className="p-3.5 bg-rose-50 rounded-2xl border border-rose-100 text-xs text-rose-950 space-y-1">
-              <div className="font-bold">{tr('Official Platform Support Email:')}</div>
-              <div className="font-mono font-bold text-rose-700 text-sm select-all">info@proventure.in</div>
+            <div className="p-3.5 bg-rose-50 rounded-2xl border border-rose-100 text-xs text-rose-950 space-y-1.5">
+              <div className="font-bold">{tr('Contact KamaiPlus support:')}</div>
+              <SupportContactLine
+                className="text-rose-700"
+                message={`${supportGreeting()}\n${tr('My KamaiPlus account shows "{status}". Please help.', { status: accountLockout.isFrozen ? 'Account Suspended' : 'Account Deactivated' })}`}
+              />
             </div>
             <button
               type="button"

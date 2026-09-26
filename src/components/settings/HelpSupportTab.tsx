@@ -1,9 +1,12 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Copy, FolderOpen, LifeBuoy, CheckCircle2, AlertTriangle, RefreshCw, Download } from 'lucide-react';
+import { Copy, FolderOpen, LifeBuoy, CheckCircle2, AlertTriangle, RefreshCw, Download, MessageCircle, Mail } from 'lucide-react';
 import { getDesktopApi, UpdateStatus } from '@/lib/desktop/desktopBridge';
 import { tr } from '@/lib/i18n/core';
+import { useBusiness } from '@/components/layout/BusinessProvider';
+import { SupportContactCard } from '@/components/support/SupportContact';
+import { supportEmailUrl, supportGreeting, supportWhatsAppUrl } from '@/lib/support/contact';
 
 /** Version, "Check for updates now" and the per-computer beta (early updates) switch. */
 function UpdatesCard() {
@@ -81,6 +84,7 @@ function UpdatesCard() {
  */
 export function HelpSupportTab() {
   const api = getDesktopApi();
+  const business = useBusiness();
   const [count, setCount] = useState<number | null>(null);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -89,7 +93,12 @@ export function HelpSupportTab() {
   }, []);
 
   if (!api) {
-    return <p className="text-xs text-slate-500">{tr('Support tools are available in the installed desktop app.')}</p>;
+    return (
+      <div className="space-y-4 max-w-2xl">
+        <SupportContactCard shopName={business?.name} />
+        <p className="text-xs text-slate-500">{tr('Support tools are available in the installed desktop app.')}</p>
+      </div>
+    );
   }
 
   const copyReport = async () => {
@@ -103,8 +112,22 @@ export function HelpSupportTab() {
     }
   };
 
+  // Opens WhatsApp / Gmail with the report already typed (the shop only presses Send).
+  const sendReport = async (via: 'whatsapp' | 'email') => {
+    try {
+      const r = await api.getErrorReport();
+      setCount(r.count);
+      const body = `${supportGreeting(business?.name)}\n${tr('Problem report from the app:')}\n\n${r.text}`;
+      window.open(via === 'whatsapp' ? supportWhatsAppUrl(body) : supportEmailUrl(tr('KamaiPlus Desktop problem report'), body), '_blank');
+      setStatus({ ok: true, text: tr('Report ready in {app} — check it and press Send.', { app: via === 'whatsapp' ? 'WhatsApp' : 'Gmail' }) });
+    } catch {
+      setStatus({ ok: false, text: tr('Could not prepare the report. Use "Copy report for support" instead.') });
+    }
+  };
+
   return (
     <div className="space-y-4 max-w-2xl">
+      <SupportContactCard shopName={business?.name} />
       <UpdatesCard />
 
       <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-2xs space-y-3">
@@ -125,6 +148,12 @@ export function HelpSupportTab() {
           <button type="button" onClick={copyReport} className="h-9 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer">
             <Copy className="w-3.5 h-3.5" /> {tr('Copy report for support')}
           </button>
+          <button type="button" onClick={() => sendReport('whatsapp')} className="h-9 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer">
+            <MessageCircle className="w-3.5 h-3.5" /> {tr('Send report on WhatsApp')}
+          </button>
+          <button type="button" onClick={() => sendReport('email')} className="h-9 px-4 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-800 text-xs font-bold flex items-center gap-1.5 cursor-pointer">
+            <Mail className="w-3.5 h-3.5" /> {tr('Send report by email')}
+          </button>
           <button type="button" onClick={() => api.openLogFolder()} className="h-9 px-4 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-800 text-xs font-bold flex items-center gap-1.5 cursor-pointer">
             <FolderOpen className="w-3.5 h-3.5" /> {tr('Open log folder')}
           </button>
@@ -138,7 +167,7 @@ export function HelpSupportTab() {
         )}
 
         <p className="text-[11px] text-slate-500">
-          {tr('KamaiPlus support:')} <span className="font-mono font-bold text-slate-700 select-all">info@proventure.in</span>{tr('. The report contains the app version, Windows version and recent errors — no bills, customers or prices.')}
+          {tr('The report contains the app version, Windows version and recent errors — no bills, customers or prices.')}
         </p>
       </div>
     </div>

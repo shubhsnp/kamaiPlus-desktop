@@ -16,6 +16,8 @@ import {
   KeyRound
 } from 'lucide-react';
 import { tr } from '@/lib/i18n/core';
+import { SupportContactLine } from '@/components/support/SupportContact';
+import { supportGreeting } from '@/lib/support/contact';
 
 export const AuthForm: React.FC = () => {
   const router = useRouter();
@@ -224,6 +226,10 @@ export const AuthForm: React.FC = () => {
           <button type="button" onClick={() => { setRecovering(false); setError(''); }} className="w-full text-xs text-slate-400 hover:text-white cursor-pointer">
             {tr('Back to unlock')}
           </button>
+          <div className="pt-3 border-t border-slate-800 text-center text-[11px] text-slate-500 space-y-1.5">
+            <div>{tr('Lost the licence key too? KamaiPlus support will help:')}</div>
+            <SupportContactLine className="text-slate-300" message={`${supportGreeting()}\n${tr('I forgot the master password and cannot find my licence key.')}`} />
+          </div>
         </form>
       ) : hasPassword ? (
         <form onSubmit={handleUnlock} className="space-y-4">
