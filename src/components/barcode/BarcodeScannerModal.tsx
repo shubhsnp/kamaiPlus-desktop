@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { playBeepSound } from '@/lib/voice/speechParser';
 import { Barcode, Camera, Keyboard, AlertCircle, RefreshCw } from 'lucide-react';
+import { tr } from '@/lib/i18n/core';
 
 interface BarcodeScannerModalProps {
   isOpen: boolean;
@@ -20,8 +21,8 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
   isOpen,
   onClose,
   onScan,
-  title = 'Scan Product Barcode',
-  description = 'Point camera at barcode/QR code on packaging or enter barcode manually.',
+  title = tr('Scan Product Barcode'),
+  description = tr('Point camera at barcode/QR code on packaging or enter barcode manually.'),
 }) => {
   const [manualCode, setManualCode] = useState('');
   const [scannerError, setScannerError] = useState<string | null>(null);
@@ -77,7 +78,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
         } catch (err: any) {
           console.warn('Camera scanner initialization error:', err);
           setScannerError(
-            err?.message || 'Camera permission denied or camera not accessible. You can enter barcode manually below.'
+            err?.message || tr('Camera permission denied or camera not accessible. You can enter barcode manually below.')
           );
           setIsScanning(false);
         }
@@ -157,18 +158,18 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
         <form onSubmit={handleManualSubmit} className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-3">
           <div className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
             <Keyboard className="w-4 h-4" />
-            <span>Or Enter Barcode Number</span>
+            <span>{tr('Or Enter Barcode Number')}</span>
           </div>
           <div className="flex gap-2">
             <Input
-              placeholder="e.g. 890103000001"
+              placeholder={tr('e.g. 890103000001')}
               value={manualCode}
               onChange={(e) => setManualCode(e.target.value)}
               className="font-mono text-sm"
               autoFocus={!!scannerError}
             />
             <Button type="submit" disabled={!manualCode.trim()}>
-              Add
+              {tr('Add')}
             </Button>
           </div>
         </form>

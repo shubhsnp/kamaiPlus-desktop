@@ -5,6 +5,7 @@ import { LedgerTransaction } from '@/types';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Edit2, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { tr } from '@/lib/i18n/core';
 
 interface EditLedgerEntryModalProps {
   isOpen: boolean;
@@ -40,17 +41,17 @@ export const EditLedgerEntryModal: React.FC<EditLedgerEntryModalProps> = ({
       title={
         <div className="flex items-center gap-2">
           <Edit2 className="w-4 h-4 text-amber-600" />
-          <span>Edit Transaction Entry</span>
+          <span>{tr('Edit Transaction Entry')}</span>
         </div>
       }
-      description="Update entry type, amount or notes. Customer total balance will automatically adjust."
+      description={tr('Update entry type, amount or notes. Customer total balance will automatically adjust.')}
       size="md"
     >
       <form onSubmit={onSubmit} className="space-y-4 p-1">
         {/* Entry Type Toggle */}
         <div>
           <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-            Transaction Type
+            {tr('Transaction Type')}
           </label>
           <div className="grid grid-cols-2 gap-2">
             <button
@@ -63,7 +64,7 @@ export const EditLedgerEntryModal: React.FC<EditLedgerEntryModalProps> = ({
               }`}
             >
               <ArrowUpRight className="w-3.5 h-3.5" />
-              <span>You Gave (Udhar)</span>
+              <span>{tr('You Gave (Udhar)')}</span>
             </button>
             <button
               type="button"
@@ -75,7 +76,7 @@ export const EditLedgerEntryModal: React.FC<EditLedgerEntryModalProps> = ({
               }`}
             >
               <ArrowDownLeft className="w-3.5 h-3.5" />
-              <span>You Got (Payment)</span>
+              <span>{tr('You Got (Payment)')}</span>
             </button>
           </div>
         </div>
@@ -83,7 +84,7 @@ export const EditLedgerEntryModal: React.FC<EditLedgerEntryModalProps> = ({
         {/* Amount Input */}
         <div>
           <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-            Amount (₹) *
+            {tr('Amount (₹) *')}
           </label>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg font-bold text-slate-400">
@@ -106,14 +107,14 @@ export const EditLedgerEntryModal: React.FC<EditLedgerEntryModalProps> = ({
         {/* Notes Input */}
         <div>
           <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-            Notes / Description
+            {tr('Notes / Description')}
           </label>
           <textarea
             rows={2}
             value={editTxNotes}
             onChange={(e) => setEditTxNotes(e.target.value)}
             className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-xl p-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
-            placeholder="Edit item details or transaction notes"
+            placeholder={tr('Edit item details or transaction notes')}
           />
         </div>
 
@@ -125,14 +126,14 @@ export const EditLedgerEntryModal: React.FC<EditLedgerEntryModalProps> = ({
             size="sm"
             onClick={onClose}
           >
-            Cancel
+            {tr('Cancel')}
           </Button>
           <Button
             type="submit"
             size="sm"
             className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs"
           >
-            Save Changes
+            {tr('Save Changes')}
           </Button>
         </div>
       </form>

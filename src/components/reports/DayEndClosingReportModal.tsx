@@ -18,6 +18,7 @@ import { Business, Sale, CashExpense, LedgerTransaction } from '@/types';
 import { formatINR } from '@/lib/utils';
 import { generateDailyClosingPDF } from '@/lib/reports/dailyClosingPdf';
 import { localDateKey, summarizeDay } from '@/lib/reports/cashDrawer';
+import { tr } from '@/lib/i18n/core';
 
 interface DayEndClosingReportModalProps {
   isOpen: boolean;
@@ -112,7 +113,7 @@ export const DayEndClosingReportModal: React.FC<DayEndClosingReportModalProps> =
       setCopied(true);
       setTimeout(() => setCopied(false), 3000);
     } catch (err) {
-      showAlert('Failed to copy text.');
+      showAlert(tr('Failed to copy text.'));
     }
   };
 
@@ -136,7 +137,7 @@ export const DayEndClosingReportModal: React.FC<DayEndClosingReportModalProps> =
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err: any) {
-      showAlert(err.message || 'Failed to generate Closing PDF.');
+      showAlert(err.message || tr('Failed to generate Closing PDF.'));
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -146,8 +147,8 @@ export const DayEndClosingReportModal: React.FC<DayEndClosingReportModalProps> =
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="1-Tap Day-End Closing & Summary"
-      description="Official store closing summary & hisab-kitab sent directly to owner's WhatsApp."
+      title={tr('1-Tap Day-End Closing & Summary')}
+      description={tr('Official store closing summary & hisab-kitab sent directly to owner\'s WhatsApp.')}
       size="md"
     >
       <div className="space-y-4 text-xs p-0.5">
@@ -160,7 +161,7 @@ export const DayEndClosingReportModal: React.FC<DayEndClosingReportModalProps> =
               </div>
               <div>
                 <div className="font-black text-xs text-white uppercase tracking-wide">
-                  {business?.name || 'My Store'}
+                  {business?.name || tr('My Store')}
                 </div>
                 <div className="text-[10px] text-slate-400 font-mono">
                   {dateFormatted} • {timeFormatted}
@@ -168,26 +169,26 @@ export const DayEndClosingReportModal: React.FC<DayEndClosingReportModalProps> =
               </div>
             </div>
             <span className="px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800 text-[10px] font-bold">
-              Shift Closing
+              {tr('Shift Closing')}
             </span>
           </div>
 
           {/* Key Totals Grid */}
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block">Total Sales (Bikri)</span>
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">{tr('Total Sales (Bikri)')}</span>
               <div className="text-base font-black text-amber-400 font-mono mt-0.5">
                 {formatINR(totalSalesPaise)}
               </div>
-              <span className="text-[10px] text-slate-400">{daysSales.length} bills generated</span>
+              <span className="text-[10px] text-slate-400">{daysSales.length} {tr('bills generated')}</span>
             </div>
 
             <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block">Net Cash in Hand</span>
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">{tr('Net Cash in Hand')}</span>
               <div className="text-base font-black text-emerald-400 font-mono mt-0.5">
                 {formatINR(netCashInTillPaise)}
               </div>
-              <span className="text-[10px] text-slate-400">After ₹{(cashExpensePaise / 100).toFixed(0)} expenses</span>
+              <span className="text-[10px] text-slate-400">{tr('After ₹')}{(cashExpensePaise / 100).toFixed(0)} {tr('expenses')}</span>
             </div>
           </div>
 
@@ -195,19 +196,19 @@ export const DayEndClosingReportModal: React.FC<DayEndClosingReportModalProps> =
           <div className="space-y-1.5 pt-1 text-[11px] font-mono border-t border-slate-800/80 text-slate-300">
             <div className="flex justify-between items-center">
               <span className="flex items-center gap-1.5 text-slate-400">
-                <Banknote className="w-3.5 h-3.5 text-amber-400" /> Cash Collections:
+                <Banknote className="w-3.5 h-3.5 text-amber-400" /> {tr('Cash Collections:')}
               </span>
               <span className="font-bold text-white">{formatINR(cashSalesPaise)}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="flex items-center gap-1.5 text-slate-400">
-                <QrCode className="w-3.5 h-3.5 text-sky-400" /> UPI / QR Payments:
+                <QrCode className="w-3.5 h-3.5 text-sky-400" /> {tr('UPI / QR Payments:')}
               </span>
               <span className="font-bold text-white">{formatINR(upiSalesPaise)}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="flex items-center gap-1.5 text-slate-400">
-                <BookOpen className="w-3.5 h-3.5 text-rose-400" /> Customer Udhar (Credit):
+                <BookOpen className="w-3.5 h-3.5 text-rose-400" /> {tr('Customer Udhar (Credit):')}
               </span>
               <span className="font-bold text-white">{formatINR(creditSalesPaise)}</span>
             </div>
@@ -217,13 +218,13 @@ export const DayEndClosingReportModal: React.FC<DayEndClosingReportModalProps> =
           {topItems.length > 0 && (
             <div className="pt-2 border-t border-slate-800 text-[11px]">
               <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block mb-1">
-                Top Selling Today:
+                {tr('Top Selling Today:')}
               </span>
               <div className="space-y-1 text-slate-300">
                 {topItems.map(([name, qty], idx) => (
                   <div key={name} className="flex justify-between">
                     <span className="truncate max-w-[200px]">{idx + 1}. {name}</span>
-                    <span className="font-mono text-slate-400 font-bold">{qty} sold</span>
+                    <span className="font-mono text-slate-400 font-bold">{qty} {tr('sold')}</span>
                   </div>
                 ))}
               </div>
@@ -243,12 +244,12 @@ export const DayEndClosingReportModal: React.FC<DayEndClosingReportModalProps> =
             {copied ? (
               <>
                 <Check className="w-3.5 h-3.5 text-emerald-600" />
-                <span className="text-emerald-600 font-black">Copied!</span>
+                <span className="text-emerald-600 font-black">{tr('Copied!')}</span>
               </>
             ) : (
               <>
                 <Copy className="w-3.5 h-3.5 text-slate-600" />
-                <span>Copy Text</span>
+                <span>{tr('Copy Text')}</span>
               </>
             )}
           </Button>
@@ -261,7 +262,7 @@ export const DayEndClosingReportModal: React.FC<DayEndClosingReportModalProps> =
             className="w-full font-bold text-[11px] gap-1 rounded-xl bg-slate-900 hover:bg-slate-800 text-white border-slate-900 cursor-pointer shadow-xs"
           >
             <FileDown className="w-3.5 h-3.5 text-amber-400" />
-            <span>{isGeneratingPdf ? 'Saving...' : 'PDF Report'}</span>
+            <span>{isGeneratingPdf ? tr('Saving...') : tr('PDF Report')}</span>
           </Button>
         </div>
       </div>

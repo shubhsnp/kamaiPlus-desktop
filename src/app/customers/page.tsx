@@ -15,6 +15,7 @@ import { CustomerMetricsRibbon } from '@/components/customers/CustomerMetricsRib
 import { CustomerFilterToolbar, CustomerCategoryFilter } from '@/components/customers/CustomerFilterToolbar';
 import { CustomerCard } from '@/components/customers/CustomerCard';
 import { AddEditCustomerModal } from '@/components/customers/AddEditCustomerModal';
+import { tr } from '@/lib/i18n/core';
 
 export default function CustomersPage() {
   const { t } = useTranslation();
@@ -111,7 +112,7 @@ export default function CustomersPage() {
           sync_status: 'synced',
         });
       }
-      showCustToast(`✅ Updated customer: ${updated.name}`, 'success');
+      showCustToast(tr('✅ Updated customer: {name}', { name: updated.name }), 'success');
     } else {
       const custId = `cust_${Date.now()}`;
       const newCustomer: Customer = {
@@ -142,17 +143,17 @@ export default function CustomersPage() {
         });
       }
 
-      showCustToast(`✅ Added customer: ${newCustomer.name}`, 'success');
+      showCustToast(tr('✅ Added customer: {name}', { name: newCustomer.name }), 'success');
     }
   };
 
   const handleDeleteCustomer = async (id: string, customerName: string) => {
-    if (!await showConfirm(`Are you sure you want to delete customer "${customerName}"?`, { danger: true, confirmLabel: 'Delete' })) {
+    if (!await showConfirm(tr('Are you sure you want to delete customer "{customerName}"?', { customerName: customerName }), { danger: true, confirmLabel: tr('Delete') })) {
       return;
     }
     await db.customers.delete(id);
     setIsModalOpen(false);
-    showCustToast(`🗑️ Deleted customer "${customerName}"`, 'info');
+    showCustToast(tr('🗑️ Deleted customer "{customerName}"', { customerName: customerName }), 'info');
   };
 
   return (
@@ -203,8 +204,8 @@ export default function CustomersPage() {
         {filteredCustomers.length === 0 && (
           <div className="col-span-full p-10 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 text-slate-500 shadow-2xs">
             <Users className="w-8 h-8 mx-auto text-slate-300 dark:text-slate-600 mb-2" />
-            <div className="font-bold text-slate-700 dark:text-slate-300 text-sm">No customers found</div>
-            <p className="text-xs text-slate-400 mt-1">Try adjusting your search query or add a new customer.</p>
+            <div className="font-bold text-slate-700 dark:text-slate-300 text-sm">{tr('No customers found')}</div>
+            <p className="text-xs text-slate-400 mt-1">{tr('Try adjusting your search query or add a new customer.')}</p>
           </div>
         )}
       </div>

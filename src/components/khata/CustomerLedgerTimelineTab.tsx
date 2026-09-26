@@ -14,6 +14,7 @@ import {
   ArrowDownLeft,
   Tag
 } from 'lucide-react';
+import { paymentMethodLabel, tr } from '@/lib/i18n/core';
 
 interface CustomerLedgerTimelineTabProps {
   transactions: LedgerTransaction[];
@@ -35,9 +36,9 @@ export const CustomerLedgerTimelineTab: React.FC<CustomerLedgerTimelineTabProps>
       <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
         <h3 className="text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
           <FileText className="w-3.5 h-3.5 text-amber-500" />
-          <span>Transaction Statement ({transactions.length})</span>
+          <span>{tr('Transaction Statement (')}{transactions.length})</span>
         </h3>
-        <span className="text-[10.5px] text-slate-400 font-mono">Latest first</span>
+        <span className="text-[10.5px] text-slate-400 font-mono">{tr('Latest first')}</span>
       </div>
 
       <div className="space-y-2.5">
@@ -73,19 +74,19 @@ export const CustomerLedgerTimelineTab: React.FC<CustomerLedgerTimelineTabProps>
                         {isDebit ? (
                           <>
                             <ArrowUpRight className="w-3 h-3 text-rose-600" />
-                            <span>You Gave (उधार)</span>
+                            <span>{tr('You Gave (उधार)')}</span>
                           </>
                         ) : (
                           <>
                             <ArrowDownLeft className="w-3 h-3 text-emerald-600" />
-                            <span>You Got (जमा)</span>
+                            <span>{tr('You Got (जमा)')}</span>
                           </>
                         )}
                       </span>
 
                       {tx.payment_method && (
                         <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase bg-white dark:bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-200 dark:border-slate-700 shadow-2xs">
-                          {tx.payment_method}
+                          {paymentMethodLabel(tx.payment_method)}
                         </span>
                       )}
                     </div>
@@ -110,10 +111,10 @@ export const CustomerLedgerTimelineTab: React.FC<CustomerLedgerTimelineTabProps>
                         type="button"
                         onClick={() => onOpenSaleInvoice(tx.reference_id, tx.notes)}
                         className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-[11px] font-bold cursor-pointer transition shadow-2xs active:scale-95"
-                        title="Click to view & reprint tax invoice bill"
+                        title={tr('Click to view & reprint tax invoice bill')}
                       >
                         <Receipt className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                        <span>View Original Bill 📄</span>
+                        <span>{tr('View Original Bill 📄')}</span>
                       </button>
                     </div>
                   )}
@@ -130,7 +131,7 @@ export const CustomerLedgerTimelineTab: React.FC<CustomerLedgerTimelineTabProps>
                           <div className="text-[11.5px] text-slate-700 dark:text-slate-300 bg-white/95 dark:bg-slate-800/90 p-2.5 rounded-xl border border-slate-200/80 dark:border-slate-700 flex items-start gap-2 font-sans shadow-2xs">
                             <ShoppingBag className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                             <div>
-                              <span className="font-bold text-slate-900 dark:text-slate-100">Items: </span>
+                              <span className="font-bold text-slate-900 dark:text-slate-100">{tr('Items:')} </span>
                               <span>{tx.notes.split('•').slice(1).join('•').trim()}</span>
                             </div>
                           </div>
@@ -142,7 +143,7 @@ export const CustomerLedgerTimelineTab: React.FC<CustomerLedgerTimelineTabProps>
                       )
                     ) : (
                       <span className="text-slate-400 font-normal italic text-[11px]">
-                        {isDebit ? 'Udhar recorded' : 'Payment received'}
+                        {isDebit ? tr('Udhar recorded') : tr('Payment received')}
                       </span>
                     )}
                   </div>
@@ -167,7 +168,7 @@ export const CustomerLedgerTimelineTab: React.FC<CustomerLedgerTimelineTabProps>
                       {isDebit ? `+ ₹${(tx.amount / 100).toFixed(2)}` : `- ₹${(tx.amount / 100).toFixed(2)}`}
                     </div>
                     <div className="text-[10.5px] font-mono font-bold text-slate-500 dark:text-slate-400 mt-0.5">
-                      Bal: ₹{(tx.balance_after / 100).toFixed(2)}
+                      {tr('Bal: ₹')}{(tx.balance_after / 100).toFixed(2)}
                     </div>
                   </div>
 
@@ -177,19 +178,19 @@ export const CustomerLedgerTimelineTab: React.FC<CustomerLedgerTimelineTabProps>
                       type="button"
                       onClick={() => onEditEntry(tx)}
                       className="p-1.5 px-2 rounded-lg text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 transition cursor-pointer flex items-center gap-1 text-[11px] font-bold"
-                      title="Edit this entry"
+                      title={tr('Edit this entry')}
                     >
                       <Edit2 className="w-3 h-3 text-slate-500" />
-                      <span>Edit</span>
+                      <span>{tr('Edit')}</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => onDeleteEntry(tx.id)}
                       className="p-1.5 px-2 rounded-lg text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/50 transition cursor-pointer flex items-center gap-1 text-[11px] font-bold"
-                      title="Delete entry"
+                      title={tr('Delete entry')}
                     >
                       <Trash2 className="w-3 h-3" />
-                      <span>Delete</span>
+                      <span>{tr('Delete')}</span>
                     </button>
                   </div>
                 </div>
@@ -201,9 +202,9 @@ export const CustomerLedgerTimelineTab: React.FC<CustomerLedgerTimelineTabProps>
         {transactions.length === 0 && (
           <div className="p-8 text-center text-slate-400 text-xs space-y-2">
             <FileText className="w-9 h-9 mx-auto text-slate-300 dark:text-slate-700" />
-            <div className="font-bold text-slate-600 dark:text-slate-300">No transactions recorded yet</div>
+            <div className="font-bold text-slate-600 dark:text-slate-300">{tr('No transactions recorded yet')}</div>
             <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
-              Add a new transaction using the <span className="font-bold text-rose-600">You Gave</span> or <span className="font-bold text-emerald-600">You Got</span> buttons.
+              {tr('Add a new transaction using the')} <span className="font-bold text-rose-600">{tr('You Gave')}</span> {tr('or')} <span className="font-bold text-emerald-600">{tr('You Got')}</span> {tr('buttons.')}
             </p>
             <div className="flex items-center justify-center gap-2 pt-2">
               <button
@@ -211,14 +212,14 @@ export const CustomerLedgerTimelineTab: React.FC<CustomerLedgerTimelineTabProps>
                 onClick={() => onOpenEntryModal('CREDIT_SALE')}
                 className="px-3 py-1.5 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 text-xs font-bold cursor-pointer"
               >
-                + You Gave ₹ (Udhar)
+                {tr('+ You Gave ₹ (Udhar)')}
               </button>
               <button
                 type="button"
                 onClick={() => onOpenEntryModal('PAYMENT_RECEIVED')}
                 className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-xs font-bold cursor-pointer"
               >
-                ↙ You Got ₹ (Jama)
+                {tr('↙ You Got ₹ (Jama)')}
               </button>
             </div>
           </div>

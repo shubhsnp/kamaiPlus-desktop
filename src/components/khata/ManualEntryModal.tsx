@@ -13,6 +13,7 @@ import {
   Landmark, 
   FileText 
 } from 'lucide-react';
+import { tr } from '@/lib/i18n/core';
 
 interface ManualEntryModalProps {
   isOpen: boolean;
@@ -66,15 +67,15 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
           )}
           <span className="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100">
             {isDebit 
-              ? `You Gave ₹ (Udhar) to ${customer.name}` 
-              : `You Got ₹ (Payment) from ${customer.name}`}
+              ? tr('You Gave ₹ (Udhar) to {name}', { name: customer.name }) 
+              : tr('You Got ₹ (Payment) from {name}', { name: customer.name })}
           </span>
         </div>
       }
       description={
         isDebit 
-          ? 'Record goods, items or loan given on credit. Will increase customer balance.' 
-          : 'Record cash, UPI or bank payment received. Will decrease customer balance.'
+          ? tr('Record goods, items or loan given on credit. Will increase customer balance.') 
+          : tr('Record cash, UPI or bank payment received. Will decrease customer balance.')
       }
       size="md"
     >
@@ -82,7 +83,7 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
         {/* Amount Input */}
         <div>
           <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-            Amount (₹) *
+            {tr('Amount (₹) *')}
           </label>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg font-bold text-slate-400">
@@ -105,7 +106,7 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
         {/* Date Selector */}
         <div>
           <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-            Transaction Date
+            {tr('Transaction Date')}
           </label>
           <Input
             type="date"
@@ -119,14 +120,14 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
         {!isDebit && (
           <div>
             <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-              Payment Mode
+              {tr('Payment Mode')}
             </label>
             <div className="grid grid-cols-4 gap-2">
               {[
-                { id: 'cash', label: 'Cash', icon: Banknote },
+                { id: 'cash', label: tr('Cash'), icon: Banknote },
                 { id: 'upi', label: 'UPI QR', icon: QrCode },
-                { id: 'bank', label: 'Bank', icon: Landmark },
-                { id: 'other', label: 'Other', icon: FileText },
+                { id: 'bank', label: tr('Bank'), icon: Landmark },
+                { id: 'other', label: tr('Other'), icon: FileText },
               ].map((mode) => {
                 const Icon = mode.icon;
                 const isSelected = entryPaymentMode === mode.id;
@@ -153,13 +154,13 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
         {/* Notes / Item Details */}
         <div>
           <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-            Notes / Item Details (Optional)
+            {tr('Notes / Item Details (Optional)')}
           </label>
           <textarea
             rows={2}
             value={entryNotes}
             onChange={(e) => setEntryNotes(e.target.value)}
-            placeholder={isDebit ? 'e.g. 5kg Rice, 2L Mustard Oil or Bill reference' : 'e.g. Google Pay UTR / Cash deposited at counter'}
+            placeholder={isDebit ? tr('e.g. 5kg Rice, 2L Mustard Oil or Bill reference') : tr('e.g. Google Pay UTR / Cash deposited at counter')}
             className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-xl p-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
           />
         </div>
@@ -172,7 +173,7 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
             size="sm"
             onClick={onClose}
           >
-            Cancel
+            {tr('Cancel')}
           </Button>
           <Button
             type="submit"
@@ -183,7 +184,7 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
                 : 'bg-emerald-600 hover:bg-emerald-700 text-white'
             }`}
           >
-            {isDebit ? 'Confirm & Record Udhar' : 'Confirm & Save Payment'}
+            {isDebit ? tr('Confirm & Record Udhar') : tr('Confirm & Save Payment')}
           </Button>
         </div>
       </form>

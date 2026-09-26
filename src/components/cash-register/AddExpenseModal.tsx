@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/Input';
 import { Minus } from 'lucide-react';
 
 import { validateExpenseData } from '@/lib/validation/validators';
+import { tr } from '@/lib/i18n/core';
 
 interface AddExpenseModalProps {
   isOpen: boolean;
@@ -37,7 +38,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
 
     const amtNum = parseFloat(amount);
     if (isNaN(amtNum) || amtNum <= 0) {
-      setFormError('Expense amount must be greater than ₹0.');
+      setFormError(tr('Expense amount must be greater than ₹0.'));
       return;
     }
 
@@ -49,7 +50,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
     });
 
     if (!validation.isValid) {
-      setFormError(validation.error || 'Invalid expense details');
+      setFormError(validation.error || tr('Invalid expense details'));
       return;
     }
 
@@ -68,7 +69,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
       onClose();
     } catch (err) {
       console.error('Failed to save expense:', err);
-      setFormError('Failed to record expense. Please try again.');
+      setFormError(tr('Failed to record expense. Please try again.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -81,34 +82,34 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
       title={
         <div className="flex items-center gap-2">
           <Minus className="w-5 h-5 text-rose-500" />
-          <span>Record Cash Expense (Pouch)</span>
+          <span>{tr('Record Cash Expense (Pouch)')}</span>
         </div>
       }
-      description="Record petty cash withdrawals from the cash drawer."
+      description={tr('Record petty cash withdrawals from the cash drawer.')}
     >
       <form onSubmit={handleSubmit} className="space-y-3.5">
         <div>
           <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-            Expense Category
+            {tr('Expense Category')}
           </label>
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
             className="w-full h-10 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold"
           >
-            <option value="tea_snacks">☕ Tea &amp; Refreshments</option>
-            <option value="delivery_fuel">🛵 Delivery &amp; Fuel</option>
-            <option value="utilities">💡 Electricity &amp; Utilities</option>
-            <option value="salary">👤 Staff Salary Advance</option>
-            <option value="vendor_payment">🚚 Supplier Cash Payment</option>
-            <option value="cleaning">🧹 Shop Cleaning &amp; Maintenance</option>
-            <option value="misc">📦 Miscellaneous / Other</option>
+            <option value="tea_snacks">{tr('☕ Tea & Refreshments')}</option>
+            <option value="delivery_fuel">{tr('🛵 Delivery & Fuel')}</option>
+            <option value="utilities">{tr('💡 Electricity & Utilities')}</option>
+            <option value="salary">{tr('👤 Staff Salary Advance')}</option>
+            <option value="vendor_payment">{tr('🚚 Supplier Cash Payment')}</option>
+            <option value="cleaning">{tr('🧹 Shop Cleaning & Maintenance')}</option>
+            <option value="misc">{tr('📦 Miscellaneous / Other')}</option>
           </select>
         </div>
 
         <Input
-          label="Amount (₹) *"
-          placeholder="e.g. 150.00"
+          label={tr('Amount (₹) *')}
+          placeholder={tr('e.g. 150.00')}
           type="number"
           step="0.01"
           value={amount}
@@ -118,15 +119,15 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
         />
 
         <Input
-          label="Paid To / Recipient (Optional)"
-          placeholder="e.g. Delivery boy / Ramesh"
+          label={tr('Paid To / Recipient (Optional)')}
+          placeholder={tr('e.g. Delivery boy / Ramesh')}
           value={paidTo}
           onChange={(e) => setPaidTo(e.target.value)}
         />
 
         <Input
-          label="Remarks / Notes (Optional)"
-          placeholder="e.g. Evening staff tea & biscuits"
+          label={tr('Remarks / Notes (Optional)')}
+          placeholder={tr('e.g. Evening staff tea & biscuits')}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
@@ -140,10 +141,10 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
 
         <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
+            {tr('Cancel')}
           </Button>
           <Button type="submit" disabled={isSubmitting} className="bg-rose-600 hover:bg-rose-700 text-white font-black">
-            {isSubmitting ? 'Recording...' : 'Record Cash Expense'}
+            {isSubmitting ? tr('Recording...') : tr('Record Cash Expense')}
           </Button>
         </div>
       </form>

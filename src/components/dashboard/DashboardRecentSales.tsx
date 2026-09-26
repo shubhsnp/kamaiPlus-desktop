@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Sale, Business } from '@/types';
 import { formatINR, cn } from '@/lib/utils';
+import { paymentMethodLabel, tr } from '@/lib/i18n/core';
 
 interface DashboardRecentSalesProps {
   sales: Sale[];
@@ -84,14 +85,14 @@ export const DashboardRecentSales: React.FC<DashboardRecentSalesProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-slate-100">
-                Recent Transactions
+                {tr('Recent Transactions')}
               </h3>
               <span className="text-[10px] px-2 py-0.2 rounded-full font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                {displayedSales.length} bills
+                {displayedSales.length} {tr('bills')}
               </span>
             </div>
             <p className="text-[10.5px] text-slate-400">
-              {isCollapsed ? 'Click to expand bills stream' : 'Tap any invoice to view, print, or reprint bill'}
+              {isCollapsed ? tr('Click to expand bills stream') : tr('Tap any invoice to view, print, or reprint bill')}
             </p>
           </div>
         </div>
@@ -103,7 +104,7 @@ export const DashboardRecentSales: React.FC<DashboardRecentSalesProps> = ({
               type="button"
               className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 text-slate-800 dark:text-slate-200 text-xs font-bold flex items-center gap-1 cursor-pointer transition"
             >
-              <span>Full Ledger</span>
+              <span>{tr('Full Ledger')}</span>
               <ArrowRight className="w-3 h-3" />
             </button>
           </Link>
@@ -126,7 +127,7 @@ export const DashboardRecentSales: React.FC<DashboardRecentSalesProps> = ({
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Search invoice # or customer..."
+                placeholder={tr('Search invoice # or customer...')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500 font-medium"
@@ -136,10 +137,10 @@ export const DashboardRecentSales: React.FC<DashboardRecentSalesProps> = ({
             {/* Date & Payment Mode Chips */}
             <div className="flex items-center gap-1 overflow-x-auto pb-0.5 text-[10.5px] font-bold">
               {[
-                { id: 'all', label: 'All' },
-                { id: 'today', label: 'Today' },
-                { id: 'yesterday', label: 'Yesterday' },
-                { id: '7days', label: '7 Days' },
+                { id: 'all', label: tr('All') },
+                { id: 'today', label: tr('Today') },
+                { id: 'yesterday', label: tr('Yesterday') },
+                { id: '7days', label: tr('7 Days') },
               ].map((df) => (
                 <button
                   key={df.id}
@@ -159,10 +160,10 @@ export const DashboardRecentSales: React.FC<DashboardRecentSalesProps> = ({
               <span className="text-slate-300 dark:text-slate-700">|</span>
 
               {[
-                { id: 'all', label: 'All Modes' },
-                { id: 'cash', label: 'Cash' },
+                { id: 'all', label: tr('All Modes') },
+                { id: 'cash', label: tr('Cash') },
                 { id: 'upi', label: 'UPI' },
-                { id: 'credit', label: 'Udhar' },
+                { id: 'credit', label: tr('Udhar') },
               ].map((pf) => (
                 <button
                   key={pf.id}
@@ -213,7 +214,7 @@ export const DashboardRecentSales: React.FC<DashboardRecentSalesProps> = ({
                             ? "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300"
                             : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
                         )}>
-                          {sale.payment_method}
+                          {paymentMethodLabel(sale.payment_method)}
                         </span>
                       </div>
 
@@ -223,7 +224,7 @@ export const DashboardRecentSales: React.FC<DashboardRecentSalesProps> = ({
                           <span>{new Date(sale.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
                         </span>
                         <span>•</span>
-                        <span>{sale.items?.length || 1} items</span>
+                        <span>{sale.items?.length || 1} {tr('items')}</span>
                       </div>
                     </div>
                   </div>
@@ -236,9 +237,9 @@ export const DashboardRecentSales: React.FC<DashboardRecentSalesProps> = ({
                       </div>
                       <div className="text-[9.5px] text-slate-400 font-medium">
                         {isCredit ? (
-                          <span className="text-rose-600 dark:text-rose-400 font-bold">Due: {formatINR(sale.balance_due || 0)}</span>
+                          <span className="text-rose-600 dark:text-rose-400 font-bold">{tr('Due:')} {formatINR(sale.balance_due || 0)}</span>
                         ) : (
-                          <span>Paid</span>
+                          <span>{tr('Paid')}</span>
                         )}
                       </div>
                     </div>
@@ -252,7 +253,7 @@ export const DashboardRecentSales: React.FC<DashboardRecentSalesProps> = ({
                         onSelectSaleForInvoice(sale);
                       }}
                       className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition active:scale-95 cursor-pointer shadow-2xs"
-                      title="View / Print Tax Invoice"
+                      title={tr('View / Print Tax Invoice')}
                     >
                       <Printer className="w-3.5 h-3.5" />
                     </button>
@@ -263,7 +264,7 @@ export const DashboardRecentSales: React.FC<DashboardRecentSalesProps> = ({
 
             {displayedSales.length === 0 && (
               <div className="py-8 text-center text-xs text-slate-400">
-                No recent bills match the selected filter.
+                {tr('No recent bills match the selected filter.')}
               </div>
             )}
           </div>

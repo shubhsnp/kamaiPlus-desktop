@@ -1,5 +1,6 @@
 // Comprehensive Local Database Backup, JSON Snapshot & Restore Service for KamaiPlus
 import { db } from '@/lib/db';
+import { tr } from '@/lib/i18n/core';
 
 export interface BackupMetadata {
   version: string;
@@ -144,7 +145,7 @@ export async function restoreDatabaseFromPayload(
   mode: 'clean' | 'merge' = 'clean'
 ): Promise<{ success: boolean; message: string }> {
   if (!payload || !payload.metadata || !payload.products) {
-    throw new Error('Invalid backup file. Missing essential database collections.');
+    throw new Error(tr('Invalid backup file. Missing essential database collections.'));
   }
 
   const {
@@ -203,7 +204,7 @@ export async function restoreDatabaseFromPayload(
 
   return {
     success: true,
-    message: `Restored ${products?.length || 0} products, ${customers?.length || 0} customers, and ${sales?.length || 0} sales successfully!`,
+    message: tr('Restored {v1} products, {v2} customers, and {v3} sales successfully!', { v1: products?.length || 0, v2: customers?.length || 0, v3: sales?.length || 0 }),
   };
 }
 

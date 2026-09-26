@@ -8,6 +8,7 @@ import { Supplier } from '@/types';
 import { parseRupeesToPaise } from '@/lib/utils';
 import { validateGstin, validateIndianPhone } from '@/lib/validation/validators';
 import { createSupplier, updateSupplier } from '@/lib/suppliers/supplierLedger';
+import { msg, tr } from '@/lib/i18n/core';
 
 interface SupplierFormModalProps {
   isOpen: boolean;
@@ -44,13 +45,13 @@ export function SupplierFormModal({ isOpen, onClose, businessId, existing, onSav
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return setError('Supplier name is required.');
-    const phoneCheck = validateIndianPhone(phone, false, 'Phone number');
-    if (!phoneCheck.isValid) return setError(phoneCheck.error || 'Invalid phone number.');
+    if (!name.trim()) return setError(tr('Supplier name is required.'));
+    const phoneCheck = validateIndianPhone(phone, false, msg('Phone number'));
+    if (!phoneCheck.isValid) return setError(phoneCheck.error || tr('Invalid phone number.'));
     const gstCheck = validateGstin(gstin, false);
-    if (!gstCheck.isValid) return setError(gstCheck.error || 'Invalid GSTIN.');
+    if (!gstCheck.isValid) return setError(gstCheck.error || tr('Invalid GSTIN.'));
     const openingPaise = opening.trim() ? parseRupeesToPaise(opening) : 0;
-    if (openingPaise < 0) return setError('Opening balance cannot be negative.');
+    if (openingPaise < 0) return setError(tr('Opening balance cannot be negative.'));
 
     const input = {
       name,
@@ -70,7 +71,7 @@ export function SupplierFormModal({ isOpen, onClose, businessId, existing, onSav
       }
       onClose();
     } catch (err: any) {
-      setError(err?.message || 'Could not save the supplier.');
+      setError(err?.message || tr('Could not save the supplier.'));
       setSaving(false);
     }
   };
@@ -79,22 +80,22 @@ export function SupplierFormModal({ isOpen, onClose, businessId, existing, onSav
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={existing ? `Edit Supplier: ${existing.name}` : 'Add Supplier'}
-      description="Wholesalers and distributors you buy stock from."
+      title={existing ? tr('Edit Supplier: {name}', { name: existing.name }) : tr('Add Supplier')}
+      description={tr('Wholesalers and distributors you buy stock from.')}
     >
       <form onSubmit={handleSubmit} className="space-y-3">
-        <Input label="Supplier / firm name *" placeholder="e.g. Metro Wholesale" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+        <Input label={tr('Supplier / firm name *')} placeholder={tr('e.g. Metro Wholesale')} value={name} onChange={(e) => setName(e.target.value)} autoFocus />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Input label="Phone" placeholder="10-digit mobile" value={phone} onChange={(e) => setPhone(e.target.value)} />
-          <Input label="GSTIN (optional)" placeholder="27ABCDE1234F1Z5" value={gstin} onChange={(e) => setGstin(e.target.value.toUpperCase())} />
+          <Input label={tr('Phone')} placeholder={tr('10-digit mobile')} value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <Input label={tr('GSTIN (optional)')} placeholder={tr('27ABCDE1234F1Z5')} value={gstin} onChange={(e) => setGstin(e.target.value.toUpperCase())} />
         </div>
-        <Input label="Address (optional)" value={address} onChange={(e) => setAddress(e.target.value)} />
-        <Input label="Notes (optional)" placeholder="e.g. Delivers every Monday" value={notes} onChange={(e) => setNotes(e.target.value)} />
+        <Input label={tr('Address (optional)')} value={address} onChange={(e) => setAddress(e.target.value)} />
+        <Input label={tr('Notes (optional)')} placeholder={tr('e.g. Delivers every Monday')} value={notes} onChange={(e) => setNotes(e.target.value)} />
 
         {!existing && (
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
             <Input
-              label="Opening balance (₹, optional)"
+              label={tr('Opening balance (₹, optional)')}
               placeholder="0.00"
               type="number"
               step="0.01"
@@ -108,14 +109,14 @@ export function SupplierFormModal({ isOpen, onClose, businessId, existing, onSav
                 onClick={() => setOpeningIsAdvance(false)}
                 className={`flex-1 py-1.5 rounded-lg border cursor-pointer ${!openingIsAdvance ? 'bg-rose-600 border-rose-600 text-white' : 'bg-white border-slate-300 text-slate-700'}`}
               >
-                I owe them
+                {tr('I owe them')}
               </button>
               <button
                 type="button"
                 onClick={() => setOpeningIsAdvance(true)}
                 className={`flex-1 py-1.5 rounded-lg border cursor-pointer ${openingIsAdvance ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-slate-300 text-slate-700'}`}
               >
-                I paid in advance
+                {tr('I paid in advance')}
               </button>
             </div>
           </div>
@@ -124,8 +125,8 @@ export function SupplierFormModal({ isOpen, onClose, businessId, existing, onSav
         {error && <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold">{error}</div>}
 
         <div className="pt-3 flex justify-end gap-2 border-t border-slate-200">
-          <Button type="button" variant="outline" size="sm" onClick={onClose}>Cancel</Button>
-          <Button type="submit" size="sm" disabled={saving}>{saving ? 'Saving…' : existing ? 'Save Changes' : 'Add Supplier'}</Button>
+          <Button type="button" variant="outline" size="sm" onClick={onClose}>{tr('Cancel')}</Button>
+          <Button type="submit" size="sm" disabled={saving}>{saving ? tr('Saving…') : existing ? tr('Save Changes') : tr('Add Supplier')}</Button>
         </div>
       </form>
     </Modal>

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { CashierPrivacyToggleButton } from '@/components/privacy/ProfitMask';
+import { tr } from '@/lib/i18n/core';
 
 interface ProductHeaderActionsProps {
   totalProducts: number;
@@ -37,12 +38,12 @@ export const ProductHeaderActions: React.FC<ProductHeaderActionsProps> = ({
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <h1 className="text-base sm:text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight">
-              Products Master &amp; Items
+              {tr('Products Master & Items')}
             </h1>
             <CashierPrivacyToggleButton />
           </div>
           <p className="text-[10.5px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">
-            {`${totalProducts} registered products with barcodes, pricing & instant stock tracking`}
+            {tr('{totalProducts} registered products with barcodes, pricing & instant stock tracking', { totalProducts: totalProducts })}
           </p>
         </div>
       </div>
@@ -54,10 +55,10 @@ export const ProductHeaderActions: React.FC<ProductHeaderActionsProps> = ({
           size="sm"
           onClick={handleInwardClick}
           className="text-xs font-black gap-1.5 rounded-xl border-emerald-400/60 text-slate-900 dark:text-emerald-200 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 cursor-pointer shadow-2xs"
-          title="Upload a distributor bill as an Excel / CSV file"
+          title={tr('Upload a distributor bill as an Excel / CSV file')}
         >
           <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-          <span>Bulk Inward (Excel)</span>
+          <span>{tr('Bulk Inward (Excel)')}</span>
         </Button>
 
         <Button
@@ -66,7 +67,7 @@ export const ProductHeaderActions: React.FC<ProductHeaderActionsProps> = ({
           className="font-black bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-950 hover:bg-slate-800 text-xs px-3.5 py-1.5 shadow-2xs cursor-pointer gap-1.5 rounded-xl"
         >
           <Plus className="w-3.5 h-3.5" />
-          <span>Add Product</span>
+          <span>{tr('Add Product')}</span>
         </Button>
       </div>
     </div>

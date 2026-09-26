@@ -13,6 +13,7 @@ const InvoiceModal = dynamic(
   { ssr: false }
 );
 import { Sale } from '@/types';
+import { tr } from '@/lib/i18n/core';
 
 export const GlobalDrawers: React.FC = () => {
   const pathname = usePathname();
@@ -53,12 +54,12 @@ export const GlobalDrawers: React.FC = () => {
         <div 
           onClick={() => setIsHistoryOpen(true)}
           className="bg-slate-900 dark:bg-slate-800 text-white p-2 py-5 rounded-l-2xl shadow-[-4px_0_15px_rgba(0,0,0,0.1)] cursor-pointer hover:-translate-x-1 transition-transform flex items-center justify-center group"
-          title="Open Recent Sales History"
+          title={tr('Open Recent Sales History')}
         >
           <div className="flex flex-col items-center gap-2">
             <History className="w-4 h-4 text-cyan-400" />
             <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }} className="text-[10px] font-black tracking-widest mt-1 group-hover:text-cyan-400 transition-colors">
-              HISTORY
+              {tr('HISTORY')}
             </span>
           </div>
         </div>
@@ -79,7 +80,7 @@ export const GlobalDrawers: React.FC = () => {
               <div className="w-8 h-8 rounded-lg bg-cyan-100 dark:bg-cyan-900/30 flex items-center justify-center">
                 <History className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
               </div>
-              <h2 className="text-base font-black text-slate-800 dark:text-slate-100 tracking-tight">Recent Sales</h2>
+              <h2 className="text-base font-black text-slate-800 dark:text-slate-100 tracking-tight">{tr('Recent Sales')}</h2>
             </div>
             <button 
               onClick={() => setIsHistoryOpen(false)}

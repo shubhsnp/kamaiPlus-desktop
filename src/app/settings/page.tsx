@@ -37,6 +37,7 @@ import { UpiBankingTab } from '@/components/settings/UpiBankingTab';
 import { InvoiceSettingsTab } from '@/components/settings/InvoiceSettingsTab';
 import { DataMaintenanceTab } from '@/components/settings/DataMaintenanceTab';
 import { HelpSupportTab } from '@/components/settings/HelpSupportTab';
+import { msg, tr } from '@/lib/i18n/core';
 
 
 export default function SettingsPage() {
@@ -93,7 +94,7 @@ export default function SettingsPage() {
     const upis: UpiAccount[] = business.upi_ids && business.upi_ids.length > 0
       ? business.upi_ids
       : business.upi_id
-      ? [{ id: 'upi_def', label: 'Shop Primary QR', upi_id: business.upi_id, is_default: true }]
+      ? [{ id: 'upi_def', label: tr('Shop Primary QR'), upi_id: business.upi_id, is_default: true }]
       : [];
     return {
       name: business.name || '',
@@ -193,7 +194,7 @@ export default function SettingsPage() {
       setLogoUrl(dataUrl);
     } catch (err) {
       console.error('Logo upload error:', err);
-      setSettingsError('Could not read that image. Please choose a PNG or JPG logo.');
+      setSettingsError(tr('Could not read that image. Please choose a PNG or JPG logo.'));
     }
   };
 
@@ -204,7 +205,7 @@ export default function SettingsPage() {
 
     const upiRes = validateUpiId(newUpiId, true);
     if (!upiRes.isValid) {
-      setSettingsError(upiRes.error || 'Invalid UPI ID');
+      setSettingsError(upiRes.error || tr('Invalid UPI ID'));
       return;
     }
 
@@ -243,50 +244,50 @@ export default function SettingsPage() {
     const changes: ChangedField[] = [];
 
     if (name.trim() !== (business.name || '').trim()) {
-      changes.push({ key: 'name', label: 'Store Name', category: 'profile', categoryLabel: 'Store Profile', oldValue: business.name || '', newValue: name.trim() });
+      changes.push({ key: 'name', label: tr('Store Name'), category: 'profile', categoryLabel: tr('Store Profile'), oldValue: business.name || '', newValue: name.trim() });
     }
 
     if (ownerName.trim() !== (business.owner_name || '').trim()) {
-      changes.push({ key: 'owner_name', label: 'Owner Name', category: 'profile', categoryLabel: 'Store Profile', oldValue: business.owner_name || '', newValue: ownerName.trim() });
+      changes.push({ key: 'owner_name', label: tr('Owner Name'), category: 'profile', categoryLabel: tr('Store Profile'), oldValue: business.owner_name || '', newValue: ownerName.trim() });
     }
     if (phone.trim() !== (business.phone || '').trim()) {
-      changes.push({ key: 'phone', label: 'Store Mobile Phone', category: 'profile', categoryLabel: 'Store Profile', oldValue: business.phone || '', newValue: phone.trim() });
+      changes.push({ key: 'phone', label: tr('Store Mobile Phone'), category: 'profile', categoryLabel: tr('Store Profile'), oldValue: business.phone || '', newValue: phone.trim() });
     }
     if (address.trim() !== (business.address || '').trim()) {
-      changes.push({ key: 'address', label: 'Address', category: 'profile', categoryLabel: 'Store Profile', oldValue: business.address || '', newValue: address.trim() });
+      changes.push({ key: 'address', label: tr('Address'), category: 'profile', categoryLabel: tr('Store Profile'), oldValue: business.address || '', newValue: address.trim() });
     }
     if (gstin.trim() !== (business.gstin || '').trim()) {
-      changes.push({ key: 'gstin', label: 'GSTIN Number', category: 'profile', categoryLabel: 'Store Profile', oldValue: business.gstin || '', newValue: gstin.trim() });
+      changes.push({ key: 'gstin', label: tr('GSTIN Number'), category: 'profile', categoryLabel: tr('Store Profile'), oldValue: business.gstin || '', newValue: gstin.trim() });
     }
     if (invoicePrefix.trim() !== (business.invoice_prefix || 'INV-').trim()) {
-      changes.push({ key: 'invoice_prefix', label: 'Invoice Prefix', category: 'invoicing', categoryLabel: 'Invoices', oldValue: business.invoice_prefix || 'INV-', newValue: invoicePrefix.trim() });
+      changes.push({ key: 'invoice_prefix', label: tr('Invoice Prefix'), category: 'invoicing', categoryLabel: tr('Invoices'), oldValue: business.invoice_prefix || 'INV-', newValue: invoicePrefix.trim() });
     }
     if (gstPricingMode !== (business.gst_pricing_mode || 'inclusive')) {
-      changes.push({ key: 'gst_pricing_mode', label: 'GST Pricing Mode', category: 'invoicing', categoryLabel: 'Invoices', oldValue: business.gst_pricing_mode || 'inclusive', newValue: gstPricingMode });
+      changes.push({ key: 'gst_pricing_mode', label: tr('GST Pricing Mode'), category: 'invoicing', categoryLabel: tr('Invoices'), oldValue: business.gst_pricing_mode || 'inclusive', newValue: gstPricingMode });
     }
 
     if (initial) {
       const simple: ChangedField[] = [
-        { key: 'tagline', label: 'Tagline', category: 'profile', categoryLabel: 'Store Profile', oldValue: initial.tagline, newValue: tagline.trim() },
-        { key: 'email', label: 'Email', category: 'profile', categoryLabel: 'Store Profile', oldValue: initial.email, newValue: email.trim() },
-        { key: 'pincode', label: 'Pincode', category: 'profile', categoryLabel: 'Store Profile', oldValue: initial.pincode, newValue: pincode.trim() },
-        { key: 'bank_name', label: 'Bank Name', category: 'upi', categoryLabel: 'UPI & Banking', oldValue: initial.bankName, newValue: bankName.trim() },
-        { key: 'bank_account_no', label: 'Bank Account No', category: 'upi', categoryLabel: 'UPI & Banking', oldValue: initial.bankAccountNo, newValue: bankAccountNo.trim() },
-        { key: 'bank_ifsc', label: 'Bank IFSC', category: 'upi', categoryLabel: 'UPI & Banking', oldValue: initial.bankIfsc, newValue: bankIfsc.trim().toUpperCase() },
-        { key: 'bank_account_name', label: 'Account Holder Name', category: 'upi', categoryLabel: 'UPI & Banking', oldValue: initial.bankAccountName, newValue: bankAccountName.trim() },
-        { key: 'next_invoice_number', label: 'Next Invoice Number', category: 'invoicing', categoryLabel: 'Invoices', oldValue: initial.nextInvoiceNumber, newValue: String(parseInt(nextInvoiceNumber, 10) || 1) },
-        { key: 'terms_conditions', label: 'Bill Terms & Conditions', category: 'invoicing', categoryLabel: 'Invoices', oldValue: initial.terms, newValue: terms.trim() },
-        { key: 'footer_message', label: 'Bill Footer Note', category: 'invoicing', categoryLabel: 'Invoices', oldValue: initial.footerMessage, newValue: footerMessage.trim() },
+        { key: 'tagline', label: tr('Tagline'), category: 'profile', categoryLabel: tr('Store Profile'), oldValue: initial.tagline, newValue: tagline.trim() },
+        { key: 'email', label: tr('Email'), category: 'profile', categoryLabel: tr('Store Profile'), oldValue: initial.email, newValue: email.trim() },
+        { key: 'pincode', label: tr('Pincode'), category: 'profile', categoryLabel: tr('Store Profile'), oldValue: initial.pincode, newValue: pincode.trim() },
+        { key: 'bank_name', label: tr('Bank Name'), category: 'upi', categoryLabel: tr('UPI & Banking'), oldValue: initial.bankName, newValue: bankName.trim() },
+        { key: 'bank_account_no', label: tr('Bank Account No'), category: 'upi', categoryLabel: tr('UPI & Banking'), oldValue: initial.bankAccountNo, newValue: bankAccountNo.trim() },
+        { key: 'bank_ifsc', label: tr('Bank IFSC'), category: 'upi', categoryLabel: tr('UPI & Banking'), oldValue: initial.bankIfsc, newValue: bankIfsc.trim().toUpperCase() },
+        { key: 'bank_account_name', label: tr('Account Holder Name'), category: 'upi', categoryLabel: tr('UPI & Banking'), oldValue: initial.bankAccountName, newValue: bankAccountName.trim() },
+        { key: 'next_invoice_number', label: tr('Next Invoice Number'), category: 'invoicing', categoryLabel: tr('Invoices'), oldValue: initial.nextInvoiceNumber, newValue: String(parseInt(nextInvoiceNumber, 10) || 1) },
+        { key: 'terms_conditions', label: tr('Bill Terms & Conditions'), category: 'invoicing', categoryLabel: tr('Invoices'), oldValue: initial.terms, newValue: terms.trim() },
+        { key: 'footer_message', label: tr('Bill Footer Note'), category: 'invoicing', categoryLabel: tr('Invoices'), oldValue: initial.footerMessage, newValue: footerMessage.trim() },
       ];
       simple.forEach((f) => {
         if (String(f.oldValue).trim() !== f.newValue) changes.push(f);
       });
       if (logoUrl !== initial.logoUrl) {
-        changes.push({ key: 'logo_url', label: 'Store Logo', category: 'profile', categoryLabel: 'Store Profile', oldValue: initial.logoUrl ? 'Logo set' : 'No logo', newValue: logoUrl ? 'New logo' : 'Logo removed' });
+        changes.push({ key: 'logo_url', label: tr('Store Logo'), category: 'profile', categoryLabel: tr('Store Profile'), oldValue: initial.logoUrl ? 'Logo set' : 'No logo', newValue: logoUrl ? 'New logo' : 'Logo removed' });
       }
       const upiKey = (list: UpiAccount[]) => JSON.stringify(list.map((u) => [u.upi_id, u.label, Boolean(u.is_default)]));
       if (upiKey(upiList) !== upiKey(initial.upiList)) {
-        changes.push({ key: 'upi_ids', label: 'UPI IDs', category: 'upi', categoryLabel: 'UPI & Banking', oldValue: `${initial.upiList.length} UPI ID(s)`, newValue: `${upiList.length} UPI ID(s)` });
+        changes.push({ key: 'upi_ids', label: tr('UPI IDs'), category: 'upi', categoryLabel: tr('UPI & Banking'), oldValue: `${initial.upiList.length} UPI ID(s)`, newValue: `${upiList.length} UPI ID(s)` });
       }
     }
 
@@ -312,16 +313,16 @@ export default function SettingsPage() {
 
     // 1. Validate Store Name
     if (!name.trim() || name.trim().length < 2) {
-      setSettingsError('Store Name must be at least 2 characters long.');
+      setSettingsError(tr('Store Name must be at least 2 characters long.'));
       setActiveTab('profile');
       setIsReviewModalOpen(false);
       return;
     }
 
     // 2. Validate Phone
-    const phoneRes = validateIndianPhone(phone, true, 'Store Mobile Phone');
+    const phoneRes = validateIndianPhone(phone, true, msg('Store Mobile Phone'));
     if (!phoneRes.isValid) {
-      setSettingsError(phoneRes.error || 'Invalid store mobile phone number.');
+      setSettingsError(phoneRes.error || tr('Invalid store mobile phone number.'));
       setActiveTab('profile');
       setIsReviewModalOpen(false);
       return;
@@ -331,7 +332,7 @@ export default function SettingsPage() {
     if (email && email.trim()) {
       const emailRes = validateEmail(email, false);
       if (!emailRes.isValid) {
-        setSettingsError(emailRes.error || 'Invalid email address format.');
+        setSettingsError(emailRes.error || tr('Invalid email address format.'));
         setActiveTab('profile');
         setIsReviewModalOpen(false);
         return;
@@ -342,7 +343,7 @@ export default function SettingsPage() {
     if (gstin && gstin.trim()) {
       const gstinRes = validateGstin(gstin, false);
       if (!gstinRes.isValid) {
-        setSettingsError(gstinRes.error || 'Invalid GSTIN structure.');
+        setSettingsError(gstinRes.error || tr('Invalid GSTIN structure.'));
         setActiveTab('profile');
         setIsReviewModalOpen(false);
         return;
@@ -353,7 +354,7 @@ export default function SettingsPage() {
     if (pincode && pincode.trim()) {
       const pinRes = validatePincode(pincode, false);
       if (!pinRes.isValid) {
-        setSettingsError(pinRes.error || 'Invalid 6-digit postal pincode.');
+        setSettingsError(pinRes.error || tr('Invalid 6-digit postal pincode.'));
         setActiveTab('profile');
         setIsReviewModalOpen(false);
         return;

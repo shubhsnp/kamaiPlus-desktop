@@ -15,6 +15,7 @@ import { InventoryMetricsRibbon } from '@/components/inventory/InventoryMetricsR
 import { InventoryNavTabs, InventoryTabType } from '@/components/inventory/InventoryNavTabs';
 import { ReorderAlertsList } from '@/components/inventory/ReorderAlertsList';
 import { StockMovementsList } from '@/components/inventory/StockMovementsList';
+import { tr } from '@/lib/i18n/core';
 
 // Lazy-load heavy modals
 const ExcelInventoryImporter = dynamic(
@@ -78,7 +79,7 @@ export default function InventoryPage() {
       created_at: new Date().toISOString(),
     });
 
-    showInvToast(`✅ Restocked +${quantity} units for ${product.name}!`);
+    showInvToast(tr('✅ Restocked +{quantity} units for {name}!', { quantity: quantity, name: product.name }));
   };
 
 

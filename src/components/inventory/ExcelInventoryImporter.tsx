@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/Button';
 import { db } from '@/lib/db';
 import { Product } from '@/types';
 import { formatINR } from '@/lib/utils';
+import { tr } from '@/lib/i18n/core';
 
 interface ExcelInventoryImporterProps {
   isOpen: boolean;
@@ -150,7 +151,7 @@ export function ExcelInventoryImporter({
       const rawRows = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet, { defval: '' });
 
       if (rawRows.length === 0) {
-        showAlert('The uploaded spreadsheet contains no data rows.');
+        showAlert(tr('The uploaded spreadsheet contains no data rows.'));
         setIsProcessing(false);
         return;
       }
@@ -180,8 +181,8 @@ export function ExcelInventoryImporter({
 
         const isValid = Boolean(rawName && rawSp > 0);
         let errorReason = '';
-        if (!rawName) errorReason = 'Missing product name';
-        else if (rawSp <= 0) errorReason = 'Invalid selling price';
+        if (!rawName) errorReason = tr('Missing product name');
+        else if (rawSp <= 0) errorReason = tr('Invalid selling price');
 
         return {
           name: rawName,
@@ -210,7 +211,7 @@ export function ExcelInventoryImporter({
       });
     } catch (err: any) {
       console.error('Spreadsheet parse error:', err);
-      showAlert('Failed to read spreadsheet. Please ensure it is a valid .xlsx, .xls or .csv file.');
+      showAlert(tr('Failed to read spreadsheet. Please ensure it is a valid .xlsx, .xls or .csv file.'));
     } finally {
       setIsProcessing(false);
     }
@@ -232,7 +233,7 @@ export function ExcelInventoryImporter({
   const handleCommitImport = async () => {
     const validRows = parsedItems.filter((r) => r.isValid);
     if (validRows.length === 0) {
-      showAlert('No valid items found to import.');
+      showAlert(tr('No valid items found to import.'));
       return;
     }
 
@@ -278,7 +279,7 @@ export function ExcelInventoryImporter({
       onImportComplete?.(newProducts.length);
     } catch (err: any) {
       console.error('Import commit error:', err);
-      showAlert('Failed to commit items to local database.');
+      showAlert(tr('Failed to commit items to local database.'));
     } finally {
       setIsImporting(false);
     }
@@ -291,7 +292,7 @@ export function ExcelInventoryImporter({
         resetState();
         onClose();
       }}
-      title="Bulk Excel / CSV Inventory Importer"
+      title={tr('Bulk Excel / CSV Inventory Importer')}
       size="xl"
     >
       <div className="space-y-4 p-1">
@@ -321,15 +322,15 @@ export function ExcelInventoryImporter({
               </div>
 
               <h4 className="text-base font-black text-slate-900">
-                Drag & Drop Excel or CSV File Here
+                {tr('Drag & Drop Excel or CSV File Here')}
               </h4>
               <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-                Supports Microsoft Excel (.xlsx, .xls) and CSV (.csv) exports from Vyapar, Marg, Tally, or custom sheets.
+                {tr('Supports Microsoft Excel (.xlsx, .xls) and CSV (.csv) exports from Vyapar, Marg, Tally, or custom sheets.')}
               </p>
 
               <div className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 shadow-xs group-hover:bg-amber-400 group-hover:text-slate-950 group-hover:border-amber-500 transition">
                 <FileSpreadsheet className="w-4 h-4" />
-                <span>Browse Files on Computer / Mobile</span>
+                <span>{tr('Browse Files on Computer / Mobile')}</span>
               </div>
             </div>
 
@@ -340,8 +341,8 @@ export function ExcelInventoryImporter({
                   <Download className="w-5 h-5" />
                 </div>
                 <div>
-                  <div className="text-xs font-black text-slate-900">Need a Sample Excel Template?</div>
-                  <div className="text-[11px] text-slate-500">Download our pre-formatted spreadsheet with sample retail items.</div>
+                  <div className="text-xs font-black text-slate-900">{tr('Need a Sample Excel Template?')}</div>
+                  <div className="text-[11px] text-slate-500">{tr('Download our pre-formatted spreadsheet with sample retail items.')}</div>
                 </div>
               </div>
 
@@ -352,7 +353,7 @@ export function ExcelInventoryImporter({
                 className="w-full sm:w-auto font-bold text-xs bg-white hover:bg-slate-50"
               >
                 <Download className="w-3.5 h-3.5 mr-1" />
-                <span>Download Sample .XLSX</span>
+                <span>{tr('Download Sample .XLSX')}</span>
               </Button>
             </div>
           </div>
@@ -362,7 +363,7 @@ export function ExcelInventoryImporter({
         {isProcessing && (
           <div className="py-12 text-center space-y-3">
             <RefreshCw className="w-8 h-8 text-amber-500 animate-spin mx-auto" />
-            <h4 className="text-sm font-black text-slate-900">Analyzing & Mapping Spreadsheet Columns...</h4>
+            <h4 className="text-sm font-black text-slate-900">{tr('Analyzing & Mapping Spreadsheet Columns...')}</h4>
           </div>
         )}
 
@@ -378,11 +379,11 @@ export function ExcelInventoryImporter({
 
               <div className="flex items-center gap-2 text-xs font-bold font-mono">
                 <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                  ✓ {importStats?.valid} Ready to Import
+                  ✓ {importStats?.valid} {tr('Ready to Import')}
                 </span>
                 {(importStats?.invalid || 0) > 0 && (
                   <span className="px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800">
-                    ⚠ {importStats?.invalid} Skipped
+                    ⚠ {importStats?.invalid} {tr('Skipped')}
                   </span>
                 )}
               </div>
@@ -393,13 +394,13 @@ export function ExcelInventoryImporter({
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold sticky top-0">
                   <tr>
-                    <th className="p-2.5">Status</th>
-                    <th className="p-2.5">Item Name</th>
-                    <th className="p-2.5">Barcode</th>
-                    <th className="p-2.5">Selling Price</th>
-                    <th className="p-2.5">Stock</th>
-                    <th className="p-2.5">Category</th>
-                    <th className="p-2.5">Tax %</th>
+                    <th className="p-2.5">{tr('Status')}</th>
+                    <th className="p-2.5">{tr('Item Name')}</th>
+                    <th className="p-2.5">{tr('Barcode')}</th>
+                    <th className="p-2.5">{tr('Selling Price')}</th>
+                    <th className="p-2.5">{tr('Stock')}</th>
+                    <th className="p-2.5">{tr('Category')}</th>
+                    <th className="p-2.5">{tr('Tax %')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -409,7 +410,7 @@ export function ExcelInventoryImporter({
                         {row.isValid ? (
                           <span className="inline-flex items-center gap-1 text-emerald-600 font-bold">
                             <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Valid</span>
+                            <span>{tr('Valid')}</span>
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 text-rose-600 font-bold" title={row.errorReason}>
@@ -432,7 +433,7 @@ export function ExcelInventoryImporter({
 
             {parsedItems.length > 50 && (
               <p className="text-[11px] text-slate-400 text-center font-mono">
-                Showing first 50 of {parsedItems.length} parsed items
+                {tr('Showing first 50 of')} {parsedItems.length} {tr('parsed items')}
               </p>
             )}
 
@@ -444,7 +445,7 @@ export function ExcelInventoryImporter({
                 onClick={resetState}
                 disabled={isImporting}
               >
-                Choose Different File
+                {tr('Choose Different File')}
               </Button>
 
               <Button
@@ -456,12 +457,12 @@ export function ExcelInventoryImporter({
                 {isImporting ? (
                   <span className="flex items-center gap-1.5">
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    <span>Importing ({importProgress}%)...</span>
+                    <span>{tr('Importing (')}{importProgress}%)...</span>
                   </span>
                 ) : (
                   <span className="flex items-center gap-1.5">
                     <Database className="w-4 h-4" />
-                    <span>Import {importStats?.valid} Items into Catalog</span>
+                    <span>{tr('Import')} {importStats?.valid} {tr('Items into Catalog')}</span>
                   </span>
                 )}
               </Button>
@@ -478,10 +479,10 @@ export function ExcelInventoryImporter({
 
             <div className="space-y-1">
               <h3 className="text-lg font-black text-slate-900">
-                🎉 Successfully Imported {importStats?.valid} Products!
+                {tr('🎉 Successfully Imported')} {importStats?.valid} {tr('Products!')}
               </h3>
               <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                All items have been instantly loaded into your local Dexie database and are ready for POS counter billing.
+                {tr('All items have been instantly loaded into your local Dexie database and are ready for POS counter billing.')}
               </p>
             </div>
 
@@ -492,7 +493,7 @@ export function ExcelInventoryImporter({
               }}
               className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs h-10 px-6 rounded-xl cursor-pointer"
             >
-              Done &amp; View Catalog
+              {tr('Done & View Catalog')}
             </Button>
           </div>
         )}

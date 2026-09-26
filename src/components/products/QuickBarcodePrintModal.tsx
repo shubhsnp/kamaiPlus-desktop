@@ -8,6 +8,7 @@ import { getDesktopApi } from '@/lib/desktop/desktopBridge';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Printer, X, Copy, Check } from 'lucide-react';
+import { tr } from '@/lib/i18n/core';
 
 interface QuickBarcodePrintModalProps {
   isOpen: boolean;
@@ -142,7 +143,7 @@ export const QuickBarcodePrintModal: React.FC<QuickBarcodePrintModalProps> = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="1-Click Barcode Print" size="sm">
+    <Modal isOpen={isOpen} onClose={onClose} title={tr('1-Click Barcode Print')} size="sm">
       <div className="space-y-4">
         {/* Live Preview of Single Label */}
         <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col items-center justify-center text-center shadow-xs">
@@ -165,7 +166,7 @@ export const QuickBarcodePrintModal: React.FC<QuickBarcodePrintModalProps> = ({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-[11px] font-bold text-slate-600 mb-1">
-              Copies
+              {tr('Copies')}
             </label>
             <div className="flex items-center gap-1">
               {[1, 5, 10, 20].map((num) => (
@@ -187,17 +188,17 @@ export const QuickBarcodePrintModal: React.FC<QuickBarcodePrintModalProps> = ({
 
           <div>
             <label className="block text-[11px] font-bold text-slate-600 mb-1">
-              Label Size
+              {tr('Label Size')}
             </label>
             <select
               value={labelSize}
               onChange={(e) => setLabelSize(e.target.value as any)}
               className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-900"
             >
-              <option value="50x25">50 × 25 mm (Thermal)</option>
-              <option value="38x25">38 × 25 mm (Jewellery/Mini)</option>
-              <option value="pos_58">58mm Receipt Roll</option>
-              <option value="pos_80">80mm Receipt Roll</option>
+              <option value="50x25">{tr('50 × 25 mm (Thermal)')}</option>
+              <option value="38x25">{tr('38 × 25 mm (Jewellery/Mini)')}</option>
+              <option value="pos_58">{tr('58mm Receipt Roll')}</option>
+              <option value="pos_80">{tr('80mm Receipt Roll')}</option>
             </select>
           </div>
         </div>
@@ -209,7 +210,7 @@ export const QuickBarcodePrintModal: React.FC<QuickBarcodePrintModalProps> = ({
             onClick={onClose}
             className="flex-1 py-2 text-xs font-bold"
           >
-            Cancel
+            {tr('Cancel')}
           </Button>
           <Button
             onClick={handlePrint}
@@ -217,7 +218,7 @@ export const QuickBarcodePrintModal: React.FC<QuickBarcodePrintModalProps> = ({
             className="flex-1 py-2 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center gap-1.5"
           >
             <Printer className="w-3.5 h-3.5" />
-            <span>Print {copies} {copies === 1 ? 'Label' : 'Labels'}</span>
+            <span>{tr('Print')} {copies} {copies === 1 ? tr('Label') : tr('Labels')}</span>
           </Button>
         </div>
       </div>

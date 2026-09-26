@@ -8,6 +8,7 @@ import {
   FileText 
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { tr } from '@/lib/i18n/core';
 
 export type GstTabType = 'hsn' | 'b2b' | 'b2cs' | 'doc_issue';
 
@@ -27,10 +28,10 @@ export const GstNavTabs: React.FC<GstNavTabsProps> = ({
   b2csCount,
 }) => {
   const tabs = [
-    { id: 'hsn' as GstTabType, label: `HSN Summary (${hsnCount})`, icon: Layers },
-    { id: 'b2b' as GstTabType, label: `B2B Invoices (${b2bCount})`, icon: Building2 },
-    { id: 'b2cs' as GstTabType, label: `B2C Retail (${b2csCount})`, icon: ShoppingBag },
-    { id: 'doc_issue' as GstTabType, label: 'Docs Issued', icon: FileText },
+    { id: 'hsn' as GstTabType, label: tr('HSN Summary ({hsnCount})', { hsnCount: hsnCount }), icon: Layers },
+    { id: 'b2b' as GstTabType, label: tr('B2B Invoices ({b2bCount})', { b2bCount: b2bCount }), icon: Building2 },
+    { id: 'b2cs' as GstTabType, label: tr('B2C Retail ({b2csCount})', { b2csCount: b2csCount }), icon: ShoppingBag },
+    { id: 'doc_issue' as GstTabType, label: tr('Docs Issued'), icon: FileText },
   ];
 
   return (

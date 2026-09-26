@@ -13,6 +13,7 @@ import {
 import { CashExpense } from '@/types';
 import { Card } from '@/components/ui/Card';
 import { formatINR } from '@/lib/utils';
+import { expenseCategoryLabel, tr } from '@/lib/i18n/core';
 
 interface CashExpensesListProps {
   expenses: CashExpense[];
@@ -31,11 +32,11 @@ export const CashExpensesList: React.FC<CashExpensesListProps> = ({
         <div className="flex items-center gap-2">
           <ArrowUpRight className="w-4 h-4 text-rose-600" />
           <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
-            Today's Petty Cash Outflows
+            {tr('Today\'s Petty Cash Outflows')}
           </h3>
         </div>
         <span className="text-xs font-mono font-black text-rose-600 dark:text-rose-400">
-          Total: -{formatINR(totalExpensePaise)}
+          {tr('Total: -')}{formatINR(totalExpensePaise)}
         </span>
       </div>
 
@@ -45,14 +46,14 @@ export const CashExpensesList: React.FC<CashExpensesListProps> = ({
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <span className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">
-                  {e.title || e.category}
+                  {e.title || expenseCategoryLabel(e.category)}
                 </span>
                 <span className="px-1.5 py-0.2 rounded text-[9.5px] font-black uppercase bg-rose-50 text-rose-700 border border-rose-200">
-                  {e.category}
+                  {expenseCategoryLabel(e.category)}
                 </span>
               </div>
               <div className="text-[11px] text-slate-400 mt-0.5 truncate font-mono">
-                {e.paid_to ? `Paid to: ${e.paid_to} • ` : ''}
+                {e.paid_to ? tr('Paid to: {paid_to} • ', { paid_to: e.paid_to }) : ''}
                 {new Date(e.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
               </div>
             </div>
@@ -65,7 +66,7 @@ export const CashExpensesList: React.FC<CashExpensesListProps> = ({
                 type="button"
                 onClick={() => onDeleteExpense(e.id)}
                 className="p-1 rounded text-slate-400 hover:text-rose-600 cursor-pointer"
-                title="Delete Expense"
+                title={tr('Delete Expense')}
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -75,7 +76,7 @@ export const CashExpensesList: React.FC<CashExpensesListProps> = ({
 
         {expenses.length === 0 && (
           <div className="py-8 text-center text-xs text-slate-400">
-            No petty cash expenses recorded today.
+            {tr('No petty cash expenses recorded today.')}
           </div>
         )}
       </div>

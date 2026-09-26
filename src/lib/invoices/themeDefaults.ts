@@ -1,4 +1,5 @@
 import { Business, InvoiceThemeConfig, InvoiceThemeId } from '@/types';
+import { msg } from '@/lib/i18n/core';
 
 export interface InvoicePaletteColor {
   label: string;
@@ -8,13 +9,13 @@ export interface InvoicePaletteColor {
 
 /** Invoice colour palette — the same seven colours as the Android Invoice Themes screen. */
 export const INVOICE_PALETTE: InvoicePaletteColor[] = [
-  { label: 'Navy Slate', hex: '#0F172A', themeId: 'vyapar_classic' },
-  { label: 'Sky Blue', hex: '#0284C7', themeId: 'pharma_care' },
-  { label: 'Emerald Green', hex: '#059669', themeId: 'modern_emerald' },
-  { label: 'Terracotta Amber', hex: '#B45309', themeId: 'golden_elegance' },
-  { label: 'Royal Purple', hex: '#7E22CE', themeId: 'compact_kirana' },
-  { label: 'Teal', hex: '#0D9488', themeId: 'royal_blue' },
-  { label: 'Charcoal', hex: '#334155', themeId: 'thermal_minimal' },
+  { label: msg('Navy Slate'), hex: '#0F172A', themeId: 'vyapar_classic' },
+  { label: msg('Sky Blue'), hex: '#0284C7', themeId: 'pharma_care' },
+  { label: msg('Emerald Green'), hex: '#059669', themeId: 'modern_emerald' },
+  { label: msg('Terracotta Amber'), hex: '#B45309', themeId: 'golden_elegance' },
+  { label: msg('Royal Purple'), hex: '#7E22CE', themeId: 'compact_kirana' },
+  { label: msg('Teal'), hex: '#0D9488', themeId: 'royal_blue' },
+  { label: msg('Charcoal'), hex: '#334155', themeId: 'thermal_minimal' },
 ];
 
 /** Document headings offered in Invoice Themes (Android parity). */

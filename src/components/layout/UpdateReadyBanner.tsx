@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Download, RotateCw, X } from 'lucide-react';
 import { getDesktopApi } from '@/lib/desktop/desktopBridge';
+import { tr } from '@/lib/i18n/core';
 
 /**
  * Shown once a newer version has downloaded in the background (updater.js).
@@ -42,16 +43,16 @@ export const UpdateReadyBanner: React.FC = () => {
           <Download className="w-4 h-4" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-black">Update ready (v{version})</p>
+          <p className="text-sm font-black">{tr('Update ready (v')}{version})</p>
           <p className="text-xs text-slate-400 mt-0.5">
-            Restart to finish updating. All bills and data stay safe. Or keep working — it installs when you close the app.
+            {tr('Restart to finish updating. All bills and data stay safe. Or keep working — it installs when you close the app.')}
           </p>
         </div>
         <button
           type="button"
           onClick={() => setDismissed(true)}
           className="p-1 text-slate-500 hover:text-white rounded-lg cursor-pointer"
-          aria-label="Later"
+          aria-label={tr('Later')}
         >
           <X className="w-4 h-4" />
         </button>
@@ -64,14 +65,14 @@ export const UpdateReadyBanner: React.FC = () => {
           className="flex-1 h-9 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-700 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 cursor-pointer"
         >
           <RotateCw className="w-3.5 h-3.5" />
-          {installing ? 'Restarting…' : 'Restart & Update'}
+          {installing ? tr('Restarting…') : tr('Restart & Update')}
         </button>
         <button
           type="button"
           onClick={() => setDismissed(true)}
           className="h-9 px-4 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 font-bold text-xs cursor-pointer"
         >
-          Later
+          {tr('Later')}
         </button>
       </div>
     </div>

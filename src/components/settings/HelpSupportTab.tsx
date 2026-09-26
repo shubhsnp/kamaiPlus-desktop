@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Copy, FolderOpen, LifeBuoy, CheckCircle2, AlertTriangle, RefreshCw, Download } from 'lucide-react';
 import { getDesktopApi, UpdateStatus } from '@/lib/desktop/desktopBridge';
+import { tr } from '@/lib/i18n/core';
 
 /** Version, "Check for updates now" and the per-computer beta (early updates) switch. */
 function UpdatesCard() {
@@ -31,16 +32,16 @@ function UpdatesCard() {
 
   const lc = status.lastCheck;
   const line = !status.enabled
-    ? 'Updates are off in development mode.'
+    ? tr('Updates are off in development mode.')
     : status.readyVersion
-    ? `Version ${status.readyVersion} is downloaded — restart the app to install it.`
+    ? tr('Version {readyVersion} is downloaded — restart the app to install it.', { readyVersion: status.readyVersion })
     : !lc
-    ? 'Checks for updates automatically every few hours.'
+    ? tr('Checks for updates automatically every few hours.')
     : lc.result === 'up-to-date'
-    ? `You have the latest version (checked ${new Date(lc.at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}).`
+    ? tr('You have the latest version (checked {v1}).', { v1: new Date(lc.at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) })
     : lc.result === 'downloading'
-    ? `Downloading version ${lc.version}…`
-    : 'Could not check for updates (no internet?). It will try again automatically.';
+    ? tr('Downloading version {version}…', { version: lc.version })
+    : tr('Could not check for updates (no internet?). It will try again automatically.');
 
   return (
     <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-2xs space-y-3">
@@ -50,22 +51,22 @@ function UpdatesCard() {
             <Download className="w-4 h-4" />
           </div>
           <div className="min-w-0">
-            <h3 className="text-sm font-black text-slate-900">KamaiPlus Desktop v{status.currentVersion || '—'}</h3>
+            <h3 className="text-sm font-black text-slate-900">{tr('KamaiPlus Desktop v')}{status.currentVersion || '—'}</h3>
             <p className="text-[11px] text-slate-500">{line}</p>
           </div>
         </div>
         {status.enabled && (
           <button type="button" onClick={checkNow} disabled={busy} className="h-9 px-3 rounded-xl border border-slate-300 hover:bg-slate-50 disabled:opacity-60 text-slate-800 text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0">
-            <RefreshCw className={`w-3.5 h-3.5 ${busy ? 'animate-spin' : ''}`} /> Check for updates now
+            <RefreshCw className={`w-3.5 h-3.5 ${busy ? 'animate-spin' : ''}`} /> {tr('Check for updates now')}
           </button>
         )}
       </div>
       <label className="flex items-start gap-2.5 text-xs cursor-pointer">
         <input type="checkbox" checked={Boolean(status.beta)} disabled={busy} onChange={(e) => toggleBeta(e.target.checked)} className="w-4 h-4 mt-0.5 accent-emerald-600" />
         <span>
-          <span className="font-bold text-slate-900">Get early updates (beta)</span>
+          <span className="font-bold text-slate-900">{tr('Get early updates (beta)')}</span>
           <span className="block text-[11px] text-slate-500">
-            This computer receives new versions a few days before other shops. Turn on only if KamaiPlus support asked you to.
+            {tr('This computer receives new versions a few days before other shops. Turn on only if KamaiPlus support asked you to.')}
           </span>
         </span>
       </label>
@@ -88,7 +89,7 @@ export function HelpSupportTab() {
   }, []);
 
   if (!api) {
-    return <p className="text-xs text-slate-500">Support tools are available in the installed desktop app.</p>;
+    return <p className="text-xs text-slate-500">{tr('Support tools are available in the installed desktop app.')}</p>;
   }
 
   const copyReport = async () => {
@@ -96,9 +97,9 @@ export function HelpSupportTab() {
       const r = await api.getErrorReport();
       await navigator.clipboard.writeText(r.text);
       setCount(r.count);
-      setStatus({ ok: true, text: 'Report copied. Paste it in WhatsApp or an email to KamaiPlus support.' });
+      setStatus({ ok: true, text: tr('Report copied. Paste it in WhatsApp or an email to KamaiPlus support.') });
     } catch {
-      setStatus({ ok: false, text: 'Could not copy the report. Use "Open log folder" instead.' });
+      setStatus({ ok: false, text: tr('Could not copy the report. Use "Open log folder" instead.') });
     }
   };
 
@@ -112,20 +113,20 @@ export function HelpSupportTab() {
             <LifeBuoy className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-sm font-black text-slate-900">Something not working?</h3>
+            <h3 className="text-sm font-black text-slate-900">{tr('Something not working?')}</h3>
             <p className="text-[11px] text-slate-500">
-              The app records problems on this computer.{' '}
-              {count === null ? '' : count === 0 ? 'No problems recorded.' : `${count} recorded.`}
+              {tr('The app records problems on this computer.')}{' '}
+              {count === null ? '' : count === 0 ? tr('No problems recorded.') : tr('{count} recorded.', { count: count })}
             </p>
           </div>
         </div>
 
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={copyReport} className="h-9 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer">
-            <Copy className="w-3.5 h-3.5" /> Copy report for support
+            <Copy className="w-3.5 h-3.5" /> {tr('Copy report for support')}
           </button>
           <button type="button" onClick={() => api.openLogFolder()} className="h-9 px-4 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-800 text-xs font-bold flex items-center gap-1.5 cursor-pointer">
-            <FolderOpen className="w-3.5 h-3.5" /> Open log folder
+            <FolderOpen className="w-3.5 h-3.5" /> {tr('Open log folder')}
           </button>
         </div>
 
@@ -137,8 +138,7 @@ export function HelpSupportTab() {
         )}
 
         <p className="text-[11px] text-slate-500">
-          KamaiPlus support: <span className="font-mono font-bold text-slate-700 select-all">info@proventure.in</span>. The report contains the
-          app version, Windows version and recent errors — no bills, customers or prices.
+          {tr('KamaiPlus support:')} <span className="font-mono font-bold text-slate-700 select-all">info@proventure.in</span>{tr('. The report contains the app version, Windows version and recent errors — no bills, customers or prices.')}
         </p>
       </div>
     </div>

@@ -3,6 +3,7 @@
 import { Business, Customer } from '@/types';
 import { formatINR } from '@/lib/utils';
 import { saveHtmlAsPdf, safeFileName } from '@/lib/print/printDocument';
+import { tr } from '@/lib/i18n/core';
 
 const formatDate = (dateStr: string) => {
   try {
@@ -24,7 +25,7 @@ export async function generateBulkMonthEndStatementPDF({
   periodLabel = new Date().toLocaleString('default', { month: 'long', year: 'numeric' }),
 }: BulkMonthEndStatementOptions): Promise<{ ok: boolean; path?: string; error?: string }> {
   if (!customers || customers.length === 0) {
-    return { ok: false, error: 'No customers found to generate statement.' };
+    return { ok: false, error: tr('No customers found to generate statement.') };
   }
 
   const storeName = business.name || 'Kamai+ Store';

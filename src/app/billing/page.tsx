@@ -91,6 +91,7 @@ import { generalCategoryId } from '@/lib/products/defaultCategory';
 import { BillingToast, BillingToastData, FullscreenUpiQrModal, QuickAddCustomerModal, QuickAddScannedProductModal } from '@/components/billing/PosDialogs';
 import { CashTenderPanel, SplitPaymentPanel, UpiQrCard } from '@/components/billing/PosPaymentPanels';
 import { BillTab, getInitialTabs, makeEmptyTab, tabsAfterClosing, TABS_STORAGE_KEY } from '@/lib/billing/billTabs';
+import { tr } from '@/lib/i18n/core';
 
 
 export default function BillingPage() {
@@ -286,9 +287,9 @@ export default function BillingPage() {
     try {
       const biz = business || (await ensureStarterBusinessIfEmpty());
       await seedBusinessStarterData(biz.id);
-      showBillingToast('✅ Loaded default catalog products!', 'success');
+      showBillingToast(tr('✅ Loaded default catalog products!'), 'success');
     } catch (err: any) {
-      showBillingToast(`Failed to load sample products: ${err?.message}`, 'error');
+      showBillingToast(tr('Failed to load sample products: {message}', { message: err?.message }), 'error');
     } finally {
       setIsSeedingProducts(false);
     }
@@ -458,7 +459,7 @@ export default function BillingPage() {
       addToCart(updatedProduct, billQty);
     } catch (err) {
       console.error('Failed to quick restock from POS:', err);
-      showAlert('Failed to restock item. Please check inventory.');
+      showAlert(tr('Failed to restock item. Please check inventory.'));
     }
   };
 
@@ -478,14 +479,14 @@ export default function BillingPage() {
       const currentStock = Number(product.current_stock ?? 0);
       if (currentStock <= 0) {
         playBeepSound('alert');
-        showBillingToast(`Out of Stock: "${product.name}" has 0 stock remaining.`, 'error');
+        showBillingToast(tr('Out of Stock: "{name}" has 0 stock remaining.', { name: product.name }), 'error');
         return;
       }
 
       const currentInCart = getCartQuantityForProduct(product.id, product.name);
       if (currentInCart + quantityToAdd > currentStock) {
         playBeepSound('alert');
-        showBillingToast(`Insufficient Stock: Only ${currentStock} ${product.unit || 'units'} available for "${product.name}".`, 'error');
+        showBillingToast(tr('Insufficient Stock: Only {currentStock} {v2} available for "{name}".', { currentStock: currentStock, v2: product.unit || 'units', name: product.name }), 'error');
         return;
       }
     }
@@ -564,7 +565,7 @@ export default function BillingPage() {
       const currentInCart = getCartQuantityForProduct(productId, product.name);
       if (currentInCart + delta > currentStock) {
         playBeepSound('alert');
-        showBillingToast(`Max stock reached (${currentStock} ${product.unit || 'units'}) for "${product.name}".`, 'error');
+        showBillingToast(tr('Max stock reached ({currentStock} {v2}) for "{name}".', { currentStock: currentStock, v2: product.unit || 'units', name: product.name }), 'error');
         return;
       }
     }
@@ -612,7 +613,7 @@ export default function BillingPage() {
     const unitPricePaise = Math.round((parseFloat(editItemPrice) || 0) * 100);
 
     if (isNaN(qty) || qty <= 0 || isNaN(unitPricePaise) || unitPricePaise < 0) {
-      showAlert('Please enter valid numeric values.');
+      showAlert(tr('Please enter valid numeric values.'));
       return;
     }
 
@@ -628,7 +629,7 @@ export default function BillingPage() {
 
     const product = products.find((p) => p.id === editingCartItem.product_id);
     if (product && !product.is_unlimited_stock && qty > product.current_stock) {
-      showAlert(`Entered quantity (${qty}) exceeds available stock (${product.current_stock}).`);
+      showAlert(tr('Entered quantity ({qty}) exceeds available stock ({current_stock}).', { qty: qty, current_stock: product.current_stock }));
       return;
     }
 
@@ -790,7 +791,7 @@ export default function BillingPage() {
     const availableUpis = business.upi_ids && business.upi_ids.length > 0
       ? business.upi_ids
       : business.upi_id
-      ? [{ id: 'def', label: 'Primary Counter', upi_id: business.upi_id, is_default: true }]
+      ? [{ id: 'def', label: tr('Primary Counter'), upi_id: business.upi_id, is_default: true }]
       : [];
 
     const activeUpi = availableUpis[selectedUpiIndex] || availableUpis[0];
@@ -854,7 +855,7 @@ export default function BillingPage() {
     const isCreditMode = paymentMethod === 'credit' || (paymentMethod === 'split' && parseFloat(splitCredit || '0') > 0);
     if (isCreditMode && !targetCustomer) {
       playBeepSound('alert');
-      showBillingToast('Customer name is mandatory for Credit (Udhar) sale. Please select or add a customer.', 'error');
+      showBillingToast(tr('Customer name is mandatory for Credit (Udhar) sale. Please select or add a customer.'), 'error');
       setIsAddCustomerModalOpen(true);
       return;
     }
@@ -866,7 +867,7 @@ export default function BillingPage() {
       : null;
     if (typedCashPaise !== null && typedCashPaise < grandTotalPaise && !targetCustomer) {
       playBeepSound('alert');
-      showBillingToast(`Cash received is ${formatINR(grandTotalPaise - typedCashPaise)} short. Correct the amount, or select a customer to put the rest on udhar.`, 'error');
+      showBillingToast(tr('Cash received is {v1} short. Correct the amount, or select a customer to put the rest on udhar.', { v1: formatINR(grandTotalPaise - typedCashPaise) }), 'error');
       return;
     }
 
@@ -876,7 +877,7 @@ export default function BillingPage() {
       const excess = parts.reduce((a, b) => a + b, 0) - grandTotalPaise;
       if (excess > parts[0]) {
         playBeepSound('alert');
-        showBillingToast(`Split amounts are ${formatINR(excess)} more than the bill. Only the cash part can include change — please correct the split.`, 'error');
+        showBillingToast(tr('Split amounts are {v1} more than the bill. Only the cash part can include change — please correct the split.', { v1: formatINR(excess) }), 'error');
         return;
       }
     }
@@ -1092,7 +1093,7 @@ export default function BillingPage() {
             deviceName: printerForFormat(printSettings, format) || undefined,
             silent: true,
           });
-          showBillingToast(`⚡ Silent Printed Invoice #${invoiceNumber}`, 'success');
+          showBillingToast(tr('⚡ Silent Printed Invoice #{invoiceNumber}', { invoiceNumber: invoiceNumber }), 'success');
         } catch (silentErr) {
           console.warn('Silent print notice, opening modal:', silentErr);
           setIsInvoiceModalOpen(true);
@@ -1109,7 +1110,7 @@ export default function BillingPage() {
       setActiveTabId(next.activeTabId);
     } catch (saleErr) {
       console.error('Sale completion encountered an error:', saleErr);
-      showAlert('Encountered an unexpected error completing the sale. Please verify inventory.');
+      showAlert(tr('Encountered an unexpected error completing the sale. Please verify inventory.'));
     }
   };
 
@@ -1126,7 +1127,7 @@ export default function BillingPage() {
         if (tabs[tabIdx]) {
           e.preventDefault();
           setActiveTabId(tabs[tabIdx].id);
-          showBillingToast(`Switched to Bill #${tabs[tabIdx].tabNumber}`, 'info');
+          showBillingToast(tr('Switched to Bill #{tabNumber}', { tabNumber: tabs[tabIdx].tabNumber }), 'info');
           return;
         }
       }
@@ -1162,11 +1163,11 @@ export default function BillingPage() {
               setHighlightedIndex(-1);
             } else if (isOutOfStock) {
               playBeepSound('alert');
-              showBillingToast(`Out of Stock: "${targetProd.name}"`, 'error');
+              showBillingToast(tr('Out of Stock: "{name}"', { name: targetProd.name }), 'error');
             } else {
               addToCart(targetProd, 1);
               playBeepSound('success');
-              showBillingToast(`Added: ${targetProd.name}`, 'success');
+              showBillingToast(tr('Added: {name}', { name: targetProd.name }), 'success');
               setSearchQuery('');
               setHighlightedIndex(-1);
             }
@@ -1180,7 +1181,7 @@ export default function BillingPage() {
       if (e.key === 'F1') {
         e.preventDefault();
         handleCreateNewTab();
-        showBillingToast('Created New Bill Tab [F1]', 'info');
+        showBillingToast(tr('Created New Bill Tab [F1]'), 'info');
         return;
       }
 
@@ -1193,21 +1194,21 @@ export default function BillingPage() {
       if (e.key === 'F4') {
         e.preventDefault();
         setPaymentMethod('cash');
-        showBillingToast('Selected Cash Payment [F4]', 'info');
+        showBillingToast(tr('Selected Cash Payment [F4]'), 'info');
         return;
       }
 
       if (e.key === 'F8') {
         e.preventDefault();
         setPaymentMethod('upi');
-        showBillingToast('Selected UPI Payment [F8]', 'info');
+        showBillingToast(tr('Selected UPI Payment [F8]'), 'info');
         return;
       }
 
       if (e.key === 'F9') {
         e.preventDefault();
         setPaymentMethod('credit');
-        showBillingToast('Selected Credit (Udhar) [F9]', 'info');
+        showBillingToast(tr('Selected Credit (Udhar) [F9]'), 'info');
         return;
       }
 
@@ -1254,7 +1255,7 @@ export default function BillingPage() {
           const isActive = tab.id === activeTabId;
           const count = tab.cart.reduce((s, i) => s + i.quantity, 0);
           const cust = customers.find((c) => c.id === tab.selectedCustomerId);
-          const tabTitle = cust ? cust.name.split(' ')[0] : `Bill #${tab.tabNumber}`;
+          const tabTitle = cust ? cust.name.split(' ')[0] : tr('Bill #{tabNumber}', { tabNumber: tab.tabNumber });
 
           return (
             <div
@@ -1277,7 +1278,7 @@ export default function BillingPage() {
                 </span>
               )}
               {tab.isHeld && (
-                <span className="text-[10px] text-amber-600" title="Bill is on hold">
+                <span className="text-[10px] text-amber-600" title={tr('Bill is on hold')}>
                   ⏸️
                 </span>
               )}
@@ -1286,7 +1287,7 @@ export default function BillingPage() {
                   type="button"
                   onClick={(e) => handleCloseTab(tab.id, e)}
                   className="hover:text-rose-600 text-slate-400 p-0.5 rounded-full"
-                  title="Close this bill tab"
+                  title={tr('Close this bill tab')}
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -1300,10 +1301,10 @@ export default function BillingPage() {
           type="button"
           onClick={handleCreateNewTab}
           className="p-1.5 rounded-lg text-slate-600 hover:text-slate-950 hover:bg-slate-200 text-xs font-bold flex items-center gap-1 flex-shrink-0 transition-colors cursor-pointer"
-          title="Open New Parallel Bill Cart"
+          title={tr('Open New Parallel Bill Cart')}
         >
           <Plus className="w-3.5 h-3.5" />
-          <span className="text-[11px] hidden sm:inline">New</span>
+          <span className="text-[11px] hidden sm:inline">{tr('New')}</span>
         </button>
 
         {/* Silent Instant Print Quick Toggle */}
@@ -1314,7 +1315,7 @@ export default function BillingPage() {
               const next = !silentPrint;
               setSilentPrint(next);
               if (typeof window !== 'undefined') localStorage.setItem('kamai_silent_print', String(next));
-              showBillingToast(next ? '⚡ Silent Print: Active (Direct Thermal)' : 'Silent Print: Off (Preview Dialog)', 'info');
+              showBillingToast(next ? tr('⚡ Silent Print: Active (Direct Thermal)') : tr('Silent Print: Off (Preview Dialog)'), 'info');
             }}
             className={cn(
               "px-2 py-1 rounded-lg text-[10.5px] font-bold flex items-center gap-1 transition-all cursor-pointer border",
@@ -1322,10 +1323,10 @@ export default function BillingPage() {
                 ? "bg-emerald-600 text-white border-emerald-600 shadow-2xs"
                 : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
             )}
-            title="Toggle Instant Silent Print (Direct Thermal Print without preview dialog)"
+            title={tr('Toggle Instant Silent Print (Direct Thermal Print without preview dialog)')}
           >
             <Printer className="w-3 h-3" />
-            <span>{silentPrint ? '⚡ Silent: ON' : 'Silent: OFF'}</span>
+            <span>{silentPrint ? tr('⚡ Silent: ON') : tr('Silent: OFF')}</span>
           </button>
         </div>
       </div>
@@ -1335,11 +1336,11 @@ export default function BillingPage() {
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
             <label className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-              Customer
+              {tr('Customer')}
             </label>
             {selectedCustomer && (selectedCustomer.current_balance || 0) > 0 && (
               <span className="px-2 py-0.5 rounded-full bg-rose-100 border border-rose-300 text-rose-700 text-[10px] font-black flex items-center gap-1 shadow-2xs">
-                <span>⚠️ Old Khata:</span>
+                <span>{tr('⚠️ Old Khata:')}</span>
                 <span className="font-mono">{formatINR(selectedCustomer.current_balance)}</span>
               </span>
             )}
@@ -1350,7 +1351,7 @@ export default function BillingPage() {
             className="text-[11px] font-bold text-slate-700 hover:text-slate-950 flex items-center gap-1 cursor-pointer"
           >
             <UserPlus className="w-3.5 h-3.5" />
-            <span>+ New Customer</span>
+            <span>{tr('+ New Customer')}</span>
           </button>
         </div>
 
@@ -1370,10 +1371,10 @@ export default function BillingPage() {
       {/* Cart Header with Hold Bill Button */}
       <div className="flex items-center justify-between pt-1 flex-shrink-0">
         <span className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
-          <span>Cart Items ({totalItemCount})</span>
+          <span>{tr('Cart Items (')}{totalItemCount})</span>
           {activeTab.isHeld && (
             <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold">
-              ⏸️ On Hold
+              {tr('⏸️ On Hold')}
             </span>
           )}
         </span>
@@ -1384,10 +1385,10 @@ export default function BillingPage() {
               type="button"
               onClick={handleHoldActiveTab}
               className="text-[11px] font-bold text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded border border-amber-200 flex items-center gap-1 cursor-pointer transition-colors"
-              title="Park / Hold this bill and start a new one"
+              title={tr('Park / Hold this bill and start a new one')}
             >
               <PauseCircle className="w-3 h-3" />
-              <span>Hold Bill</span>
+              <span>{tr('Hold Bill')}</span>
             </button>
           )}
 
@@ -1396,7 +1397,7 @@ export default function BillingPage() {
               onClick={() => setCart([])}
               className="text-[11px] font-bold text-rose-600 hover:text-rose-700 cursor-pointer transition-colors"
             >
-              Clear
+              {tr('Clear')}
             </button>
           )}
         </div>
@@ -1405,9 +1406,9 @@ export default function BillingPage() {
       {/* Cart Column Header Bar for Spacious Table View */}
       {cart.length > 0 && (
         <div className="grid grid-cols-12 text-[10px] uppercase font-extrabold tracking-wider text-slate-400 px-2.5 py-1 bg-slate-100/90 rounded-lg flex-shrink-0 select-none">
-          <span className="col-span-6">Item &amp; Details</span>
-          <span className="col-span-3 text-center">Qty</span>
-          <span className="col-span-3 text-right">Total (₹)</span>
+          <span className="col-span-6">{tr('Item & Details')}</span>
+          <span className="col-span-3 text-center">{tr('Qty')}</span>
+          <span className="col-span-3 text-right">{tr('Total (₹)')}</span>
         </div>
       )}
 
@@ -1416,8 +1417,8 @@ export default function BillingPage() {
         {cart.length === 0 ? (
           <div className="text-center py-8 text-xs text-slate-400 font-medium space-y-1.5">
             <ShoppingCart className="w-8 h-8 text-slate-300 mx-auto" />
-            <p className="font-semibold text-slate-600">Cart is empty</p>
-            <p className="text-[11px] text-slate-400">Tap products on the left or scan barcode to add</p>
+            <p className="font-semibold text-slate-600">{tr('Cart is empty')}</p>
+            <p className="text-[11px] text-slate-400">{tr('Tap products on the left or scan barcode to add')}</p>
           </div>
         ) : (
           cart.map((item) => (
@@ -1434,7 +1435,7 @@ export default function BillingPage() {
                 <div className="flex flex-wrap gap-1 my-0.5">
                   {(item.size || item.color) && (
                     <span className="text-[9px] bg-indigo-50 text-indigo-900 border border-indigo-200 px-1 py-0.2 rounded font-medium">
-                      {item.size && <span>Size: {item.size} </span>}
+                      {item.size && <span>{tr('Size:')} {item.size} </span>}
                       {item.color && <span>• {item.color}</span>}
                     </span>
                   )}
@@ -1451,7 +1452,7 @@ export default function BillingPage() {
                   <span>{formatINR(item.unit_price)} × {item.quantity} {item.unit}</span>
                   {item.discount_amount ? (
                     <span className="text-[10px] text-emerald-700 font-bold bg-emerald-100 px-1 rounded">
-                      -₹{(item.discount_amount / 100).toFixed(0)} off
+                      -₹{(item.discount_amount / 100).toFixed(0)} {tr('off')}
                     </span>
                   ) : null}
                 </div>
@@ -1476,7 +1477,7 @@ export default function BillingPage() {
                 {/* Edit Price/Quantity/Discount Button */}
                 <button
                   onClick={() => handleOpenEditItem(item)}
-                  title="Edit Price, Quantity or Item Discount"
+                  title={tr('Edit Price, Quantity or Item Discount')}
                   className="p-1 rounded text-slate-500 hover:text-slate-900 hover:bg-slate-100 ml-0.5 cursor-pointer transition-colors"
                 >
                   <Edit2 className="w-3.5 h-3.5 text-slate-700" />
@@ -1502,14 +1503,14 @@ export default function BillingPage() {
       {/* Payment Method Selector */}
       <div>
         <label className="text-xs font-bold text-slate-900 uppercase tracking-wider block mb-1">
-          Payment Mode
+          {tr('Payment Mode')}
         </label>
         <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
           {[
-            { id: 'cash', label: 'Cash', icon: Banknote, shortcut: 'F4' },
-            { id: 'upi', label: 'UPI / QR', icon: QrCode, shortcut: 'F8' },
-            { id: 'credit', label: 'Credit', icon: BookOpen },
-            { id: 'split', label: 'Split', icon: CreditCard },
+            { id: 'cash', label: tr('Cash'), icon: Banknote, shortcut: 'F4' },
+            { id: 'upi', label: tr('UPI / QR'), icon: QrCode, shortcut: 'F8' },
+            { id: 'credit', label: tr('Credit'), icon: BookOpen },
+            { id: 'split', label: tr('Split'), icon: CreditCard },
           ].map((m) => {
             const Icon = m.icon;
             const isSelected = paymentMethod === m.id;
@@ -1555,14 +1556,14 @@ export default function BillingPage() {
         <div className="p-2.5 bg-rose-50 border border-rose-300 rounded-xl text-xs text-rose-950 flex items-center justify-between gap-2 shadow-2xs">
           <div className="flex items-center gap-1.5 min-w-0">
             <span className="text-base flex-shrink-0">⚠️</span>
-            <span className="font-bold truncate">Customer Name is compulsory for Credit (Udhar)</span>
+            <span className="font-bold truncate">{tr('Customer Name is compulsory for Credit (Udhar)')}</span>
           </div>
           <button
             type="button"
             onClick={() => setIsAddCustomerModalOpen(true)}
             className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] cursor-pointer flex-shrink-0 transition shadow-xs"
           >
-            + Add Customer
+            {tr('+ Add Customer')}
           </button>
         </div>
       )}
@@ -1573,25 +1574,25 @@ export default function BillingPage() {
           <div className="flex items-center justify-between font-bold">
             <span className="flex items-center gap-1 text-amber-900">
               <BookOpen className="w-3.5 h-3.5 text-amber-600" />
-              <span>Khata Credit Preview ({selectedCustomer.name}):</span>
+              <span>{tr('Khata Credit Preview (')}{selectedCustomer.name}):</span>
             </span>
-            <span className="font-mono text-[11px] text-slate-500">Udhar Sale</span>
+            <span className="font-mono text-[11px] text-slate-500">{tr('Udhar Sale')}</span>
           </div>
           <div className="grid grid-cols-3 gap-1 pt-1 border-t border-amber-200/80 text-center font-mono">
             <div>
-              <span className="text-[9px] uppercase font-bold text-slate-500 block">Old Balance</span>
+              <span className="text-[9px] uppercase font-bold text-slate-500 block">{tr('Old Balance')}</span>
               <span className="font-bold text-slate-800">
                 {formatINR(selectedCustomer.current_balance || 0)}
               </span>
             </div>
             <div>
-              <span className="text-[9px] uppercase font-bold text-slate-500 block">This Bill</span>
+              <span className="text-[9px] uppercase font-bold text-slate-500 block">{tr('This Bill')}</span>
               <span className="font-bold text-rose-600">
                 +{formatINR(grandTotalPaise)}
               </span>
             </div>
             <div>
-              <span className="text-[9px] uppercase font-bold text-slate-500 block">New Balance</span>
+              <span className="text-[9px] uppercase font-bold text-slate-500 block">{tr('New Balance')}</span>
               <span className="font-black text-rose-700">
                 ={formatINR((selectedCustomer.current_balance || 0) + grandTotalPaise)}
               </span>
@@ -1638,7 +1639,7 @@ export default function BillingPage() {
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-700 flex items-center gap-1">
               <Tag className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Bill Discount</span>
+              <span>{tr('Bill Discount')}</span>
             </span>
             <div className="flex items-center p-0.5 bg-slate-200/80 rounded-lg">
               <button
@@ -1651,7 +1652,7 @@ export default function BillingPage() {
                     : 'text-slate-600 hover:text-slate-900'
                 )}
               >
-                ₹ Flat
+                {tr('₹ Flat')}
               </button>
               <button
                 type="button"
@@ -1663,7 +1664,7 @@ export default function BillingPage() {
                     : 'text-slate-600 hover:text-slate-900'
                 )}
               >
-                % Percent
+                {tr('% Percent')}
               </button>
             </div>
           </div>
@@ -1675,7 +1676,7 @@ export default function BillingPage() {
                 step="any"
                 min="0"
                 max={billDiscountType === 'percentage' ? 100 : undefined}
-                placeholder={billDiscountType === 'percentage' ? 'e.g. 5 or 10%' : 'e.g. 50'}
+                placeholder={billDiscountType === 'percentage' ? tr('e.g. 5 or 10%') : tr('e.g. 50')}
                 value={billDiscountValue}
                 onChange={(e) => setBillDiscountValue(e.target.value)}
                 className="w-full bg-white border border-slate-300 text-slate-900 text-xs rounded-lg pl-6 pr-2 py-1.5 focus:outline-none focus:border-slate-900 font-mono font-bold"
@@ -1690,7 +1691,7 @@ export default function BillingPage() {
                 onClick={() => setBillDiscountValue('')}
                 className="text-[11px] text-rose-600 font-bold hover:text-rose-700 px-1.5 py-1 cursor-pointer"
               >
-                Clear
+                {tr('Clear')}
               </button>
             )}
           </div>
@@ -1723,16 +1724,16 @@ export default function BillingPage() {
       <div className="pt-2.5 mt-2.5 border-t border-slate-200 space-y-2 flex-shrink-0">
         <div className="space-y-1 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
           <div className="flex items-center justify-between text-xs text-slate-600">
-            <span>Items Total</span>
+            <span>{tr('Items Total')}</span>
             <span className="font-semibold text-slate-800 font-mono">{formatINR(itemsValuePaise)}</span>
           </div>
           {discountTotalPaise > 0 && (
             <div className="flex items-center justify-between text-xs text-emerald-700 font-medium">
               <span>
-                Total Discount
+                {tr('Total Discount')}
                 {billDiscountPaise > 0 && (
                   <span className="text-[10px] ml-1 font-mono text-emerald-600">
-                    (Bill: -{formatINR(billDiscountPaise)})
+                    {tr('(Bill: -')}{formatINR(billDiscountPaise)})
                   </span>
                 )}
               </span>
@@ -1741,13 +1742,13 @@ export default function BillingPage() {
           )}
           {addedGstPaise > 0 && (
             <div className="flex items-center justify-between text-xs text-slate-600">
-              <span>GST (added)</span>
+              <span>{tr('GST (added)')}</span>
               <span className="font-semibold text-slate-800 font-mono">+{formatINR(addedGstPaise)}</span>
             </div>
           )}
           {includedGstPaise > 0 && (
             <div className="flex items-center justify-between text-[11px] text-slate-400">
-              <span>Incl. GST in prices</span>
+              <span>{tr('Incl. GST in prices')}</span>
               <span className="font-mono">{formatINR(includedGstPaise)}</span>
             </div>
           )}
@@ -1758,10 +1759,10 @@ export default function BillingPage() {
           <div className="flex items-baseline justify-between gap-2">
             <div>
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
-                Total Payable
+                {tr('Total Payable')}
               </span>
               <span className="text-[11px] font-mono text-slate-400 font-medium">
-                {totalItemCount} {totalItemCount === 1 ? 'item' : 'items'} • {cart.reduce((s, i) => s + i.quantity, 0)} units
+                {totalItemCount} {totalItemCount === 1 ? tr('item') : tr('items')} • {cart.reduce((s, i) => s + i.quantity, 0)} {tr('units')}
               </span>
             </div>
             <div className="text-right">
@@ -1770,7 +1771,7 @@ export default function BillingPage() {
               </div>
               {includedGstPaise > 0 && (
                 <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
-                  (Incl. {formatINR(includedGstPaise)} GST)
+                  {tr('(Incl.')} {formatINR(includedGstPaise)} GST)
                 </span>
               )}
             </div>
@@ -1789,10 +1790,10 @@ export default function BillingPage() {
                       <span className="text-lg">💵</span>
                       <div>
                         <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-300 block leading-tight">
-                          Return Change
+                          {tr('Return Change')}
                         </span>
                         <span className="text-[10px] text-slate-400 font-mono">
-                          Tendered: {formatINR(tenderedPaise)}
+                          {tr('Tendered:')} {formatINR(tenderedPaise)}
                         </span>
                       </div>
                     </div>
@@ -1805,14 +1806,14 @@ export default function BillingPage() {
             } else if (returnChangePaise === 0) {
               return (
                 <div className="pt-1.5 mt-1 border-t border-slate-800/80 flex items-center justify-between text-xs text-emerald-400 font-bold">
-                  <span>✓ Exact Cash Tendered</span>
+                  <span>{tr('✓ Exact Cash Tendered')}</span>
                   <span className="font-mono">{formatINR(tenderedPaise)}</span>
                 </div>
               );
             } else {
               return (
                 <div className="pt-1.5 mt-1 border-t border-slate-800/80 flex items-center justify-between text-xs text-rose-400 font-bold">
-                  <span>⚠️ Short by:</span>
+                  <span>{tr('⚠️ Short by:')}</span>
                   <span className="font-mono">{formatINR(Math.abs(returnChangePaise))}</span>
                 </div>
               );
@@ -1824,7 +1825,7 @@ export default function BillingPage() {
         {selectedCustomer && (selectedCustomer.current_balance || 0) > 0 && (
           <div className="p-2 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between text-xs text-rose-950 font-bold shadow-2xs">
             <span className="flex items-center gap-1.5">
-              <span>⚠️ Previous Udhar Due:</span>
+              <span>{tr('⚠️ Previous Udhar Due:')}</span>
               <span className="text-slate-600 font-normal">({selectedCustomer.name})</span>
             </span>
             <span className="font-mono font-black text-rose-700 text-sm">
@@ -1843,7 +1844,7 @@ export default function BillingPage() {
           )}
         >
           <Receipt className="w-4 h-4 mr-1 text-white" />
-          <span>Complete Sale &amp; Print</span>
+          <span>{tr('Complete Sale & Print')}</span>
           <kbd className="ml-1 px-1.5 py-0.5 rounded bg-emerald-700 text-emerald-100 font-mono text-[10px] font-bold border border-emerald-500">Enter ↵</kbd>
         </Button>
       </div>
@@ -1861,7 +1862,7 @@ export default function BillingPage() {
               <div className="relative flex-1">
                 <Input
                   ref={searchInputRef}
-                  placeholder="Search products by name, barcode or category... [F2]"
+                  placeholder={tr('Search products by name, barcode or category... [F2]')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   leftIcon={<Search className="w-4 h-4 text-slate-400" />}
@@ -1878,7 +1879,7 @@ export default function BillingPage() {
                   type="button"
                   onClick={() => setIsBarcodeModalOpen(true)}
                   className="p-2 min-h-[38px] min-w-[38px] rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 flex items-center justify-center cursor-pointer transition-colors"
-                  title="Scan Barcode via Camera"
+                  title={tr('Scan Barcode via Camera')}
                 >
                   <Camera className="w-4 h-4 text-slate-800" />
                 </button>
@@ -1889,10 +1890,10 @@ export default function BillingPage() {
                   type="button"
                   onClick={() => setIsRapidScanModeOpen(true)}
                   className="px-3 min-h-[38px] rounded-lg border border-emerald-500 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 flex items-center gap-1.5 font-bold text-xs cursor-pointer shadow-sm transition-all shadow-emerald-500/10"
-                  title="Rapid Scan Mode"
+                  title={tr('Rapid Scan Mode')}
                 >
                   <PackageOpen className="w-4 h-4" />
-                  <span>Rapid</span>
+                  <span>{tr('Rapid')}</span>
                 </button>
               )}
 
@@ -1901,7 +1902,7 @@ export default function BillingPage() {
                 type="button"
                 onClick={() => setIsHardwareModalOpen(true)}
                 className="p-2 min-h-[38px] min-w-[38px] rounded-lg border border-slate-300 bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center cursor-pointer relative transition-colors"
-                title="POS Hardware (Bluetooth Printer, Laser Scanner)"
+                title={tr('POS Hardware (Bluetooth Printer, Laser Scanner)')}
               >
                 <Sliders className="w-4 h-4 text-white" />
               </button>
@@ -1918,7 +1919,7 @@ export default function BillingPage() {
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 )}
               >
-                <span>All Items</span>
+                <span>{tr('All Items')}</span>
                 <span className={cn(
                   "text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold",
                   selectedCategory === 'all' ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"
@@ -1957,12 +1958,12 @@ export default function BillingPage() {
               {products.length === 0 ? (
                 <div className="py-12 text-center text-xs text-slate-500 border border-dashed border-slate-300 rounded-2xl bg-white p-6 space-y-2.5">
                   <div className="font-bold text-slate-800 text-sm">
-                    {totalProductCount === 0 ? 'No products in store catalog' : 'No items match your search'}
+                    {totalProductCount === 0 ? tr('No products in store catalog') : tr('No items match your search')}
                   </div>
                   <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
                     {totalProductCount === 0
-                      ? 'Your inventory is currently empty. Click below to load pre-configured starter items.'
-                      : 'Try clearing your search query or selecting "All Items".'}
+                      ? tr('Your inventory is currently empty. Click below to load pre-configured starter items.')
+                      : tr('Try clearing your search query or selecting "All Items".')}
                   </p>
                   {totalProductCount === 0 && (
                     <Button
@@ -1973,7 +1974,7 @@ export default function BillingPage() {
                       className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs gap-1.5 shadow-xs cursor-pointer border-none mt-1"
                     >
                       <Sparkles className="w-3.5 h-3.5" />
-                      <span>{isSeedingProducts ? 'Loading Default Items...' : '✨ Load Default Products'}</span>
+                      <span>{isSeedingProducts ? tr('Loading Default Items...') : tr('✨ Load Default Products')}</span>
                     </Button>
                   )}
                 </div>
@@ -2008,7 +2009,7 @@ export default function BillingPage() {
                         onAdd={(prod) => {
                           if (isOutOfStock) {
                             playBeepSound('alert');
-                            showBillingToast(`Out of Stock: "${prod.name}" has 0 stock remaining.`, 'error');
+                            showBillingToast(tr('Out of Stock: "{name}" has 0 stock remaining.', { name: prod.name }), 'error');
                             return;
                           }
                           addToCart(prod, 1);
@@ -2043,7 +2044,7 @@ export default function BillingPage() {
           </div>
           <div className="min-w-0">
             <div className="text-[11px] text-slate-500 font-bold truncate">
-              {tabs.length > 1 ? `Bill #${activeTab.tabNumber} • ` : ''}{totalItemCount} {totalItemCount === 1 ? 'item' : 'items'}
+              {tabs.length > 1 ? tr('Bill #{tabNumber} • ', { tabNumber: activeTab.tabNumber }) : ''}{totalItemCount} {totalItemCount === 1 ? tr('item') : tr('items')}
             </div>
             <div className="text-base font-black text-slate-900 font-mono leading-tight">
               {formatINR(grandTotalPaise)}
@@ -2057,7 +2058,7 @@ export default function BillingPage() {
           onClick={() => setIsMobileCartOpen(true)}
           className="bg-amber-400 hover:bg-amber-500 active:scale-95 text-slate-950 font-black text-xs px-4 py-2.5 rounded-xl border-none shadow-md shadow-amber-400/25 flex-shrink-0 cursor-pointer"
         >
-          <span>View Cart & Pay</span>
+          <span>{tr('View Cart & Pay')}</span>
           <ArrowRight className="w-4 h-4 ml-1" />
         </Button>
       </div>
@@ -2066,7 +2067,7 @@ export default function BillingPage() {
       <Modal
         isOpen={isMobileCartOpen}
         onClose={() => setIsMobileCartOpen(false)}
-        title={`POS Checkout — Bill #${activeTab.tabNumber}`}
+        title={tr('POS Checkout — Bill #{tabNumber}', { tabNumber: activeTab.tabNumber })}
         size="lg"
       >
         <div className="p-1 h-full flex flex-col">

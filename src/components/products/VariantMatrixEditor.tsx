@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Layers, X } from 'lucide-react';
 import { VARIANT_PRESETS } from '@/lib/products/variants';
+import { tr } from '@/lib/i18n/core';
 
 /** One row of the matrix, kept as typed strings until the product is saved. */
 export interface VariantRow {
@@ -47,8 +48,8 @@ export function VariantMatrixEditor({ enabled, onToggle, rows, onChange, default
           <Layers className="w-4 h-4" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-black text-slate-900">Variants (Size / Colour)</p>
-          <p className="text-[10.5px] text-slate-500">Sell one item in many sizes or colours, each with its own price and stock.</p>
+          <p className="text-xs font-black text-slate-900">{tr('Variants (Size / Colour)')}</p>
+          <p className="text-[10.5px] text-slate-500">{tr('Sell one item in many sizes or colours, each with its own price and stock.')}</p>
         </div>
         <label className="relative inline-flex items-center cursor-pointer shrink-0">
           <input type="checkbox" className="sr-only peer" checked={enabled} onChange={(e) => onToggle(e.target.checked)} />
@@ -60,7 +61,7 @@ export function VariantMatrixEditor({ enabled, onToggle, rows, onChange, default
       {enabled && (
         <div className="px-3.5 pb-3.5 pt-1 space-y-3 border-t border-purple-200">
           <div>
-            <p className="text-[11px] font-bold text-slate-600 mb-1.5 mt-2">Quick presets (tap to add / remove)</p>
+            <p className="text-[11px] font-bold text-slate-600 mb-1.5 mt-2">{tr('Quick presets (tap to add / remove)')}</p>
             <div className="flex flex-wrap gap-1.5">
               {VARIANT_PRESETS.map((label) => {
                 const on = has(label);
@@ -89,7 +90,7 @@ export function VariantMatrixEditor({ enabled, onToggle, rows, onChange, default
                   setCustom('');
                 }
               }}
-              placeholder="Custom variant (e.g. 36, Red-XL, 500 g)"
+              placeholder={tr('Custom variant (e.g. 36, Red-XL, 500 g)')}
               className="flex-1 h-9 px-3 rounded-lg border border-slate-300 text-xs focus:outline-none focus:border-purple-500"
             />
             <button
@@ -97,15 +98,15 @@ export function VariantMatrixEditor({ enabled, onToggle, rows, onChange, default
               onClick={() => { add(custom); setCustom(''); }}
               className="h-9 px-3 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold cursor-pointer"
             >
-              Add
+              {tr('Add')}
             </button>
           </div>
 
           {rows.length > 0 && (
             <div className="space-y-2">
-              <p className="text-[11px] font-black text-purple-800">{rows.length} variants — price &amp; stock for each</p>
+              <p className="text-[11px] font-black text-purple-800">{rows.length} {tr('variants — price & stock for each')}</p>
               <div className="grid grid-cols-[90px_1fr_1fr_80px_1fr_28px] gap-1.5 text-[10px] font-bold text-slate-500 px-1">
-                <span>Variant</span><span>Selling ₹</span><span>MRP ₹</span><span>Stock</span><span>Barcode</span><span />
+                <span>{tr('Variant')}</span><span>{tr('Selling ₹')}</span><span>MRP ₹</span><span>{tr('Stock')}</span><span>{tr('Barcode')}</span><span />
               </div>
               {rows.map((r) => (
                 <div key={r.label} className="grid grid-cols-[90px_1fr_1fr_80px_1fr_28px] gap-1.5 items-center">
@@ -113,8 +114,8 @@ export function VariantMatrixEditor({ enabled, onToggle, rows, onChange, default
                   <input type="number" step="0.01" min="0" value={r.price} onChange={(e) => update(r.label, 'price', e.target.value)} className="h-8 px-2 rounded-lg border border-slate-300 text-xs font-mono focus:outline-none focus:border-purple-500" />
                   <input type="number" step="0.01" min="0" value={r.mrp} onChange={(e) => update(r.label, 'mrp', e.target.value)} className="h-8 px-2 rounded-lg border border-slate-300 text-xs font-mono focus:outline-none focus:border-purple-500" />
                   <input type="number" step="any" min="0" value={r.stock} onChange={(e) => update(r.label, 'stock', e.target.value)} className="h-8 px-2 rounded-lg border border-slate-300 text-xs font-mono focus:outline-none focus:border-purple-500" />
-                  <input value={r.barcode} onChange={(e) => update(r.label, 'barcode', e.target.value)} placeholder="optional" className="h-8 px-2 rounded-lg border border-slate-300 text-xs font-mono focus:outline-none focus:border-purple-500" />
-                  <button type="button" onClick={() => remove(r.label)} className="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center cursor-pointer" aria-label={`Remove ${r.label}`}>
+                  <input value={r.barcode} onChange={(e) => update(r.label, 'barcode', e.target.value)} placeholder={tr('optional')} className="h-8 px-2 rounded-lg border border-slate-300 text-xs font-mono focus:outline-none focus:border-purple-500" />
+                  <button type="button" onClick={() => remove(r.label)} className="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center cursor-pointer" aria-label={tr('Remove {label}', { label: r.label })}>
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>

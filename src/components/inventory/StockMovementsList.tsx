@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { InventoryMovement } from '@/types';
 import { Card } from '@/components/ui/Card';
+import { tr } from '@/lib/i18n/core';
 
 interface StockMovementsListProps {
   movements: InventoryMovement[];
@@ -25,11 +26,11 @@ export const StockMovementsList: React.FC<StockMovementsListProps> = ({
         <div className="flex items-center gap-2">
           <History className="w-4 h-4 text-sky-600" />
           <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
-            Stock Inward &amp; Audit Trail History
+            {tr('Stock Inward & Audit Trail History')}
           </h3>
         </div>
         <span className="text-xs font-mono text-slate-400">
-          Last {movements.length} movements
+          {tr('Last')} {movements.length} {tr('movements')}
         </span>
       </div>
 
@@ -54,7 +55,7 @@ export const StockMovementsList: React.FC<StockMovementsListProps> = ({
                   </span>
                 </div>
                 <div className="text-[11px] text-slate-400 mt-0.5 truncate font-mono">
-                  {m.reason || 'Inventory update'} • Prev: {m.previous_stock} ➔ New: {m.new_stock}
+                  {m.reason || tr('Inventory update')} {tr('• Prev:')} {m.previous_stock} {tr('➔ New:')} {m.new_stock}
                 </div>
               </div>
 
@@ -74,7 +75,7 @@ export const StockMovementsList: React.FC<StockMovementsListProps> = ({
 
         {movements.length === 0 && (
           <div className="py-10 text-center text-xs text-slate-400">
-            No stock movements recorded yet.
+            {tr('No stock movements recorded yet.')}
           </div>
         )}
       </div>

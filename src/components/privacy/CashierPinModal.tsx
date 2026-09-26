@@ -6,6 +6,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { verifyOwnerPin, setProfitHidden, isProfitHidden, hasOwnerPin } from '@/lib/auth/cashierPrivacy';
 import { OwnerPinSetup } from './OwnerPinSetup';
+import { tr } from '@/lib/i18n/core';
 
 interface CashierPinModalProps {
   isOpen: boolean;
@@ -40,14 +41,14 @@ export function CashierPinModal({ isOpen, onClose, onSuccess }: CashierPinModalP
     e.preventDefault();
     setError('');
     if (verifyOwnerPin(pin)) unlock();
-    else setError('Incorrect 4-digit PIN.');
+    else setError(tr('Incorrect 4-digit PIN.'));
   };
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={isChangingPin ? (hasOwnerPin() ? 'Change Owner PIN' : 'Set your Owner PIN') : 'Owner Privacy Lock'}
+      title={isChangingPin ? (hasOwnerPin() ? tr('Change Owner PIN') : tr('Set your Owner PIN')) : tr('Owner Privacy Lock')}
       size="sm"
     >
       <div className="p-1 space-y-4">
@@ -58,10 +59,10 @@ export function CashierPinModal({ isOpen, onClose, onSuccess }: CashierPinModalP
                 <Lock className="w-6 h-6" />
               </div>
               <h4 className="text-sm font-black text-slate-900">
-                {isLocked ? 'Unlock Profit Margins & Cost Prices' : 'Lock Sensitive Store Finances'}
+                {isLocked ? tr('Unlock Profit Margins & Cost Prices') : tr('Lock Sensitive Store Finances')}
               </h4>
               <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                Enter your 4-digit Owner PIN to view purchase prices, profit margins, and net profits.
+                {tr('Enter your 4-digit Owner PIN to view purchase prices, profit margins, and net profits.')}
               </p>
             </div>
 
@@ -73,7 +74,7 @@ export function CashierPinModal({ isOpen, onClose, onSuccess }: CashierPinModalP
             )}
 
             <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-700 block text-center">Enter 4-Digit Owner PIN</label>
+              <label className="text-xs font-bold text-slate-700 block text-center">{tr('Enter 4-Digit Owner PIN')}</label>
               <input
                 type="password"
                 maxLength={4}
@@ -88,7 +89,7 @@ export function CashierPinModal({ isOpen, onClose, onSuccess }: CashierPinModalP
 
             <div className="flex flex-col gap-2 pt-1">
               <Button type="submit" className="w-full bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs h-10 rounded-xl">
-                Unlock Secret Data
+                {tr('Unlock Secret Data')}
               </Button>
 
               <button
@@ -100,13 +101,13 @@ export function CashierPinModal({ isOpen, onClose, onSuccess }: CashierPinModalP
                 className="text-xs text-amber-700 font-bold hover:underline flex items-center justify-center gap-1 py-1"
               >
                 <KeyRound className="w-3.5 h-3.5" />
-                <span>Change or forgot PIN</span>
+                <span>{tr('Change or forgot PIN')}</span>
               </button>
             </div>
           </form>
         ) : (
           <OwnerPinSetup
-            intro={hasOwnerPin() ? 'Set a new PIN. Your master password confirms it is you.' : 'Choose a 4-digit PIN that only you know. Staff will need it to see profit and cost prices.'}
+            intro={hasOwnerPin() ? tr('Set a new PIN. Your master password confirms it is you.') : tr('Choose a 4-digit PIN that only you know. Staff will need it to see profit and cost prices.')}
             onDone={unlock}
             onCancel={hasOwnerPin() ? () => setIsChangingPin(false) : undefined}
           />

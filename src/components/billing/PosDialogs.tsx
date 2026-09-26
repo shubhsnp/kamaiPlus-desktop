@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { formatINR } from '@/lib/utils';
+import { tr } from '@/lib/i18n/core';
 
 /*
  * Small presentational dialogs of the POS screen, moved out of
@@ -29,14 +30,14 @@ export function QuickAddCustomerModal({ isOpen, onClose, onSubmit, name, setName
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Quick Add Customer"
+      title={tr('Quick Add Customer')}
       size="md"
     >
       <form onSubmit={onSubmit} className="space-y-3 p-1">
         <div>
-          <label className="text-xs font-bold text-slate-700 block mb-1">Customer Name *</label>
+          <label className="text-xs font-bold text-slate-700 block mb-1">{tr('Customer Name *')}</label>
           <Input
-            placeholder="e.g. Anil Verma"
+            placeholder={tr('e.g. Anil Verma')}
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
@@ -45,9 +46,9 @@ export function QuickAddCustomerModal({ isOpen, onClose, onSubmit, name, setName
         </div>
 
         <div>
-          <label className="text-xs font-bold text-slate-700 block mb-1">WhatsApp / Phone Number</label>
+          <label className="text-xs font-bold text-slate-700 block mb-1">{tr('WhatsApp / Phone Number')}</label>
           <Input
-            placeholder="e.g. 9876543210"
+            placeholder={tr('e.g. 9876543210')}
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             type="tel"
@@ -55,9 +56,9 @@ export function QuickAddCustomerModal({ isOpen, onClose, onSubmit, name, setName
         </div>
 
         <div>
-          <label className="text-xs font-bold text-slate-700 block mb-1">Address / Landmark</label>
+          <label className="text-xs font-bold text-slate-700 block mb-1">{tr('Address / Landmark')}</label>
           <Input
-            placeholder="e.g. Flat 201, Green Society"
+            placeholder={tr('e.g. Flat 201, Green Society')}
             value={address}
             onChange={(e) => setAddress(e.target.value)}
           />
@@ -65,10 +66,10 @@ export function QuickAddCustomerModal({ isOpen, onClose, onSubmit, name, setName
 
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="outline" size="sm" type="button" onClick={onClose}>
-            Cancel
+            {tr('Cancel')}
           </Button>
           <Button size="sm" type="submit" className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold">
-            Save & Select Customer
+            {tr('Save & Select Customer')}
           </Button>
         </div>
       </form>
@@ -92,28 +93,28 @@ export function QuickAddScannedProductModal({ isOpen, onClose, onSubmit, barcode
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`Add Scanned Barcode (${barcode || ''})`}
+      title={tr('Add Scanned Barcode ({v1})', { v1: barcode || '' })}
       size="md"
     >
       <form onSubmit={onSubmit} className="space-y-3 p-1">
         <div>
-          <label className="text-xs font-bold text-slate-700 block mb-1">Product Name *</label>
+          <label className="text-xs font-bold text-slate-700 block mb-1">{tr('Product Name *')}</label>
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Parle-G Biscuit 250g"
+            placeholder={tr('e.g. Parle-G Biscuit 250g')}
             required
           />
         </div>
 
         <div>
-          <label className="text-xs font-bold text-slate-700 block mb-1">Selling Price (₹) *</label>
+          <label className="text-xs font-bold text-slate-700 block mb-1">{tr('Selling Price (₹) *')}</label>
           <Input
             type="number"
             step="0.01"
             value={price}
             onChange={(e) => setPrice(e.target.value)}
-            placeholder="e.g. 25"
+            placeholder={tr('e.g. 25')}
             required
             autoFocus
           />
@@ -121,10 +122,10 @@ export function QuickAddScannedProductModal({ isOpen, onClose, onSubmit, barcode
 
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="outline" size="sm" type="button" onClick={onClose}>
-            Cancel
+            {tr('Cancel')}
           </Button>
           <Button size="sm" type="submit" className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold">
-            Save to Catalog & Add to Cart
+            {tr('Save to Catalog & Add to Cart')}
           </Button>
         </div>
       </form>
@@ -146,19 +147,19 @@ export function FullscreenUpiQrModal({ isOpen, onClose, amountPaise, businessNam
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="UPI Payment Counter QR"
+      title={tr('UPI Payment Counter QR')}
       size="md"
     >
       <div className="p-4 flex flex-col items-center text-center space-y-4">
         <div className="space-y-1">
           <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-950 text-xs font-black uppercase tracking-wider">
-            Scan to Pay Exact Amount
+            {tr('Scan to Pay Exact Amount')}
           </span>
           <div className="text-3xl font-black text-slate-900 font-mono tracking-tight pt-1">
             {formatINR(amountPaise)}
           </div>
           <p className="text-xs text-slate-500 font-medium">
-            Paying to: <b className="text-slate-900">{businessName}</b>{upiId ? ` (${upiId})` : ''}
+            {tr('Paying to:')} <b className="text-slate-900">{businessName}</b>{upiId ? ` (${upiId})` : ''}
           </p>
         </div>
 
@@ -175,7 +176,7 @@ export function FullscreenUpiQrModal({ isOpen, onClose, amountPaise, businessNam
         {/* Supported UPI Apps Row */}
         <div className="space-y-1.5 w-full pt-1">
           <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-            Accepted on Any UPI App
+            {tr('Accepted on Any UPI App')}
           </div>
           <div className="flex items-center justify-center gap-2 text-xs font-bold text-slate-700 flex-wrap">
             <span className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200">Google Pay</span>
@@ -191,7 +192,7 @@ export function FullscreenUpiQrModal({ isOpen, onClose, amountPaise, businessNam
             onClick={onClose}
             className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-6 py-2 rounded-xl"
           >
-            Done / Payment Received
+            {tr('Done / Payment Received')}
           </Button>
         </div>
       </div>

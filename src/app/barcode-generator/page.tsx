@@ -42,6 +42,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
+import { tr } from '@/lib/i18n/core';
 
 export type LabelLayout = 
   | 'a4_24'      // 3 cols x 8 rows (63.5 x 33.9 mm)
@@ -288,7 +289,7 @@ export default function BarcodeGeneratorPage() {
 
       await bluetoothPrinter.sendRawBytes(enc.getBytes());
     } catch (err: any) {
-      showAlert(err.message || 'Bluetooth label printing failed.');
+      showAlert(err.message || tr('Bluetooth label printing failed.'));
     }
   };
 
@@ -307,11 +308,11 @@ export default function BarcodeGeneratorPage() {
           <div className="flex items-center gap-1.5 truncate">
             <Barcode className="w-4 h-4 text-slate-800 shrink-0" />
             <h1 className="text-sm xs:text-base sm:text-lg font-black text-slate-900 truncate">
-              Barcode &amp; Price Label Studio
+              {tr('Barcode & Price Label Studio')}
             </h1>
           </div>
           <p className="text-[10px] sm:text-xs text-slate-500 truncate">
-            A4 sticker sheets &amp; thermal roll price tags • {individualLabels.length} stickers in queue
+            {tr('A4 sticker sheets & thermal roll price tags •')} {individualLabels.length} {tr('stickers in queue')}
           </p>
         </div>
 
@@ -324,7 +325,7 @@ export default function BarcodeGeneratorPage() {
               className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1 px-2.5 py-1.5 shadow-2xs cursor-pointer whitespace-nowrap"
             >
               <Printer className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">BT Print</span>
+              <span className="hidden sm:inline">{tr('BT Print')}</span>
             </Button>
           ) : null}
 
@@ -334,7 +335,7 @@ export default function BarcodeGeneratorPage() {
             className="bg-slate-900 hover:bg-slate-950 text-white font-bold text-xs gap-1 px-2.5 py-1.5 shadow-2xs cursor-pointer whitespace-nowrap"
           >
             <Printer className="w-3.5 h-3.5 text-amber-400" />
-            <span>Print {layout.startsWith('a4') ? 'A4 Sheet' : 'Labels'} ({individualLabels.length})</span>
+            <span>{tr('Print')} {layout.startsWith('a4') ? tr('A4 Sheet') : tr('Labels')} ({individualLabels.length})</span>
           </Button>
         </div>
       </div>
@@ -350,11 +351,11 @@ export default function BarcodeGeneratorPage() {
             <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
               <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
                 <Grid className="w-3.5 h-3.5 text-slate-700" />
-                <span>Printer &amp; Sheet Layout</span>
+                <span>{tr('Printer & Sheet Layout')}</span>
               </h3>
               {isSavedFeedback && (
                 <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-                  ✓ Saved
+                  {tr('✓ Saved')}
                 </span>
               )}
             </div>
@@ -366,18 +367,18 @@ export default function BarcodeGeneratorPage() {
                 onChange={(e) => setLayout(e.target.value as LabelLayout)}
                 className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 text-slate-900 text-xs font-bold rounded-lg p-2 focus:outline-none focus:border-slate-900 transition-colors shadow-2xs"
               >
-                <optgroup label="📄 A4 Sticker Sheets (Office Laser / Inkjet)">
-                  <option value="a4_24">A4 Sheet: 24 Labels (3x8 Grid • 63.5 x 33.9 mm)</option>
-                  <option value="a4_30">A4 Sheet: 30 Labels (3x10 Grid • 70 x 29.7 mm)</option>
-                  <option value="a4_40">A4 Sheet: 40 Labels (4x10 Grid • 52.5 x 29.7 mm)</option>
+                <optgroup label={tr('📄 A4 Sticker Sheets (Office Laser / Inkjet)')}>
+                  <option value="a4_24">{tr('A4 Sheet: 24 Labels (3x8 Grid • 63.5 x 33.9 mm)')}</option>
+                  <option value="a4_30">{tr('A4 Sheet: 30 Labels (3x10 Grid • 70 x 29.7 mm)')}</option>
+                  <option value="a4_40">{tr('A4 Sheet: 40 Labels (4x10 Grid • 52.5 x 29.7 mm)')}</option>
                 </optgroup>
-                <optgroup label="🏷️ Continuous Thermal Label Rolls (TSC / TVS / Zebra)">
-                  <option value="thermal_50x25">Thermal Roll: 50mm x 25mm (2" x 1" Supermarket)</option>
-                  <option value="thermal_38x25">Thermal Roll: 38mm x 25mm (Compact Kirana)</option>
+                <optgroup label={tr('🏷️ Continuous Thermal Label Rolls (TSC / TVS / Zebra)')}>
+                  <option value="thermal_50x25">{tr('Thermal Roll: 50mm x 25mm (2" x 1" Supermarket)')}</option>
+                  <option value="thermal_38x25">{tr('Thermal Roll: 38mm x 25mm (Compact Kirana)')}</option>
                 </optgroup>
-                <optgroup label="🧾 POS Bluetooth Receipt Printers">
-                  <option value="pos_58mm">58mm Portable Bluetooth Thermal Slip</option>
-                  <option value="pos_80mm">80mm Desktop POS Thermal Slip</option>
+                <optgroup label={tr('🧾 POS Bluetooth Receipt Printers')}>
+                  <option value="pos_58mm">{tr('58mm Portable Bluetooth Thermal Slip')}</option>
+                  <option value="pos_80mm">{tr('80mm Desktop POS Thermal Slip')}</option>
                 </optgroup>
               </select>
             </div>
@@ -385,7 +386,7 @@ export default function BarcodeGeneratorPage() {
             {/* Barcode Symbology & Save Setting Action */}
             <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between gap-2 text-xs">
               <div className="flex items-center gap-1.5">
-                <span className="font-bold text-slate-700 text-[11px]">Type:</span>
+                <span className="font-bold text-slate-700 text-[11px]">{tr('Type:')}</span>
                 <div className="flex rounded-lg border border-slate-200 p-0.5 bg-slate-100 shadow-2xs">
                   <button
                     type="button"
@@ -394,7 +395,7 @@ export default function BarcodeGeneratorPage() {
                       barcodeType === 'code128' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    1D Code-128
+                    {tr('1D Code-128')}
                   </button>
                   <button
                     type="button"
@@ -411,10 +412,10 @@ export default function BarcodeGeneratorPage() {
               <button
                 type="button"
                 onClick={handleSaveSettings}
-                title="Save current layout & toggles as your default preference"
+                title={tr('Save current layout & toggles as your default preference')}
                 className="px-2.5 py-1 rounded-lg border border-slate-300 hover:bg-slate-100 text-slate-700 text-[11px] font-bold active:scale-95 transition-all"
               >
-                Save Default
+                {tr('Save Default')}
               </button>
             </div>
           </Card>
@@ -423,7 +424,7 @@ export default function BarcodeGeneratorPage() {
           <Card className="p-3 sm:p-3.5 bg-white border border-slate-200 space-y-2 shadow-2xs text-xs">
             <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-1.5">
               <Sliders className="w-3.5 h-3.5 text-slate-700" />
-              <span>Label Content Elements</span>
+              <span>{tr('Label Content Elements')}</span>
             </h3>
 
             <div className="grid grid-cols-2 gap-1.5 text-[11px]">
@@ -434,7 +435,7 @@ export default function BarcodeGeneratorPage() {
                   onChange={(e) => setShowStoreName(e.target.checked)}
                   className="rounded text-slate-900 focus:ring-0"
                 />
-                <span>Store Name</span>
+                <span>{tr('Store Name')}</span>
               </label>
 
               <label className="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700 hover:text-slate-900">
@@ -444,7 +445,7 @@ export default function BarcodeGeneratorPage() {
                   onChange={(e) => setShowProductName(e.target.checked)}
                   className="rounded text-slate-900 focus:ring-0"
                 />
-                <span>Product Name</span>
+                <span>{tr('Product Name')}</span>
               </label>
 
               <label className="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700 hover:text-slate-900">
@@ -454,7 +455,7 @@ export default function BarcodeGeneratorPage() {
                   onChange={(e) => setShowPrice(e.target.checked)}
                   className="rounded text-slate-900 focus:ring-0"
                 />
-                <span>Our Price (₹)</span>
+                <span>{tr('Our Price (₹)')}</span>
               </label>
 
               <label className="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700 hover:text-slate-900">
@@ -464,7 +465,7 @@ export default function BarcodeGeneratorPage() {
                   onChange={(e) => setShowMRP(e.target.checked)}
                   className="rounded text-slate-900 focus:ring-0"
                 />
-                <span>MRP &amp; Savings</span>
+                <span>{tr('MRP & Savings')}</span>
               </label>
 
               <label className="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700 hover:text-slate-900">
@@ -474,7 +475,7 @@ export default function BarcodeGeneratorPage() {
                   onChange={(e) => setShowBarcodeText(e.target.checked)}
                   className="rounded text-slate-900 focus:ring-0"
                 />
-                <span>Barcode Digits</span>
+                <span>{tr('Barcode Digits')}</span>
               </label>
 
               <label className="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700 hover:text-slate-900">
@@ -484,7 +485,7 @@ export default function BarcodeGeneratorPage() {
                   onChange={(e) => setShowDate(e.target.checked)}
                   className="rounded text-slate-900 focus:ring-0"
                 />
-                <span>Packing Date</span>
+                <span>{tr('Packing Date')}</span>
               </label>
             </div>
           </Card>
@@ -493,14 +494,14 @@ export default function BarcodeGeneratorPage() {
           <Card className="p-3 sm:p-3.5 bg-white border border-slate-200 space-y-2.5 shadow-2xs">
             <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
               <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                Print Queue ({queue.length} items • {individualLabels.length} stickers)
+                {tr('Print Queue (')}{queue.length} {tr('items •')} {individualLabels.length} {tr('stickers)')}
               </h3>
               <button
                 onClick={() => setIsAddCustomModalOpen(true)}
                 className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-0.5 cursor-pointer"
               >
                 <Plus className="w-3 h-3" />
-                <span>Custom Item</span>
+                <span>{tr('Custom Item')}</span>
               </button>
             </div>
 
@@ -510,7 +511,7 @@ export default function BarcodeGeneratorPage() {
                 <Search className="w-3.5 h-3.5 text-slate-400 mr-1.5 flex-shrink-0" />
                 <input
                   type="text"
-                  placeholder="Search item to add stickers..."
+                  placeholder={tr('Search item to add stickers...')}
                   value={productSearch}
                   onChange={(e) => setProductSearch(e.target.value)}
                   className="w-full bg-transparent focus:outline-none font-medium text-slate-900 placeholder:text-slate-400"
@@ -533,10 +534,10 @@ export default function BarcodeGeneratorPage() {
                       <div>
                         <div className="font-bold text-slate-900">{p.name}</div>
                         <div className="text-[10px] text-slate-500 font-mono">
-                          {p.barcode || 'No barcode'} • {formatINR(p.selling_price)}
+                          {p.barcode || tr('No barcode')} • {formatINR(p.selling_price)}
                         </div>
                       </div>
-                      <span className="text-[11px] font-bold text-emerald-700">+ Add 6</span>
+                      <span className="text-[11px] font-bold text-emerald-700">{tr('+ Add 6')}</span>
                     </button>
                   ))}
                 </div>
@@ -547,7 +548,7 @@ export default function BarcodeGeneratorPage() {
             <div className="divide-y divide-slate-100 max-h-56 overflow-y-auto pr-1">
               {queue.length === 0 ? (
                 <div className="py-6 text-center text-xs text-slate-400">
-                  Print queue is empty. Add products above.
+                  {tr('Print queue is empty. Add products above.')}
                 </div>
               ) : (
                 queue.map((item) => (
@@ -597,7 +598,7 @@ export default function BarcodeGeneratorPage() {
             <div className="flex items-center gap-2">
               <Eye className="w-4 h-4 text-slate-700" />
               <span className="text-xs font-bold text-slate-900">
-                Live Sheet Preview • {individualLabels.length} Total Labels
+                {tr('Live Sheet Preview •')} {individualLabels.length} {tr('Total Labels')}
               </span>
             </div>
 
@@ -609,7 +610,7 @@ export default function BarcodeGeneratorPage() {
                 className="text-xs font-bold gap-1"
               >
                 <Printer className="w-3.5 h-3.5" />
-                <span>Print Preview</span>
+                <span>{tr('Print Preview')}</span>
               </Button>
             </div>
           </div>
@@ -646,7 +647,7 @@ export default function BarcodeGeneratorPage() {
                     {/* Store Name Header */}
                     {showStoreName && (
                       <div className="text-[9px] font-black uppercase tracking-wider text-slate-800 line-clamp-1 w-full border-b border-slate-100 pb-0.5">
-                        {business?.name || 'SHARMA STORE'}
+                        {business?.name || tr('SHARMA STORE')}
                       </div>
                     )}
 
@@ -695,7 +696,7 @@ export default function BarcodeGeneratorPage() {
                       )}
                       {showPrice && (
                         <span className="text-slate-900 font-black ml-auto text-[10px]">
-                          Price: {formatINR(item.selling_price)}
+                          {tr('Price:')} {formatINR(item.selling_price)}
                         </span>
                       )}
                     </div>
@@ -716,7 +717,7 @@ export default function BarcodeGeneratorPage() {
                   >
                     {showStoreName && (
                       <div className="text-[9px] font-black uppercase text-slate-800">
-                        {business?.name || 'SHARMA STORE'}
+                        {business?.name || tr('SHARMA STORE')}
                       </div>
                     )}
                     {showProductName && (
@@ -754,13 +755,13 @@ export default function BarcodeGeneratorPage() {
       <Modal
         isOpen={isAddCustomModalOpen}
         onClose={() => setIsAddCustomModalOpen(false)}
-        title="Create Custom Barcode Price Tag"
-        description="Generate sticker tags for loose grains, bakery items, dry fruits, or custom products."
+        title={tr('Create Custom Barcode Price Tag')}
+        description={tr('Generate sticker tags for loose grains, bakery items, dry fruits, or custom products.')}
       >
         <form onSubmit={handleAddCustomItem} className="space-y-3 text-xs">
           <Input
-            label="Product Description / Name"
-            placeholder="e.g. Premium California Almonds 250g, Loose Sugar 1kg"
+            label={tr('Product Description / Name')}
+            placeholder={tr('e.g. Premium California Almonds 250g, Loose Sugar 1kg')}
             value={customName}
             onChange={(e) => setCustomName(e.target.value)}
             required
@@ -769,19 +770,19 @@ export default function BarcodeGeneratorPage() {
 
           <div className="grid grid-cols-2 gap-2">
             <Input
-              label="Selling Price (₹)"
+              label={tr('Selling Price (₹)')}
               type="number"
               step="1"
-              placeholder="e.g. 240"
+              placeholder={tr('e.g. 240')}
               value={customPrice}
               onChange={(e) => setCustomPrice(e.target.value)}
               required
             />
             <Input
-              label="MRP (₹, Optional)"
+              label={tr('MRP (₹, Optional)')}
               type="number"
               step="1"
-              placeholder="e.g. 280"
+              placeholder={tr('e.g. 280')}
               value={customMRP}
               onChange={(e) => setCustomMRP(e.target.value)}
             />
@@ -789,13 +790,13 @@ export default function BarcodeGeneratorPage() {
 
           <div className="grid grid-cols-2 gap-2">
             <Input
-              label="Custom Barcode / SKU (Optional)"
-              placeholder="Leave blank for auto-generate"
+              label={tr('Custom Barcode / SKU (Optional)')}
+              placeholder={tr('Leave blank for auto-generate')}
               value={customBarcode}
               onChange={(e) => setCustomBarcode(e.target.value)}
             />
             <Input
-              label="Number of Label Copies"
+              label={tr('Number of Label Copies')}
               type="number"
               min="1"
               max="200"
@@ -807,10 +808,10 @@ export default function BarcodeGeneratorPage() {
 
           <div className="pt-2 flex justify-end gap-2 border-t border-slate-200">
             <Button type="button" variant="outline" size="sm" onClick={() => setIsAddCustomModalOpen(false)}>
-              Cancel
+              {tr('Cancel')}
             </Button>
             <Button type="submit" size="sm" className="bg-slate-900 text-white font-bold">
-              Add to Print Queue
+              {tr('Add to Print Queue')}
             </Button>
           </div>
         </form>

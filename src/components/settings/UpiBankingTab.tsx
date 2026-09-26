@@ -14,6 +14,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { UpiAccount } from '@/types';
+import { tr } from '@/lib/i18n/core';
 
 interface UpiBankingTabProps {
   upiList: UpiAccount[];
@@ -70,30 +71,30 @@ export const UpiBankingTab: React.FC<UpiBankingTabProps> = ({
             <div className="flex items-center gap-2">
               <QrCode className="w-4 h-4 text-emerald-600" />
               <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
-                UPI QR Accounts &amp; Auto-Matching
+                {tr('UPI QR Accounts & Auto-Matching')}
               </h3>
             </div>
             <span className="text-[11px] font-bold text-slate-400">
-              {upiList.length} Accounts
+              {upiList.length} {tr('Accounts')}
             </span>
           </div>
 
           {/* Add New UPI ID Strip */}
           <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200/80 dark:border-slate-700 space-y-2.5">
             <div className="text-xs font-black text-slate-800 dark:text-slate-200">
-              + Add UPI ID / VPA
+              {tr('+ Add UPI ID / VPA')}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <input
                 type="text"
-                placeholder="Account Label (e.g. Counter QR)"
+                placeholder={tr('Account Label (e.g. Counter QR)')}
                 value={newUpiLabel}
                 onChange={(e) => setNewUpiLabel(e.target.value)}
                 className="px-3 py-2 text-xs bg-white dark:bg-slate-900 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
               <input
                 type="text"
-                placeholder="UPI VPA (e.g. store@okaxis)"
+                placeholder={tr('UPI VPA (e.g. store@okaxis)')}
                 value={newUpiId}
                 onChange={(e) => setNewUpiId(e.target.value)}
                 className="px-3 py-2 text-xs bg-white dark:bg-slate-900 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
@@ -104,7 +105,7 @@ export const UpiBankingTab: React.FC<UpiBankingTabProps> = ({
                 className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-2xs cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5 mr-1" />
-                <span>Add Account</span>
+                <span>{tr('Add Account')}</span>
               </Button>
             </div>
           </div>
@@ -124,11 +125,11 @@ export const UpiBankingTab: React.FC<UpiBankingTabProps> = ({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">
-                      {item.label || 'UPI Account'}
+                      {item.label || tr('UPI Account')}
                     </span>
                     {item.is_default && (
                       <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase bg-emerald-100 dark:bg-emerald-950 text-emerald-900 dark:text-emerald-300 border border-emerald-300">
-                        Default POS QR
+                        {tr('Default POS QR')}
                       </span>
                     )}
                   </div>
@@ -147,7 +148,7 @@ export const UpiBankingTab: React.FC<UpiBankingTabProps> = ({
                       }}
                       className="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 text-[10.5px] font-bold text-slate-600 dark:text-slate-300 cursor-pointer"
                     >
-                      Make Default
+                      {tr('Make Default')}
                     </button>
                   )}
                   <button
@@ -157,7 +158,7 @@ export const UpiBankingTab: React.FC<UpiBankingTabProps> = ({
                       onRemoveUpi(item.id);
                     }}
                     className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer"
-                    title="Delete UPI Account"
+                    title={tr('Delete UPI Account')}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -167,7 +168,7 @@ export const UpiBankingTab: React.FC<UpiBankingTabProps> = ({
 
             {upiList.length === 0 && (
               <div className="py-6 text-center text-xs text-slate-400 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
-                No UPI account added yet. Add one above to enable Dynamic QR code on bill prints.
+                {tr('No UPI account added yet. Add one above to enable Dynamic QR code on bill prints.')}
               </div>
             )}
           </div>
@@ -178,10 +179,10 @@ export const UpiBankingTab: React.FC<UpiBankingTabProps> = ({
           <div>
             <div className="text-xs font-black text-slate-900 dark:text-slate-100 flex items-center justify-center gap-1.5">
               <QrCode className="w-4 h-4 text-emerald-600" />
-              <span>Live Dynamic QR Preview</span>
+              <span>{tr('Live Dynamic QR Preview')}</span>
             </div>
             <p className="text-[10.5px] text-slate-400 mt-0.5">
-              Customer scans to pay directly to your linked bank account
+              {tr('Customer scans to pay directly to your linked bank account')}
             </p>
           </div>
 
@@ -190,7 +191,7 @@ export const UpiBankingTab: React.FC<UpiBankingTabProps> = ({
               <img src={liveQrDataUrl} alt="Store UPI QR" className="w-36 h-36 mx-auto object-contain" />
             ) : (
               <div className="w-36 h-36 flex items-center justify-center text-slate-300 font-mono text-xs">
-                QR Preview
+                {tr('QR Preview')}
               </div>
             )}
           </div>
@@ -201,7 +202,7 @@ export const UpiBankingTab: React.FC<UpiBankingTabProps> = ({
             className="w-full bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-950 hover:bg-slate-800 font-black text-xs rounded-xl shadow-2xs cursor-pointer gap-1.5"
           >
             <Printer className="w-3.5 h-3.5" />
-            <span>Print Counter QR Standee</span>
+            <span>{tr('Print Counter QR Standee')}</span>
           </Button>
         </Card>
       </div>
@@ -211,20 +212,20 @@ export const UpiBankingTab: React.FC<UpiBankingTabProps> = ({
         <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
           <Building2 className="w-4 h-4 text-sky-600" />
           <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
-            Bank Account Details (Printed on Invoices &amp; Quotations)
+            {tr('Bank Account Details (Printed on Invoices & Quotations)')}
           </h3>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Input
-            label="Bank Name"
-            placeholder="e.g. State Bank of India / HDFC Bank"
+            label={tr('Bank Name')}
+            placeholder={tr('e.g. State Bank of India / HDFC Bank')}
             value={bankName}
             onChange={(e) => setBankName(e.target.value)}
           />
           <Input
-            label="Account Holder Name"
-            placeholder="e.g. Mahavir Enterprises"
+            label={tr('Account Holder Name')}
+            placeholder={tr('e.g. Mahavir Enterprises')}
             value={bankAccountName}
             onChange={(e) => setBankAccountName(e.target.value)}
           />
@@ -232,14 +233,14 @@ export const UpiBankingTab: React.FC<UpiBankingTabProps> = ({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Input
-            label="Bank Account Number"
-            placeholder="e.g. 50200012345678"
+            label={tr('Bank Account Number')}
+            placeholder={tr('e.g. 50200012345678')}
             value={bankAccountNo}
             onChange={(e) => setBankAccountNo(e.target.value)}
           />
           <Input
-            label="Bank IFSC Code"
-            placeholder="e.g. HDFC0000123"
+            label={tr('Bank IFSC Code')}
+            placeholder={tr('e.g. HDFC0000123')}
             value={bankIfsc}
             onChange={(e) => setBankIfsc(e.target.value.toUpperCase())}
           />

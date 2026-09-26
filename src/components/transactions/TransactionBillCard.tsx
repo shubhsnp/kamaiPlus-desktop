@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Sale } from '@/types';
 import { formatINR, cn } from '@/lib/utils';
+import { paymentMethodLabel, tr } from '@/lib/i18n/core';
 
 interface TransactionBillCardProps {
   sale: Sale;
@@ -69,7 +70,7 @@ export const TransactionBillCard: React.FC<TransactionBillCardProps> = ({
             </span>
             {isEstimate ? (
               <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase bg-violet-100 dark:bg-violet-950/60 text-violet-800 dark:text-violet-300 border border-violet-300 dark:border-violet-800 shrink-0">
-                📝 Estimate
+                {tr('📝 Estimate')}
               </span>
             ) : (
               <span className={cn(
@@ -78,16 +79,16 @@ export const TransactionBillCard: React.FC<TransactionBillCardProps> = ({
                 sale.payment_method === 'upi' ? 'bg-sky-50 dark:bg-sky-950/60 text-sky-800 dark:text-sky-300 border border-sky-200 dark:border-sky-800' :
                 'bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-700'
               )}>
-                {sale.payment_method}
+                {paymentMethodLabel(sale.payment_method)}
               </span>
             )}
             {isReturned && (
               <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-800 shrink-0">
-                ↩ Returned
+                {tr('↩ Returned')}
               </span>
             )}
             <span className="text-slate-700 dark:text-slate-300 font-semibold text-xs truncate">
-              • {sale.customer_name || 'Cash Customer'}
+              • {sale.customer_name || tr('Cash Customer')}
             </span>
           </div>
         </div>
@@ -109,22 +110,22 @@ export const TransactionBillCard: React.FC<TransactionBillCardProps> = ({
           </span>
           <span>•</span>
           <span className="truncate">
-            {sale.items?.length || 0} {sale.items?.length === 1 ? 'item' : 'items'} ({sale.items?.map(i => i.product_name).slice(0, 2).join(', ')}{sale.items && sale.items.length > 2 ? '...' : ''})
+            {sale.items?.length || 0} {sale.items?.length === 1 ? tr('item') : tr('items')} ({sale.items?.map(i => i.product_name).slice(0, 2).join(', ')}{sale.items && sale.items.length > 2 ? '...' : ''})
           </span>
         </div>
 
         {/* Right Status & 4 Action Buttons */}
         <div className="flex items-center gap-1.5 shrink-0">
           {isReturned ? (
-            <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 mr-1">Refunded</span>
+            <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 mr-1">{tr('Refunded')}</span>
           ) : isEstimate ? (
-            <span className="text-[10px] font-bold text-violet-700 dark:text-violet-400 mr-1">Quotation</span>
+            <span className="text-[10px] font-bold text-violet-700 dark:text-violet-400 mr-1">{tr('Quotation')}</span>
           ) : sale.balance_due && sale.balance_due > 0 ? (
-            <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 font-mono mr-1">Due: {formatINR(sale.balance_due)}</span>
+            <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 font-mono mr-1">{tr('Due:')} {formatINR(sale.balance_due)}</span>
           ) : (
             <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 hidden sm:inline-flex items-center gap-0.5 mr-1">
               <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
-              <span>Paid</span>
+              <span>{tr('Paid')}</span>
             </span>
           )}
 
@@ -136,11 +137,11 @@ export const TransactionBillCard: React.FC<TransactionBillCardProps> = ({
                 e.stopPropagation();
                 onConvertToInvoice(sale);
               }}
-              title="Convert Quotation to Official Tax Invoice"
+              title={tr('Convert Quotation to Official Tax Invoice')}
               className="px-2 py-1 rounded-lg border border-violet-300 dark:border-violet-700 bg-violet-50 dark:bg-violet-950/70 hover:bg-violet-100 text-violet-700 dark:text-violet-200 cursor-pointer shadow-2xs transition active:scale-95 text-[10px] font-bold flex items-center gap-1 shrink-0"
             >
               <Zap className="w-3 h-3 text-amber-500 fill-amber-500" />
-              <span>Convert to Bill</span>
+              <span>{tr('Convert to Bill')}</span>
             </button>
           )}
 
@@ -151,7 +152,7 @@ export const TransactionBillCard: React.FC<TransactionBillCardProps> = ({
               e.stopPropagation();
               onEditSale(sale);
             }}
-            title="Edit Invoice"
+            title={tr('Edit Invoice')}
             className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 text-slate-600 dark:text-slate-300 cursor-pointer shadow-2xs transition active:scale-95"
           >
             <Edit3 className="w-3 h-3" />
@@ -164,7 +165,7 @@ export const TransactionBillCard: React.FC<TransactionBillCardProps> = ({
               e.stopPropagation();
               onReturnSale(sale.id);
             }}
-            title="Sales Return"
+            title={tr('Sales Return')}
             className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-amber-50 dark:hover:bg-amber-950/40 text-slate-600 dark:text-slate-300 cursor-pointer shadow-2xs transition active:scale-95"
           >
             <RotateCcw className="w-3 h-3 text-amber-700 dark:text-amber-400" />
@@ -177,7 +178,7 @@ export const TransactionBillCard: React.FC<TransactionBillCardProps> = ({
               e.stopPropagation();
               onOpenInvoice(sale);
             }}
-            title="Print / View Invoice"
+            title={tr('Print / View Invoice')}
             className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 text-slate-700 dark:text-slate-300 cursor-pointer shadow-2xs transition active:scale-95"
           >
             <Printer className="w-3 h-3" />

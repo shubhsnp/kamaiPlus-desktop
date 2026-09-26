@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { CashierPrivacyToggleButton } from '@/components/privacy/ProfitMask';
+import { tr } from '@/lib/i18n/core';
 
 interface CashRegisterHeaderActionsProps {
   isOpen: boolean;
@@ -37,7 +38,7 @@ export const CashRegisterHeaderActions: React.FC<CashRegisterHeaderActionsProps>
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <h1 className="text-base sm:text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight">
-              Cash Register &amp; Petty Cash Drawer
+              {tr('Cash Register & Petty Cash Drawer')}
             </h1>
             <span className={`px-2 py-0.5 rounded-full text-[9.5px] font-black uppercase flex items-center gap-1 border ${
               isOpen 
@@ -45,12 +46,12 @@ export const CashRegisterHeaderActions: React.FC<CashRegisterHeaderActionsProps>
                 : 'bg-slate-100 text-slate-700 border-slate-300'
             }`}>
               <span className={`w-1.5 h-1.5 rounded-full ${isOpen ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
-              <span>{isOpen ? 'Drawer Open' : 'Drawer Closed'}</span>
+              <span>{isOpen ? tr('Drawer Open') : tr('Drawer Closed')}</span>
             </span>
             <CashierPrivacyToggleButton />
           </div>
           <p className="text-[10.5px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">
-            Track day opening cash, petty expenses, cashier handover &amp; daily Z-report closing
+            {tr('Track day opening cash, petty expenses, cashier handover & daily Z-report closing')}
           </p>
         </div>
       </div>
@@ -63,7 +64,7 @@ export const CashRegisterHeaderActions: React.FC<CashRegisterHeaderActionsProps>
           className="text-xs font-bold gap-1 rounded-xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 cursor-pointer shadow-2xs"
         >
           <FileText className="w-3.5 h-3.5 text-purple-600" />
-          <span className="hidden sm:inline">Day Summary</span>
+          <span className="hidden sm:inline">{tr('Day Summary')}</span>
         </Button>
 
         <Button
@@ -73,7 +74,7 @@ export const CashRegisterHeaderActions: React.FC<CashRegisterHeaderActionsProps>
           className="text-xs font-bold gap-1 rounded-xl border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 cursor-pointer shadow-2xs"
         >
           <Minus className="w-3.5 h-3.5 text-rose-600" />
-          <span>Expense</span>
+          <span>{tr('Expense')}</span>
         </Button>
 
         {isOpen ? (
@@ -83,7 +84,7 @@ export const CashRegisterHeaderActions: React.FC<CashRegisterHeaderActionsProps>
             className="font-black bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-950 hover:bg-slate-800 text-xs px-3.5 py-1.5 shadow-2xs cursor-pointer gap-1.5 rounded-xl"
           >
             <Lock className="w-3.5 h-3.5" />
-            <span>Close Shift</span>
+            <span>{tr('Close Shift')}</span>
           </Button>
         ) : (
           <Button
@@ -92,7 +93,7 @@ export const CashRegisterHeaderActions: React.FC<CashRegisterHeaderActionsProps>
             className="font-black bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3.5 py-1.5 shadow-2xs cursor-pointer gap-1.5 rounded-xl"
           >
             <Unlock className="w-3.5 h-3.5" />
-            <span>Open Drawer</span>
+            <span>{tr('Open Drawer')}</span>
           </Button>
         )}
       </div>

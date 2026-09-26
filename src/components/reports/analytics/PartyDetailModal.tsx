@@ -10,6 +10,7 @@ import { getSaleNetTotal } from '@/lib/sales/saleMath';
 import { printInvoice } from '@/lib/invoices/invoiceOutput';
 import { InvoiceModal } from '@/components/invoices/InvoiceModal';
 import { ProfitView, profitText } from './AnalyticsLists';
+import { paymentMethodLabel, tr } from '@/lib/i18n/core';
 
 interface Props {
   party: PartySalesSummary | null;
@@ -68,7 +69,7 @@ export function PartyDetailModal({ party, periodSales, returns, periodLabel, bus
 
   return (
     <>
-      <Modal isOpen onClose={onClose} title={summary.partyName} description={`${periodLabel} • ${summary.invoiceCount} bill(s)`} size="xl">
+      <Modal isOpen onClose={onClose} title={summary.partyName} description={tr('{periodLabel} • {invoiceCount} bill(s)', { periodLabel: periodLabel, invoiceCount: summary.invoiceCount })} size="xl">
         <div className="space-y-3">
           <div className="bg-white border border-slate-200 rounded-2xl p-3.5 space-y-3">
             <div className="flex items-center gap-3">
@@ -78,7 +79,7 @@ export function PartyDetailModal({ party, periodSales, returns, periodLabel, bus
               <div className="flex-1 min-w-0">
                 <div className="font-black text-slate-900 truncate">{summary.partyName}</div>
                 <div className="text-xs text-slate-500 flex items-center gap-1">
-                  <Phone className="w-3 h-3" /> {summary.partyPhone || 'Walk-in Customer'}
+                  <Phone className="w-3 h-3" /> {summary.partyPhone || tr('Walk-in Customer')}
                 </div>
               </div>
               <button
@@ -87,26 +88,26 @@ export function PartyDetailModal({ party, periodSales, returns, periodLabel, bus
                 disabled={exporting}
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-black cursor-pointer disabled:opacity-50"
               >
-                <FileDown className="w-4 h-4" /> {exporting ? 'Saving…' : 'PDF Statement'}
+                <FileDown className="w-4 h-4" /> {exporting ? tr('Saving…') : tr('PDF Statement')}
               </button>
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-              <Tile icon={TrendingUp} color="text-emerald-600" title="Total Sales" value={formatINR(summary.totalSalesPaise)} />
+              <Tile icon={TrendingUp} color="text-emerald-600" title={tr('Total Sales')} value={formatINR(summary.totalSalesPaise)} />
               <button type="button" onClick={view.unlocked ? undefined : view.onRequestUnlock} className="text-left">
                 <Tile
                   icon={PieChart}
                   color="text-indigo-600"
-                  title="Est. Profit"
+                  title={tr('Est. Profit')}
                   value={profitText(summary.totalProfitPaise, view)}
-                  sub={view.unlocked ? `${marginPercent(summary).toFixed(1)}% margin${summary.uncostedLineCount ? ' • partial' : ''}` : 'Owner PIN'}
+                  sub={view.unlocked ? tr('{pct}% margin', { pct: marginPercent(summary).toFixed(1) }) + (summary.uncostedLineCount ? tr(' • partial') : '') : tr('Owner PIN')}
                 />
               </button>
-              <Tile icon={Receipt} color="text-sky-600" title="Invoices Billed" value={String(summary.invoiceCount)} />
-              <Tile icon={BarChart3} color="text-amber-600" title="Avg Bill Size" value={formatINR(avgBill)} />
+              <Tile icon={Receipt} color="text-sky-600" title={tr('Invoices Billed')} value={String(summary.invoiceCount)} />
+              <Tile icon={BarChart3} color="text-amber-600" title={tr('Avg Bill Size')} value={formatINR(avgBill)} />
             </div>
             {summary.creditPaise > 0 && (
               <div className="text-xs font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-center gap-1.5">
-                <BookOpen className="w-3.5 h-3.5" /> {formatINR(summary.creditPaise)} of these bills was given on udhar.
+                <BookOpen className="w-3.5 h-3.5" /> {formatINR(summary.creditPaise)} {tr('of these bills was given on udhar.')}
               </div>
             )}
           </div>
@@ -114,18 +115,18 @@ export function PartyDetailModal({ party, periodSales, returns, periodLabel, bus
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search invoice # or item…"
+            placeholder={tr('Search invoice # or item…')}
             className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:border-slate-400"
           />
 
           <div className="space-y-2">
-            {visible.length === 0 && <div className="py-10 text-center text-xs text-slate-500">No invoices found.</div>}
+            {visible.length === 0 && <div className="py-10 text-center text-xs text-slate-500">{tr('No invoices found.')}</div>}
             {visible.map((sale) => {
               const returned = sale.status === 'returned';
               const partial = sale.status === 'partial_return';
-              const mode = sale.payment_method === 'credit' ? 'UDHAR' : sale.payment_method.toUpperCase();
+              const mode = paymentMethodLabel(sale.payment_method).toUpperCase();
               const names = sale.items.slice(0, 2).map((i) => `${i.quantity}x ${i.product_name}`).join(', ');
-              const more = sale.items.length > 2 ? ` +${sale.items.length - 2} more` : '';
+              const more = sale.items.length > 2 ? tr(' +{count} more', { count: sale.items.length - 2 }) : '';
               return (
                 <div
                   key={sale.id}
@@ -143,7 +144,7 @@ export function PartyDetailModal({ party, periodSales, returns, periodLabel, bus
                           returned ? 'bg-rose-100 text-rose-700' : sale.balance_due > 0 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-50 text-emerald-700'
                         )}
                       >
-                        {returned ? 'RETURNED' : partial ? `${mode} • RET` : mode}
+                        {returned ? tr('RETURNED') : partial ? tr('{mode} • RET', { mode: mode }) : mode}
                       </span>
                     </div>
                     <div className="text-[11px] text-slate-500 truncate">
@@ -159,7 +160,7 @@ export function PartyDetailModal({ party, periodSales, returns, periodLabel, bus
                     onClick={() => setOpenSale(sale)}
                     className="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs font-bold text-slate-700 inline-flex items-center gap-1 cursor-pointer hover:bg-slate-50"
                   >
-                    <Eye className="w-3.5 h-3.5" /> View Bill
+                    <Eye className="w-3.5 h-3.5" /> {tr('View Bill')}
                   </button>
                   <button
                     type="button"
@@ -167,7 +168,7 @@ export function PartyDetailModal({ party, periodSales, returns, periodLabel, bus
                     disabled={printingId === sale.id}
                     className="px-2.5 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-bold inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
                   >
-                    <Printer className="w-3.5 h-3.5" /> Print
+                    <Printer className="w-3.5 h-3.5" /> {tr('Print')}
                   </button>
                 </div>
               );

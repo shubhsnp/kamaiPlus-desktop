@@ -26,6 +26,7 @@ import { QuickToolsGrid } from '@/components/dashboard/QuickToolsGrid';
 
 import { DashboardStockWatchlist } from '@/components/dashboard/DashboardStockWatchlist';
 import { DashboardRecentSales } from '@/components/dashboard/DashboardRecentSales';
+import { tr } from '@/lib/i18n/core';
 
 
 export default function DashboardHome() {
@@ -149,7 +150,7 @@ export default function DashboardHome() {
 
       void cloudSyncSoon(activeBizId);
 
-      setRestockToast(`✅ Added +${quantityToAdd} ${product.unit || 'units'} to ${product.name}!`);
+      setRestockToast(tr('✅ Added +{quantityToAdd} {v2} to {name}!', { quantityToAdd: quantityToAdd, v2: product.unit || 'units', name: product.name }));
       setTimeout(() => setRestockToast(null), 3500);
     } catch (err) {
       console.error('Failed to quick restock item:', err);

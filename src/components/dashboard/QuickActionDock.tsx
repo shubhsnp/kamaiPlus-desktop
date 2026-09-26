@@ -11,6 +11,7 @@ import {
   ArrowRight,
   Sparkles
 } from 'lucide-react';
+import { tr } from '@/lib/i18n/core';
 
 interface QuickActionDockProps {
   onOpenRapidInward?: () => void;
@@ -26,7 +27,7 @@ export const QuickActionDock: React.FC<QuickActionDockProps> = ({
       <div className="flex items-center justify-between px-1">
         <h2 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-amber-500" />
-          <span>⚡ 1-Tap Quick Actions</span>
+          <span>{tr('⚡ 1-Tap Quick Actions')}</span>
         </h2>
       </div>
 
@@ -41,10 +42,10 @@ export const QuickActionDock: React.FC<QuickActionDockProps> = ({
               </div>
               <div className="min-w-0">
                 <div className="text-xs sm:text-sm font-black truncate leading-tight">
-                  + New Bill (POS)
+                  {tr('+ New Bill (POS)')}
                 </div>
                 <div className="text-[10.5px] font-bold text-slate-900/80 truncate mt-0.5">
-                  Fast Barcode Checkout
+                  {tr('Fast Barcode Checkout')}
                 </div>
               </div>
             </div>
@@ -61,10 +62,10 @@ export const QuickActionDock: React.FC<QuickActionDockProps> = ({
               </div>
               <div className="min-w-0">
                 <div className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">
-                  Digital Khata
+                  {tr('Digital Khata')}
                 </div>
                 <div className="text-[10.5px] font-medium text-slate-400 truncate">
-                  Customer Udhar
+                  {tr('Customer Udhar')}
                 </div>
               </div>
             </div>
@@ -80,10 +81,10 @@ export const QuickActionDock: React.FC<QuickActionDockProps> = ({
               </div>
               <div className="min-w-0">
                 <div className="text-xs font-black text-slate-900 dark:text-slate-100 truncate flex items-center gap-1">
-                  <span>Stock Inward</span>
+                  <span>{tr('Stock Inward')}</span>
                 </div>
                 <div className="text-[10.5px] font-medium text-slate-400 truncate">
-                  Bills &amp; Restock
+                  {tr('Bills & Restock')}
                 </div>
               </div>
             </div>
@@ -101,10 +102,10 @@ export const QuickActionDock: React.FC<QuickActionDockProps> = ({
             </div>
             <div className="min-w-0">
               <div className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">
-                Day Summary
+                {tr('Day Summary')}
               </div>
               <div className="text-[10.5px] font-medium text-slate-400 truncate">
-                Shift Z-Report
+                {tr('Shift Z-Report')}
               </div>
             </div>
           </div>

@@ -15,6 +15,7 @@ import {
   RefreshCw,
   KeyRound
 } from 'lucide-react';
+import { tr } from '@/lib/i18n/core';
 
 export const AuthForm: React.FC = () => {
   const router = useRouter();
@@ -36,14 +37,14 @@ export const AuthForm: React.FC = () => {
     setError('');
     const api = getDesktopApi();
     if (!api) {
-      setError('Password recovery works in the installed KamaiPlus Desktop app.');
+      setError(tr('Password recovery works in the installed KamaiPlus Desktop app.'));
       return;
     }
     setLoading(true);
-    const res = await api.verifyLicenceKey(recoveryKey).catch(() => ({ ok: false, error: 'Could not check the key. Please try again.' }));
+    const res = await api.verifyLicenceKey(recoveryKey).catch(() => ({ ok: false, error: tr('Could not check the key. Please try again.') }));
     setLoading(false);
     if (!res.ok) {
-      setError(res.error || 'That key did not match.');
+      setError(res.error || tr('That key did not match.'));
       return;
     }
     clearMasterPasswordAfterRecovery();
@@ -52,7 +53,7 @@ export const AuthForm: React.FC = () => {
     setPassword('');
     setConfirmPassword('');
     setHasPassword(false);
-    setNotice('Licence key verified. Set a new password — all your bills and data are safe.');
+    setNotice(tr('Licence key verified. Set a new password — all your bills and data are safe.'));
   };
 
   // Check if a master password already exists
@@ -67,10 +68,10 @@ export const AuthForm: React.FC = () => {
 
     try {
       if (!(await verifyMasterPassword(password))) {
-        throw new Error('Incorrect Password. Please try again.');
+        throw new Error(tr('Incorrect Password. Please try again.'));
       }
 
-      setWelcomeMessage('App Unlocked Successfully!');
+      setWelcomeMessage(tr('App Unlocked Successfully!'));
       
       // Simulate network delay for UX
       await new Promise(resolve => setTimeout(resolve, 800));
@@ -78,7 +79,7 @@ export const AuthForm: React.FC = () => {
       await performLocalLogin();
 
     } catch (err: any) {
-      setError(err.message || 'Failed to unlock app.');
+      setError(err.message || tr('Failed to unlock app.'));
       setLoading(false);
     }
   };
@@ -90,23 +91,23 @@ export const AuthForm: React.FC = () => {
 
     try {
       if (password.length < 4) {
-        throw new Error('Password must be at least 4 characters long.');
+        throw new Error(tr('Password must be at least 4 characters long.'));
       }
       if (password !== confirmPassword) {
-        throw new Error('Passwords do not match.');
+        throw new Error(tr('Passwords do not match.'));
       }
 
       // Save only a salted hash of the password on this computer
       await setMasterPassword(password);
       
-      setWelcomeMessage('Master Password Set Successfully!');
+      setWelcomeMessage(tr('Master Password Set Successfully!'));
       
       await new Promise(resolve => setTimeout(resolve, 800));
 
       await performLocalLogin();
 
     } catch (err: any) {
-      setError(err.message || 'Failed to set password.');
+      setError(err.message || tr('Failed to set password.'));
       setLoading(false);
     }
   };
@@ -160,10 +161,10 @@ export const AuthForm: React.FC = () => {
           <ShieldCheck className="w-8 h-8 text-amber-500" />
         </div>
         <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-          {hasPassword ? 'Unlock KamaiPlus' : 'Set Master Password'}
+          {hasPassword ? tr('Unlock KamaiPlus') : tr('Set Master Password')}
         </h2>
         <p className="text-xs sm:text-sm text-slate-400 mt-1">
-          {hasPassword ? 'Enter your password to open your store.' : 'Secure your offline store with a password.'}
+          {hasPassword ? tr('Enter your password to open your store.') : tr('Secure your offline store with a password.')}
         </p>
       </div>
 
@@ -174,7 +175,7 @@ export const AuthForm: React.FC = () => {
           </div>
           <div>
             <div className="font-black text-white text-sm">{welcomeMessage} 👋</div>
-            <div className="text-xs text-emerald-300/80">Opening your store &amp; POS billing counter...</div>
+            <div className="text-xs text-emerald-300/80">{tr('Opening your store & POS billing counter...')}</div>
           </div>
         </div>
       )}
@@ -196,8 +197,7 @@ export const AuthForm: React.FC = () => {
       {recovering ? (
         <form onSubmit={handleRecover} className="space-y-4">
           <p className="text-xs text-slate-400 leading-relaxed">
-            Forgot your password? Enter the <span className="font-bold text-slate-200">licence key</span> you received when you
-            bought KamaiPlus (it starts with <span className="font-mono">KPD-</span>). Your bills and data are not touched.
+            {tr('Forgot your password? Enter the')} <span className="font-bold text-slate-200">{tr('licence key')}</span> {tr('you received when you bought KamaiPlus (it starts with')} <span className="font-mono">KPD-</span>{tr('). Your bills and data are not touched.')}
           </p>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
@@ -210,7 +210,7 @@ export const AuthForm: React.FC = () => {
               value={recoveryKey}
               onChange={(e) => setRecoveryKey(e.target.value.toUpperCase())}
               className="block w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-2xl text-white text-sm font-mono tracking-wider focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 outline-none placeholder:text-slate-600"
-              placeholder="KPD-XXXX-XXXX-XXXX-XXXX"
+              placeholder={tr('KPD-XXXX-XXXX-XXXX-XXXX')}
             />
           </div>
           <button
@@ -219,16 +219,16 @@ export const AuthForm: React.FC = () => {
             className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm disabled:opacity-60 disabled:pointer-events-none"
           >
             {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
-            <span>Verify Key &amp; Reset Password</span>
+            <span>{tr('Verify Key & Reset Password')}</span>
           </button>
           <button type="button" onClick={() => { setRecovering(false); setError(''); }} className="w-full text-xs text-slate-400 hover:text-white cursor-pointer">
-            Back to unlock
+            {tr('Back to unlock')}
           </button>
         </form>
       ) : hasPassword ? (
         <form onSubmit={handleUnlock} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1.5 ml-1">Master Password / PIN</label>
+            <label className="block text-xs font-semibold text-slate-400 mb-1.5 ml-1">{tr('Master Password / PIN')}</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                 <Lock className="h-4 w-4 text-slate-500" />
@@ -250,20 +250,20 @@ export const AuthForm: React.FC = () => {
             className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm shadow-xl hover:shadow-amber-500/20 transition-all duration-200 active:scale-[0.99] disabled:opacity-60 disabled:pointer-events-none"
           >
             {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
-            <span>Unlock App</span>
+            <span>{tr('Unlock App')}</span>
           </button>
           <button
             type="button"
             onClick={() => { setRecovering(true); setError(''); setNotice(null); }}
             className="w-full text-xs font-semibold text-slate-400 hover:text-amber-400 cursor-pointer"
           >
-            Forgot password?
+            {tr('Forgot password?')}
           </button>
         </form>
       ) : (
         <form onSubmit={handleSetPassword} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1.5 ml-1">Create Password / PIN</label>
+            <label className="block text-xs font-semibold text-slate-400 mb-1.5 ml-1">{tr('Create Password / PIN')}</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                 <Lock className="h-4 w-4 text-slate-500" />
@@ -275,12 +275,12 @@ export const AuthForm: React.FC = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="block w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-2xl text-white text-sm focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition-all placeholder:text-slate-600 outline-none"
-                placeholder="Enter new password"
+                placeholder={tr('Enter new password')}
               />
             </div>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1.5 ml-1">Confirm Password</label>
+            <label className="block text-xs font-semibold text-slate-400 mb-1.5 ml-1">{tr('Confirm Password')}</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                 <CheckCircle2 className="h-4 w-4 text-slate-500" />
@@ -291,7 +291,7 @@ export const AuthForm: React.FC = () => {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className="block w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-2xl text-white text-sm focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition-all placeholder:text-slate-600 outline-none"
-                placeholder="Re-enter password"
+                placeholder={tr('Re-enter password')}
               />
             </div>
           </div>
@@ -301,7 +301,7 @@ export const AuthForm: React.FC = () => {
             className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm shadow-xl hover:shadow-amber-500/20 transition-all duration-200 active:scale-[0.99] disabled:opacity-60 disabled:pointer-events-none"
           >
             {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
-            <span>Set Password & Start</span>
+            <span>{tr('Set Password & Start')}</span>
           </button>
         </form>
       )}

@@ -10,6 +10,7 @@ import {
   Calculator 
 } from 'lucide-react';
 import { ProfitMask } from '@/components/privacy/ProfitMask';
+import { tr } from '@/lib/i18n/core';
 
 interface CashRegisterMetricsRibbonProps {
   openingBalancePaise: number;
@@ -32,15 +33,15 @@ export const CashRegisterMetricsRibbon: React.FC<CashRegisterMetricsRibbonProps>
           <div className="flex items-center justify-between text-slate-500 text-[11px] font-bold">
             <span className="flex items-center gap-1 text-sky-700 dark:text-sky-400">
               <Banknote className="w-3.5 h-3.5 text-sky-600" />
-              <span>Opening Float</span>
+              <span>{tr('Opening Float')}</span>
             </span>
-            <span className="text-[10px] text-slate-400 font-mono">Start</span>
+            <span className="text-[10px] text-slate-400 font-mono">{tr('Start')}</span>
           </div>
           <div className="text-base sm:text-lg font-black font-mono text-slate-900 dark:text-slate-100 mt-0.5 leading-tight">
             <ProfitMask value={formatINR(openingBalancePaise)} />
           </div>
           <div className="text-[10px] text-slate-400 truncate mt-0.5">
-            Morning cash drawer
+            {tr('Morning cash drawer')}
           </div>
         </div>
 
@@ -49,15 +50,15 @@ export const CashRegisterMetricsRibbon: React.FC<CashRegisterMetricsRibbonProps>
           <div className="flex items-center justify-between text-slate-500 text-[11px] font-bold">
             <span className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
               <ArrowDownLeft className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Cash In (Sales)</span>
+              <span>{tr('Cash In (Sales)')}</span>
             </span>
-            <span className="text-[10px] text-slate-400 font-mono">Today</span>
+            <span className="text-[10px] text-slate-400 font-mono">{tr('Today')}</span>
           </div>
           <div className="text-base sm:text-lg font-black font-mono text-emerald-600 dark:text-emerald-400 mt-0.5 leading-tight">
             <ProfitMask value={`+${formatINR(cashSalesPaise)}`} />
           </div>
           <div className="text-[10px] text-slate-400 truncate mt-0.5">
-            Received from bills
+            {tr('Received from bills')}
           </div>
         </div>
 
@@ -66,15 +67,15 @@ export const CashRegisterMetricsRibbon: React.FC<CashRegisterMetricsRibbonProps>
           <div className="flex items-center justify-between text-slate-500 text-[11px] font-bold">
             <span className="flex items-center gap-1 text-rose-700 dark:text-rose-400">
               <ArrowUpRight className="w-3.5 h-3.5 text-rose-600" />
-              <span>Cash Out (Pouch)</span>
+              <span>{tr('Cash Out (Pouch)')}</span>
             </span>
-            <span className="text-[10px] text-slate-400 font-mono">Spent</span>
+            <span className="text-[10px] text-slate-400 font-mono">{tr('Spent')}</span>
           </div>
           <div className="text-base sm:text-lg font-black font-mono text-rose-600 dark:text-rose-400 mt-0.5 leading-tight">
             <ProfitMask value={`-${formatINR(cashExpensesPaise)}`} />
           </div>
           <div className="text-[10px] text-slate-400 truncate mt-0.5">
-            Petty cash expenses
+            {tr('Petty cash expenses')}
           </div>
         </div>
 
@@ -83,15 +84,15 @@ export const CashRegisterMetricsRibbon: React.FC<CashRegisterMetricsRibbonProps>
           <div className="flex items-center justify-between text-slate-500 text-[11px] font-bold">
             <span className="flex items-center gap-1 text-purple-700 dark:text-purple-400">
               <Calculator className="w-3.5 h-3.5 text-purple-600" />
-              <span>Expected Cash</span>
+              <span>{tr('Expected Cash')}</span>
             </span>
-            <span className="text-[10px] text-slate-400 font-mono">In Drawer</span>
+            <span className="text-[10px] text-slate-400 font-mono">{tr('In Drawer')}</span>
           </div>
           <div className="text-base sm:text-lg font-black font-mono text-purple-600 dark:text-purple-400 mt-0.5 leading-tight">
             <ProfitMask value={formatINR(expectedDrawerCashPaise)} />
           </div>
           <div className="text-[10px] text-slate-400 truncate mt-0.5">
-            Physical cash balance
+            {tr('Physical cash balance')}
           </div>
         </div>
       </div>

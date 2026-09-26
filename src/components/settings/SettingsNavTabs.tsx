@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { tr } from '@/lib/i18n/core';
 
 export type SettingsTabType = 'profile' | 'upi' | 'invoicing' | 'data' | 'help';
 
@@ -29,32 +30,32 @@ export const SettingsNavTabs: React.FC<SettingsNavTabsProps> = ({
   const tabs = [
     {
       id: 'profile' as SettingsTabType,
-      label: 'Store & GST Profile',
-      shortLabel: 'Store',
+      label: tr('Store & GST Profile'),
+      shortLabel: tr('Store'),
       icon: Store,
     },
     {
       id: 'upi' as SettingsTabType,
-      label: 'UPI QR & Banking',
-      shortLabel: 'UPI / QR',
+      label: tr('UPI QR & Banking'),
+      shortLabel: tr('UPI / QR'),
       icon: QrCode,
     },
     {
       id: 'invoicing' as SettingsTabType,
-      label: 'Invoice & Bill Rules',
-      shortLabel: 'Invoices',
+      label: tr('Invoice & Bill Rules'),
+      shortLabel: tr('Invoices'),
       icon: Receipt,
     },
     {
       id: 'data' as SettingsTabType,
-      label: 'Data & Reset',
-      shortLabel: 'Data Clean',
+      label: tr('Data & Reset'),
+      shortLabel: tr('Data Clean'),
       icon: HardDrive,
     },
     {
       id: 'help' as SettingsTabType,
-      label: 'Help & Support',
-      shortLabel: 'Help',
+      label: tr('Help & Support'),
+      shortLabel: tr('Help'),
       icon: LifeBuoy,
     },
   ];
@@ -82,7 +83,7 @@ export const SettingsNavTabs: React.FC<SettingsNavTabsProps> = ({
               <Icon className="w-3.5 h-3.5 shrink-0" />
               <span>{tab.label}</span>
               {hasChanges && (
-                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" title="Unsaved changes in this tab" />
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" title={tr('Unsaved changes in this tab')} />
               )}
             </button>
           );
@@ -96,14 +97,14 @@ export const SettingsNavTabs: React.FC<SettingsNavTabsProps> = ({
           className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center gap-1 shadow-2xs"
         >
           <Palette className="w-3.5 h-3.5 text-amber-600" />
-          <span>Themes</span>
+          <span>{tr('Themes')}</span>
         </Link>
         <Link
           href="/cloud-backup"
           className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center gap-1 shadow-2xs"
         >
           <HardDrive className="w-3.5 h-3.5 text-sky-600" />
-          <span>Backup</span>
+          <span>{tr('Backup')}</span>
         </Link>
       </div>
     </div>

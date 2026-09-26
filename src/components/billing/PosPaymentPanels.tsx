@@ -4,6 +4,7 @@ import React from 'react';
 import { QrCode } from 'lucide-react';
 import { cn, formatINR } from '@/lib/utils';
 import type { PaymentMethod } from '@/types';
+import { tr } from '@/lib/i18n/core';
 
 /*
  * Payment panels of the POS checkout (split breakdown, cash tender chips,
@@ -32,15 +33,15 @@ export function SplitPaymentPanel({ grandTotalPaise, splitCash, setSplitCash, sp
   return (
     <div className="p-3 bg-slate-50 border border-slate-300 rounded-xl space-y-2 text-xs">
       <div className="flex items-center justify-between font-bold text-slate-800 pb-1 border-b border-slate-200">
-        <span>Split Payment Breakdown:</span>
+        <span>{tr('Split Payment Breakdown:')}</span>
         <span className={remainingPaise === 0 ? 'text-emerald-700 font-extrabold' : 'text-amber-800 font-extrabold'}>
-          {remainingPaise === 0 ? '✓ Matched Exactly' : remainingPaise > 0 ? `₹${(remainingPaise / 100).toFixed(2)} Remaining` : `₹${Math.abs(remainingPaise / 100).toFixed(2)} Overpaid`}
+          {remainingPaise === 0 ? tr('✓ Matched Exactly') : remainingPaise > 0 ? tr('₹{v1} Remaining', { v1: (remainingPaise / 100).toFixed(2) }) : tr('₹{v1} Overpaid', { v1: Math.abs(remainingPaise / 100).toFixed(2) })}
         </span>
       </div>
 
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="text-[10px] font-bold text-slate-600 uppercase block mb-0.5">Cash (₹)</label>
+          <label className="text-[10px] font-bold text-slate-600 uppercase block mb-0.5">{tr('Cash (₹)')}</label>
           <input
             type="number"
             step="1"
@@ -52,7 +53,7 @@ export function SplitPaymentPanel({ grandTotalPaise, splitCash, setSplitCash, sp
         </div>
 
         <div>
-          <label className="text-[10px] font-bold text-slate-600 uppercase block mb-0.5">UPI / QR (₹)</label>
+          <label className="text-[10px] font-bold text-slate-600 uppercase block mb-0.5">{tr('UPI / QR (₹)')}</label>
           <input
             type="number"
             step="1"
@@ -64,7 +65,7 @@ export function SplitPaymentPanel({ grandTotalPaise, splitCash, setSplitCash, sp
         </div>
 
         <div>
-          <label className="text-[10px] font-bold text-slate-600 uppercase block mb-0.5">Card (₹)</label>
+          <label className="text-[10px] font-bold text-slate-600 uppercase block mb-0.5">{tr('Card (₹)')}</label>
           <input
             type="number"
             step="1"
@@ -76,7 +77,7 @@ export function SplitPaymentPanel({ grandTotalPaise, splitCash, setSplitCash, sp
         </div>
 
         <div>
-          <label className="text-[10px] font-bold text-slate-600 uppercase block mb-0.5">Credit / Udhar (₹)</label>
+          <label className="text-[10px] font-bold text-slate-600 uppercase block mb-0.5">{tr('Credit / Udhar (₹)')}</label>
           <input
             type="number"
             step="1"
@@ -90,7 +91,7 @@ export function SplitPaymentPanel({ grandTotalPaise, splitCash, setSplitCash, sp
 
       {/* Quick Split Presets */}
       <div className="flex items-center gap-1.5 pt-0.5 overflow-x-auto scrollbar-none">
-        <span className="text-[10px] font-bold text-slate-400 uppercase">Preset:</span>
+        <span className="text-[10px] font-bold text-slate-400 uppercase">{tr('Preset:')}</span>
         <button
           type="button"
           onClick={() => {
@@ -105,7 +106,7 @@ export function SplitPaymentPanel({ grandTotalPaise, splitCash, setSplitCash, sp
           }}
           className="px-2 py-0.5 bg-white hover:bg-slate-100 text-slate-700 rounded-md border border-slate-300 text-[10px] font-bold cursor-pointer"
         >
-          50% Cash + 50% UPI
+          {tr('50% Cash + 50% UPI')}
         </button>
         <button
           type="button"
@@ -117,7 +118,7 @@ export function SplitPaymentPanel({ grandTotalPaise, splitCash, setSplitCash, sp
           }}
           className="px-2 py-0.5 bg-white hover:bg-slate-100 text-slate-700 rounded-md border border-slate-300 text-[10px] font-bold cursor-pointer"
         >
-          All Cash
+          {tr('All Cash')}
         </button>
         <button
           type="button"
@@ -129,7 +130,7 @@ export function SplitPaymentPanel({ grandTotalPaise, splitCash, setSplitCash, sp
           }}
           className="px-2 py-0.5 bg-white hover:bg-slate-100 text-slate-700 rounded-md border border-slate-300 text-[10px] font-bold cursor-pointer"
         >
-          All UPI
+          {tr('All UPI')}
         </button>
       </div>
     </div>
@@ -162,7 +163,7 @@ export function CashTenderPanel({ grandTotalPaise, amountReceivedInput, setAmoun
   return (
     <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2 text-xs">
       <div className="flex items-center justify-between">
-        <span className="font-bold text-slate-700">Cash Tendered / Received:</span>
+        <span className="font-bold text-slate-700">{tr('Cash Tendered / Received:')}</span>
         <div className="flex items-center gap-1.5">
           <input
             type="number"
@@ -178,7 +179,7 @@ export function CashTenderPanel({ grandTotalPaise, amountReceivedInput, setAmoun
               onClick={() => setAmountReceivedInput('')}
               className="text-slate-400 hover:text-slate-600 text-[10px] font-bold"
             >
-              Clear
+              {tr('Clear')}
             </button>
           )}
         </div>
@@ -186,7 +187,7 @@ export function CashTenderPanel({ grandTotalPaise, amountReceivedInput, setAmoun
 
       {/* Quick Currency Tender Chips */}
       <div className="flex items-center gap-1.5 pt-0.5 overflow-x-auto scrollbar-none">
-        <span className="text-[10px] font-bold text-slate-400 uppercase">Tender:</span>
+        <span className="text-[10px] font-bold text-slate-400 uppercase">{tr('Tender:')}</span>
         {chips.map((chip, idx) => (
           <button
             key={chip}
@@ -199,14 +200,14 @@ export function CashTenderPanel({ grandTotalPaise, amountReceivedInput, setAmoun
                 : "bg-white text-slate-700 hover:bg-slate-100 border-slate-300"
             )}
           >
-            {idx === 0 ? `Exact ₹${chip}` : `₹${chip}`}
+            {idx === 0 ? tr('Exact ₹{chip}', { chip: chip }) : `₹${chip}`}
           </button>
         ))}
       </div>
 
       {amountReceivedInput && parseFloat(amountReceivedInput) * 100 > grandTotalPaise && (
         <div className="p-2 bg-emerald-50 rounded-lg border border-emerald-200 flex items-center justify-between font-bold text-emerald-900">
-          <span>💵 Return Change to Customer:</span>
+          <span>{tr('💵 Return Change to Customer:')}</span>
           <span className="font-mono text-sm font-black text-emerald-700">
             {formatINR(Math.round(parseFloat(amountReceivedInput) * 100 - grandTotalPaise))}
           </span>
@@ -231,10 +232,10 @@ export function UpiQrCard({ paymentMethod, splitUpi, grandTotalPaise, posQrDataU
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400">
           <QrCode className="w-4 h-4 text-amber-400" />
-          <span>Dynamic UPI Payment QR</span>
+          <span>{tr('Dynamic UPI Payment QR')}</span>
         </div>
         <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono font-black text-[10px]">
-          Exact {formatINR(paymentMethod === 'split' ? Math.round(parseFloat(splitUpi || '0') * 100) : grandTotalPaise)}
+          {tr('Exact')} {formatINR(paymentMethod === 'split' ? Math.round(parseFloat(splitUpi || '0') * 100) : grandTotalPaise)}
         </span>
       </div>
 
@@ -243,7 +244,7 @@ export function UpiQrCard({ paymentMethod, splitUpi, grandTotalPaise, posQrDataU
           <div 
             onClick={() => setIsEnlargeQrModalOpen(true)}
             className="relative group cursor-pointer flex-shrink-0"
-            title="Click to enlarge QR on counter display"
+            title={tr('Click to enlarge QR on counter display')}
           >
             <img
               src={posQrDataUrl}
@@ -251,19 +252,19 @@ export function UpiQrCard({ paymentMethod, splitUpi, grandTotalPaise, posQrDataU
               className="w-24 h-24 sm:w-28 sm:h-28 object-contain rounded border border-slate-200"
             />
             <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 rounded flex items-center justify-center text-white text-[10px] font-bold transition-opacity">
-              <span>Enlarge 📺</span>
+              <span>{tr('Enlarge 📺')}</span>
             </div>
           </div>
 
           <div className="space-y-1 text-center sm:text-left flex-1 min-w-0">
             <div className="text-[11px] font-bold text-slate-800 truncate">
-              Pay to: <b>{business?.name}</b>
+              {tr('Pay to:')} <b>{business?.name}</b>
             </div>
             <div className="text-xs font-mono font-black text-emerald-700 truncate">
               {business?.upi_id || ''}
             </div>
             <div className="text-[10px] text-slate-500 font-medium leading-tight">
-              Customer scans with Google Pay, PhonePe, Paytm or BHIM — <b>amount auto-fills instantly</b>.
+              {tr('Customer scans with Google Pay, PhonePe, Paytm or BHIM —')} <b>{tr('amount auto-fills instantly')}</b>.
             </div>
             <div className="flex items-center gap-1.5 pt-1">
               <button
@@ -272,16 +273,16 @@ export function UpiQrCard({ paymentMethod, splitUpi, grandTotalPaise, posQrDataU
                 className="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold text-[10.5px] inline-flex items-center gap-1 cursor-pointer transition shadow-2xs"
               >
                 <QrCode className="w-3 h-3 text-slate-700" />
-                <span>Fullscreen 📺</span>
+                <span>{tr('Fullscreen 📺')}</span>
               </button>
             </div>
           </div>
         </div>
       ) : (
         <div className="p-3 bg-slate-800/80 rounded-lg text-center text-xs text-slate-300 space-y-1">
-          <p className="font-bold text-amber-300">No UPI Address Configured</p>
+          <p className="font-bold text-amber-300">{tr('No UPI Address Configured')}</p>
           <p className="text-[11px] text-slate-400">
-            Add your UPI ID in Settings to enable real-time dynamic amount QR codes.
+            {tr('Add your UPI ID in Settings to enable real-time dynamic amount QR codes.')}
           </p>
         </div>
       )}

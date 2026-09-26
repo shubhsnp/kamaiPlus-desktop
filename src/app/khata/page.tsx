@@ -43,6 +43,7 @@ import { ManualEntryModal } from '@/components/khata/ManualEntryModal';
 import { EditLedgerEntryModal } from '@/components/khata/EditLedgerEntryModal';
 import { QuickAddKhataCustomerModal } from '@/components/khata/QuickAddKhataCustomerModal';
 import { generateBulkMonthEndStatementPDF } from '@/lib/reports/bulkMonthEndStatement';
+import { tr } from '@/lib/i18n/core';
 
 const InvoiceModal = dynamic(
   () => import('@/components/invoices/InvoiceModal').then((m) => m.InvoiceModal),
@@ -241,7 +242,7 @@ function KhataContent() {
   // Open Entry Modal with preset type
   const handleOpenEntryModal = (type: 'CREDIT_SALE' | 'PAYMENT_RECEIVED') => {
     if (!selectedCustomer) {
-      showToast('Please select or add a customer first');
+      showToast(tr('Please select or add a customer first'));
       return;
     }
     setEntryType(type);
@@ -260,9 +261,9 @@ function KhataContent() {
       business,
     });
     if (res.ok) {
-      showToast(res.path ? 'Bulk Month-End Statement saved to Documents!' : 'Statement opened in print/PDF dialog.');
+      showToast(res.path ? tr('Bulk Month-End Statement saved to Documents!') : tr('Statement opened in print/PDF dialog.'));
     } else {
-      showToast(res.error || 'Failed to generate statement.');
+      showToast(res.error || tr('Failed to generate statement.'));
     }
   };
 
@@ -273,7 +274,7 @@ function KhataContent() {
 
     const amountPaise = Math.round(parseFloat(entryAmount || '0') * 100);
     if (!amountPaise || amountPaise <= 0) {
-      showToast('Please enter a valid amount');
+      showToast(tr('Please enter a valid amount'));
       return;
     }
 
@@ -322,8 +323,8 @@ function KhataContent() {
 
     showToast(
       entryType === 'CREDIT_SALE' 
-        ? `Added ₹${(amountPaise / 100).toFixed(2)} Udhar for ${selectedCustomer.name}`
-        : `Recorded ₹${(amountPaise / 100).toFixed(2)} payment from ${selectedCustomer.name}`
+        ? tr('Added ₹{v1} Udhar for {name}', { v1: (amountPaise / 100).toFixed(2), name: selectedCustomer.name })
+        : tr('Recorded ₹{v1} payment from {name}', { v1: (amountPaise / 100).toFixed(2), name: selectedCustomer.name })
     );
   };
 
@@ -338,7 +339,7 @@ function KhataContent() {
     });
 
     if (!validation.isValid) {
-      setAddCustomerError(validation.error || 'Please enter valid customer details.');
+      setAddCustomerError(validation.error || tr('Please enter valid customer details.'));
       return;
     }
 
@@ -388,7 +389,7 @@ function KhataContent() {
     setNewCustPhone('');
     setNewCustAddress('');
     setNewCustOpeningBalance('');
-    showToast(`Added ${newCustomer.name} to Khata`);
+    showToast(tr('Added {name} to Khata', { name: newCustomer.name }));
   };
 
   // Edit Existing Transaction
@@ -415,20 +416,20 @@ function KhataContent() {
 
     await recalculateCustomerBalance(selectedCustomer.id);
     setEditingTx(null);
-    showToast('Updated ledger entry');
+    showToast(tr('Updated ledger entry'));
   };
 
   // Delete Transaction
   const handleDeleteTx = async (txId: string) => {
     if (!selectedCustomer) return;
-    if (!await showConfirm('Are you sure you want to delete this ledger entry?', { danger: true, confirmLabel: 'Delete' })) return;
+    if (!await showConfirm(tr('Are you sure you want to delete this ledger entry?'), { danger: true, confirmLabel: tr('Delete') })) return;
 
     // A deleted payment no longer pays the bills it had cleared.
     const tx = await db.ledger_transactions.get(txId);
     await undoBillAllocations(tx?.bill_allocations, new Date().toISOString());
     await db.ledger_transactions.delete(txId);
     await recalculateCustomerBalance(selectedCustomer.id);
-    showToast('Deleted ledger entry');
+    showToast(tr('Deleted ledger entry'));
   };
 
   // Wipe / Clear Customer History
@@ -445,7 +446,7 @@ function KhataContent() {
 
     setIsClearAllModalOpen(false);
     setClearConfirmationText('');
-    showToast(`Cleared Khata history for ${selectedCustomer.name}`);
+    showToast(tr('Cleared Khata history for {name}', { name: selectedCustomer.name }));
   };
 
   // Open Full Tax Invoice Modal from reference or notes
@@ -471,7 +472,7 @@ function KhataContent() {
           }
         }
       }
-      showToast('Full invoice bill not found for this entry.');
+      showToast(tr('Full invoice bill not found for this entry.'));
     } catch (err) {
       console.warn('Failed to lookup invoice:', err);
     }
@@ -494,11 +495,11 @@ function KhataContent() {
           <div className="flex items-center gap-1.5 truncate">
             <BookOpen className="w-4 h-4 text-amber-500 shrink-0" />
             <h1 className="text-sm xs:text-base sm:text-lg font-black text-slate-900 dark:text-slate-100 truncate">
-              Digital Khata &amp; Udhar Ledger
+              {tr('Digital Khata & Udhar Ledger')}
             </h1>
           </div>
           <p className="text-[10.5px] sm:text-xs text-slate-500 truncate">
-            {allCustomers.length} registered accounts • {totalUdharAccounts} pending udhar
+            {allCustomers.length} {tr('registered accounts •')} {totalUdharAccounts} {tr('pending udhar')}
           </p>
         </div>
 
@@ -508,11 +509,11 @@ function KhataContent() {
             variant="outline" 
             onClick={handleBulkMonthEndStatement}
             className="font-bold border-indigo-200 text-indigo-900 bg-indigo-50 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300 text-xs px-2.5 py-1.5 shadow-2xs cursor-pointer gap-1.5"
-            title="Download consolidated month-end udhar ledger statement PDF for all customer accounts"
+            title={tr('Download consolidated month-end udhar ledger statement PDF for all customer accounts')}
           >
             <FileText className="w-3.5 h-3.5 text-indigo-700 dark:text-indigo-400" />
-            <span className="hidden sm:inline">Bulk Month-End Statement</span>
-            <span className="sm:hidden">Statement</span>
+            <span className="hidden sm:inline">{tr('Bulk Month-End Statement')}</span>
+            <span className="sm:hidden">{tr('Statement')}</span>
           </Button>
           <Link href="/customers">
             <Button 
@@ -521,7 +522,7 @@ function KhataContent() {
               className="font-bold border-sky-300 text-sky-900 bg-sky-50 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-950/60 dark:text-sky-300 text-xs px-2.5 py-1.5 shadow-2xs cursor-pointer"
             >
               <Users className="w-3.5 h-3.5 sm:mr-1 text-sky-700 dark:text-sky-400" />
-              <span className="hidden sm:inline">Directory</span>
+              <span className="hidden sm:inline">{tr('Directory')}</span>
             </Button>
           </Link>
           <Button 
@@ -530,8 +531,8 @@ function KhataContent() {
             className="font-bold bg-amber-500 text-slate-950 hover:bg-amber-400 text-xs px-2.5 py-1.5 shadow-2xs cursor-pointer gap-1"
           >
             <UserPlus className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Add Customer</span>
-            <span className="sm:hidden">Add</span>
+            <span className="hidden sm:inline">{tr('Add Customer')}</span>
+            <span className="sm:hidden">{tr('Add')}</span>
           </Button>
         </div>
       </div>
@@ -557,7 +558,7 @@ function KhataContent() {
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Search by customer name or mobile number..."
+                placeholder={tr('Search by customer name or mobile number...')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500 font-medium"
@@ -575,7 +576,7 @@ function KhataContent() {
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300'
                 }`}
               >
-                All ({allCustomers.length})
+                {tr('All (')}{allCustomers.length})
               </button>
               <button
                 type="button"
@@ -586,7 +587,7 @@ function KhataContent() {
                     : 'bg-rose-50 text-rose-700 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300'
                 }`}
               >
-                Udhar Due ({allCustomers.filter(c => (c.current_balance || 0) > 0).length})
+                {tr('Udhar Due (')}{allCustomers.filter(c => (c.current_balance || 0) > 0).length})
               </button>
               <button
                 type="button"
@@ -597,7 +598,7 @@ function KhataContent() {
                     : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300'
                 }`}
               >
-                Advance ({allCustomers.filter(c => (c.current_balance || 0) < 0).length})
+                {tr('Advance (')}{allCustomers.filter(c => (c.current_balance || 0) < 0).length})
               </button>
               <button
                 type="button"
@@ -608,7 +609,7 @@ function KhataContent() {
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400'
                 }`}
               >
-                Settled (₹0)
+                {tr('Settled (₹0)')}
               </button>
             </div>
           </div>
@@ -654,7 +655,7 @@ function KhataContent() {
                           <span className="truncate">{c.phone}</span>
                         </div>
                       ) : (
-                        <div className="text-[10px] text-slate-300 dark:text-slate-600 italic mt-0.5">No phone saved</div>
+                        <div className="text-[10px] text-slate-300 dark:text-slate-600 italic mt-0.5">{tr('No phone saved')}</div>
                       )}
                     </div>
                   </div>
@@ -684,7 +685,7 @@ function KhataContent() {
                             ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
                             : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
                         }`}>
-                          {isDue ? 'Due (बाकी)' : isAdv ? 'Advance' : 'Cleared'}
+                          {isDue ? tr('Due (बाकी)') : isAdv ? tr('Advance') : tr('Cleared')}
                         </span>
                       </div>
                     </div>
@@ -697,14 +698,14 @@ function KhataContent() {
             {customers.length === 0 && (
               <div className="p-8 text-center text-slate-400 text-xs space-y-2">
                 <BookOpen className="w-8 h-8 mx-auto text-slate-300 dark:text-slate-700" />
-                <div className="font-bold text-slate-600 dark:text-slate-300">No Khata accounts found</div>
-                <p className="mt-1">Add a new customer to start recording Udhar and Jama.</p>
+                <div className="font-bold text-slate-600 dark:text-slate-300">{tr('No Khata accounts found')}</div>
+                <p className="mt-1">{tr('Add a new customer to start recording Udhar and Jama.')}</p>
                 <Button
                   size="sm"
                   onClick={() => setIsAddCustomerOpen(true)}
                   className="mt-2 text-xs font-bold bg-amber-500 text-slate-950 hover:bg-amber-400 cursor-pointer"
                 >
-                  + Add First Customer
+                  {tr('+ Add First Customer')}
                 </Button>
               </div>
             )}
@@ -730,7 +731,7 @@ function KhataContent() {
                     className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-900 dark:text-amber-300 font-bold text-xs border border-amber-200 dark:border-amber-800/60 cursor-pointer active:scale-95 transition-transform"
                   >
                     <ChevronLeft className="w-4 h-4" />
-                    <span>Back to List</span>
+                    <span>{tr('Back to List')}</span>
                   </button>
 
                   <div className="flex items-center gap-1.5">
@@ -738,10 +739,10 @@ function KhataContent() {
                       <a
                         href={`tel:${selectedCustomer.phone}`}
                         className="p-1.5 px-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800 text-xs font-bold flex items-center gap-1 active:scale-95 shadow-2xs"
-                        title="Call Customer"
+                        title={tr('Call Customer')}
                       >
                         <Phone className="w-3.5 h-3.5" />
-                        <span>Call</span>
+                        <span>{tr('Call')}</span>
                       </a>
                     )}
 
@@ -762,7 +763,7 @@ function KhataContent() {
                           </h2>
                           <Link href={`/customers?search=${encodeURIComponent(selectedCustomer.phone || selectedCustomer.name)}`}>
                             <span className="text-[10px] font-bold text-sky-600 bg-sky-50 dark:bg-sky-950/60 dark:text-sky-400 px-2 py-0.5 rounded-md hover:underline cursor-pointer border border-sky-200/60 dark:border-sky-800">
-                              360° Profile
+                              {tr('360° Profile')}
                             </span>
                           </Link>
                         </div>
@@ -772,7 +773,7 @@ function KhataContent() {
                             <a
                               href={`tel:${selectedCustomer.phone}`}
                               className="flex items-center gap-1 font-mono text-[11.5px] hover:text-slate-900 dark:hover:text-slate-100 transition"
-                              title="Click to call customer"
+                              title={tr('Click to call customer')}
                             >
                               <Phone className="w-3 h-3 text-slate-400" />
                               <span>{selectedCustomer.phone}</span>
@@ -799,7 +800,7 @@ function KhataContent() {
                   }`}>
                     <div className="text-left sm:text-right">
                       <div className="text-[9.5px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 leading-none mb-1">
-                        Current Outstanding Balance
+                        {tr('Current Outstanding Balance')}
                       </div>
                       <div className={`text-lg sm:text-xl font-black font-mono leading-none ${
                         (selectedCustomer.current_balance || 0) > 0
@@ -824,10 +825,10 @@ function KhataContent() {
                           : 'bg-slate-200/80 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
                       }`}>
                         {(selectedCustomer.current_balance || 0) > 0
-                          ? 'Udhar (बाकी)'
+                          ? tr('Udhar (बाकी)')
                           : (selectedCustomer.current_balance || 0) < 0
-                          ? 'Advance (जमा)'
-                          : 'Settled (₹0)'}
+                          ? tr('Advance (जमा)')
+                          : tr('Settled (₹0)')}
                       </span>
                     </div>
                   </div>
@@ -840,20 +841,20 @@ function KhataContent() {
                       type="button"
                       onClick={() => handleOpenEntryModal('CREDIT_SALE')}
                       className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
-                      title="Record goods given on credit (Udhar)"
+                      title={tr('Record goods given on credit (Udhar)')}
                     >
                       <Plus className="w-3.5 h-3.5" />
-                      <span>+ You Gave ₹ (Udhar)</span>
+                      <span>{tr('+ You Gave ₹ (Udhar)')}</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => handleOpenEntryModal('PAYMENT_RECEIVED')}
                       className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
-                      title="Record cash or UPI payment received (Jama)"
+                      title={tr('Record cash or UPI payment received (Jama)')}
                     >
                       <ArrowDownLeft className="w-3.5 h-3.5" />
-                      <span>↙ You Got ₹ (Jama)</span>
+                      <span>{tr('↙ You Got ₹ (Jama)')}</span>
                     </button>
 
 
@@ -863,10 +864,10 @@ function KhataContent() {
                     type="button"
                     onClick={() => setIsClearAllModalOpen(true)}
                     className="p-1.5 px-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg text-[11px] font-bold flex items-center gap-1 transition cursor-pointer"
-                    title="Wipe transaction statement history"
+                    title={tr('Wipe transaction statement history')}
                   >
                     <Trash2 className="w-3 h-3" />
-                    <span>Wipe History</span>
+                    <span>{tr('Wipe History')}</span>
                   </button>
                 </div>
               </div>
@@ -883,7 +884,7 @@ function KhataContent() {
                   }`}
                 >
                   <FileText className="w-3.5 h-3.5 text-amber-500" />
-                  <span>📜 Ledger Timeline</span>
+                  <span>{tr('📜 Ledger Timeline')}</span>
                   <span className="text-[10px] text-slate-400 font-mono">({transactions.length})</span>
                 </button>
 
@@ -904,7 +905,7 @@ function KhataContent() {
                       }`}
                     >
                       <Receipt className="w-3.5 h-3.5 text-rose-500" />
-                      <span>🧾 Pending Bills</span>
+                      <span>{tr('🧾 Pending Bills')}</span>
                       {pendingCount > 0 ? (
                         <span className="px-1.5 py-0.2 bg-rose-600 text-white rounded-full text-[10px] font-mono font-black">
                           {pendingCount}
@@ -966,7 +967,7 @@ function KhataContent() {
                   className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>+ You Gave (उधार)</span>
+                  <span>{tr('+ You Gave (उधार)')}</span>
                 </button>
                 <button
                   type="button"
@@ -974,7 +975,7 @@ function KhataContent() {
                   className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer"
                 >
                   <ArrowDownLeft className="w-4 h-4" />
-                  <span>↙ You Got (जमा)</span>
+                  <span>{tr('↙ You Got (जमा)')}</span>
                 </button>
               </div>
 
@@ -982,9 +983,9 @@ function KhataContent() {
           ) : (
             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 text-center text-slate-400">
               <Users className="w-12 h-12 mx-auto text-slate-300 dark:text-slate-700 mb-3" />
-              <h3 className="font-bold text-slate-700 dark:text-slate-300 text-sm">Select a Customer</h3>
+              <h3 className="font-bold text-slate-700 dark:text-slate-300 text-sm">{tr('Select a Customer')}</h3>
               <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-                Choose a customer from the left list or create a new Khata customer to view their statement.
+                {tr('Choose a customer from the left list or create a new Khata customer to view their statement.')}
               </p>
             </div>
           )}
@@ -1053,19 +1054,19 @@ function KhataContent() {
         title={
           <div className="flex items-center gap-2 text-rose-600">
             <Trash2 className="w-5 h-5" />
-            <span>Wipe Statement History for {selectedCustomer?.name}?</span>
+            <span>{tr('Wipe Statement History for')} {selectedCustomer?.name}?</span>
           </div>
         }
-        description="This will permanently delete all recorded ledger transactions for this customer and reset balance to ₹0."
+        description={tr('This will permanently delete all recorded ledger transactions for this customer and reset balance to ₹0.')}
         size="sm"
       >
         <div className="space-y-3 p-1">
           <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-            Please type <b className="text-rose-600 font-mono">DELETE</b> to confirm:
+            {tr('Please type')} <b className="text-rose-600 font-mono">DELETE</b> {tr('to confirm:')}
           </p>
           <input
             type="text"
-            placeholder="Type DELETE"
+            placeholder={tr('Type DELETE')}
             value={clearConfirmationText}
             onChange={(e) => setClearConfirmationText(e.target.value)}
             className="w-full px-3 py-2 text-xs font-mono border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 uppercase focus:outline-none focus:ring-2 focus:ring-rose-500"
@@ -1077,7 +1078,7 @@ function KhataContent() {
               variant="outline"
               onClick={() => setIsClearAllModalOpen(false)}
             >
-              Cancel
+              {tr('Cancel')}
             </Button>
             <Button
               size="sm"
@@ -1085,7 +1086,7 @@ function KhataContent() {
               onClick={handleClearCustomerKhata}
               className="bg-rose-600 hover:bg-rose-700 text-white font-bold"
             >
-              Wipe Statement History
+              {tr('Wipe Statement History')}
             </Button>
           </div>
         </div>
@@ -1121,7 +1122,7 @@ function KhataContent() {
           customer={selectedCustomer}
           business={business}
           onSuccess={(newBal, count) => {
-            showToast(`✅ Successfully settled ${count} bill(s)! New balance: ${formatINR(newBal)}`);
+            showToast(tr('✅ Successfully settled {count} bill(s)! New balance: {v2}', { count: count, v2: formatINR(newBal) }));
           }}
         />
       )}
@@ -1150,7 +1151,7 @@ export default function KhataPage() {
     <Suspense fallback={
       <div className="p-8 text-center text-slate-400 text-xs">
         <Loader2 className="w-6 h-6 mx-auto animate-spin text-amber-500 mb-2" />
-        <span>Loading Customer Khata...</span>
+        <span>{tr('Loading Customer Khata...')}</span>
       </div>
     }>
       <KhataContent />

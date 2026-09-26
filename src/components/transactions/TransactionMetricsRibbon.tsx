@@ -9,6 +9,7 @@ import {
   QrCode, 
   BookOpen 
 } from 'lucide-react';
+import { tr } from '@/lib/i18n/core';
 
 interface TransactionMetricsRibbonProps {
   totalRevenuePaise: number;
@@ -33,9 +34,9 @@ export const TransactionMetricsRibbon: React.FC<TransactionMetricsRibbonProps> =
           <div className="flex items-center justify-between text-[10.5px] sm:text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
             <span className="flex items-center gap-1">
               <TrendingUp className="w-3 h-3 text-slate-700 dark:text-slate-300" />
-              <span>Revenue</span>
+              <span>{tr('Revenue')}</span>
             </span>
-            <span className="text-[10px] text-slate-400 font-medium">({salesCount} {salesCount === 1 ? 'bill' : 'bills'})</span>
+            <span className="text-[10px] text-slate-400 font-medium">({salesCount} {salesCount === 1 ? tr('bill') : tr('bills')})</span>
           </div>
           <div className="text-base sm:text-lg font-black text-slate-900 dark:text-slate-100 font-mono mt-0.5 leading-tight truncate">
             {formatINR(totalRevenuePaise)}
@@ -47,7 +48,7 @@ export const TransactionMetricsRibbon: React.FC<TransactionMetricsRibbonProps> =
           <div className="flex items-center justify-between text-[10.5px] sm:text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
             <span className="flex items-center gap-1">
               <Banknote className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-              <span>Cash In</span>
+              <span>{tr('Cash In')}</span>
             </span>
           </div>
           <div className="text-base sm:text-lg font-black text-emerald-800 dark:text-emerald-300 font-mono mt-0.5 leading-tight truncate">
@@ -60,7 +61,7 @@ export const TransactionMetricsRibbon: React.FC<TransactionMetricsRibbonProps> =
           <div className="flex items-center justify-between text-[10.5px] sm:text-[11px] font-bold text-sky-700 dark:text-sky-400 uppercase tracking-wider">
             <span className="flex items-center gap-1">
               <QrCode className="w-3 h-3 text-sky-600 dark:text-sky-400" />
-              <span>UPI / QR</span>
+              <span>{tr('UPI / QR')}</span>
             </span>
           </div>
           <div className="text-base sm:text-lg font-black text-sky-800 dark:text-sky-300 font-mono mt-0.5 leading-tight truncate">
@@ -74,7 +75,7 @@ export const TransactionMetricsRibbon: React.FC<TransactionMetricsRibbonProps> =
             <span className="flex items-center gap-1">
               <BookOpen className="w-3 h-3 text-amber-600 dark:text-amber-400" />
               {/* Udhar given on these bills at the counter; what is still owed is on each bill and in Khata. */}
-              <span>Udhar Given</span>
+              <span>{tr('Udhar Given')}</span>
             </span>
           </div>
           <div className="text-base sm:text-lg font-black text-amber-900 dark:text-amber-300 font-mono mt-0.5 leading-tight truncate">

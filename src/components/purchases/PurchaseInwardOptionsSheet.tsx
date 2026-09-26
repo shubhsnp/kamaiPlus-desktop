@@ -13,6 +13,7 @@ import * as XLSX from 'xlsx';
 import { Product, PurchaseBillLineItem } from '@/types';
 import { matchExtractedItemsWithProducts } from '@/lib/purchases/matchProductByName';
 import { BillScanReviewModal } from './BillScanReviewModal';
+import { tr } from '@/lib/i18n/core';
 
 interface PurchaseInwardOptionsSheetProps {
   isOpen: boolean;
@@ -64,7 +65,7 @@ export function PurchaseInwardOptionsSheet({
     e.target.value = '';
 
     setIsProcessing(true);
-    setProcessingStatus('Parsing CSV / Excel items...');
+    setProcessingStatus(tr('Parsing CSV / Excel items...'));
 
     try {
       const buffer = await file.arrayBuffer();
@@ -74,7 +75,7 @@ export function PurchaseInwardOptionsSheet({
       const rawRows = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet, { defval: '' });
 
       if (rawRows.length === 0) {
-        showAlert('The uploaded spreadsheet contains no data rows.');
+        showAlert(tr('The uploaded spreadsheet contains no data rows.'));
         return;
       }
 
@@ -114,7 +115,7 @@ export function PurchaseInwardOptionsSheet({
       }
 
       if (items.length === 0) {
-        showAlert('Could not find item names in the file. Please check column headers.');
+        showAlert(tr('Could not find item names in the file. Please check column headers.'));
         return;
       }
 
@@ -133,7 +134,7 @@ export function PurchaseInwardOptionsSheet({
       onClose();
     } catch (err: any) {
       console.error('CSV parse error:', err);
-      showAlert('Failed to read CSV/Excel file. Please check format.');
+      showAlert(tr('Failed to read CSV/Excel file. Please check format.'));
     } finally {
       setIsProcessing(false);
       setProcessingStatus('');
@@ -170,11 +171,11 @@ export function PurchaseInwardOptionsSheet({
               <div>
                 <div className="flex items-center gap-2">
                   <span className="text-base font-black text-slate-900 dark:text-white">
-                    {'Wholesale Bill Inward'}
+                    {tr('Wholesale Bill Inward')}
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  {'Upload an Excel / CSV bill to add products, prices & stock in one go.'}
+                  {tr('Upload an Excel / CSV bill to add products, prices & stock in one go.')}
                 </p>
               </div>
 
@@ -193,10 +194,10 @@ export function PurchaseInwardOptionsSheet({
                 <Loader2 className="w-8 h-8 text-amber-500 animate-spin mx-auto" />
                 <div className="space-y-0.5">
                   <p className="text-sm font-black text-slate-900 dark:text-white">
-                    {processingStatus || 'Reading file...'}
+                    {processingStatus || tr('Reading file...')}
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">
-                    {'Reading products, quantities & cost rates from the file'}
+                    {tr('Reading products, quantities & cost rates from the file')}
                   </p>
                 </div>
               </div>
@@ -215,14 +216,14 @@ export function PurchaseInwardOptionsSheet({
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
-                          Upload Excel / CSV File
+                          {tr('Upload Excel / CSV File')}
                         </span>
                         <span className="px-1.5 py-0.2 rounded-md bg-emerald-600 text-white text-[9px] font-black uppercase tracking-tight">
-                          Bulk
+                          {tr('Bulk')}
                         </span>
                       </div>
                       <div className="text-[11px] text-emerald-800 dark:text-emerald-300 font-medium truncate mt-0.5">
-                        Spreadsheet with item names, prices &amp; stock
+                        {tr('Spreadsheet with item names, prices & stock')}
                       </div>
                     </div>
                   </div>
@@ -245,14 +246,14 @@ export function PurchaseInwardOptionsSheet({
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
-                          {'Add Single Item Manually'}
+                          {tr('Add Single Item Manually')}
                         </span>
                         <span className="px-1.5 py-0.2 rounded-md bg-purple-600 text-white text-[9px] font-black uppercase tracking-tight">
-                          Manual Form
+                          {tr('Manual Form')}
                         </span>
                       </div>
                       <div className="text-[11px] text-purple-800 dark:text-purple-300 font-medium truncate mt-0.5">
-                        Fill in product name, rate, category and stock individually
+                        {tr('Fill in product name, rate, category and stock individually')}
                       </div>
                     </div>
                   </div>

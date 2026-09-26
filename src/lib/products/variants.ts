@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { InventoryMovement, Product } from '@/types';
+import { tr } from '@/lib/i18n/core';
 
 /**
  * Product variants — the Android app's model (lib/core/database/local_database.dart
@@ -133,11 +134,11 @@ export async function createProductWithVariants(parent: Product, drafts: Variant
 /** Adds one more variant to an existing parent (e.g. a new size arrives). */
 export async function addVariantToParent(parent: Product, draft: VariantDraft): Promise<{ ok: boolean; error?: string; child?: Product }> {
   const label = draft.label.trim();
-  if (!label) return { ok: false, error: 'Enter a variant name, e.g. XL or Red.' };
-  if (draft.sellingPricePaise <= 0) return { ok: false, error: 'Enter a selling price.' };
+  if (!label) return { ok: false, error: tr('Enter a variant name, e.g. XL or Red.') };
+  if (draft.sellingPricePaise <= 0) return { ok: false, error: tr('Enter a selling price.') };
   const existing = await getVariantChildren(parent.id);
   if (existing.some((c) => (c.variant_label || '').toLowerCase() === label.toLowerCase())) {
-    return { ok: false, error: `"${label}" already exists for this product.` };
+    return { ok: false, error: tr('"{label}" already exists for this product.', { label: label }) };
   }
   const now = new Date().toISOString();
   const child = buildChild({ ...parent, has_variants: true }, { ...draft, label }, `prod_${Date.now()}_v`, now);

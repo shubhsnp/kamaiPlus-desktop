@@ -21,6 +21,7 @@ import { GstMetricsRibbon } from '@/components/gst/GstMetricsRibbon';
 import { GstNavTabs, GstTabType } from '@/components/gst/GstNavTabs';
 import { GstHsnSummaryTable } from '@/components/gst/GstHsnSummaryTable';
 import { ProfitMask } from '@/components/privacy/ProfitMask';
+import { tr } from '@/lib/i18n/core';
 
 export type GSTPeriodPreset = 'this_month' | 'last_month' | 'q1' | 'q2' | 'q3' | 'q4' | 'all_year';
 
@@ -179,10 +180,10 @@ export default function GSTReportsPage() {
         <Card className="p-4 sm:p-5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xs space-y-3">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
             <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
-              Table 4: B2B Tax Invoices (GSTIN Registered Buyers)
+              {tr('Table 4: B2B Tax Invoices (GSTIN Registered Buyers)')}
             </h3>
             <span className="text-xs font-mono text-slate-400">
-              {b2bInvoiceCount} Invoices
+              {b2bInvoiceCount} {tr('Invoices')}
             </span>
           </div>
 
@@ -192,14 +193,14 @@ export default function GSTReportsPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">
-                      {inv.customer_name || 'B2B Client'}
+                      {inv.customer_name || tr('B2B Client')}
                     </span>
                     <span className="px-1.5 py-0.2 rounded text-[9.5px] font-black uppercase bg-indigo-50 text-indigo-700 border border-indigo-200">
                       {inv.customer_gstin}
                     </span>
                   </div>
                   <div className="text-[11px] text-slate-400 mt-0.5 truncate font-mono">
-                    Inv: {inv.invoice_number} • Date: {inv.invoice_date}
+                    {tr('Inv:')} {inv.invoice_number} {tr('• Date:')} {inv.invoice_date}
                   </div>
                 </div>
 
@@ -208,7 +209,7 @@ export default function GSTReportsPage() {
                     <ProfitMask value={formatINR(inv.invoice_value)} />
                   </div>
                   <div className="text-[10px] text-emerald-600 font-mono">
-                    Tax: {formatINR(inv.cgst_amount + inv.sgst_amount + inv.igst_amount)}
+                    {tr('Tax:')} {formatINR(inv.cgst_amount + inv.sgst_amount + inv.igst_amount)}
                   </div>
                 </div>
               </div>
@@ -216,7 +217,7 @@ export default function GSTReportsPage() {
 
             {gstr1Data.b2b_invoices.length === 0 && (
               <div className="py-8 text-center text-xs text-slate-400">
-                No B2B invoices recorded in this period. Add GSTIN to customer profiles to file B2B invoices.
+                {tr('No B2B invoices recorded in this period. Add GSTIN to customer profiles to file B2B invoices.')}
               </div>
             )}
           </div>
@@ -227,10 +228,10 @@ export default function GSTReportsPage() {
         <Card className="p-4 sm:p-5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xs space-y-3">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
             <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
-              Table 7: B2C Small (Retail Consumer Sales)
+              {tr('Table 7: B2C Small (Retail Consumer Sales)')}
             </h3>
             <span className="text-xs font-mono text-slate-400">
-              {gstr1Data.b2cs_summary.length} Rate Slabs
+              {gstr1Data.b2cs_summary.length} {tr('Rate Slabs')}
             </span>
           </div>
 
@@ -239,10 +240,10 @@ export default function GSTReportsPage() {
               <div key={idx} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
                 <div>
                   <span className="font-bold text-xs text-slate-900 dark:text-slate-100">
-                    GST Rate: {item.tax_rate}% (Intra-State Retail)
+                    {tr('GST Rate:')} {item.tax_rate}{tr('% (Intra-State Retail)')}
                   </span>
                   <div className="text-[11px] text-slate-400 mt-0.5 font-mono">
-                    POS retail cash &amp; UPI bills
+                    {tr('POS retail cash & UPI bills')}
                   </div>
                 </div>
 
@@ -251,7 +252,7 @@ export default function GSTReportsPage() {
                     <ProfitMask value={formatINR(item.taxable_value)} />
                   </div>
                   <div className="text-[10px] text-emerald-600">
-                    Tax: {formatINR(item.cgst_amount + item.sgst_amount)}
+                    {tr('Tax:')} {formatINR(item.cgst_amount + item.sgst_amount)}
                   </div>
                 </div>
               </div>
@@ -259,7 +260,7 @@ export default function GSTReportsPage() {
 
             {gstr1Data.b2cs_summary.length === 0 && (
               <div className="py-8 text-center text-xs text-slate-400">
-                No retail sales recorded for this period.
+                {tr('No retail sales recorded for this period.')}
               </div>
             )}
           </div>
@@ -270,21 +271,21 @@ export default function GSTReportsPage() {
         <Card className="p-4 sm:p-5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xs space-y-3">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
             <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
-              Table 13: Documents Issued (Invoice Series)
+              {tr('Table 13: Documents Issued (Invoice Series)')}
             </h3>
           </div>
 
           <div className="space-y-2 text-xs font-mono">
             <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl flex items-center justify-between">
-              <span className="text-slate-500">Invoice Series:</span>
-              <span className="font-bold text-slate-900 dark:text-slate-100">{gstr1Data.doc_from_num || 'INV-001'} ➔ {gstr1Data.doc_to_num || 'INV-001'}</span>
+              <span className="text-slate-500">{tr('Invoice Series:')}</span>
+              <span className="font-bold text-slate-900 dark:text-slate-100">{gstr1Data.doc_from_num || tr('INV-001')} ➔ {gstr1Data.doc_to_num || tr('INV-001')}</span>
             </div>
             <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl flex items-center justify-between">
-              <span className="text-slate-500">Total Invoices Issued:</span>
+              <span className="text-slate-500">{tr('Total Invoices Issued:')}</span>
               <span className="font-bold text-slate-900 dark:text-slate-100">{gstr1Data.total_invoices_count}</span>
             </div>
             <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl flex items-center justify-between">
-              <span className="text-slate-500">Cancelled / Void Bills:</span>
+              <span className="text-slate-500">{tr('Cancelled / Void Bills:')}</span>
               <span className="font-bold text-rose-600">{gstr1Data.doc_cancelled_count}</span>
             </div>
           </div>

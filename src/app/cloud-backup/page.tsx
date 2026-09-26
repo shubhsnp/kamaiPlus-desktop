@@ -29,6 +29,7 @@ import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
 import Link from 'next/link';
 import { AutoBackupCard } from '@/components/backup/AutoBackupCard';
+import { tr } from '@/lib/i18n/core';
 
 export default function CloudBackupPage() {
   const business = useBusiness();
@@ -68,10 +69,10 @@ export default function CloudBackupPage() {
       const now = new Date().toISOString();
       setLastBackupTime(now);
       localStorage.setItem('kamai_last_backup_time', now);
-      setBackupSuccessMessage(`Backup successfully downloaded: ${filename}`);
+      setBackupSuccessMessage(tr('Backup successfully downloaded: {filename}', { filename: filename }));
       setTimeout(() => setBackupSuccessMessage(null), 5000);
     } catch (err: any) {
-      showAlert(err.message || 'Download failed.');
+      showAlert(err.message || tr('Download failed.'));
     } finally {
       setIsBackingUp(false);
     }
@@ -80,7 +81,7 @@ export default function CloudBackupPage() {
   // Export 1-Click Tally Prime XML
   const handleExportTallyXML = async () => {
     if (saleCount === 0) {
-      showAlert('No sales transactions recorded yet.');
+      showAlert(tr('No sales transactions recorded yet.'));
       return;
     }
     const [sales, customers] = await Promise.all([db.sales.toArray(), db.customers.toArray()]);
@@ -101,7 +102,7 @@ export default function CloudBackupPage() {
   // Export CA Master Excel CSV
   const handleExportCAMasterCSV = async () => {
     if (saleCount === 0) {
-      showAlert('No sales transactions recorded yet.');
+      showAlert(tr('No sales transactions recorded yet.'));
       return;
     }
     const sales = await db.sales.toArray();
@@ -128,12 +129,12 @@ export default function CloudBackupPage() {
       try {
         const json = JSON.parse(evt.target?.result as string);
         if (!json.metadata || !json.products) {
-          throw new Error('Invalid backup file. Format not recognized.');
+          throw new Error(tr('Invalid backup file. Format not recognized.'));
         }
         setRestorePayload(json);
         setIsRestoreModalOpen(true);
       } catch (err: any) {
-        showAlert(err.message || 'Failed to read JSON backup file.');
+        showAlert(err.message || tr('Failed to read JSON backup file.'));
       }
     };
     reader.readAsText(file);
@@ -151,7 +152,7 @@ export default function CloudBackupPage() {
       setRestoreSuccessMessage(res.message);
       setTimeout(() => setRestoreSuccessMessage(null), 5000);
     } catch (err: any) {
-      showAlert(err.message || 'Database restore failed.');
+      showAlert(err.message || tr('Database restore failed.'));
     } finally {
       setIsRestoring(false);
     }
@@ -165,11 +166,11 @@ export default function CloudBackupPage() {
           <div className="flex items-center gap-1.5 truncate">
             <HardDrive className="w-4 h-4 text-amber-700 shrink-0" />
             <h1 className="text-sm xs:text-base sm:text-lg font-black text-slate-900 truncate">
-              Data Backup &amp; Tax Reports
+              {tr('Data Backup & Tax Reports')}
             </h1>
           </div>
           <p className="text-[10px] sm:text-xs text-slate-500 truncate">
-            Offline JSON database snapshots, Tally Prime XML, and CA Master Sales Registers
+            {tr('Offline JSON database snapshots, Tally Prime XML, and CA Master Sales Registers')}
           </p>
         </div>
 
@@ -180,8 +181,8 @@ export default function CloudBackupPage() {
           className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs px-3 py-1.5 rounded-lg shadow-2xs border-none gap-1 cursor-pointer flex-shrink-0"
         >
           <FileDown className="w-3.5 h-3.5 text-slate-950" />
-          <span className="hidden sm:inline">{isBackingUp ? 'Backing up...' : 'Download Backup (.JSON)'}</span>
-          <span className="sm:hidden">{isBackingUp ? 'Saving...' : 'Backup'}</span>
+          <span className="hidden sm:inline">{isBackingUp ? tr('Backing up...') : tr('Download Backup (.JSON)')}</span>
+          <span className="sm:hidden">{isBackingUp ? tr('Saving...') : tr('Backup')}</span>
         </Button>
       </div>
 
@@ -189,15 +190,15 @@ export default function CloudBackupPage() {
       <div className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl shadow-2xs flex items-center justify-between gap-2 text-xs">
         <div className="flex items-center gap-1.5 truncate">
           <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
-          <span className="font-bold text-slate-900 truncate">Offline Active</span>
+          <span className="font-bold text-slate-900 truncate">{tr('Offline Active')}</span>
           <span className="text-slate-400">•</span>
           <span className="text-slate-600 truncate text-[11px]">
-            {totalRecords} entries ({productCount} items, {saleCount} bills)
+            {totalRecords} {tr('entries (')}{productCount} {tr('items,')} {saleCount} {tr('bills)')}
           </span>
         </div>
 
         <div className="text-[10.5px] text-slate-500 font-mono shrink-0">
-          Last: {lastBackupTime ? new Date(lastBackupTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : 'Never'}
+          {tr('Last:')} {lastBackupTime ? new Date(lastBackupTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : tr('Never')}
         </div>
       </div>
 
@@ -219,7 +220,7 @@ export default function CloudBackupPage() {
       {/* ---------------- SECTION 1: DATABASE BACKUP & RESTORE ---------------- */}
       <div className="space-y-3">
         <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-          Store Data Backup &amp; Restore
+          {tr('Store Data Backup & Restore')}
         </h2>
 
         <AutoBackupCard />
@@ -232,8 +233,8 @@ export default function CloudBackupPage() {
                 <Download className="w-4 h-4 text-amber-800" />
               </div>
               <div className="min-w-0">
-                <h3 className="text-xs font-bold text-slate-900 leading-tight">Export Full Backup</h3>
-                <p className="text-[11px] text-slate-500 truncate mt-0.5">Save .json snapshot file</p>
+                <h3 className="text-xs font-bold text-slate-900 leading-tight">{tr('Export Full Backup')}</h3>
+                <p className="text-[11px] text-slate-500 truncate mt-0.5">{tr('Save .json snapshot file')}</p>
               </div>
             </div>
 
@@ -244,7 +245,7 @@ export default function CloudBackupPage() {
               className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-lg flex-shrink-0 cursor-pointer h-8"
             >
               <Download className="w-3 h-3 mr-1 text-amber-400" />
-              <span>{isBackingUp ? 'Saving...' : 'Download'}</span>
+              <span>{isBackingUp ? tr('Saving...') : tr('Download')}</span>
             </Button>
           </div>
 
@@ -255,15 +256,15 @@ export default function CloudBackupPage() {
                 <Upload className="w-4 h-4 text-slate-700" />
               </div>
               <div className="min-w-0">
-                <h3 className="text-xs font-bold text-slate-900 leading-tight">Restore Store Data</h3>
-                <p className="text-[11px] text-slate-500 truncate mt-0.5">Upload .json backup file</p>
+                <h3 className="text-xs font-bold text-slate-900 leading-tight">{tr('Restore Store Data')}</h3>
+                <p className="text-[11px] text-slate-500 truncate mt-0.5">{tr('Upload .json backup file')}</p>
               </div>
             </div>
 
             <label className="cursor-pointer flex-shrink-0">
               <div className="px-3 py-1.5 border border-slate-300 hover:bg-slate-50 rounded-lg text-slate-800 font-bold text-xs flex items-center gap-1 transition-colors h-8">
                 <Upload className="w-3 h-3 text-slate-700" />
-                <span>Select File</span>
+                <span>{tr('Select File')}</span>
               </div>
               <input type="file" accept=".json" onChange={handleFileSelect} className="hidden" />
             </label>
@@ -275,7 +276,7 @@ export default function CloudBackupPage() {
       {/* ---------------- SECTION 2: TALLY PRIME & CA MASTER EXCEL BRIDGE (Compact) ---------------- */}
       <div className="space-y-2.5 pt-1">
         <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-          Accounting Software &amp; Tax Exports
+          {tr('Accounting Software & Tax Exports')}
         </h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -287,12 +288,12 @@ export default function CloudBackupPage() {
                   T
                 </div>
                 <div className="min-w-0">
-                  <h3 className="text-xs font-black text-slate-900 truncate">Tally Prime XML</h3>
-                  <p className="text-[10.5px] text-slate-500 truncate">Vouchers &amp; Sundry Debtors</p>
+                  <h3 className="text-xs font-black text-slate-900 truncate">{tr('Tally Prime XML')}</h3>
+                  <p className="text-[10.5px] text-slate-500 truncate">{tr('Vouchers & Sundry Debtors')}</p>
                 </div>
               </div>
               <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase bg-amber-200 text-amber-950 shrink-0 font-mono">
-                Tally ERP 9
+                {tr('Tally ERP 9')}
               </span>
             </div>
 
@@ -303,7 +304,7 @@ export default function CloudBackupPage() {
               className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs gap-1.5 h-8 cursor-pointer shadow-2xs"
             >
               <Download className="w-3.5 h-3.5 text-amber-400" />
-              <span>Export Tally XML ({saleCount})</span>
+              <span>{tr('Export Tally XML (')}{saleCount})</span>
             </Button>
           </div>
 
@@ -315,12 +316,12 @@ export default function CloudBackupPage() {
                   <FileSpreadsheet className="w-3.5 h-3.5" />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="text-xs font-black text-slate-900 truncate">CA Master Sales Register</h3>
-                  <p className="text-[10.5px] text-slate-500 truncate">GSTR-1 Excel / CSV Table</p>
+                  <h3 className="text-xs font-black text-slate-900 truncate">{tr('CA Master Sales Register')}</h3>
+                  <p className="text-[10.5px] text-slate-500 truncate">{tr('GSTR-1 Excel / CSV Table')}</p>
                 </div>
               </div>
               <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase bg-indigo-100 text-indigo-900 shrink-0 font-mono">
-                CA Format
+                {tr('CA Format')}
               </span>
             </div>
 
@@ -332,7 +333,7 @@ export default function CloudBackupPage() {
                 className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs gap-1 h-8 cursor-pointer shadow-2xs truncate"
               >
                 <Download className="w-3.5 h-3.5 text-white" />
-                <span>Export CSV</span>
+                <span>{tr('Export CSV')}</span>
               </Button>
 
               <Link href="/gst-reports" className="flex-1">
@@ -341,7 +342,7 @@ export default function CloudBackupPage() {
                   size="sm"
                   className="w-full text-xs font-bold gap-1 border-indigo-200 text-indigo-900 hover:bg-indigo-50 h-8 shadow-2xs cursor-pointer truncate"
                 >
-                  <span>GSTR-1 Hub</span>
+                  <span>{tr('GSTR-1 Hub')}</span>
                   <ArrowRight className="w-3 h-3" />
                 </Button>
               </Link>
@@ -358,30 +359,30 @@ export default function CloudBackupPage() {
             setIsRestoreModalOpen(false);
             setRestorePayload(null);
           }}
-          title="Verify & Confirm Database Restore"
-          description="Review backup file contents before restoring onto your store."
+          title={tr('Verify & Confirm Database Restore')}
+          description={tr('Review backup file contents before restoring onto your store.')}
           size="md"
         >
           <div className="space-y-4 text-xs p-1">
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
               <div className="font-black text-slate-900 text-sm">
-                Store: {restorePayload.metadata.business_name}
+                {tr('Store:')} {restorePayload.metadata.business_name}
               </div>
               <div className="text-[11px] text-slate-500 font-mono">
-                Date: {new Date(restorePayload.metadata.created_at).toLocaleString('en-IN')}
+                {tr('Date:')} {new Date(restorePayload.metadata.created_at).toLocaleString('en-IN')}
               </div>
 
               <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200 font-mono text-[11px] text-slate-700">
-                <div>• Products: {restorePayload.metadata.counts.products}</div>
-                <div>• Customers: {restorePayload.metadata.counts.customers}</div>
-                <div>• Bills: {restorePayload.metadata.counts.sales}</div>
-                <div>• Khata: {restorePayload.metadata.counts.ledger_transactions}</div>
+                <div>{tr('• Products:')} {restorePayload.metadata.counts.products}</div>
+                <div>{tr('• Customers:')} {restorePayload.metadata.counts.customers}</div>
+                <div>{tr('• Bills:')} {restorePayload.metadata.counts.sales}</div>
+                <div>{tr('• Khata:')} {restorePayload.metadata.counts.ledger_transactions}</div>
               </div>
             </div>
 
             <div>
               <label className="text-xs font-bold text-slate-800 block mb-1.5">
-                Choose Restore Strategy:
+                {tr('Choose Restore Strategy:')}
               </label>
               <div className="space-y-2">
                 <label className="flex items-start gap-2 p-2.5 rounded-xl border border-slate-300 cursor-pointer bg-white">
@@ -393,9 +394,9 @@ export default function CloudBackupPage() {
                     className="mt-0.5"
                   />
                   <div>
-                    <div className="font-bold text-slate-900">Clean Replace (Recommended)</div>
+                    <div className="font-bold text-slate-900">{tr('Clean Replace (Recommended)')}</div>
                     <div className="text-[10px] text-slate-500">
-                      Replaces existing database completely with the exact state from this backup file.
+                      {tr('Replaces existing database completely with the exact state from this backup file.')}
                     </div>
                   </div>
                 </label>
@@ -409,9 +410,9 @@ export default function CloudBackupPage() {
                     className="mt-0.5"
                   />
                   <div>
-                    <div className="font-bold text-slate-900">Merge &amp; Append</div>
+                    <div className="font-bold text-slate-900">{tr('Merge & Append')}</div>
                     <div className="text-[10px] text-slate-500">
-                      Appends missing products and sales without deleting new records.
+                      {tr('Appends missing products and sales without deleting new records.')}
                     </div>
                   </div>
                 </label>
@@ -427,7 +428,7 @@ export default function CloudBackupPage() {
                   setRestorePayload(null);
                 }}
               >
-                Cancel
+                {tr('Cancel')}
               </Button>
               <Button
                 size="sm"
@@ -435,7 +436,7 @@ export default function CloudBackupPage() {
                 disabled={isRestoring}
                 className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold"
               >
-                {isRestoring ? 'Restoring...' : 'Confirm & Restore'}
+                {isRestoring ? tr('Restoring...') : tr('Confirm & Restore')}
               </Button>
             </div>
           </div>

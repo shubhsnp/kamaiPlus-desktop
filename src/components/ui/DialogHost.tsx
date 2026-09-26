@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, Info } from 'lucide-react';
 import { answerDialog, DialogRequest, subscribeDialogs } from '@/lib/ui/dialogs';
+import { tr } from '@/lib/i18n/core';
 
 /**
  * Renders showAlert() / showConfirm() dialogs (lib/ui/dialogs.ts). Mounted once in
@@ -58,7 +59,7 @@ export function DialogHost() {
               onClick={() => answerDialog(current.id, false)}
               className="h-9 px-4 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-800 text-xs font-bold cursor-pointer"
             >
-              {current.cancelLabel || 'Cancel'}
+              {current.cancelLabel || tr('Cancel')}
             </button>
           )}
           <button
@@ -67,7 +68,7 @@ export function DialogHost() {
             onClick={() => answerDialog(current.id, true)}
             className={`h-9 px-5 rounded-xl text-white text-xs font-black cursor-pointer ${current.danger ? 'bg-rose-600 hover:bg-rose-700' : 'bg-slate-900 hover:bg-slate-800'}`}
           >
-            {current.confirmLabel || (isConfirm ? 'Yes' : 'OK')}
+            {current.confirmLabel || (isConfirm ? tr('Yes') : 'OK')}
           </button>
         </div>
       </div>

@@ -19,6 +19,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { tr } from '@/lib/i18n/core';
 
 export interface ChangedField {
   key: string;
@@ -60,7 +61,7 @@ export function SettingsChangeBar({
     <div 
       className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-2xl w-[94vw] sm:w-auto animate-in fade-in slide-in-from-bottom-5 duration-300 pointer-events-auto"
       role="region"
-      aria-label="Unsaved settings changes toolbar"
+      aria-label={tr('Unsaved settings changes toolbar')}
     >
       <div className="bg-slate-950/95 backdrop-blur-xl border-2 border-amber-500/70 text-white rounded-2xl p-3 sm:p-3.5 shadow-2xl shadow-slate-950/90 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         {/* Status indicator & Summary */}
@@ -75,17 +76,17 @@ export function SettingsChangeBar({
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="text-xs font-black tracking-tight text-white flex items-center gap-1">
-                <span>Unsaved Changes</span>
+                <span>{tr('Unsaved Changes')}</span>
                 <span className="px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black">
                   {count} {count === 1 ? 'field' : 'fields'}
                 </span>
               </span>
               <span className="hidden md:inline-block text-[10px] text-slate-400 font-mono">
-                (Press <kbd className="px-1 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 font-bold">Ctrl+S</kbd> to save)
+                {tr('(Press')} <kbd className="px-1 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 font-bold">Ctrl+S</kbd> {tr('to save)')}
               </span>
             </div>
             <p className="text-[11px] text-slate-300 truncate max-w-[280px] sm:max-w-xs">
-              Modified in: <span className="text-amber-200 font-semibold">{modifiedCategories.join(', ')}</span>
+              {tr('Modified in:')} <span className="text-amber-200 font-semibold">{modifiedCategories.join(', ')}</span>
             </p>
           </div>
         </div>
@@ -97,10 +98,10 @@ export function SettingsChangeBar({
             type="button"
             onClick={onOpenReview}
             className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition cursor-pointer active:scale-95"
-            title="Review all modified settings before saving"
+            title={tr('Review all modified settings before saving')}
           >
             <Eye className="w-3.5 h-3.5 text-amber-300" />
-            <span className="hidden xs:inline">Review</span>
+            <span className="hidden xs:inline">{tr('Review')}</span>
           </button>
 
           {/* Discard Changes Button */}
@@ -109,10 +110,10 @@ export function SettingsChangeBar({
             onClick={onDiscard}
             disabled={isSaving}
             className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-slate-900 hover:bg-rose-950/60 text-slate-300 hover:text-rose-300 border border-slate-700 hover:border-rose-500/50 transition cursor-pointer active:scale-95 disabled:opacity-50"
-            title="Revert all changes back to saved database state"
+            title={tr('Revert all changes back to saved database state')}
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span>Discard</span>
+            <span>{tr('Discard')}</span>
           </button>
 
           {/* Save All Changes Button */}
@@ -126,12 +127,12 @@ export function SettingsChangeBar({
             {isSaving ? (
               <>
                 <div className="w-3.5 h-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
-                <span>Saving...</span>
+                <span>{tr('Saving...')}</span>
               </>
             ) : (
               <>
                 <Save className="w-3.5 h-3.5 text-slate-950" />
-                <span>Save Changes</span>
+                <span>{tr('Save Changes')}</span>
               </>
             )}
           </Button>
@@ -167,7 +168,7 @@ export function SettingsReviewModal({
   if (!isOpen) return null;
 
   const categories = [
-    { id: 'all', label: `All (${changedFields.length})` },
+    { id: 'all', label: tr('All ({length})', { length: changedFields.length }) },
     ...Array.from(new Set(changedFields.map((f) => f.category))).map((cat) => {
       const field = changedFields.find((f) => f.category === cat);
       const catCount = changedFields.filter((f) => f.category === cat).length;
@@ -201,13 +202,13 @@ export function SettingsReviewModal({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-black text-white">Review Settings Changes</h3>
+                <h3 className="text-sm font-black text-white">{tr('Review Settings Changes')}</h3>
                 <span className="px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black uppercase">
-                  {changedFields.length} Modified
+                  {changedFields.length} {tr('Modified')}
                 </span>
               </div>
               <p className="text-[11px] text-slate-300">
-                Compare your changes before saving to local database and syncing POS counters.
+                {tr('Compare your changes before saving to local database and syncing POS counters.')}
               </p>
             </div>
           </div>
@@ -216,7 +217,7 @@ export function SettingsReviewModal({
             type="button"
             onClick={onClose}
             className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
-            aria-label="Close modal"
+            aria-label={tr('Close modal')}
           >
             <X className="w-5 h-5" />
           </button>
@@ -247,7 +248,7 @@ export function SettingsReviewModal({
           {filteredFields.length === 0 ? (
             <div className="text-center py-8 text-slate-400">
               <Check className="w-8 h-8 mx-auto mb-1 text-emerald-500" />
-              <p className="text-xs font-bold text-slate-600">No modifications in this category</p>
+              <p className="text-xs font-bold text-slate-600">{tr('No modifications in this category')}</p>
             </div>
           ) : (
             filteredFields.map((field) => (
@@ -272,20 +273,20 @@ export function SettingsReviewModal({
                   {/* Previous Value */}
                   <div className="p-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-900 space-y-0.5">
                     <span className="text-[9.5px] uppercase font-bold text-rose-600 block tracking-wider font-sans">
-                      Previous Value
+                      {tr('Previous Value')}
                     </span>
-                    <div className="truncate font-semibold line-through opacity-80" title={field.oldValue || '(Empty)'}>
-                      {field.oldValue ? field.oldValue : <span className="italic font-normal text-rose-400">(Empty / Unset)</span>}
+                    <div className="truncate font-semibold line-through opacity-80" title={field.oldValue || tr('(Empty)')}>
+                      {field.oldValue ? field.oldValue : <span className="italic font-normal text-rose-400">{tr('(Empty / Unset)')}</span>}
                     </div>
                   </div>
 
                   {/* New Value */}
                   <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-950 space-y-0.5">
                     <span className="text-[9.5px] uppercase font-bold text-emerald-700 block tracking-wider font-sans">
-                      New Value (Pending)
+                      {tr('New Value (Pending)')}
                     </span>
-                    <div className="truncate font-bold text-emerald-800" title={field.newValue || '(Empty)'}>
-                      {field.newValue ? field.newValue : <span className="italic font-normal text-emerald-600">(Empty / Removed)</span>}
+                    <div className="truncate font-bold text-emerald-800" title={field.newValue || tr('(Empty)')}>
+                      {field.newValue ? field.newValue : <span className="italic font-normal text-emerald-600">{tr('(Empty / Removed)')}</span>}
                     </div>
                   </div>
                 </div>
@@ -299,7 +300,7 @@ export function SettingsReviewModal({
           <button
             type="button"
             onClick={async () => {
-              if (await showConfirm('Discard all pending changes and restore previous settings?', { danger: true, confirmLabel: 'Discard' })) {
+              if (await showConfirm(tr('Discard all pending changes and restore previous settings?'), { danger: true, confirmLabel: tr('Discard') })) {
                 onDiscard();
                 onClose();
               }
@@ -308,7 +309,7 @@ export function SettingsReviewModal({
             className="w-full sm:w-auto px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 transition flex items-center justify-center gap-1 cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span>Discard All Changes</span>
+            <span>{tr('Discard All Changes')}</span>
           </button>
 
           <div className="w-full sm:w-auto flex items-center gap-2">
@@ -319,7 +320,7 @@ export function SettingsReviewModal({
               onClick={onClose}
               className="w-full sm:w-auto text-xs font-bold cursor-pointer"
             >
-              Keep Editing
+              {tr('Keep Editing')}
             </Button>
 
             <Button
@@ -335,12 +336,12 @@ export function SettingsReviewModal({
               {isSaving ? (
                 <>
                   <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Saving...</span>
+                  <span>{tr('Saving...')}</span>
                 </>
               ) : (
                 <>
                   <Check className="w-4 h-4 text-white" />
-                  <span>Apply &amp; Save All Changes</span>
+                  <span>{tr('Apply & Save All Changes')}</span>
                 </>
               )}
             </Button>
@@ -384,10 +385,9 @@ export function SettingsUnsavedTabModal({
             <ShieldAlert className="w-5 h-5 text-amber-600" />
           </div>
           <div>
-            <h3 className="text-sm font-black text-slate-900">Unsaved Changes Detected</h3>
+            <h3 className="text-sm font-black text-slate-900">{tr('Unsaved Changes Detected')}</h3>
             <p className="text-xs text-slate-600 mt-0.5">
-              You have <span className="font-bold text-amber-700">{changedCount} unsaved {changedCount === 1 ? 'change' : 'changes'}</span>.
-              Do you want to save them before switching to <b>{targetTabName}</b>?
+              {tr('You have')} <span className="font-bold text-amber-700">{changedCount} {tr('unsaved')} {changedCount === 1 ? tr('change') : tr('changes')}</span>{tr('. Do you want to save them before switching to')} <b>{targetTabName}</b>?
             </p>
           </div>
         </div>
@@ -409,8 +409,8 @@ export function SettingsUnsavedTabModal({
                 <Check className="w-4 h-4" />
               </div>
               <div>
-                <div className="text-xs font-bold text-emerald-950">Save &amp; Continue</div>
-                <div className="text-[10.5px] text-emerald-700">Save all changes to database and switch tab</div>
+                <div className="text-xs font-bold text-emerald-950">{tr('Save & Continue')}</div>
+                <div className="text-[10.5px] text-emerald-700">{tr('Save all changes to database and switch tab')}</div>
               </div>
             </div>
             <ArrowRight className="w-4 h-4 text-emerald-700 group-hover:translate-x-1 transition-transform" />
@@ -430,8 +430,8 @@ export function SettingsUnsavedTabModal({
                 <RotateCcw className="w-3.5 h-3.5" />
               </div>
               <div>
-                <div className="text-xs font-bold text-rose-950">Discard &amp; Switch</div>
-                <div className="text-[10.5px] text-rose-700">Revert changes and switch tab without saving</div>
+                <div className="text-xs font-bold text-rose-950">{tr('Discard & Switch')}</div>
+                <div className="text-[10.5px] text-rose-700">{tr('Revert changes and switch tab without saving')}</div>
               </div>
             </div>
             <ArrowRight className="w-4 h-4 text-rose-700 group-hover:translate-x-1 transition-transform" />
@@ -446,7 +446,7 @@ export function SettingsUnsavedTabModal({
             onClick={onClose}
             className="text-xs font-bold text-slate-600 hover:text-slate-900 cursor-pointer"
           >
-            Stay on Current Tab
+            {tr('Stay on Current Tab')}
           </Button>
         </div>
       </div>

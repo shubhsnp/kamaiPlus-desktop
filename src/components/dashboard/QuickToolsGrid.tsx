@@ -16,6 +16,7 @@ import {
   Users,
   HardDrive
 } from 'lucide-react';
+import { tr } from '@/lib/i18n/core';
 
 interface QuickToolsGridProps {
   productsCount: number;
@@ -26,36 +27,36 @@ export const QuickToolsGrid: React.FC<QuickToolsGridProps> = ({
 }) => {
   const toolSections = [
     {
-      title: 'Daily Counter & Ops',
+      title: tr('Daily Counter & Ops'),
       dotColor: 'bg-emerald-500',
       tools: [
         {
-          title: 'Billing (POS)',
-          subtitle: 'Instant Checkout',
+          title: tr('Billing (POS)'),
+          subtitle: tr('Instant Checkout'),
           href: '/billing',
           icon: Receipt,
           color: 'text-emerald-600 dark:text-emerald-400',
           bg: 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800',
         },
         {
-          title: 'Cash Register',
-          subtitle: 'Shift & Z-Report',
+          title: tr('Cash Register'),
+          subtitle: tr('Shift & Z-Report'),
           href: '/cash-register',
           icon: Calculator,
           color: 'text-amber-600 dark:text-amber-400',
           bg: 'bg-amber-50 dark:bg-amber-950/60 border-amber-200 dark:border-amber-800',
         },
         {
-          title: 'Tally Counter',
-          subtitle: 'Notes Hisab & Draft',
+          title: tr('Tally Counter'),
+          subtitle: tr('Notes Hisab & Draft'),
           href: '/cash-register?tally=open',
           icon: Calculator,
           color: 'text-purple-600 dark:text-purple-400',
           bg: 'bg-purple-50 dark:bg-purple-950/60 border-purple-200 dark:border-purple-800',
         },
         {
-          title: 'Transactions',
-          subtitle: 'Audit & Returns',
+          title: tr('Transactions'),
+          subtitle: tr('Audit & Returns'),
           href: '/transactions',
           icon: ShieldCheck,
           color: 'text-teal-600 dark:text-teal-400',
@@ -64,36 +65,36 @@ export const QuickToolsGrid: React.FC<QuickToolsGridProps> = ({
       ],
     },
     {
-      title: 'Stock & Sourcing',
+      title: tr('Stock & Sourcing'),
       dotColor: 'bg-blue-500',
       tools: [
         {
-          title: 'Products Master',
-          subtitle: `${productsCount} SKUs`,
+          title: tr('Products Master'),
+          subtitle: tr('{productsCount} SKUs', { productsCount: productsCount }),
           href: '/products',
           icon: Package,
           color: 'text-blue-600 dark:text-blue-400',
           bg: 'bg-blue-50 dark:bg-blue-950/60 border-blue-200 dark:border-blue-800',
         },
         {
-          title: 'Inventory & Stock',
-          subtitle: 'Stock Alerts',
+          title: tr('Inventory & Stock'),
+          subtitle: tr('Stock Alerts'),
           href: '/inventory',
           icon: Boxes,
           color: 'text-cyan-600 dark:text-cyan-400',
           bg: 'bg-cyan-50 dark:bg-cyan-950/60 border-cyan-200 dark:border-cyan-800',
         },
         {
-          title: 'Purchases & Bills',
-          subtitle: 'Vendor Inward',
+          title: tr('Purchases & Bills'),
+          subtitle: tr('Vendor Inward'),
           href: '/purchases',
           icon: ShoppingBag,
           color: 'text-amber-600 dark:text-amber-400',
           bg: 'bg-amber-50 dark:bg-amber-950/60 border-amber-200 dark:border-amber-800',
         },
         {
-          title: 'Barcode Studio',
-          subtitle: 'Price Stickers',
+          title: tr('Barcode Studio'),
+          subtitle: tr('Price Stickers'),
           href: '/barcode-generator',
           icon: Barcode,
           color: 'text-purple-600 dark:text-purple-400',
@@ -102,36 +103,36 @@ export const QuickToolsGrid: React.FC<QuickToolsGridProps> = ({
       ],
     },
     {
-      title: 'Ledger, Analytics & GST',
+      title: tr('Ledger, Analytics & GST'),
       dotColor: 'bg-purple-500',
       tools: [
         {
-          title: 'Khata Ledger',
-          subtitle: 'Customer Udhar',
+          title: tr('Khata Ledger'),
+          subtitle: tr('Customer Udhar'),
           href: '/khata',
           icon: BookOpen,
           color: 'text-amber-600 dark:text-amber-400',
           bg: 'bg-amber-50 dark:bg-amber-950/60 border-amber-200 dark:border-amber-800',
         },
         {
-          title: 'Customers CRM',
-          subtitle: 'Loyalty & Visits',
+          title: tr('Customers CRM'),
+          subtitle: tr('Loyalty & Visits'),
           href: '/customers',
           icon: Users,
           color: 'text-sky-600 dark:text-sky-400',
           bg: 'bg-sky-50 dark:bg-sky-950/60 border-sky-200 dark:border-sky-800',
         },
         {
-          title: 'Sales Analytics',
-          subtitle: 'Parties • Items • Profit',
+          title: tr('Sales Analytics'),
+          subtitle: tr('Parties • Items • Profit'),
           href: '/reports',
           icon: TrendingUp,
           color: 'text-indigo-600 dark:text-indigo-400',
           bg: 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800',
         },
         {
-          title: 'GST & Accounting',
-          subtitle: 'GSTR-1 Reports',
+          title: tr('GST & Accounting'),
+          subtitle: tr('GSTR-1 Reports'),
           href: '/gst-reports',
           icon: FileSpreadsheet,
           color: 'text-indigo-600 dark:text-indigo-400',

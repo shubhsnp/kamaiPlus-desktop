@@ -9,6 +9,7 @@ import {
   FileText
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { tr } from '@/lib/i18n/core';
 
 interface TransactionHeaderActionsProps {
   filteredCount: number;
@@ -34,10 +35,10 @@ export const TransactionHeaderActions: React.FC<TransactionHeaderActionsProps> =
       <div className="min-w-0">
         <h1 className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
           <Receipt className="w-5 h-5 text-slate-800 dark:text-slate-200 shrink-0" />
-          <span>Transactions &amp; Sales Ledger</span>
+          <span>{tr('Transactions & Sales Ledger')}</span>
         </h1>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-          Audit history, reprint thermal bills, customer khata credit tracking, and 1-click Tally export.
+          {tr('Audit history, reprint thermal bills, customer khata credit tracking, and 1-click Tally export.')}
         </p>
       </div>
 
@@ -51,7 +52,7 @@ export const TransactionHeaderActions: React.FC<TransactionHeaderActionsProps> =
           className="text-xs font-bold gap-1.5 border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 text-amber-900 dark:text-amber-200 cursor-pointer whitespace-nowrap shrink-0 rounded-xl"
         >
           <RotateCcw className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" />
-          <span>Sales Return</span>
+          <span>{tr('Sales Return')}</span>
         </Button>
 
         {/* Export CSV */}
@@ -63,7 +64,7 @@ export const TransactionHeaderActions: React.FC<TransactionHeaderActionsProps> =
           disabled={filteredCount === 0}
         >
           <Download className="w-3.5 h-3.5" />
-          <span>Export CSV</span>
+          <span>{tr('Export CSV')}</span>
         </Button>
 
         {/* Bulk Invoices PDF */}
@@ -74,10 +75,10 @@ export const TransactionHeaderActions: React.FC<TransactionHeaderActionsProps> =
             onClick={onBulkDownloadInvoices}
             className="text-xs font-bold gap-1.5 whitespace-nowrap shrink-0 rounded-xl border-slate-200 dark:border-slate-700 bg-white hover:bg-slate-50 text-slate-800"
             disabled={filteredCount === 0}
-            title="Download continuous consolidated PDF of all filtered invoices"
+            title={tr('Download continuous consolidated PDF of all filtered invoices')}
           >
             <FileText className="w-3.5 h-3.5 text-indigo-600" />
-            <span>Bulk Invoices PDF</span>
+            <span>{tr('Bulk Invoices PDF')}</span>
           </Button>
         )}
 
@@ -89,7 +90,7 @@ export const TransactionHeaderActions: React.FC<TransactionHeaderActionsProps> =
           disabled={filteredCount === 0}
         >
           <Download className="w-3.5 h-3.5 text-slate-950" />
-          <span>Tally Prime XML</span>
+          <span>{tr('Tally Prime XML')}</span>
         </Button>
 
         {/* Clear History */}
@@ -99,7 +100,7 @@ export const TransactionHeaderActions: React.FC<TransactionHeaderActionsProps> =
             size="sm"
             onClick={onOpenClearHistory}
             className="text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 border-rose-200 dark:border-rose-900 px-2.5 shrink-0 rounded-xl"
-            title="Delete / Reset All Transaction History"
+            title={tr('Delete / Reset All Transaction History')}
           >
             <Trash2 className="w-3.5 h-3.5" />
           </Button>

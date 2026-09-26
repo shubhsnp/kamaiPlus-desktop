@@ -1,73 +1,80 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useState } from 'react';
 import { SupportedLanguage } from '@/types';
-import en from '@/locales/en.json';
-import hi from '@/locales/hi.json';
-import mr from '@/locales/mr.json';
+import {
+  LANGUAGE_STORAGE_KEY,
+  Messages,
+  TVars,
+  loadMessages,
+  readSavedLanguage,
+  setActiveLanguage,
+  translate,
+} from './core';
 
-type Translations = typeof en;
-
-const translations: Record<SupportedLanguage, Translations> = {
-  en,
-  hi,
-  mr,
-};
+export { LANGUAGES, LANGUAGE_STORAGE_KEY, getLanguage, msg, tr, translate } from './core';
+export type { Messages, TVars } from './core';
 
 interface I18nContextType {
   language: SupportedLanguage;
   setLanguage: (lang: SupportedLanguage) => void;
-  t: (path: string, fallback?: string) => string;
+  t: (text: string, vars?: TVars) => string;
 }
 
 const I18nContext = createContext<I18nContextType>({
   language: 'en',
   setLanguage: () => {},
-  t: (path: string) => path,
+  t: (text: string, vars?: TVars) => translate(null, text, vars),
 });
 
+// Before paint on the client (no flash of English), plain effect when prerendering.
+const useBeforePaint = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
+
+/**
+ * Holds the app language. A saved Hindi / Marathi choice holds the first paint
+ * until its table has loaded; changing the language remounts the app so every
+ * tr() on screen runs again (bills in progress are kept — they live in localStorage).
+ */
 export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [language, setLanguageState] = useState<SupportedLanguage>('en');
+  const [table, setTable] = useState<Messages | null>(null);
+  const [ready, setReady] = useState(true);
 
-  useEffect(() => {
-    const saved = localStorage.getItem('vyapar_language') as SupportedLanguage;
-    if (saved && ['en', 'hi', 'mr'].includes(saved)) {
-      setLanguageState(saved);
-    }
+  const apply = useCallback((lang: SupportedLanguage, messages: Messages | null) => {
+    setActiveLanguage(lang, messages);
+    setTable(messages);
+    setLanguageState(lang);
+    try {
+      document.documentElement.lang = lang;
+    } catch {}
   }, []);
 
-  const setLanguage = (lang: SupportedLanguage) => {
-    setLanguageState(lang);
-    localStorage.setItem('vyapar_language', lang);
-  };
+  useBeforePaint(() => {
+    const saved = readSavedLanguage();
+    if (saved === 'en') return;
+    setReady(false);
+    loadMessages(saved)
+      .then((messages) => apply(saved, messages))
+      .catch(() => apply('en', null))
+      .finally(() => setReady(true));
+  }, [apply]);
 
-  const t = (path: string, fallback?: string): string => {
-    const keys = path.split('.');
-    let current: any = translations[language] || translations.en;
+  const setLanguage = useCallback((lang: SupportedLanguage) => {
+    try {
+      localStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
+    } catch {}
+    loadMessages(lang)
+      .then((messages) => apply(lang, messages))
+      .catch(() => apply('en', null));
+  }, [apply]);
 
-    for (const key of keys) {
-      if (current && typeof current === 'object' && key in current) {
-        current = current[key];
-      } else {
-        // Fallback to English if translation key is missing in target language
-        let enCurrent: any = translations.en;
-        for (const enKey of keys) {
-          if (enCurrent && typeof enCurrent === 'object' && enKey in enCurrent) {
-            enCurrent = enCurrent[enKey];
-          } else {
-            return fallback || path;
-          }
-        }
-        return typeof enCurrent === 'string' ? enCurrent : (fallback || path);
-      }
-    }
+  const t = useCallback((text: string, vars?: TVars) => translate(table, text, vars), [table]);
 
-    return typeof current === 'string' ? current : (fallback || path);
-  };
+  if (!ready) return <main className="min-h-screen bg-slate-950" />;
 
   return (
     <I18nContext.Provider value={{ language, setLanguage, t }}>
-      {children}
+      <React.Fragment key={language}>{children}</React.Fragment>
     </I18nContext.Provider>
   );
 };

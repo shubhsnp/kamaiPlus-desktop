@@ -32,6 +32,7 @@ const MerchantQRModal = dynamic(
 );
 
 import { AuthUser, getStoredUser, setStoredUser, logoutUser } from '@/lib/auth';
+import { tr } from '@/lib/i18n/core';
 
 
 export const Navbar: React.FC = () => {
@@ -88,13 +89,13 @@ export const Navbar: React.FC = () => {
 
 
   const languages: { code: SupportedLanguage; label: string }[] = [
-    { code: 'en', label: 'English' },
+    { code: 'en', label: tr('English') },
     { code: 'hi', label: 'हिंदी' },
     { code: 'mr', label: 'मराठी' },
   ];
 
-  const displayBusinessName = business?.name || 'My Store';
-  const displayOwnerName = business?.owner_name || currentUser?.name || 'Owner';
+  const displayBusinessName = business?.name || tr('My Store');
+  const displayOwnerName = business?.owner_name || currentUser?.name || tr('Owner');
 
   return (
     <>
@@ -106,10 +107,10 @@ export const Navbar: React.FC = () => {
           <button
             onClick={() => setIsQrModalOpen(true)}
             className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold cursor-pointer transition shadow-2xs"
-            title="Show Merchant UPI QR for Counter"
+            title={tr('Show Merchant UPI QR for Counter')}
           >
             <QrCode className="w-3.5 h-3.5 text-slate-700" />
-            <span className="hidden sm:inline">Store QR</span>
+            <span className="hidden sm:inline">{tr('Store QR')}</span>
           </button>
 
 
@@ -118,18 +119,18 @@ export const Navbar: React.FC = () => {
           {isOnline ? (
             <div 
               className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold shadow-2xs"
-              title="Online. All bills are saved on this computer."
+              title={tr('Online. All bills are saved on this computer.')}
             >
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span>Online • Saved Locally</span>
+              <span>{tr('Online • Saved Locally')}</span>
             </div>
           ) : (
             <div 
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-900 border border-amber-300 text-xs font-bold shadow-xs"
-              title="Offline Mode: billing works fully offline. All bills are safely saved on this computer."
+              title={tr('Offline Mode: billing works fully offline. All bills are safely saved on this computer.')}
             >
               <WifiOff className="w-3.5 h-3.5 text-amber-600" />
-              <span>Offline Mode • Saved Locally</span>
+              <span>{tr('Offline Mode • Saved Locally')}</span>
             </div>
           )}
         </div>
@@ -139,7 +140,7 @@ export const Navbar: React.FC = () => {
           <button
             onClick={() => setShowStoreMenu(!showStoreMenu)}
             className="flex items-center gap-2.5 p-1 -mr-1 rounded-xl hover:bg-slate-50 transition cursor-pointer text-right focus:outline-none"
-            title="Click for Store Menu, Language & Settings"
+            title={tr('Click for Store Menu, Language & Settings')}
           >
             <div className="min-w-0 text-right">
               <div className="flex items-center justify-end gap-1.5">
@@ -180,7 +181,7 @@ export const Navbar: React.FC = () => {
                   </div>
                   <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">
                     <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                    <span>Verified</span>
+                    <span>{tr('Verified')}</span>
                   </span>
                 </div>
                 <div className="text-[11px] text-slate-500 mt-0.5">
@@ -200,7 +201,7 @@ export const Navbar: React.FC = () => {
               <div className="px-4 py-2 border-b border-slate-100">
                 <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 mb-1.5">
                   <Globe className="w-3.5 h-3.5 text-slate-500" />
-                  <span>Language / भाषा</span>
+                  <span>{tr('Language / भाषा')}</span>
                 </div>
                 <div className="grid grid-cols-3 gap-1.5">
                   {languages.map((l) => (
@@ -219,7 +220,7 @@ export const Navbar: React.FC = () => {
                           : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                       }`}
                     >
-                      {l.code === 'hi' ? 'हिंदी' : l.code === 'mr' ? 'मराठी' : 'English'}
+                      {l.code === 'hi' ? 'हिंदी' : l.code === 'mr' ? 'मराठी' : tr('English')}
                     </button>
                   ))}
                 </div>
@@ -237,7 +238,7 @@ export const Navbar: React.FC = () => {
                   className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 rounded-lg flex items-center gap-2.5 font-semibold cursor-pointer"
                 >
                   <Settings className="w-4 h-4 text-slate-500" />
-                  <span>Store Profile &amp; Print Settings</span>
+                  <span>{tr('Store Profile & Print Settings')}</span>
                 </button>
 
                 <button
@@ -245,7 +246,7 @@ export const Navbar: React.FC = () => {
                   className="w-full text-left px-3 py-2 text-xs text-rose-600 hover:bg-rose-50 rounded-lg flex items-center gap-2.5 font-bold mt-1 border-t border-slate-100 cursor-pointer"
                 >
                   <LogOut className="w-4 h-4 text-rose-500" />
-                  <span>Log Out / Switch Account</span>
+                  <span>{tr('Log Out / Switch Account')}</span>
                 </button>
               </div>
             </div>

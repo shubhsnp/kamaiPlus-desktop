@@ -17,6 +17,7 @@ import { getBrandLogoDataUrl, saveHtmlAsPdf } from '@/lib/print/printDocument';
 import { getDesktopApi, PaperFormat } from '@/lib/desktop/desktopBridge';
 import { InvoicePreview } from '@/components/invoices/InvoicePreview';
 import { DisplayOptionsSection, TermsFooterSection, ThemeColorSection } from '@/components/invoices/designer/DesignerSections';
+import { tr } from '@/lib/i18n/core';
 
 /**
  * Invoice Themes & Design — desktop port of the Android InvoiceThemesScreen.
@@ -86,10 +87,10 @@ export default function InvoiceDesignerPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      if (await persist()) setStatus({ tone: 'ok', text: 'Invoice theme & options saved. Every new print and PDF uses them.' });
+      if (await persist()) setStatus({ tone: 'ok', text: tr('Invoice theme & options saved. Every new print and PDF uses them.') });
     } catch (err) {
       console.error('Failed to save invoice theme:', err);
-      setStatus({ tone: 'err', text: 'Could not save the invoice settings.' });
+      setStatus({ tone: 'err', text: tr('Could not save the invoice settings.') });
     } finally {
       setSaving(false);
     }
@@ -105,8 +106,8 @@ export default function InvoiceDesignerPage() {
         'a4'
       );
       const res = await saveHtmlAsPdf(html, 'Sample_Invoice_Template.pdf', 'Invoices');
-      if (res.ok) setStatus({ tone: 'ok', text: res.path ? 'Sample invoice PDF saved.' : 'Choose "Save as PDF" in the print dialog.', path: res.path });
-      else setStatus({ tone: 'err', text: res.error || 'Could not create the sample PDF.' });
+      if (res.ok) setStatus({ tone: 'ok', text: res.path ? tr('Sample invoice PDF saved.') : tr('Choose "Save as PDF" in the print dialog.'), path: res.path });
+      else setStatus({ tone: 'err', text: res.error || tr('Could not create the sample PDF.') });
     } finally {
       setExporting(false);
     }
@@ -119,21 +120,21 @@ export default function InvoiceDesignerPage() {
       <div className="bg-white px-4 py-3 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-lg font-black text-slate-900 flex items-center gap-2">
-            <Palette className="w-5 h-5 text-amber-700" /> Invoice Themes &amp; Design
+            <Palette className="w-5 h-5 text-amber-700" /> {tr('Invoice Themes & Design')}
           </h1>
-          <p className="text-xs text-slate-500">Custom PDF styling, A4 &amp; 80mm/58mm thermal bills — the preview is the real bill.</p>
+          <p className="text-xs text-slate-500">{tr('Custom PDF styling, A4 & 80mm/58mm thermal bills — the preview is the real bill.')}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <Link href="/settings?tab=invoice">
             <Button variant="outline" size="sm">
-              <Printer className="w-3.5 h-3.5" /> Printer Setup
+              <Printer className="w-3.5 h-3.5" /> {tr('Printer Setup')}
             </Button>
           </Link>
           <Button variant="outline" size="sm" onClick={handleSamplePdf} isLoading={exporting} disabled={!config}>
-            <Download className="w-3.5 h-3.5" /> Sample PDF
+            <Download className="w-3.5 h-3.5" /> {tr('Sample PDF')}
           </Button>
           <Button size="sm" onClick={handleSave} isLoading={saving} disabled={!config}>
-            <Save className="w-3.5 h-3.5" /> Save
+            <Save className="w-3.5 h-3.5" /> {tr('Save')}
           </Button>
         </div>
       </div>
@@ -149,14 +150,14 @@ export default function InvoiceDesignerPage() {
           <span className="flex-1">{status.text}</span>
           {status.path && desktop && (
             <button type="button" onClick={() => desktop.openPath(status.path!)} className="px-2 py-1 rounded-lg bg-white border border-emerald-300 cursor-pointer">
-              Open PDF
+              {tr('Open PDF')}
             </button>
           )}
         </div>
       )}
 
       {!config ? (
-        <div className="p-10 text-center text-sm text-slate-500">Loading store profile…</div>
+        <div className="p-10 text-center text-sm text-slate-500">{tr('Loading store profile…')}</div>
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
           <div className="xl:col-span-5 space-y-3.5">
@@ -168,7 +169,7 @@ export default function InvoiceDesignerPage() {
           <div className="xl:col-span-7 xl:sticky xl:top-20 space-y-2">
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-1.5 text-sm font-bold text-slate-900">
-                <Eye className="w-4 h-4 text-slate-700" /> 4. Live Interactive Preview
+                <Eye className="w-4 h-4 text-slate-700" /> {tr('4. Live Interactive Preview')}
               </div>
               <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200">
                 {(['a4', 'thermal-80', 'thermal-58'] as PaperFormat[]).map((f) => (

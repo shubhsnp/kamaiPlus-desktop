@@ -27,6 +27,7 @@ import { TransactionFilterToolbar } from '@/components/transactions/TransactionF
 import { TransactionBillCard } from '@/components/transactions/TransactionBillCard';
 import { TransactionModals } from '@/components/transactions/TransactionModals';
 import { useTransactionFilters, DatePreset, PaymentFilter, SortOption } from '@/components/transactions/useTransactionFilters';
+import { tr } from '@/lib/i18n/core';
 
 export type { DatePreset, PaymentFilter, SortOption };
 
@@ -105,9 +106,9 @@ export default function TransactionsPage() {
       customerName: selectedCustomerObj?.name,
     });
     if (res.ok) {
-      showTxToast(res.path ? 'Bulk Invoices PDF saved to Documents folder!' : 'Print/PDF dialog opened.', 'success');
+      showTxToast(res.path ? tr('Bulk Invoices PDF saved to Documents folder!') : tr('Print/PDF dialog opened.'), 'success');
     } else {
-      showTxToast(res.error || 'Failed to generate bulk PDF.', 'error');
+      showTxToast(res.error || tr('Failed to generate bulk PDF.'), 'error');
     }
   };
 
@@ -202,12 +203,12 @@ export default function TransactionsPage() {
       };
       await db.sales.put(updatedSale);
 
-      showTxToast(`🎉 Estimate converted to Tax Invoice #${invoiceNumber}! Inventory updated.`, 'success');
+      showTxToast(tr('🎉 Estimate converted to Tax Invoice #{invoiceNumber}! Inventory updated.', { invoiceNumber: invoiceNumber }), 'success');
       setActiveSaleForInvoice(updatedSale);
       setIsInvoiceModalOpen(true);
     } catch (err) {
       console.error('Failed to convert estimate to invoice:', err);
-      showTxToast('Failed to convert estimate to tax invoice.', 'error');
+      showTxToast(tr('Failed to convert estimate to tax invoice.'), 'error');
     }
   };
 
@@ -227,7 +228,7 @@ export default function TransactionsPage() {
   // Export 1-Click Tally Prime XML
   const handleExportTallyXML = () => {
     if (filteredSales.length === 0) {
-      showAlert('No transactions to export.');
+      showAlert(tr('No transactions to export.'));
       return;
     }
     const { xml, filename } = generateTallyPrimeXML({
@@ -250,10 +251,10 @@ export default function TransactionsPage() {
     try {
       await db.sales.clear();
       await db.sales_returns.clear();
-      showTxToast('All transaction history cleared successfully.', 'success');
+      showTxToast(tr('All transaction history cleared successfully.'), 'success');
     } catch (err) {
       console.error('Failed to clear history:', err);
-      showTxToast('Failed to clear transaction history.', 'error');
+      showTxToast(tr('Failed to clear transaction history.'), 'error');
     }
   };
 
@@ -308,10 +309,10 @@ export default function TransactionsPage() {
       <Card className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xs overflow-hidden">
         <div className="p-3 sm:p-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
           <span className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-            Transactions ({filteredSales.length})
+            {tr('Transactions (')}{filteredSales.length})
           </span>
           <span className="text-[11px] text-slate-400 font-medium">
-            Tap any row to view &amp; print tax invoice
+            {tr('Tap any row to view & print tax invoice')}
           </span>
         </div>
 
@@ -320,10 +321,10 @@ export default function TransactionsPage() {
           <div className="px-3.5 py-2 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-800/60 flex items-center justify-between text-xs">
             <div className="flex items-center gap-2">
               <span className="font-bold text-amber-950 dark:text-amber-200">
-                Filtered Customer: <span className="font-black underline">{selectedCustomerId === 'walk-in' ? 'Walk-in (Unregistered)' : (customers.find((c) => c.id === selectedCustomerId)?.name || selectedCustomerId)}</span>
+                {tr('Filtered Customer:')} <span className="font-black underline">{selectedCustomerId === 'walk-in' ? tr('Walk-in (Unregistered)') : (customers.find((c) => c.id === selectedCustomerId)?.name || selectedCustomerId)}</span>
               </span>
               <span className="px-2 py-0.5 rounded-full bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-100 font-bold text-[11px]">
-                {filteredSales.length} {filteredSales.length === 1 ? 'Bill' : 'Bills'} • Total: {formatINR(totalRevenuePaise)}
+                {filteredSales.length} {filteredSales.length === 1 ? tr('Bill') : tr('Bills')} {tr('• Total:')} {formatINR(totalRevenuePaise)}
               </span>
             </div>
             <button
@@ -331,7 +332,7 @@ export default function TransactionsPage() {
               onClick={() => setSelectedCustomerId('all')}
               className="text-xs text-amber-800 dark:text-amber-300 hover:underline font-bold cursor-pointer"
             >
-              Clear Filter ✕
+              {tr('Clear Filter ✕')}
             </button>
           </div>
         )}
@@ -339,12 +340,12 @@ export default function TransactionsPage() {
         {filteredSales.length === 0 ? (
           <div className="p-12 text-center text-slate-500 space-y-2">
             <Receipt className="w-8 h-8 mx-auto text-slate-400 opacity-60" />
-            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">No matching transactions found</h3>
+            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">{tr('No matching transactions found')}</h3>
             <p className="text-xs text-slate-400 max-w-sm mx-auto">
-              Try adjusting your date range, customer selection, or payment mode filters.
+              {tr('Try adjusting your date range, customer selection, or payment mode filters.')}
             </p>
             <Button size="sm" variant="outline" onClick={clearAllFilters} className="mt-2 text-xs rounded-xl">
-              Reset All Filters
+              {tr('Reset All Filters')}
             </Button>
           </div>
         ) : (
@@ -369,7 +370,7 @@ export default function TransactionsPage() {
             {filteredSales.length > visibleCount && (
               <div className="p-3 flex items-center justify-center gap-3">
                 <span className="text-[11px] text-slate-500 font-medium">
-                  Showing {visibleCount} of {filteredSales.length}
+                  {tr('Showing')} {visibleCount} {tr('of')} {filteredSales.length}
                 </span>
                 <Button
                   size="sm"
@@ -377,7 +378,7 @@ export default function TransactionsPage() {
                   onClick={() => setVisibleCount((n) => n + TX_PAGE_SIZE)}
                   className="text-xs rounded-xl cursor-pointer"
                 >
-                  Show {Math.min(TX_PAGE_SIZE, filteredSales.length - visibleCount)} more
+                  {tr('Show')} {Math.min(TX_PAGE_SIZE, filteredSales.length - visibleCount)} {tr('more')}
                 </Button>
               </div>
             )}

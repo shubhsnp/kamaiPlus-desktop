@@ -4,16 +4,17 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { CartItem, Business, ProductUnit } from '@/types';
 import { cn } from '@/lib/utils';
+import { tr } from '@/lib/i18n/core';
 
 export function getQuantityConfigForUnit(unit?: ProductUnit) {
   const normUnit = (unit || '').toLowerCase() || 'piece';
 
   if (normUnit === 'kg') {
     return {
-      unitLabel: 'Weight (Kilograms - kg)',
+      unitLabel: tr('Weight (Kilograms - kg)'),
       step: 'any',
-      placeholder: 'e.g. 0.05, 0.25, 0.5, 1',
-      decimalNotice: 'Decimals supported (Grams / Kg)',
+      placeholder: tr('e.g. 0.05, 0.25, 0.5, 1'),
+      decimalNotice: tr('Decimals supported (Grams / Kg)'),
       chips: [
         { label: '10g', val: '0.01' },
         { label: '25g', val: '0.025' },
@@ -21,19 +22,19 @@ export function getQuantityConfigForUnit(unit?: ProductUnit) {
         { label: '100g', val: '0.1' },
         { label: '250g', val: '0.25' },
         { label: '500g', val: '0.5' },
-        { label: '1 kg', val: '1' },
-        { label: '2 kg', val: '2' },
-        { label: '5 kg', val: '5' },
+        { label: tr('1 kg'), val: '1' },
+        { label: tr('2 kg'), val: '2' },
+        { label: tr('5 kg'), val: '5' },
       ],
     };
   }
 
   if (normUnit === 'gram') {
     return {
-      unitLabel: 'Weight (Grams - g)',
+      unitLabel: tr('Weight (Grams - g)'),
       step: 'any',
-      placeholder: 'e.g. 10, 25, 50, 100, 250, 500',
-      decimalNotice: 'Grams count',
+      placeholder: tr('e.g. 10, 25, 50, 100, 250, 500'),
+      decimalNotice: tr('Grams count'),
       chips: [
         { label: '10g', val: '10' },
         { label: '25g', val: '25' },
@@ -48,10 +49,10 @@ export function getQuantityConfigForUnit(unit?: ProductUnit) {
 
   if (normUnit === 'litre') {
     return {
-      unitLabel: 'Volume (Litres - L)',
+      unitLabel: tr('Volume (Litres - L)'),
       step: 'any',
-      placeholder: 'e.g. 0.25, 0.5, 1, 2',
-      decimalNotice: 'Decimals supported (ml / Litres)',
+      placeholder: tr('e.g. 0.25, 0.5, 1, 2'),
+      decimalNotice: tr('Decimals supported (ml / Litres)'),
       chips: [
         { label: '100ml', val: '0.1' },
         { label: '250ml', val: '0.25' },
@@ -65,62 +66,62 @@ export function getQuantityConfigForUnit(unit?: ProductUnit) {
 
   if (normUnit === 'ml') {
     return {
-      unitLabel: 'Volume (Millilitres - ml)',
+      unitLabel: tr('Volume (Millilitres - ml)'),
       step: '1',
-      placeholder: 'e.g. 50, 100, 250, 500',
-      decimalNotice: 'Millilitres count',
+      placeholder: tr('e.g. 50, 100, 250, 500'),
+      decimalNotice: tr('Millilitres count'),
       chips: [
-        { label: '50 ml', val: '50' },
-        { label: '100 ml', val: '100' },
-        { label: '200 ml', val: '200' },
-        { label: '250 ml', val: '250' },
-        { label: '500 ml', val: '500' },
-        { label: '1000 ml', val: '1000' },
+        { label: tr('50 ml'), val: '50' },
+        { label: tr('100 ml'), val: '100' },
+        { label: tr('200 ml'), val: '200' },
+        { label: tr('250 ml'), val: '250' },
+        { label: tr('500 ml'), val: '500' },
+        { label: tr('1000 ml'), val: '1000' },
       ],
     };
   }
 
   if (normUnit === 'strip') {
     return {
-      unitLabel: 'Quantity (Strips)',
+      unitLabel: tr('Quantity (Strips)'),
       step: 'any',
-      placeholder: 'e.g. 1, 2, 3 or 0.5 (half strip)',
-      decimalNotice: 'Strip counts (0.5 for loose/half strip)',
+      placeholder: tr('e.g. 1, 2, 3 or 0.5 (half strip)'),
+      decimalNotice: tr('Strip counts (0.5 for loose/half strip)'),
       chips: [
-        { label: '1 Strip', val: '1' },
-        { label: '2 Strips', val: '2' },
-        { label: '3 Strips', val: '3' },
-        { label: '4 Strips', val: '4' },
-        { label: '5 Strips', val: '5' },
-        { label: '10 Strips', val: '10' },
-        { label: '½ Strip (Loose)', val: '0.5' },
+        { label: tr('1 Strip'), val: '1' },
+        { label: tr('2 Strips'), val: '2' },
+        { label: tr('3 Strips'), val: '3' },
+        { label: tr('4 Strips'), val: '4' },
+        { label: tr('5 Strips'), val: '5' },
+        { label: tr('10 Strips'), val: '10' },
+        { label: tr('½ Strip (Loose)'), val: '0.5' },
       ],
     };
   }
 
   if (normUnit === 'dozen') {
     return {
-      unitLabel: 'Quantity (Dozen)',
+      unitLabel: tr('Quantity (Dozen)'),
       step: 'any',
-      placeholder: 'e.g. 0.5, 1, 1.5, 2',
-      decimalNotice: 'Dozen count (0.5 = 6 pcs)',
+      placeholder: tr('e.g. 0.5, 1, 1.5, 2'),
+      decimalNotice: tr('Dozen count (0.5 = 6 pcs)'),
       chips: [
-        { label: '½ Dozen (6)', val: '0.5' },
-        { label: '1 Dozen (12)', val: '1' },
-        { label: '1.5 Dozen (18)', val: '1.5' },
-        { label: '2 Dozen (24)', val: '2' },
-        { label: '3 Dozen (36)', val: '3' },
-        { label: '5 Dozen (60)', val: '5' },
+        { label: tr('½ Dozen (6)'), val: '0.5' },
+        { label: tr('1 Dozen (12)'), val: '1' },
+        { label: tr('1.5 Dozen (18)'), val: '1.5' },
+        { label: tr('2 Dozen (24)'), val: '2' },
+        { label: tr('3 Dozen (36)'), val: '3' },
+        { label: tr('5 Dozen (60)'), val: '5' },
       ],
     };
   }
 
   if (normUnit === 'meter' || normUnit === 'foot' || normUnit === 'sqft') {
     return {
-      unitLabel: `Length / Area (${normUnit.toUpperCase()})`,
+      unitLabel: tr('Length / Area ({v1})', { v1: normUnit.toUpperCase() }),
       step: 'any',
-      placeholder: 'e.g. 0.5, 1, 2.5, 5',
-      decimalNotice: 'Decimals supported',
+      placeholder: tr('e.g. 0.5, 1, 2.5, 5'),
+      decimalNotice: tr('Decimals supported'),
       chips: [
         { label: '0.5', val: '0.5' },
         { label: '1', val: '1' },
@@ -135,13 +136,13 @@ export function getQuantityConfigForUnit(unit?: ProductUnit) {
 
   if (normUnit === 'plate' || normUnit === 'portion') {
     return {
-      unitLabel: `Order Quantity (${normUnit === 'plate' ? 'Plates' : 'Portions'})`,
+      unitLabel: normUnit === 'plate' ? tr('Order Quantity (Plates)') : tr('Order Quantity (Portions)'),
       step: 'any',
-      placeholder: 'e.g. 0.5 (half), 1 (full), 2',
-      decimalNotice: 'Plates / Portions (0.5 for Half)',
+      placeholder: tr('e.g. 0.5 (half), 1 (full), 2'),
+      decimalNotice: tr('Plates / Portions (0.5 for Half)'),
       chips: [
-        { label: '½ (Half)', val: '0.5' },
-        { label: '1 (Full)', val: '1' },
+        { label: tr('½ (Half)'), val: '0.5' },
+        { label: tr('1 (Full)'), val: '1' },
         { label: '2', val: '2' },
         { label: '3', val: '3' },
         { label: '4', val: '4' },
@@ -151,10 +152,10 @@ export function getQuantityConfigForUnit(unit?: ProductUnit) {
   }
 
   return {
-    unitLabel: `Quantity (${normUnit.charAt(0).toUpperCase() + normUnit.slice(1)})`,
+    unitLabel: tr('Quantity ({v1})', { v1: normUnit.charAt(0).toUpperCase() + normUnit.slice(1) }),
     step: '1',
-    placeholder: 'e.g. 1, 2, 3, 5',
-    decimalNotice: 'Whole count / Units',
+    placeholder: tr('e.g. 1, 2, 3, 5'),
+    decimalNotice: tr('Whole count / Units'),
     chips: [
       { label: '1', val: '1' },
       { label: '2', val: '2' },
@@ -206,7 +207,7 @@ export const PosItemEditModal: React.FC<PosItemEditModalProps> = ({
     <Modal
       isOpen={Boolean(editingCartItem)}
       onClose={() => setEditingCartItem(null)}
-      title={`Edit Item: ${editingCartItem.product_name || ''}`}
+      title={tr('Edit Item: {v1}', { v1: editingCartItem.product_name || '' })}
       size="sm"
     >
       <div className="space-y-3 p-2">
@@ -215,7 +216,7 @@ export const PosItemEditModal: React.FC<PosItemEditModalProps> = ({
             <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
               <span>{qtyConfig.unitLabel}</span>
               <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 font-mono text-[10px] font-black uppercase">
-                {editingCartItem.unit || 'Unit'}
+                {editingCartItem.unit || tr('Unit')}
               </span>
             </label>
             <span className="text-[10px] text-slate-500 font-semibold">{qtyConfig.decimalNotice}</span>
@@ -247,7 +248,7 @@ export const PosItemEditModal: React.FC<PosItemEditModalProps> = ({
         </div>
 
         <div>
-          <label className="text-xs font-bold text-slate-700 block mb-1">Unit Price (₹)</label>
+          <label className="text-xs font-bold text-slate-700 block mb-1">{tr('Unit Price (₹)')}</label>
           <Input
             type="number"
             step="0.01"
@@ -258,7 +259,7 @@ export const PosItemEditModal: React.FC<PosItemEditModalProps> = ({
 
         <div className="space-y-1.5 p-2.5 bg-slate-50 border border-slate-200 rounded-xl">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-slate-700">Line Item Discount</label>
+            <label className="text-xs font-bold text-slate-700">{tr('Line Item Discount')}</label>
             <div className="flex items-center p-0.5 bg-slate-200/80 rounded-lg">
               <button
                 type="button"
@@ -270,7 +271,7 @@ export const PosItemEditModal: React.FC<PosItemEditModalProps> = ({
                     : 'text-slate-600 hover:text-slate-900'
                 )}
               >
-                ₹ Flat
+                {tr('₹ Flat')}
               </button>
               <button
                 type="button"
@@ -282,7 +283,7 @@ export const PosItemEditModal: React.FC<PosItemEditModalProps> = ({
                     : 'text-slate-600 hover:text-slate-900'
                 )}
               >
-                % Percent
+                {tr('% Percent')}
               </button>
             </div>
           </div>
@@ -293,7 +294,7 @@ export const PosItemEditModal: React.FC<PosItemEditModalProps> = ({
               step={editItemDiscountType === 'percentage' ? '1' : '0.01'}
               min="0"
               max={editItemDiscountType === 'percentage' ? 100 : undefined}
-              placeholder={editItemDiscountType === 'percentage' ? 'e.g. 10 for 10%' : '0.00'}
+              placeholder={editItemDiscountType === 'percentage' ? tr('e.g. 10 for 10%') : '0.00'}
               value={editItemDiscount}
               onChange={(e) => setEditItemDiscount(e.target.value)}
               leftIcon={<span className="text-xs font-bold text-slate-500">{editItemDiscountType === 'percentage' ? '%' : '₹'}</span>}
@@ -331,8 +332,8 @@ export const PosItemEditModal: React.FC<PosItemEditModalProps> = ({
               const netRupees = Math.max(0, qty * unitPrice - discountRupees);
               return (
                 <div className="flex items-center justify-between text-[11px] font-bold text-emerald-800 pt-1">
-                  <span>Savings: -₹{discountRupees.toFixed(2)}</span>
-                  <span>Net Total: ₹{netRupees.toFixed(2)}</span>
+                  <span>{tr('Savings: -₹')}{discountRupees.toFixed(2)}</span>
+                  <span>{tr('Net Total: ₹')}{netRupees.toFixed(2)}</span>
                 </div>
               );
             }
@@ -342,10 +343,10 @@ export const PosItemEditModal: React.FC<PosItemEditModalProps> = ({
 
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="outline" size="sm" onClick={() => setEditingCartItem(null)}>
-            Cancel
+            {tr('Cancel')}
           </Button>
           <Button size="sm" onClick={handleSaveEditItem} className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold">
-            Update Line Item
+            {tr('Update Line Item')}
           </Button>
         </div>
       </div>

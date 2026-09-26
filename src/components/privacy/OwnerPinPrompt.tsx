@@ -6,6 +6,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { hasOwnerPin, verifyOwnerPin } from '@/lib/auth/cashierPrivacy';
 import { OwnerPinSetup } from './OwnerPinSetup';
+import { tr } from '@/lib/i18n/core';
 
 /**
  * Asks for the 4-digit owner PIN before showing profit and margins on one
@@ -32,7 +33,7 @@ export function OwnerPinPrompt({ isOpen, onClose, onUnlocked }: { isOpen: boolea
       onUnlocked();
       onClose();
     } else {
-      setError('Incorrect PIN.');
+      setError(tr('Incorrect PIN.'));
     }
   };
 
@@ -42,10 +43,10 @@ export function OwnerPinPrompt({ isOpen, onClose, onUnlocked }: { isOpen: boolea
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={settingUp ? 'Set your owner PIN' : 'Owner PIN required'} description="Profit and margins are hidden from staff." size="sm">
+    <Modal isOpen={isOpen} onClose={onClose} title={settingUp ? tr('Set your owner PIN') : tr('Owner PIN required')} description={tr('Profit and margins are hidden from staff.')} size="sm">
       {settingUp ? (
         <OwnerPinSetup
-          intro={hasOwnerPin() ? 'Reset the owner PIN with your master password.' : 'Choose a 4-digit PIN that only you know. Staff will need it to see profit and cost prices.'}
+          intro={hasOwnerPin() ? tr('Reset the owner PIN with your master password.') : tr('Choose a 4-digit PIN that only you know. Staff will need it to see profit and cost prices.')}
           onDone={unlocked}
           onCancel={hasOwnerPin() ? () => setSettingUp(false) : undefined}
         />
@@ -63,10 +64,10 @@ export function OwnerPinPrompt({ isOpen, onClose, onUnlocked }: { isOpen: boolea
           />
           {error && <p className="text-xs font-bold text-rose-600">{error}</p>}
           <Button type="submit" className="w-full" disabled={pin.length !== 4}>
-            <KeyRound className="w-4 h-4" /> Show Profit
+            <KeyRound className="w-4 h-4" /> {tr('Show Profit')}
           </Button>
           <button type="button" onClick={() => setSettingUp(true)} className="w-full text-xs font-bold text-amber-700 hover:underline">
-            Forgot PIN? Reset it with your master password
+            {tr('Forgot PIN? Reset it with your master password')}
           </button>
         </form>
       )}

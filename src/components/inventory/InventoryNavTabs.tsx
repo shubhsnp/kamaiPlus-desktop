@@ -8,6 +8,7 @@ import {
   Layers 
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { tr } from '@/lib/i18n/core';
 
 export type InventoryTabType = 'reorder' | 'movements';
 
@@ -25,14 +26,14 @@ export const InventoryNavTabs: React.FC<InventoryNavTabsProps> = ({
   const tabs = [
     {
       id: 'reorder' as InventoryTabType,
-      label: `Reorder Radar (${lowStockCount})`,
+      label: tr('Reorder Radar ({lowStockCount})', { lowStockCount: lowStockCount }),
       icon: AlertTriangle,
       badge: lowStockCount > 0 ? lowStockCount : null,
       badgeColor: 'bg-rose-500 text-white',
     },
     {
       id: 'movements' as InventoryTabType,
-      label: 'Stock Audit Trail',
+      label: tr('Stock Audit Trail'),
       icon: History,
       badge: null,
       badgeColor: '',

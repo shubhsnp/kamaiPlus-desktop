@@ -34,6 +34,7 @@ import {
   QrCode,
   BookOpen
 } from 'lucide-react';
+import { tr } from '@/lib/i18n/core';
 
 interface EditInvoiceModalProps {
   isOpen: boolean;
@@ -214,18 +215,18 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
   const handleSaveInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
     if (items.length === 0) {
-      showAlert('Invoice must have at least 1 item.');
+      showAlert(tr('Invoice must have at least 1 item.'));
       return;
     }
     if (sale.status === 'returned' || sale.status === 'partial_return') {
-      showAlert('This bill has a sales return against it, so it cannot be edited. The return already adjusted stock and khata.');
+      showAlert(tr('This bill has a sales return against it, so it cannot be edited. The return already adjusted stock and khata.'));
       return;
     }
     const requestedNumber = invoiceNumber.trim();
     if (requestedNumber && requestedNumber !== sale.invoice_number) {
       const clash = await db.sales.where('invoice_number').equals(requestedNumber).first();
       if (clash && clash.id !== sale.id) {
-        showAlert(`Invoice number ${requestedNumber} is already used by another bill.`);
+        showAlert(tr('Invoice number {requestedNumber} is already used by another bill.', { requestedNumber: requestedNumber }));
         return;
       }
     }
@@ -359,7 +360,7 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
       onClose();
     } catch (err: any) {
       console.error('Error saving edited invoice:', err);
-      showAlert('Failed to save invoice changes. Please try again.');
+      showAlert(tr('Failed to save invoice changes. Please try again.'));
     } finally {
       setIsSaving(false);
     }
@@ -378,38 +379,38 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
       title={
         <div className="flex items-center gap-2">
           <Edit3 className="w-4 h-4 text-amber-600" />
-          <span>Edit Invoice #{sale.invoice_number}</span>
+          <span>{tr('Edit Invoice #')}{sale.invoice_number}</span>
         </div>
       }
-      description="Modify items, quantities, customer details or payment. Stock and Khata ledger will be updated automatically."
+      description={tr('Modify items, quantities, customer details or payment. Stock and Khata ledger will be updated automatically.')}
       size="xl"
     >
       <form onSubmit={handleSaveInvoice} className="space-y-4 p-1">
         {/* Invoice & Customer Information Edit */}
         <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-700 block">
-            Invoice &amp; Customer Information
+            {tr('Invoice & Customer Information')}
           </span>
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
             <div>
-              <label className="text-[11px] font-bold text-slate-600 block mb-1">Invoice Number *</label>
+              <label className="text-[11px] font-bold text-slate-600 block mb-1">{tr('Invoice Number *')}</label>
               <Input
                 value={invoiceNumber}
                 onChange={(e) => setInvoiceNumber(e.target.value)}
-                placeholder="INV-001"
+                placeholder={tr('INV-001')}
                 required
               />
             </div>
             <div>
-              <label className="text-[11px] font-bold text-slate-600 block mb-1">Customer Name</label>
+              <label className="text-[11px] font-bold text-slate-600 block mb-1">{tr('Customer Name')}</label>
               <Input
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="Cash Customer"
+                placeholder={tr('Cash Customer')}
               />
             </div>
             <div>
-              <label className="text-[11px] font-bold text-slate-600 block mb-1">Phone Number</label>
+              <label className="text-[11px] font-bold text-slate-600 block mb-1">{tr('Phone Number')}</label>
               <Input
                 value={customerPhone}
                 onChange={(e) => setCustomerPhone(e.target.value)}
@@ -418,11 +419,11 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
               />
             </div>
             <div>
-              <label className="text-[11px] font-bold text-slate-600 block mb-1">Billing Address</label>
+              <label className="text-[11px] font-bold text-slate-600 block mb-1">{tr('Billing Address')}</label>
               <Input
                 value={customerAddress}
                 onChange={(e) => setCustomerAddress(e.target.value)}
-                placeholder="Address / Locality"
+                placeholder={tr('Address / Locality')}
               />
             </div>
           </div>
@@ -432,7 +433,7 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
-              Invoice Items ({items.length})
+              {tr('Invoice Items (')}{items.length})
             </span>
             <Button
               type="button"
@@ -442,7 +443,7 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
               className="text-xs font-bold gap-1 text-slate-800"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>+ Add Item</span>
+              <span>{tr('+ Add Item')}</span>
             </Button>
           </div>
 
@@ -450,7 +451,7 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
           {isAddingProduct && (
             <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-amber-950">Select Product to Add to Invoice:</span>
+                <span className="text-xs font-bold text-amber-950">{tr('Select Product to Add to Invoice:')}</span>
                 <button
                   type="button"
                   onClick={() => setIsAddingProduct(false)}
@@ -460,7 +461,7 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
                 </button>
               </div>
               <Input
-                placeholder="Search catalog by product name..."
+                placeholder={tr('Search catalog by product name...')}
                 value={productSearch}
                 onChange={(e) => setProductSearch(e.target.value)}
                 autoFocus
@@ -495,7 +496,7 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
 
                 {/* Rate Input */}
                 <div className="w-20">
-                  <label className="text-[9px] font-bold text-slate-400 uppercase block">Rate (₹)</label>
+                  <label className="text-[9px] font-bold text-slate-400 uppercase block">{tr('Rate (₹)')}</label>
                   <input
                     type="number"
                     step="0.01"
@@ -539,7 +540,7 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
                   type="button"
                   onClick={() => handleRemoveItem(index)}
                   className="p-1 text-slate-400 hover:text-rose-600 rounded"
-                  title="Remove item"
+                  title={tr('Remove item')}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -552,12 +553,12 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
         <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-bold text-slate-700 uppercase block mb-1">Payment Mode</label>
+              <label className="text-xs font-bold text-slate-700 uppercase block mb-1">{tr('Payment Mode')}</label>
               <div className="grid grid-cols-3 gap-1.5">
                 {[
-                  { id: 'cash', label: 'Cash', icon: Banknote },
-                  { id: 'upi', label: 'UPI / QR', icon: QrCode },
-                  { id: 'credit', label: 'Credit', icon: BookOpen },
+                  { id: 'cash', label: tr('Cash'), icon: Banknote },
+                  { id: 'upi', label: tr('UPI / QR'), icon: QrCode },
+                  { id: 'credit', label: tr('Credit'), icon: BookOpen },
                 ].map((m) => {
                   const Icon = m.icon;
                   const isSelected = paymentMethod === m.id;
@@ -582,7 +583,7 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
 
             <div>
               <label className="text-xs font-bold text-slate-700 uppercase block mb-1">
-                Amount Received (₹)
+                {tr('Amount Received (₹)')}
               </label>
               <Input
                 type="number"
@@ -598,12 +599,12 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
         {/* Invoice Summary & Action Buttons */}
         <div className="pt-3 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div>
-            <div className="text-xs text-slate-500 font-medium">New Grand Total:</div>
+            <div className="text-xs text-slate-500 font-medium">{tr('New Grand Total:')}</div>
             <div className="text-xl font-black text-slate-900 font-mono">
               {formatINR(grandTotalPaise)}
               {balanceDuePaise > 0 && (
                 <span className="text-xs font-bold text-rose-700 ml-2 font-sans">
-                  (Udhar: {formatINR(balanceDuePaise)})
+                  {tr('(Udhar:')} {formatINR(balanceDuePaise)})
                 </span>
               )}
             </div>
@@ -611,7 +612,7 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
 
           <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
             <Button variant="outline" size="sm" type="button" onClick={onClose} disabled={isSaving}>
-              Cancel
+              {tr('Cancel')}
             </Button>
             <Button
               type="submit"
@@ -620,7 +621,7 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
               className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold gap-1.5 shadow-sm"
             >
               <Save className="w-3.5 h-3.5" />
-              <span>{isSaving ? 'Updating...' : 'Save & Replace Invoice'}</span>
+              <span>{isSaving ? tr('Updating...') : tr('Save & Replace Invoice')}</span>
             </Button>
           </div>
         </div>

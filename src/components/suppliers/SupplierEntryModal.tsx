@@ -8,6 +8,7 @@ import { Supplier } from '@/types';
 import { formatINR, parseRupeesToPaise } from '@/lib/utils';
 import { localDateKey } from '@/lib/reports/cashDrawer';
 import { nextSupplierBalance, recordSupplierEntry, SupplierEntryKind, SupplierPaymentMode } from '@/lib/suppliers/supplierLedger';
+import { msg, paymentMethodLabel, tr } from '@/lib/i18n/core';
 
 interface SupplierEntryModalProps {
   isOpen: boolean;
@@ -18,9 +19,9 @@ interface SupplierEntryModalProps {
 }
 
 const MODES: { id: SupplierPaymentMode; label: string }[] = [
-  { id: 'cash', label: 'Cash' },
+  { id: 'cash', label: msg('Cash') },
   { id: 'upi', label: 'UPI' },
-  { id: 'bank', label: 'Bank / Cheque' },
+  { id: 'bank', label: msg('Bank / Cheque') },
 ];
 
 /** "Bought on credit" (you owe more) or "Paid the supplier" (you owe less). */
@@ -47,7 +48,7 @@ export function SupplierEntryModal({ isOpen, onClose, supplier, kind, onSaved }:
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (amountPaise <= 0) return setError('Enter an amount greater than ₹0.');
+    if (amountPaise <= 0) return setError(tr('Enter an amount greater than ₹0.'));
     setSaving(true);
     // Keep today's entries at the real time; a back-dated entry is placed at noon that day.
     const today = localDateKey(new Date());
@@ -61,14 +62,14 @@ export function SupplierEntryModal({ isOpen, onClose, supplier, kind, onSaved }:
       date: when,
     });
     if (!res.ok) {
-      setError(res.error || 'Could not save.');
+      setError(res.error || tr('Could not save.'));
       setSaving(false);
       return;
     }
     onSaved(
       kind === 'purchase'
-        ? `Added ${formatINR(amountPaise)} purchase for ${supplier.name}.`
-        : `Recorded ${formatINR(amountPaise)} ${mode.toUpperCase()} payment to ${supplier.name}.${mode === 'cash' ? ' Also added to today\'s cash expenses.' : ''}`
+        ? tr('Added {v1} purchase for {name}.', { v1: formatINR(amountPaise), name: supplier.name })
+        : tr('Recorded {amount} {mode} payment to {name}.', { amount: formatINR(amountPaise), mode: paymentMethodLabel(mode), name: supplier.name }) + (mode === 'cash' ? tr(" Also added to today's cash expenses.") : '')
     );
     onClose();
   };
@@ -79,16 +80,16 @@ export function SupplierEntryModal({ isOpen, onClose, supplier, kind, onSaved }:
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={isPayment ? `Pay ${supplier.name}` : `Purchase on Credit — ${supplier.name}`}
-      description={isPayment ? 'Money you paid to this supplier.' : 'Goods you bought and will pay for later.'}
+      title={isPayment ? tr('Pay {name}', { name: supplier.name }) : tr('Purchase on Credit — {name}', { name: supplier.name })}
+      description={isPayment ? tr('Money you paid to this supplier.') : tr('Goods you bought and will pay for later.')}
       size="sm"
     >
       <form onSubmit={handleSubmit} className="space-y-3">
-        <Input label="Amount (₹)" type="number" step="0.01" min="0" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus />
+        <Input label={tr('Amount (₹)')} type="number" step="0.01" min="0" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus />
 
         {isPayment && (
           <div className="space-y-1">
-            <span className="text-xs font-bold text-slate-900">Paid by</span>
+            <span className="text-xs font-bold text-slate-900">{tr('Paid by')}</span>
             <div className="flex gap-2">
               {MODES.map((m) => (
                 <button
@@ -97,31 +98,31 @@ export function SupplierEntryModal({ isOpen, onClose, supplier, kind, onSaved }:
                   onClick={() => setMode(m.id)}
                   className={`flex-1 py-2 rounded-lg border text-xs font-bold cursor-pointer ${mode === m.id ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-300 text-slate-700'}`}
                 >
-                  {m.label}
+                  {tr(m.label)}
                 </button>
               ))}
             </div>
-            {mode === 'cash' && <p className="text-[11px] text-slate-500">Cash payments also show in today&apos;s Cash Register expenses.</p>}
+            {mode === 'cash' && <p className="text-[11px] text-slate-500">{tr('Cash payments also show in today\'s Cash Register expenses.')}</p>}
           </div>
         )}
 
         <div className="grid grid-cols-2 gap-3">
-          <Input label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          <Input label={isPayment ? 'Note (optional)' : 'Bill no. / note'} value={note} onChange={(e) => setNote(e.target.value)} />
+          <Input label={tr('Date')} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <Input label={isPayment ? tr('Note (optional)') : tr('Bill no. / note')} value={note} onChange={(e) => setNote(e.target.value)} />
         </div>
 
         <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs flex justify-between">
-          <span className="text-slate-600">Balance after this entry</span>
+          <span className="text-slate-600">{tr('Balance after this entry')}</span>
           <span className={`font-black font-mono ${after > 0 ? 'text-rose-700' : after < 0 ? 'text-emerald-700' : 'text-slate-700'}`}>
-            {after > 0 ? `You owe ${formatINR(after)}` : after < 0 ? `Advance ${formatINR(-after)}` : 'Settled'}
+            {after > 0 ? tr('You owe {v1}', { v1: formatINR(after) }) : after < 0 ? tr('Advance {v1}', { v1: formatINR(-after) }) : tr('Settled')}
           </span>
         </div>
 
         {error && <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold">{error}</div>}
 
         <div className="pt-3 flex justify-end gap-2 border-t border-slate-200">
-          <Button type="button" variant="outline" size="sm" onClick={onClose}>Cancel</Button>
-          <Button type="submit" size="sm" disabled={saving}>{saving ? 'Saving…' : isPayment ? 'Save Payment' : 'Save Purchase'}</Button>
+          <Button type="button" variant="outline" size="sm" onClick={onClose}>{tr('Cancel')}</Button>
+          <Button type="submit" size="sm" disabled={saving}>{saving ? tr('Saving…') : isPayment ? tr('Save Payment') : tr('Save Purchase')}</Button>
         </div>
       </form>
     </Modal>

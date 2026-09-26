@@ -28,6 +28,7 @@ import { QuickBarcodePrintModal } from '@/components/products/QuickBarcodePrintM
 import { AddEditProductModal } from '@/components/products/AddEditProductModal';
 import { VariantRow } from '@/components/products/VariantMatrixEditor';
 import { createProductWithVariants, deleteProductAndVariants, isVariantChild, isVariantParent, tracksOwnStock } from '@/lib/products/variants';
+import { tr } from '@/lib/i18n/core';
 
 const VariantsManagerModal = dynamic(
   () => import('@/components/products/VariantsManagerModal').then((m) => m.VariantsManagerModal),
@@ -255,7 +256,7 @@ export default function ProductsPage() {
     });
 
     if (!validation.isValid) {
-      setFormError(validation.error || 'Invalid product details');
+      setFormError(validation.error || tr('Invalid product details'));
       return;
     }
 
@@ -295,12 +296,12 @@ export default function ProductsPage() {
     const useVariants = !editingProduct && variantsEnabled;
     if (useVariants) {
       if (variantRows.length === 0) {
-        setFormError('Add at least one variant (size / colour), or switch variants off.');
+        setFormError(tr('Add at least one variant (size / colour), or switch variants off.'));
         return;
       }
       const badRow = variantRows.find((r) => parseRupeesToPaise(r.price || '0') <= 0);
       if (badRow) {
-        setFormError(`Enter a selling price for variant "${badRow.label}".`);
+        setFormError(tr('Enter a selling price for variant "{label}".', { label: badRow.label }));
         return;
       }
     }
@@ -357,9 +358,9 @@ export default function ProductsPage() {
     const product = allProducts.find((p) => p.id === id);
     const variantCount = product && isVariantParent(product) ? allProducts.filter((p) => p.parent_id === id).length : 0;
     const question = variantCount
-      ? `Delete "${name}" and its ${variantCount} variants?`
-      : `Are you sure you want to delete "${name}"?`;
-    if (await showConfirm(question, { danger: true, confirmLabel: 'Delete' })) {
+      ? tr('Delete "{name}" and its {variantCount} variants?', { name: name, variantCount: variantCount })
+      : tr('Are you sure you want to delete "{name}"?', { name: name });
+    if (await showConfirm(question, { danger: true, confirmLabel: tr('Delete') })) {
       if (product) await deleteProductAndVariants(product);
       else await db.products.delete(id);
       setIsModalOpen(false);
@@ -487,8 +488,8 @@ export default function ProductsPage() {
         ) : (
           <div className="py-12 text-center text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
             <Package className="w-8 h-8 mx-auto mb-2 text-slate-300 dark:text-slate-600" />
-            <div className="font-bold text-slate-700 dark:text-slate-300 text-sm">No products found</div>
-            <p className="text-xs text-slate-400 mt-1">Try adjusting your filters or click "Add Product".</p>
+            <div className="font-bold text-slate-700 dark:text-slate-300 text-sm">{tr('No products found')}</div>
+            <p className="text-xs text-slate-400 mt-1">{tr('Try adjusting your filters or click "Add Product".')}</p>
           </div>
         )
       ) : (
@@ -509,8 +510,8 @@ export default function ProductsPage() {
           {filteredProducts.length === 0 && (
             <div className="col-span-full py-12 text-center text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
               <Package className="w-8 h-8 mx-auto mb-2 text-slate-300 dark:text-slate-600" />
-              <div className="font-bold text-slate-700 dark:text-slate-300 text-sm">No products found</div>
-              <p className="text-xs text-slate-400 mt-1">Try adjusting your filters or click "Add Product".</p>
+              <div className="font-bold text-slate-700 dark:text-slate-300 text-sm">{tr('No products found')}</div>
+              <p className="text-xs text-slate-400 mt-1">{tr('Try adjusting your filters or click "Add Product".')}</p>
             </div>
           )}
         </div>
@@ -580,13 +581,13 @@ export default function ProductsPage() {
       <Modal
         isOpen={isAddCategoryModalOpen}
         onClose={() => setIsAddCategoryModalOpen(false)}
-        title="Add New Category"
-        description="Create a product category to organize your catalog."
+        title={tr('Add New Category')}
+        description={tr('Create a product category to organize your catalog.')}
       >
         <form onSubmit={handleCreateCategory} className="space-y-3.5">
           <Input
-            label="Category Name *"
-            placeholder="e.g. Edible Oils, Dairy, Spices"
+            label={tr('Category Name *')}
+            placeholder={tr('e.g. Edible Oils, Dairy, Spices')}
             value={newCatName}
             onChange={(e) => setNewCatName(e.target.value)}
             required
@@ -594,10 +595,10 @@ export default function ProductsPage() {
           />
           <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => setIsAddCategoryModalOpen(false)}>
-              Cancel
+              {tr('Cancel')}
             </Button>
             <Button type="submit" className="font-black bg-slate-900 text-white">
-              Create Category
+              {tr('Create Category')}
             </Button>
           </div>
         </form>

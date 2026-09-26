@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { formatINR, cn } from '@/lib/utils';
 import { Calculator, CheckCircle2, AlertTriangle, Copy, RotateCcw, Printer, Check } from 'lucide-react';
 import { getDesktopApi } from '@/lib/desktop/desktopBridge';
+import { tr } from '@/lib/i18n/core';
 
 interface DenominationCalculatorModalProps {
   isOpen: boolean;
@@ -182,21 +183,21 @@ export const DenominationCalculatorModal: React.FC<DenominationCalculatorModalPr
           <div className="flex items-center gap-2">
             <Calculator className="w-5 h-5 text-purple-600" />
             <span className="font-black text-slate-900 dark:text-slate-100">
-              Denomination Tally Counter
+              {tr('Denomination Tally Counter')}
             </span>
           </div>
           <button
             type="button"
             onClick={handleReset}
             className="text-[11px] font-bold text-slate-500 hover:text-rose-600 flex items-center gap-1 cursor-pointer transition"
-            title="Reset all counts to zero"
+            title={tr('Reset all counts to zero')}
           >
             <RotateCcw className="w-3 h-3" />
-            <span>Reset</span>
+            <span>{tr('Reset')}</span>
           </button>
         </div>
       }
-      description="Physical currency notes counter with auto-draft persistence."
+      description={tr('Physical currency notes counter with auto-draft persistence.')}
       size="lg"
     >
       <div className="space-y-4">
@@ -283,7 +284,7 @@ export const DenominationCalculatorModal: React.FC<DenominationCalculatorModalPr
                     type="button"
                     onClick={() => handleCountChange(denom, count + 5)}
                     className="px-2 h-8 rounded-lg bg-emerald-100 border border-emerald-200 text-emerald-800 font-black text-[10px] flex items-center justify-center cursor-pointer active:scale-95 hover:bg-emerald-200 transition-all shadow-2xs"
-                    title="Add 5"
+                    title={tr('Add 5')}
                   >
                     +5
                   </button>
@@ -297,7 +298,7 @@ export const DenominationCalculatorModal: React.FC<DenominationCalculatorModalPr
         <div className="p-3.5 rounded-2xl bg-slate-900 text-white space-y-2 font-mono">
           <div className="flex items-center justify-between text-xs">
             <span className="text-slate-400">
-              Total Counted Cash ({totalNotesCount} Notes):
+              {tr('Total Counted Cash (')}{totalNotesCount} {tr('Notes):')}
             </span>
             <span className="text-base font-black text-emerald-400">
               {formatINR(totalCalculatedCashPaise)}
@@ -305,14 +306,14 @@ export const DenominationCalculatorModal: React.FC<DenominationCalculatorModalPr
           </div>
 
           <div className="flex items-center justify-between text-xs border-t border-slate-800 pt-1.5">
-            <span className="text-slate-400">Expected in Drawer:</span>
+            <span className="text-slate-400">{tr('Expected in Drawer:')}</span>
             <span className="font-bold text-slate-200">
               {formatINR(expectedDrawerCashPaise)}
             </span>
           </div>
 
           <div className="flex items-center justify-between text-xs border-t border-slate-800 pt-1.5">
-            <span className="text-slate-400">Discrepancy:</span>
+            <span className="text-slate-400">{tr('Discrepancy:')}</span>
             <span
               className={cn(
                 'font-black',
@@ -324,10 +325,10 @@ export const DenominationCalculatorModal: React.FC<DenominationCalculatorModalPr
               )}
             >
               {isExactMatch
-                ? 'Exact Match (₹0.00)'
+                ? tr('Exact Match (₹0.00)')
                 : isExcess
-                ? `+${formatINR(discrepancyPaise)} (Excess)`
-                : `${formatINR(discrepancyPaise)} (Shortage)`}
+                ? tr('+{v1} (Excess)', { v1: formatINR(discrepancyPaise) })
+                : tr('{v1} (Shortage)', { v1: formatINR(discrepancyPaise) })}
             </span>
           </div>
         </div>
@@ -343,7 +344,7 @@ export const DenominationCalculatorModal: React.FC<DenominationCalculatorModalPr
               className="text-xs font-bold gap-1"
             >
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{copied ? 'Copied!' : 'Copy Breakdown'}</span>
+              <span>{copied ? tr('Copied!') : tr('Copy Breakdown')}</span>
             </Button>
             <Button
               type="button"
@@ -353,13 +354,13 @@ export const DenominationCalculatorModal: React.FC<DenominationCalculatorModalPr
               className="text-xs font-bold gap-1"
             >
               <Printer className="w-3.5 h-3.5" />
-              <span>Print Slip</span>
+              <span>{tr('Print Slip')}</span>
             </Button>
           </div>
 
           <div className="flex items-center gap-2">
             <Button type="button" variant="outline" size="sm" onClick={onClose}>
-              Close
+              {tr('Close')}
             </Button>
             {onConfirmCloseShift && (
               <Button
@@ -371,7 +372,7 @@ export const DenominationCalculatorModal: React.FC<DenominationCalculatorModalPr
                 }
                 className="bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-950 font-black text-xs"
               >
-                {isSubmitting ? 'Closing...' : 'Confirm & Close Shift'}
+                {isSubmitting ? tr('Closing...') : tr('Confirm & Close Shift')}
               </Button>
             )}
           </div>

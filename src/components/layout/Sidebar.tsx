@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { APP_VERSION } from '@/lib/constants/version';
 import { cn } from '@/lib/utils';
+import { tr } from '@/lib/i18n/core';
 
 interface SidebarProps {
   isCollapsed?: boolean;
@@ -81,43 +82,43 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const sections = useMemo(() => [
     {
-      title: 'POS & Counter',
+      title: tr('POS & Counter'),
       dotColor: 'bg-emerald-500',
       items: [
-        { href: '/', label: t('nav.dashboard') || 'Dashboard', icon: Home, iconBg: 'bg-slate-100 text-slate-700', activeIcon: 'text-white' },
-        { href: '/billing', label: 'Billing POS', icon: Receipt, iconBg: 'bg-emerald-100 text-emerald-800', activeIcon: 'text-emerald-300' },
-        { href: '/cash-register', label: 'Cash Register', icon: Calculator, iconBg: 'bg-amber-100 text-amber-900', activeIcon: 'text-amber-300' },
-        { href: '/barcode-generator', label: 'Barcode Studio', icon: Barcode, iconBg: 'bg-purple-100 text-purple-800', activeIcon: 'text-purple-300' },
-        { href: '/transactions', label: 'Transactions', icon: ShieldCheck, iconBg: 'bg-teal-100 text-teal-800', activeIcon: 'text-teal-300' },
-        { href: '/reports', label: 'Sales Analytics', icon: LineChart, iconBg: 'bg-indigo-100 text-indigo-800', activeIcon: 'text-indigo-300' },
+        { href: '/', label: tr('Home'), icon: Home, iconBg: 'bg-slate-100 text-slate-700', activeIcon: 'text-white' },
+        { href: '/billing', label: tr('Billing POS'), icon: Receipt, iconBg: 'bg-emerald-100 text-emerald-800', activeIcon: 'text-emerald-300' },
+        { href: '/cash-register', label: tr('Cash Register'), icon: Calculator, iconBg: 'bg-amber-100 text-amber-900', activeIcon: 'text-amber-300' },
+        { href: '/barcode-generator', label: tr('Barcode Studio'), icon: Barcode, iconBg: 'bg-purple-100 text-purple-800', activeIcon: 'text-purple-300' },
+        { href: '/transactions', label: tr('Transactions'), icon: ShieldCheck, iconBg: 'bg-teal-100 text-teal-800', activeIcon: 'text-teal-300' },
+        { href: '/reports', label: tr('Sales Analytics'), icon: LineChart, iconBg: 'bg-indigo-100 text-indigo-800', activeIcon: 'text-indigo-300' },
       ],
     },
     {
-      title: 'Stock & Sourcing',
+      title: tr('Stock & Sourcing'),
       dotColor: 'bg-blue-500',
       items: [
-        { href: '/products', label: t('nav.products') || 'Products', icon: Package, iconBg: 'bg-blue-100 text-blue-800', activeIcon: 'text-blue-300' },
-        { href: '/inventory', label: 'Inventory & Stock', icon: Boxes, iconBg: 'bg-cyan-100 text-cyan-800', activeIcon: 'text-cyan-300' },
-        { href: '/purchases', label: 'Purchases & Bills', icon: ShoppingBag, iconBg: 'bg-amber-100 text-amber-800', activeIcon: 'text-amber-300' },
-        { href: '/suppliers', label: 'Suppliers', icon: Truck, iconBg: 'bg-orange-100 text-orange-800', activeIcon: 'text-orange-300' },
+        { href: '/products', label: tr('Products'), icon: Package, iconBg: 'bg-blue-100 text-blue-800', activeIcon: 'text-blue-300' },
+        { href: '/inventory', label: tr('Inventory & Stock'), icon: Boxes, iconBg: 'bg-cyan-100 text-cyan-800', activeIcon: 'text-cyan-300' },
+        { href: '/purchases', label: tr('Purchases & Bills'), icon: ShoppingBag, iconBg: 'bg-amber-100 text-amber-800', activeIcon: 'text-amber-300' },
+        { href: '/suppliers', label: tr('Suppliers'), icon: Truck, iconBg: 'bg-orange-100 text-orange-800', activeIcon: 'text-orange-300' },
       ],
     },
     {
-      title: 'Ledger & Customers',
+      title: tr('Ledger & Customers'),
       dotColor: 'bg-amber-500',
       items: [
-        { href: '/khata', label: 'Khata Ledger', icon: BookOpen, iconBg: 'bg-amber-100 text-amber-800', activeIcon: 'text-amber-300' },
-        { href: '/customers', label: 'Customers', icon: Users, iconBg: 'bg-sky-100 text-sky-800', activeIcon: 'text-sky-300' },
+        { href: '/khata', label: tr('Khata Ledger'), icon: BookOpen, iconBg: 'bg-amber-100 text-amber-800', activeIcon: 'text-amber-300' },
+        { href: '/customers', label: tr('Customers'), icon: Users, iconBg: 'bg-sky-100 text-sky-800', activeIcon: 'text-sky-300' },
       ],
     },
     {
-      title: 'Tax & Settings',
+      title: tr('Tax & Settings'),
       dotColor: 'bg-purple-500',
       items: [
-        { href: '/gst-reports', label: 'GST & Accounting', icon: FileSpreadsheet, iconBg: 'bg-indigo-100 text-indigo-800', activeIcon: 'text-indigo-300' },
-        { href: '/invoice-designer', label: 'Invoice Themes', icon: Palette, iconBg: 'bg-amber-100 text-amber-800', activeIcon: 'text-amber-300' },
-        { href: '/cloud-backup', label: 'Backup & Restore', icon: HardDrive, iconBg: 'bg-sky-100 text-sky-800', activeIcon: 'text-sky-300' },
-        { href: '/settings', label: t('nav.settings') || 'Settings', icon: Settings, iconBg: 'bg-slate-100 text-slate-700', activeIcon: 'text-slate-300' },
+        { href: '/gst-reports', label: tr('GST & Accounting'), icon: FileSpreadsheet, iconBg: 'bg-indigo-100 text-indigo-800', activeIcon: 'text-indigo-300' },
+        { href: '/invoice-designer', label: tr('Invoice Themes'), icon: Palette, iconBg: 'bg-amber-100 text-amber-800', activeIcon: 'text-amber-300' },
+        { href: '/cloud-backup', label: tr('Backup & Restore'), icon: HardDrive, iconBg: 'bg-sky-100 text-sky-800', activeIcon: 'text-sky-300' },
+        { href: '/settings', label: tr('Settings'), icon: Settings, iconBg: 'bg-slate-100 text-slate-700', activeIcon: 'text-slate-300' },
       ],
     },
   ], [t]);
@@ -135,14 +136,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className={cn('flex items-center', isCollapsed ? 'justify-center pb-1' : 'justify-between px-1 pb-0.5')}>
           {!isCollapsed && (
             <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-              Workspace
+              {tr('Workspace')}
             </span>
           )}
           <button
             type="button"
             onClick={handleToggle}
             className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition cursor-pointer"
-            title={isCollapsed ? 'Expand Sidebar (Ctrl+B)' : 'Collapse Sidebar (Ctrl+B)'}
+            title={isCollapsed ? tr('Expand Sidebar (Ctrl+B)') : tr('Collapse Sidebar (Ctrl+B)')}
           >
             {isCollapsed ? (
               <PanelLeftOpen className="w-4 h-4" />
@@ -222,7 +223,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       )}>
         <span 
           className="flex items-center gap-1.5 cursor-default"
-          title={`KamaiPlus Desktop v${APP_VERSION}`}
+          title={tr('KamaiPlus Desktop v{APP_VERSION}', { APP_VERSION: APP_VERSION })}
         >
           <img src="/logo.png" alt="Kamai+" className="w-4 h-4 object-contain" />
           {!isCollapsed && <span className="font-bold text-slate-800">KamaiPlus</span>}

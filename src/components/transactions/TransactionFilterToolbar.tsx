@@ -11,6 +11,7 @@ import {
 import { Customer } from '@/types';
 import { cn } from '@/lib/utils';
 import { DatePreset, PaymentFilter, SortOption } from '@/app/transactions/page';
+import { tr } from '@/lib/i18n/core';
 
 interface TransactionFilterToolbarProps {
   searchQuery: string;
@@ -72,7 +73,7 @@ export const TransactionFilterToolbar: React.FC<TransactionFilterToolbarProps> =
           <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
-            placeholder="Search invoice #, customer, phone, or item..."
+            placeholder={tr('Search invoice #, customer, phone, or item...')}
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             className="w-full bg-slate-50 dark:bg-slate-800 hover:bg-white dark:hover:bg-slate-800/80 focus:bg-white dark:focus:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:border-slate-800 dark:focus:border-slate-300 rounded-xl pl-9 pr-8 py-2 text-xs text-slate-900 dark:text-slate-100 font-medium placeholder:text-slate-400 focus:outline-none transition shadow-2xs"
@@ -102,9 +103,9 @@ export const TransactionFilterToolbar: React.FC<TransactionFilterToolbarProps> =
                   : "bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
               )}
             >
-              <option value="all">👥 Cust ({totalSalesCount})</option>
-              <option value="walk-in">🚶 Walk-in</option>
-              <optgroup label="Registered">
+              <option value="all">{tr('👥 Cust (')}{totalSalesCount})</option>
+              <option value="walk-in">{tr('🚶 Walk-in')}</option>
+              <optgroup label={tr('Registered')}>
                 {customers.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name} {c.phone ? `(${c.phone})` : ''}
@@ -122,10 +123,10 @@ export const TransactionFilterToolbar: React.FC<TransactionFilterToolbarProps> =
               onChange={(e) => onSortChange(e.target.value as SortOption)}
               className="appearance-none bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-xl pl-2.5 pr-6 py-2 cursor-pointer focus:outline-none transition shadow-2xs"
             >
-              <option value="date-desc">⇅ Newest</option>
-              <option value="date-asc">⇅ Oldest</option>
-              <option value="amount-desc">⇅ ₹ High</option>
-              <option value="amount-asc">⇅ ₹ Low</option>
+              <option value="date-desc">{tr('⇅ Newest')}</option>
+              <option value="date-asc">{tr('⇅ Oldest')}</option>
+              <option value="amount-desc">{tr('⇅ ₹ High')}</option>
+              <option value="amount-asc">{tr('⇅ ₹ Low')}</option>
             </select>
             <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[9px]">▼</div>
           </div>
@@ -137,7 +138,7 @@ export const TransactionFilterToolbar: React.FC<TransactionFilterToolbarProps> =
               onClick={onClearAllFilters}
               className="text-[11px] font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 border border-rose-200 dark:border-rose-900 px-2.5 py-1.5 rounded-xl whitespace-nowrap cursor-pointer transition flex-shrink-0"
             >
-              Reset
+              {tr('Reset')}
             </button>
           )}
         </div>
@@ -148,12 +149,12 @@ export const TransactionFilterToolbar: React.FC<TransactionFilterToolbarProps> =
         {/* Date Presets Chips */}
         <div className="flex items-center gap-1 overflow-x-auto pb-0.5 text-xs font-bold scrollbar-none">
           {[
-            { id: 'all', label: 'All Dates' },
-            { id: 'today', label: '⚡ Today' },
-            { id: 'yesterday', label: '⏪ Yesterday' },
-            { id: 'week', label: '🗓️ 7 Days' },
-            { id: 'month', label: '📊 Month' },
-            { id: 'custom', label: '🔍 Custom' },
+            { id: 'all', label: tr('All Dates') },
+            { id: 'today', label: tr('⚡ Today') },
+            { id: 'yesterday', label: tr('⏪ Yesterday') },
+            { id: 'week', label: tr('🗓️ 7 Days') },
+            { id: 'month', label: tr('📊 Month') },
+            { id: 'custom', label: tr('🔍 Custom') },
           ].map((df) => (
             <button
               key={df.id}
@@ -174,10 +175,10 @@ export const TransactionFilterToolbar: React.FC<TransactionFilterToolbarProps> =
         {/* Payment Mode Chips */}
         <div className="flex items-center gap-1 overflow-x-auto pb-0.5 text-xs font-bold scrollbar-none">
           {[
-            { id: 'all', label: 'All Modes' },
-            { id: 'cash', label: '💵 Cash' },
-            { id: 'upi', label: '📱 UPI' },
-            { id: 'credit', label: '📒 Udhar' },
+            { id: 'all', label: tr('All Modes') },
+            { id: 'cash', label: tr('💵 Cash') },
+            { id: 'upi', label: tr('📱 UPI') },
+            { id: 'credit', label: tr('📒 Udhar') },
           ].map((pf) => (
             <button
               key={pf.id}
@@ -201,7 +202,7 @@ export const TransactionFilterToolbar: React.FC<TransactionFilterToolbarProps> =
         <div className="p-2.5 bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl flex flex-wrap items-center gap-2 text-xs animate-in fade-in">
           <span className="font-bold text-amber-900 dark:text-amber-200 text-xs flex items-center gap-1">
             <Calendar className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" />
-            <span>Date Range:</span>
+            <span>{tr('Date Range:')}</span>
           </span>
           <input
             type="date"
@@ -209,7 +210,7 @@ export const TransactionFilterToolbar: React.FC<TransactionFilterToolbarProps> =
             onChange={(e) => onStartDateChange(e.target.value)}
             className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-900 dark:text-slate-100 font-mono focus:outline-none"
           />
-          <span className="text-slate-400 text-xs">to</span>
+          <span className="text-slate-400 text-xs">{tr('to')}</span>
           <input
             type="date"
             value={endDate}
@@ -222,7 +223,7 @@ export const TransactionFilterToolbar: React.FC<TransactionFilterToolbarProps> =
               onClick={() => { onStartDateChange(''); onEndDateChange(''); }}
               className="text-xs font-bold text-rose-600 dark:text-rose-400 hover:underline ml-auto cursor-pointer"
             >
-              Clear Dates
+              {tr('Clear Dates')}
             </button>
           )}
         </div>

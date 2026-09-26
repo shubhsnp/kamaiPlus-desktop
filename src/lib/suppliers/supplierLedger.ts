@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { CashExpense, LedgerTransaction, Supplier } from '@/types';
+import { tr } from '@/lib/i18n/core';
 
 /**
  * Supplier (vendor) accounts — money is integer paise.
@@ -90,7 +91,7 @@ export async function deleteSupplier(id: string): Promise<{ ok: boolean; error?:
   const s = await db.suppliers.get(id);
   if (!s) return { ok: true };
   if ((s.current_balance || 0) !== 0) {
-    return { ok: false, error: 'This supplier still has a balance. Settle it to ₹0 before deleting.' };
+    return { ok: false, error: tr('This supplier still has a balance. Settle it to ₹0 before deleting.') };
   }
   await db.suppliers.delete(id);
   return { ok: true };
@@ -109,7 +110,7 @@ export interface SupplierEntryInput {
 
 export async function recordSupplierEntry(input: SupplierEntryInput): Promise<{ ok: boolean; balance?: number; error?: string }> {
   const amount = Math.round(input.amountPaise);
-  if (!Number.isFinite(amount) || amount <= 0) return { ok: false, error: 'Enter an amount greater than ₹0.' };
+  if (!Number.isFinite(amount) || amount <= 0) return { ok: false, error: tr('Enter an amount greater than ₹0.') };
 
   const when = input.date || new Date().toISOString();
   let balanceAfter = 0;
@@ -117,7 +118,7 @@ export async function recordSupplierEntry(input: SupplierEntryInput): Promise<{ 
   try {
     await db.transaction('rw', db.suppliers, db.ledger_transactions, db.cash_expenses, async () => {
       const supplier = await db.suppliers.get(input.supplierId);
-      if (!supplier) throw new Error('Supplier not found.');
+      if (!supplier) throw new Error(tr('Supplier not found.'));
 
       balanceAfter = nextSupplierBalance(supplier.current_balance || 0, input.kind, amount);
       await db.suppliers.update(supplier.id, {

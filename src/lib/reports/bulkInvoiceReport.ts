@@ -4,6 +4,7 @@ import { Business, Sale } from '@/types';
 import { formatINR } from '@/lib/utils';
 import { saveHtmlAsPdf, safeFileName } from '@/lib/print/printDocument';
 import { getDesktopApi } from '@/lib/desktop/desktopBridge';
+import { tr } from '@/lib/i18n/core';
 
 const formatDate = (dateStr: string) => {
   try {
@@ -27,7 +28,7 @@ export async function generateBulkInvoicesPDF({
   customerName,
 }: BulkInvoiceReportOptions): Promise<{ ok: boolean; path?: string; error?: string }> {
   if (!sales || sales.length === 0) {
-    return { ok: false, error: 'No invoices selected to download.' };
+    return { ok: false, error: tr('No invoices selected to download.') };
   }
 
   const storeName = business.name || 'Kamai+ Store';

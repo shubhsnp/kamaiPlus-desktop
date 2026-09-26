@@ -10,6 +10,7 @@ import {
   Layers 
 } from 'lucide-react';
 import { ProfitMask } from '@/components/privacy/ProfitMask';
+import { tr } from '@/lib/i18n/core';
 
 interface GstMetricsRibbonProps {
   totalTaxableTurnoverPaise: number;
@@ -34,15 +35,15 @@ export const GstMetricsRibbon: React.FC<GstMetricsRibbonProps> = ({
           <div className="flex items-center justify-between text-slate-500 text-[11px] font-bold">
             <span className="flex items-center gap-1 text-sky-700 dark:text-sky-400">
               <TrendingUp className="w-3.5 h-3.5 text-sky-600" />
-              <span>Taxable Value</span>
+              <span>{tr('Taxable Value')}</span>
             </span>
-            <span className="text-[10px] text-slate-400 font-mono">Turnover</span>
+            <span className="text-[10px] text-slate-400 font-mono">{tr('Turnover')}</span>
           </div>
           <div className="text-base sm:text-lg font-black font-mono text-slate-900 dark:text-slate-100 mt-0.5 leading-tight">
             <ProfitMask value={formatINR(totalTaxableTurnoverPaise)} />
           </div>
           <div className="text-[10px] text-slate-400 truncate mt-0.5">
-            Excluding tax component
+            {tr('Excluding tax component')}
           </div>
         </div>
 
@@ -51,15 +52,15 @@ export const GstMetricsRibbon: React.FC<GstMetricsRibbonProps> = ({
           <div className="flex items-center justify-between text-slate-500 text-[11px] font-bold">
             <span className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
               <Percent className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Total GST Tax</span>
+              <span>{tr('Total GST Tax')}</span>
             </span>
-            <span className="text-[10px] text-slate-400 font-mono">Collected</span>
+            <span className="text-[10px] text-slate-400 font-mono">{tr('Collected')}</span>
           </div>
           <div className="text-base sm:text-lg font-black font-mono text-emerald-600 dark:text-emerald-400 mt-0.5 leading-tight">
             {formatINR(totalGstTaxPaise)}
           </div>
           <div className="text-[10px] text-slate-400 truncate mt-0.5">
-            CGST + SGST + IGST
+            {tr('CGST + SGST + IGST')}
           </div>
         </div>
 
@@ -68,7 +69,7 @@ export const GstMetricsRibbon: React.FC<GstMetricsRibbonProps> = ({
           <div className="flex items-center justify-between text-slate-500 text-[11px] font-bold">
             <span className="flex items-center gap-1 text-amber-700 dark:text-amber-400">
               <Layers className="w-3.5 h-3.5 text-amber-600" />
-              <span>CGST / SGST</span>
+              <span>{tr('CGST / SGST')}</span>
             </span>
             <span className="text-[10px] text-slate-400 font-mono">50:50</span>
           </div>
@@ -76,7 +77,7 @@ export const GstMetricsRibbon: React.FC<GstMetricsRibbonProps> = ({
             {formatINR(totalCgstPaise)}
           </div>
           <div className="text-[10px] text-slate-400 truncate mt-0.5">
-            State &amp; Central split
+            {tr('State & Central split')}
           </div>
         </div>
 
@@ -85,7 +86,7 @@ export const GstMetricsRibbon: React.FC<GstMetricsRibbonProps> = ({
           <div className="flex items-center justify-between text-slate-500 text-[11px] font-bold">
             <span className="flex items-center gap-1 text-purple-700 dark:text-purple-400">
               <Building2 className="w-3.5 h-3.5 text-purple-600" />
-              <span>B2B Invoices</span>
+              <span>{tr('B2B Invoices')}</span>
             </span>
             <span className="text-[10px] text-slate-400 font-mono">GSTIN</span>
           </div>
@@ -93,7 +94,7 @@ export const GstMetricsRibbon: React.FC<GstMetricsRibbonProps> = ({
             {b2bInvoicesCount}
           </div>
           <div className="text-[10px] text-slate-400 truncate mt-0.5">
-            Wholesale tax bills
+            {tr('Wholesale tax bills')}
           </div>
         </div>
       </div>

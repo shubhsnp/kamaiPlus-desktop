@@ -5,6 +5,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { UserPlus } from 'lucide-react';
+import { tr } from '@/lib/i18n/core';
 
 interface QuickAddKhataCustomerModalProps {
   isOpen: boolean;
@@ -42,21 +43,21 @@ export const QuickAddKhataCustomerModal: React.FC<QuickAddKhataCustomerModalProp
       title={
         <div className="flex items-center gap-2">
           <UserPlus className="w-5 h-5 text-amber-600" />
-          <span>Add New Customer to Khata</span>
+          <span>{tr('Add New Customer to Khata')}</span>
         </div>
       }
-      description="Create a new customer account to track Udhar and payment transactions."
+      description={tr('Create a new customer account to track Udhar and payment transactions.')}
       size="md"
     >
       <form onSubmit={onSubmit} className="space-y-3.5 p-1">
         <div>
           <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-            Customer Name *
+            {tr('Customer Name *')}
           </label>
           <Input
             value={newCustName}
             onChange={(e) => setNewCustName(e.target.value)}
-            placeholder="e.g. Ramesh Kumar"
+            placeholder={tr('e.g. Ramesh Kumar')}
             required
             autoFocus
           />
@@ -64,7 +65,7 @@ export const QuickAddKhataCustomerModal: React.FC<QuickAddKhataCustomerModalProp
 
         <div>
           <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-            Phone Number (For Account Statement &amp; Reminders)
+            {tr('Phone Number (For Account Statement & Reminders)')}
           </label>
           <Input
             value={newCustPhone}
@@ -76,18 +77,18 @@ export const QuickAddKhataCustomerModal: React.FC<QuickAddKhataCustomerModalProp
 
         <div>
           <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-            Address / Locality (Optional)
+            {tr('Address / Locality (Optional)')}
           </label>
           <Input
             value={newCustAddress}
             onChange={(e) => setNewCustAddress(e.target.value)}
-            placeholder="e.g. Shop 4, Main Bazaar"
+            placeholder={tr('e.g. Shop 4, Main Bazaar')}
           />
         </div>
 
         <div>
           <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-            Opening Balance (Purana Udhar / Advance) (₹)
+            {tr('Opening Balance (Purana Udhar / Advance) (₹)')}
           </label>
           <Input
             type="number"
@@ -95,7 +96,7 @@ export const QuickAddKhataCustomerModal: React.FC<QuickAddKhataCustomerModalProp
             value={newCustOpeningBalance}
             onChange={(e) => setNewCustOpeningBalance(e.target.value)}
             placeholder="0.00"
-            helperText="Enter existing due balance if customer already owes money."
+            helperText={tr('Enter existing due balance if customer already owes money.')}
           />
         </div>
 
@@ -113,14 +114,14 @@ export const QuickAddKhataCustomerModal: React.FC<QuickAddKhataCustomerModalProp
             size="sm"
             onClick={onClose}
           >
-            Cancel
+            {tr('Cancel')}
           </Button>
           <Button
             type="submit"
             size="sm"
             className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs"
           >
-            Save Customer
+            {tr('Save Customer')}
           </Button>
         </div>
       </form>

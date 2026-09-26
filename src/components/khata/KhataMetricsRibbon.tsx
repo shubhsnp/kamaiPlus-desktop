@@ -4,6 +4,7 @@ import React from 'react';
 import { Card } from '@/components/ui/Card';
 import { formatINR } from '@/lib/utils';
 import { ArrowDownLeft, ArrowUpRight, Wallet, BookOpen } from 'lucide-react';
+import { tr } from '@/lib/i18n/core';
 
 interface KhataMetricsRibbonProps {
   totalUdharReceivable: number;
@@ -28,7 +29,7 @@ export const KhataMetricsRibbon: React.FC<KhataMetricsRibbonProps> = ({
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-[10.5px] sm:text-[11px] font-bold">
             <span className="flex items-center gap-1 text-rose-600 dark:text-rose-400">
               <ArrowDownLeft className="w-3.5 h-3.5 shrink-0" />
-              <span>You'll Get</span>
+              <span>{tr('You\'ll Get')}</span>
             </span>
             <span className="text-[9.5px] text-rose-500/80 font-mono hidden xs:inline">बाकी</span>
           </div>
@@ -36,7 +37,7 @@ export const KhataMetricsRibbon: React.FC<KhataMetricsRibbonProps> = ({
             {formatINR(totalUdharReceivable)}
           </div>
           <div className="text-[10px] text-slate-400 truncate mt-0.5 hidden sm:block">
-            {totalUdharAccounts} customer(s) with dues
+            {totalUdharAccounts} {tr('customer(s) with dues')}
           </div>
         </div>
 
@@ -45,7 +46,7 @@ export const KhataMetricsRibbon: React.FC<KhataMetricsRibbonProps> = ({
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-[10.5px] sm:text-[11px] font-bold">
             <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
               <ArrowUpRight className="w-3.5 h-3.5 shrink-0" />
-              <span>Advance</span>
+              <span>{tr('Advance')}</span>
             </span>
             <span className="text-[9.5px] text-emerald-600/80 font-mono hidden xs:inline">जमा</span>
           </div>
@@ -53,7 +54,7 @@ export const KhataMetricsRibbon: React.FC<KhataMetricsRibbonProps> = ({
             {formatINR(totalAdvancePayable)}
           </div>
           <div className="text-[10px] text-slate-400 truncate mt-0.5 hidden sm:block">
-            Advance deposits received
+            {tr('Advance deposits received')}
           </div>
         </div>
 
@@ -62,7 +63,7 @@ export const KhataMetricsRibbon: React.FC<KhataMetricsRibbonProps> = ({
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-[10.5px] sm:text-[11px] font-bold">
             <span className="flex items-center gap-1 text-slate-700 dark:text-slate-300">
               <Wallet className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-              <span>Net Balance</span>
+              <span>{tr('Net Balance')}</span>
             </span>
             <span className="text-[9.5px] text-slate-400 font-mono hidden xs:inline">कुल</span>
           </div>
@@ -70,7 +71,7 @@ export const KhataMetricsRibbon: React.FC<KhataMetricsRibbonProps> = ({
             {formatINR(netBalance)}
           </div>
           <div className="text-[10px] text-slate-400 truncate mt-0.5 hidden sm:block">
-            Net store credit
+            {tr('Net store credit')}
           </div>
         </div>
 
@@ -79,7 +80,7 @@ export const KhataMetricsRibbon: React.FC<KhataMetricsRibbonProps> = ({
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-[10.5px] sm:text-[11px] font-bold">
             <span className="flex items-center gap-1 text-indigo-600 dark:text-indigo-400">
               <BookOpen className="w-3.5 h-3.5 shrink-0" />
-              <span>Accounts</span>
+              <span>{tr('Accounts')}</span>
             </span>
             <span className="text-[9.5px] text-indigo-500/80 font-mono hidden xs:inline">खाते</span>
           </div>
@@ -87,7 +88,7 @@ export const KhataMetricsRibbon: React.FC<KhataMetricsRibbonProps> = ({
             {totalCustomersCount}
           </div>
           <div className="text-[10px] text-slate-400 truncate mt-0.5 hidden sm:block">
-            Registered customers
+            {tr('Registered customers')}
           </div>
         </div>
       </div>

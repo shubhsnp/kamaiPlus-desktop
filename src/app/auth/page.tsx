@@ -3,7 +3,9 @@
 
 import React from 'react';
 import { AuthForm } from '@/components/auth/AuthForm';
+import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
 import { ShieldCheck } from 'lucide-react';
+import { tr } from '@/lib/i18n/core';
 
 export default function AuthPage() {
   return (
@@ -11,6 +13,8 @@ export default function AuthPage() {
       {/* Subtle Background Glow Elements */}
       <div className="absolute -top-40 -left-40 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+      <LanguageSwitcher className="absolute top-4 right-4 z-20" />
 
       <div className="w-full max-w-md relative z-10 flex flex-col items-center">
         {/* Official Brand Logo & Header */}
@@ -27,7 +31,7 @@ export default function AuthPage() {
             <h1 className="text-3xl font-black text-amber-400 tracking-tight">Kamai+</h1>
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-400/10 text-amber-300 text-[10px] font-bold border border-amber-400/20">
               <ShieldCheck className="w-3 h-3 text-amber-400" />
-              <span>Verified POS</span>
+              <span>{tr('Verified POS')}</span>
             </span>
           </div>
 
@@ -40,7 +44,7 @@ export default function AuthPage() {
         <AuthForm />
 
         <div className="mt-6 text-center text-xs text-slate-500 font-medium">
-          Your store data stays on this computer.
+          {tr('Your store data stays on this computer.')}
         </div>
       </div>
     </main>

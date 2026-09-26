@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Category } from '@/types';
 import { cn } from '@/lib/utils';
+import { tr } from '@/lib/i18n/core';
 
 interface ProductFilterToolbarProps {
   searchQuery: string;
@@ -48,7 +49,7 @@ export const ProductFilterToolbar: React.FC<ProductFilterToolbarProps> = ({
           <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
-            placeholder="Search by product name, barcode, HSN, size, color..."
+            placeholder={tr('Search by product name, barcode, HSN, size, color...')}
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 font-medium"
@@ -73,7 +74,7 @@ export const ProductFilterToolbar: React.FC<ProductFilterToolbarProps> = ({
           className="text-xs font-bold gap-1 rounded-xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 cursor-pointer shrink-0"
         >
           <Barcode className="w-4 h-4 text-sky-600" />
-          <span className="hidden sm:inline">Scan</span>
+          <span className="hidden sm:inline">{tr('Scan')}</span>
         </Button>
 
         {/* Low Stock Toggle */}
@@ -88,7 +89,7 @@ export const ProductFilterToolbar: React.FC<ProductFilterToolbarProps> = ({
           )}
         >
           <AlertTriangle className={cn("w-3.5 h-3.5", showLowStockOnly ? "text-white" : "text-rose-500")} />
-          <span className="hidden sm:inline">Low Stock</span>
+          <span className="hidden sm:inline">{tr('Low Stock')}</span>
         </button>
 
         {/* Desktop View Switcher: Excel Table vs Cards */}
@@ -103,10 +104,10 @@ export const ProductFilterToolbar: React.FC<ProductFilterToolbarProps> = ({
                   ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs"
                   : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
               )}
-              title="Dense Excel-Style Table View"
+              title={tr('Dense Excel-Style Table View')}
             >
               <TableIcon className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Excel Table</span>
+              <span>{tr('Excel Table')}</span>
             </button>
             <button
               type="button"
@@ -117,10 +118,10 @@ export const ProductFilterToolbar: React.FC<ProductFilterToolbarProps> = ({
                   ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs"
                   : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
               )}
-              title="Cards Grid View"
+              title={tr('Cards Grid View')}
             >
               <LayoutGrid className="w-3.5 h-3.5 text-indigo-600" />
-              <span>Cards</span>
+              <span>{tr('Cards')}</span>
             </button>
           </div>
         )}
@@ -138,7 +139,7 @@ export const ProductFilterToolbar: React.FC<ProductFilterToolbarProps> = ({
               : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200"
           )}
         >
-          All Items
+          {tr('All Items')}
         </button>
 
         {categories.map((c) => (

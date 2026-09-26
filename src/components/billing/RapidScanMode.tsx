@@ -7,6 +7,7 @@ import { CartItem } from '@/types';
 import { playBeepSound } from '@/lib/voice/speechParser';
 import { Camera, AlertCircle, X, CheckCircle2, PackageOpen } from 'lucide-react';
 import { formatINR } from '@/lib/utils';
+import { tr } from '@/lib/i18n/core';
 
 interface RapidScanModeProps {
   isOpen: boolean;
@@ -86,7 +87,7 @@ export const RapidScanMode: React.FC<RapidScanModeProps> = ({
         } catch (err: any) {
           console.warn('Rapid scanner initialization error:', err);
           setScannerError(
-            err?.message || 'Camera permission denied or camera not accessible.'
+            err?.message || tr('Camera permission denied or camera not accessible.')
           );
           setIsScanning(false);
         }
@@ -135,8 +136,8 @@ export const RapidScanMode: React.FC<RapidScanModeProps> = ({
             <Camera className="w-4 h-4 text-emerald-400" />
           </div>
           <div>
-            <h2 className="text-white font-bold text-sm">Rapid Scan Mode</h2>
-            <p className="text-emerald-400 text-[10px] font-bold tracking-wider uppercase">Point • Beep • Next</p>
+            <h2 className="text-white font-bold text-sm">{tr('Rapid Scan Mode')}</h2>
+            <p className="text-emerald-400 text-[10px] font-bold tracking-wider uppercase">{tr('Point • Beep • Next')}</p>
           </div>
         </div>
         <button
@@ -162,7 +163,7 @@ export const RapidScanMode: React.FC<RapidScanModeProps> = ({
               <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent absolute top-1/2 -translate-y-1/2 animate-pulse shadow-sm shadow-emerald-500" />
             </div>
             <p className="text-white/70 font-mono text-xs mt-6 bg-black/50 px-3 py-1 rounded-full backdrop-blur-sm">
-              Hold barcode inside frame
+              {tr('Hold barcode inside frame')}
             </p>
           </div>
         )}
@@ -173,11 +174,11 @@ export const RapidScanMode: React.FC<RapidScanModeProps> = ({
               <AlertCircle className="w-8 h-8 text-rose-400" />
             </div>
             <div>
-              <h3 className="text-white font-bold mb-1">Camera Error</h3>
+              <h3 className="text-white font-bold mb-1">{tr('Camera Error')}</h3>
               <p className="text-sm text-slate-400 max-w-xs">{scannerError}</p>
             </div>
             <Button onClick={handleClose} variant="outline" className="mt-4 border-slate-700 text-white">
-              Go Back to Billing
+              {tr('Go Back to Billing')}
             </Button>
           </div>
         )}
@@ -192,7 +193,7 @@ export const RapidScanMode: React.FC<RapidScanModeProps> = ({
         <div className="px-5 py-3 flex items-center justify-between border-b border-slate-800/50">
           <h3 className="text-slate-200 font-bold text-sm flex items-center gap-2">
             <PackageOpen className="w-4 h-4 text-emerald-400" />
-            Recently Added ({cart.length})
+            {tr('Recently Added (')}{cart.length})
           </h3>
           <span className="text-xl font-black text-white">
             {formatINR(cart.reduce((sum, item) => sum + (item.quantity * item.unit_price) / 100, 0))}
@@ -203,7 +204,7 @@ export const RapidScanMode: React.FC<RapidScanModeProps> = ({
           {recentItems.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-slate-500 space-y-2">
               <CheckCircle2 className="w-8 h-8 opacity-20" />
-              <p className="text-xs font-medium">No items scanned yet.</p>
+              <p className="text-xs font-medium">{tr('No items scanned yet.')}</p>
             </div>
           ) : (
             recentItems.map((item, idx) => (
@@ -214,7 +215,7 @@ export const RapidScanMode: React.FC<RapidScanModeProps> = ({
                 <div>
                   <h4 className="text-white font-bold text-sm truncate max-w-[200px]">{item.product_name}</h4>
                   <p className="text-xs text-emerald-400 font-mono mt-0.5">
-                    {item.quantity} {item.unit} x {formatINR(item.unit_price / 100)}
+                    {item.quantity} {item.unit} {tr('x')} {formatINR(item.unit_price / 100)}
                   </p>
                 </div>
                 <div className="text-right">
@@ -232,7 +233,7 @@ export const RapidScanMode: React.FC<RapidScanModeProps> = ({
             onClick={handleClose} 
             className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 rounded-2xl shadow-xl shadow-emerald-900/20"
           >
-            Finish & Checkout
+            {tr('Finish & Checkout')}
           </Button>
         </div>
       </div>

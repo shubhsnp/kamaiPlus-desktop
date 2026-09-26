@@ -10,6 +10,7 @@ import {
   Clock 
 } from 'lucide-react';
 import { ProfitMask } from '@/components/privacy/ProfitMask';
+import { tr } from '@/lib/i18n/core';
 
 interface InventoryMetricsRibbonProps {
   totalItems: number;
@@ -32,15 +33,15 @@ export const InventoryMetricsRibbon: React.FC<InventoryMetricsRibbonProps> = ({
           <div className="flex items-center justify-between text-slate-500 text-[11px] font-bold">
             <span className="flex items-center gap-1 text-sky-700 dark:text-sky-400">
               <Boxes className="w-3.5 h-3.5 text-sky-600" />
-              <span>Tracked SKUs</span>
+              <span>{tr('Tracked SKUs')}</span>
             </span>
-            <span className="text-[10px] text-slate-400 font-mono">Catalog</span>
+            <span className="text-[10px] text-slate-400 font-mono">{tr('Catalog')}</span>
           </div>
           <div className="text-base sm:text-lg font-black font-mono text-slate-900 dark:text-slate-100 mt-0.5 leading-tight">
             {totalItems}
           </div>
           <div className="text-[10px] text-slate-400 truncate mt-0.5">
-            Active stock units
+            {tr('Active stock units')}
           </div>
         </div>
 
@@ -49,15 +50,15 @@ export const InventoryMetricsRibbon: React.FC<InventoryMetricsRibbonProps> = ({
           <div className="flex items-center justify-between text-slate-500 text-[11px] font-bold">
             <span className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
               <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Inventory Asset</span>
+              <span>{tr('Inventory Asset')}</span>
             </span>
-            <span className="text-[10px] text-slate-400 font-mono">Cost</span>
+            <span className="text-[10px] text-slate-400 font-mono">{tr('Cost')}</span>
           </div>
           <div className="text-base sm:text-lg font-black font-mono text-emerald-600 dark:text-emerald-400 mt-0.5 leading-tight">
             <ProfitMask value={formatINR(totalAssetValuePaise)} />
           </div>
           <div className="text-[10px] text-slate-400 truncate mt-0.5">
-            Total cost valuation
+            {tr('Total cost valuation')}
           </div>
         </div>
 
@@ -66,15 +67,15 @@ export const InventoryMetricsRibbon: React.FC<InventoryMetricsRibbonProps> = ({
           <div className="flex items-center justify-between text-slate-500 text-[11px] font-bold">
             <span className="flex items-center gap-1 text-rose-700 dark:text-rose-400">
               <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
-              <span>Reorder Alert</span>
+              <span>{tr('Reorder Alert')}</span>
             </span>
-            <span className="text-[10px] text-slate-400 font-mono">Low</span>
+            <span className="text-[10px] text-slate-400 font-mono">{tr('Low')}</span>
           </div>
           <div className="text-base sm:text-lg font-black font-mono text-rose-600 dark:text-rose-400 mt-0.5 leading-tight">
             {lowStockCount}
           </div>
           <div className="text-[10px] text-slate-400 truncate mt-0.5">
-            Requires stock inward
+            {tr('Requires stock inward')}
           </div>
         </div>
 

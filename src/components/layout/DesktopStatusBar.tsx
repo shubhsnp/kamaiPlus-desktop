@@ -8,19 +8,20 @@ import { useBusiness } from '@/components/layout/BusinessProvider';
 import { db } from '@/lib/db';
 import { getDesktopApi } from '@/lib/desktop/desktopBridge';
 import { getPrintSettings, printerForFormat } from '@/lib/hardware/printSettings';
+import { msg, tr } from '@/lib/i18n/core';
 
 // Keep in step with the keydown handler in app/billing/page.tsx. The bar used to
 // advertise F1 Billing / F2 Products / F4 Register everywhere — none of which existed.
 const BILLING_SHORTCUTS: [string, string][] = [
-  ['F1', 'New bill'],
-  ['F2', 'Search'],
-  ['F4', 'Cash'],
+  ['F1', msg('New bill')],
+  ['F2', msg('Search')],
+  ['F4', msg('Cash')],
   ['F8', 'UPI'],
-  ['F9', 'Credit'],
-  ['F10', 'Complete sale'],
-  ['Esc', 'Clear search'],
+  ['F9', msg('Credit')],
+  ['F10', msg('Complete sale')],
+  ['Esc', msg('Clear search')],
 ];
-const GLOBAL_SHORTCUTS: [string, string][] = [['Ctrl+B', 'Show / hide menu']];
+const GLOBAL_SHORTCUTS: [string, string][] = [['Ctrl+B', msg('Show / hide menu')]];
 
 export const DesktopStatusBar: React.FC = () => {
   const pathname = usePathname();
@@ -42,20 +43,20 @@ export const DesktopStatusBar: React.FC = () => {
       const list = await api.getPrinters().catch(() => []);
       if (!alive) return;
       if (list.length === 0) {
-        setPrinter({ ok: false, label: 'None installed', title: 'No printer is installed in Windows.' });
+        setPrinter({ ok: false, label: tr('None installed'), title: tr('No printer is installed in Windows.') });
       } else if (chosen) {
         const found = list.find((p) => p.name === chosen);
         setPrinter(
           found
-            ? { ok: true, label: found.displayName, title: `Bills print on ${found.displayName}.` }
-            : { ok: false, label: `Not found: ${chosen}`, title: `The printer chosen in Settings (${chosen}) is not connected or was removed.` }
+            ? { ok: true, label: found.displayName, title: tr('Bills print on {displayName}.', { displayName: found.displayName }) }
+            : { ok: false, label: tr('Not found: {chosen}', { chosen: chosen }), title: tr('The printer chosen in Settings ({chosen}) is not connected or was removed.', { chosen: chosen }) }
         );
       } else {
         const def = list.find((p) => p.isDefault);
         setPrinter(
           def
-            ? { ok: true, label: def.displayName, title: `Bills print on the Windows default printer (${def.displayName}).` }
-            : { ok: false, label: 'No default', title: 'Choose a printer in Settings → Print.' }
+            ? { ok: true, label: def.displayName, title: tr('Bills print on the Windows default printer ({displayName}).', { displayName: def.displayName }) }
+            : { ok: false, label: tr('No default'), title: tr('Choose a printer in Settings → Print.') }
         );
       }
     };
@@ -104,25 +105,25 @@ export const DesktopStatusBar: React.FC = () => {
       {/* Left: Storage & Sync Telemetry */}
       <div className="flex items-center gap-3">
         {/* Local Storage Offline Guarantee */}
-        <div className="flex items-center gap-1.5 text-emerald-400 font-semibold" title="IndexedDB Persistent Offline Engine Active">
+        <div className="flex items-center gap-1.5 text-emerald-400 font-semibold" title={tr('IndexedDB Persistent Offline Engine Active')}>
           <HardDrive className="w-3 h-3 text-emerald-400" />
-          <span className="hidden sm:inline">Offline DB:</span>
-          <span>Ready (Local)</span>
+          <span className="hidden sm:inline">{tr('Offline DB:')}</span>
+          <span>{tr('Ready (Local)')}</span>
         </div>
 
         <span className="text-slate-700">|</span>
 
         {/* Sync Heartbeat */}
-        <div className="flex items-center gap-1.5" title={isOnline ? 'Online: bills are saved on this computer' : 'Offline mode: saving locally'}>
+        <div className="flex items-center gap-1.5" title={isOnline ? tr('Online: bills are saved on this computer') : tr('Offline mode: saving locally')}>
           {isOnline ? (
             <>
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              <span className="text-slate-300">Online</span>
+              <span className="text-slate-300">{tr('Online')}</span>
             </>
           ) : (
             <>
               <WifiOff className="w-3 h-3 text-amber-400" />
-              <span className="text-amber-400 font-semibold">Offline (Local Only)</span>
+              <span className="text-amber-400 font-semibold">{tr('Offline (Local Only)')}</span>
             </>
           )}
         </div>
@@ -142,7 +143,7 @@ export const DesktopStatusBar: React.FC = () => {
         {(pathname === '/billing' ? BILLING_SHORTCUTS : GLOBAL_SHORTCUTS).map(([key, label]) => (
           <div key={key} className="flex items-center gap-1">
             <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-mono font-bold text-[9.5px]">{key}</kbd>
-            <span>{label}</span>
+            <span>{tr(label)}</span>
           </div>
         ))}
       </div>
@@ -153,7 +154,7 @@ export const DesktopStatusBar: React.FC = () => {
           <>
             <div className="flex items-center gap-1.5 text-slate-300" title={printer.title}>
               <Printer className="w-3 h-3 text-slate-400" />
-              <span className="hidden sm:inline">Printer:</span>
+              <span className="hidden sm:inline">{tr('Printer:')}</span>
               <span className={`font-mono truncate max-w-[180px] ${printer.ok ? 'text-emerald-400' : 'text-amber-400'}`}>{printer.label}</span>
             </div>
             <span className="text-slate-700">|</span>
@@ -170,7 +171,7 @@ export const DesktopStatusBar: React.FC = () => {
         <span className="text-slate-700 hidden sm:inline">|</span>
 
         <span className="font-mono text-[10px] text-slate-400 hidden sm:inline">
-          v{APP_VERSION}
+          {tr('v')}{APP_VERSION}
         </span>
       </div>
     </footer>

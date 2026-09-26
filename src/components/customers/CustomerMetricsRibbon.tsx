@@ -9,6 +9,7 @@ import {
   BookOpen, 
   Award 
 } from 'lucide-react';
+import { tr } from '@/lib/i18n/core';
 
 interface CustomerMetricsRibbonProps {
   totalCustomers: number;
@@ -31,15 +32,15 @@ export const CustomerMetricsRibbon: React.FC<CustomerMetricsRibbonProps> = ({
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-[11px] font-bold">
             <span className="flex items-center gap-1 text-sky-700 dark:text-sky-400">
               <Users className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
-              <span>Customers</span>
+              <span>{tr('Customers')}</span>
             </span>
-            <span className="text-[10px] text-slate-400 font-mono">Total</span>
+            <span className="text-[10px] text-slate-400 font-mono">{tr('Total')}</span>
           </div>
           <div className="text-base sm:text-lg font-black font-mono text-slate-900 dark:text-slate-100 mt-0.5 leading-tight truncate">
             {totalCustomers}
           </div>
           <div className="text-[10px] text-slate-400 truncate mt-0.5">
-            Directory accounts
+            {tr('Directory accounts')}
           </div>
         </div>
 
@@ -48,15 +49,15 @@ export const CustomerMetricsRibbon: React.FC<CustomerMetricsRibbonProps> = ({
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-[11px] font-bold">
             <span className="flex items-center gap-1 text-amber-700 dark:text-amber-400">
               <Star className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-              <span>VIP Members</span>
+              <span>{tr('VIP Members')}</span>
             </span>
-            <span className="text-[10px] text-slate-400 font-mono">High-Value</span>
+            <span className="text-[10px] text-slate-400 font-mono">{tr('High-Value')}</span>
           </div>
           <div className="text-base sm:text-lg font-black font-mono text-amber-600 dark:text-amber-400 mt-0.5 leading-tight truncate">
             {vipCount}
           </div>
           <div className="text-[10px] text-slate-400 truncate mt-0.5">
-            Frequent buyers
+            {tr('Frequent buyers')}
           </div>
         </div>
 
@@ -65,15 +66,15 @@ export const CustomerMetricsRibbon: React.FC<CustomerMetricsRibbonProps> = ({
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-[11px] font-bold">
             <span className="flex items-center gap-1 text-rose-700 dark:text-rose-400">
               <BookOpen className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
-              <span>Udhar Due</span>
+              <span>{tr('Udhar Due')}</span>
             </span>
-            <span className="text-[10px] text-slate-400 font-mono">Pending</span>
+            <span className="text-[10px] text-slate-400 font-mono">{tr('Pending')}</span>
           </div>
           <div className="text-base sm:text-lg font-black font-mono text-rose-600 dark:text-rose-400 mt-0.5 leading-tight truncate">
             {formatINR(totalCreditDuePaise)}
           </div>
           <div className="text-[10px] text-slate-400 truncate mt-0.5">
-            Market receivable
+            {tr('Market receivable')}
           </div>
         </div>
 
@@ -82,15 +83,15 @@ export const CustomerMetricsRibbon: React.FC<CustomerMetricsRibbonProps> = ({
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-[11px] font-bold">
             <span className="flex items-center gap-1 text-purple-700 dark:text-purple-400">
               <Award className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-              <span>Active Udhar</span>
+              <span>{tr('Active Udhar')}</span>
             </span>
-            <span className="text-[10px] text-slate-400 font-mono">Ledgers</span>
+            <span className="text-[10px] text-slate-400 font-mono">{tr('Ledgers')}</span>
           </div>
           <div className="text-base sm:text-lg font-black font-mono text-purple-600 dark:text-purple-400 mt-0.5 leading-tight truncate">
             {creditAccountsCount}
           </div>
           <div className="text-[10px] text-slate-400 truncate mt-0.5">
-            Debtor accounts
+            {tr('Debtor accounts')}
           </div>
         </div>
       </div>

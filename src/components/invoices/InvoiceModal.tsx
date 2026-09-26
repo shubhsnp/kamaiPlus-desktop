@@ -30,6 +30,7 @@ import { bluetoothPrinter } from '@/lib/hardware/bluetoothPrinter';
 import { getSalePaymentBreakdown, isEstimate } from '@/lib/sales/saleMath';
 import { EditInvoiceModal } from '@/components/invoices/EditInvoiceModal';
 import { InvoicePreview } from '@/components/invoices/InvoicePreview';
+import { msg, tr } from '@/lib/i18n/core';
 
 export type InvoiceFormat = PaperFormat;
 
@@ -51,7 +52,7 @@ export interface InvoiceModalProps {
 type Notice = { tone: 'success' | 'error'; text: string; pdfPath?: string } | null;
 
 const FORMAT_TABS: { id: InvoiceFormat; label: string }[] = [
-  { id: 'a4', label: 'A4 Bill' },
+  { id: 'a4', label: msg('A4 Bill') },
   { id: 'thermal-80', label: '80mm' },
   { id: 'thermal-58', label: '58mm' },
 ];
@@ -101,7 +102,7 @@ export function InvoiceModal({
     if (!business) return [];
     const list = (business.upi_ids || []).filter((u) => u.upi_id);
     if (list.length > 0) return list;
-    return business.upi_id ? [{ id: 'default', label: 'Primary UPI', upi_id: business.upi_id, is_default: true }] : [];
+    return business.upi_id ? [{ id: 'default', label: tr('Primary UPI'), upi_id: business.upi_id, is_default: true }] : [];
   }, [business]);
   const selectedVpa = upiOptions[upiIndex]?.upi_id || getPrimaryUpiVpa(business);
 
@@ -146,8 +147,8 @@ export function InvoiceModal({
     setBusy('print');
     try {
       const res = await printInvoice(input, format);
-      if (res.ok) flash({ tone: 'success', text: res.method === 'desktop' ? 'Bill sent to printer.' : 'Print dialog opened.' });
-      else if (res.error && !/cancel/i.test(res.error)) flash({ tone: 'error', text: `Print failed: ${res.error}` });
+      if (res.ok) flash({ tone: 'success', text: res.method === 'desktop' ? tr('Bill sent to printer.') : tr('Print dialog opened.') });
+      else if (res.error && !/cancel/i.test(res.error)) flash({ tone: 'error', text: tr('Print failed: {error}', { error: res.error }) });
     } finally {
       setBusy(null);
     }
@@ -157,9 +158,9 @@ export function InvoiceModal({
     setBusy('pdf');
     try {
       const res = await saveInvoicePdf(input);
-      if (res.ok && res.path) flash({ tone: 'success', text: 'Tax Invoice PDF saved.', pdfPath: res.path });
-      else if (res.ok) flash({ tone: 'success', text: 'Choose "Save as PDF" in the print dialog.' });
-      else flash({ tone: 'error', text: res.error || 'Could not create the PDF.' });
+      if (res.ok && res.path) flash({ tone: 'success', text: tr('Tax Invoice PDF saved.'), pdfPath: res.path });
+      else if (res.ok) flash({ tone: 'success', text: tr('Choose "Save as PDF" in the print dialog.') });
+      else flash({ tone: 'error', text: res.error || tr('Could not create the PDF.') });
     } finally {
       setBusy(null);
     }
@@ -169,9 +170,9 @@ export function InvoiceModal({
     setBusy('bt');
     try {
       await bluetoothPrinter.printSaleReceipt(sale, business, format === 'thermal-80' ? 80 : 58);
-      flash({ tone: 'success', text: 'Receipt printed on the Bluetooth printer.' });
+      flash({ tone: 'success', text: tr('Receipt printed on the Bluetooth printer.') });
     } catch (err: any) {
-      flash({ tone: 'error', text: err?.message || 'Bluetooth printing failed. Check that the printer is on and paired.' });
+      flash({ tone: 'error', text: err?.message || tr('Bluetooth printing failed. Check that the printer is on and paired.') });
     } finally {
       setBusy(null);
     }
@@ -179,7 +180,7 @@ export function InvoiceModal({
 
   const handleSaved = (updated: Sale) => {
     setSale(updated);
-    flash({ tone: 'success', text: 'Invoice updated.' });
+    flash({ tone: 'success', text: tr('Invoice updated.') });
     onInvoiceUpdated?.(updated);
   };
 
@@ -187,12 +188,12 @@ export function InvoiceModal({
   const title = isPostSaleSuccess ? (
     <span className="flex items-center gap-2">
       <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-      {estimate ? 'Estimate Created' : 'Sale Completed'}
+      {estimate ? tr('Estimate Created') : tr('Sale Completed')}
     </span>
   ) : (
     <span className="flex items-center gap-2">
       <FileText className="w-4 h-4 text-slate-700" />
-      {estimate ? 'Estimate / Quotation' : 'Tax Invoice'} #{sale.invoice_number}
+      {estimate ? tr('Estimate / Quotation') : tr('Tax Invoice')} #{sale.invoice_number}
     </span>
   );
 
@@ -203,14 +204,14 @@ export function InvoiceModal({
           {isPostSaleSuccess && (
             <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-3.5 flex flex-wrap items-center justify-between gap-3">
               <div>
-                <div className="text-[10.5px] font-black uppercase tracking-wider text-emerald-800">Total Billed • #{sale.invoice_number}</div>
+                <div className="text-[10.5px] font-black uppercase tracking-wider text-emerald-800">{tr('Total Billed • #')}{sale.invoice_number}</div>
                 <div className="text-2xl font-black text-slate-900 font-mono">{formatINR(sale.grand_total)}</div>
                 {sale.balance_due > 0 && !estimate && (
-                  <div className="text-xs font-bold text-amber-800">{formatINR(sale.balance_due)} added to {sale.customer_name}&apos;s Khata</div>
+                  <div className="text-xs font-bold text-amber-800">{formatINR(sale.balance_due)} {tr('added to')} {sale.customer_name}{tr('\'s Khata')}</div>
                 )}
               </div>
               <Button size="lg" onClick={() => (onNewBill ? onNewBill() : onClose())} className="bg-amber-400 hover:bg-amber-500 text-slate-950 border-amber-400">
-                <Receipt className="w-4 h-4" /> + New Bill
+                <Receipt className="w-4 h-4" /> {tr('+ New Bill')}
               </Button>
             </div>
           )}
@@ -229,7 +230,7 @@ export function InvoiceModal({
                     format === t.id ? 'bg-white text-slate-950 shadow-xs' : 'text-slate-600 hover:text-slate-900'
                   )}
                 >
-                  {t.label}
+                  {tr(t.label)}
                 </button>
               ))}
             </div>
@@ -238,7 +239,7 @@ export function InvoiceModal({
                 value={upiIndex}
                 onChange={(e) => setUpiIndex(Number(e.target.value))}
                 className="text-xs font-semibold border border-slate-300 rounded-lg px-2 py-1.5 bg-white"
-                title="UPI ID printed on this bill"
+                title={tr('UPI ID printed on this bill')}
               >
                 {upiOptions.map((u, i) => (
                   <option key={u.id || i} value={i}>
@@ -251,28 +252,28 @@ export function InvoiceModal({
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <Button onClick={handlePrint} isLoading={busy === 'print'} className="h-10">
-              <Printer className="w-4 h-4 text-amber-300" /> Print Bill
+              <Printer className="w-4 h-4 text-amber-300" /> {tr('Print Bill')}
             </Button>
             <Button variant="outline" onClick={handleSavePdf} isLoading={busy === 'pdf'} className="h-10">
-              <Download className="w-4 h-4" /> Save PDF
+              <Download className="w-4 h-4" /> {tr('Save PDF')}
             </Button>
             <Button
               variant="outline"
               onClick={() => setIsEditOpen(true)}
               disabled={returned}
-              title={returned ? 'Bills with a return cannot be edited — the return already adjusted stock and khata.' : 'Edit items, prices or payment'}
+              title={returned ? tr('Bills with a return cannot be edited — the return already adjusted stock and khata.') : tr('Edit items, prices or payment')}
               className="h-10"
             >
-              <Edit3 className="w-4 h-4 text-amber-600" /> {estimate ? 'Edit Estimate' : 'Edit Bill'}
+              <Edit3 className="w-4 h-4 text-amber-600" /> {estimate ? tr('Edit Estimate') : tr('Edit Bill')}
             </Button>
             {onRequestReturn && !estimate && sale.status !== 'returned' ? (
               <Button variant="outline" onClick={() => onRequestReturn(sale)} className="h-10 text-rose-700 border-rose-200 hover:bg-rose-50">
-                <RotateCcw className="w-4 h-4" /> Return
+                <RotateCcw className="w-4 h-4" /> {tr('Return')}
               </Button>
             ) : (
               <Link href="/invoice-designer" className="contents">
                 <Button variant="outline" className="h-10 w-full">
-                  <Palette className="w-4 h-4 text-purple-600" /> Theme
+                  <Palette className="w-4 h-4 text-purple-600" /> {tr('Theme')}
                 </Button>
               </Link>
             )}
@@ -281,15 +282,15 @@ export function InvoiceModal({
           <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
             {format !== 'a4' && (
               <button type="button" onClick={handleBluetooth} disabled={busy === 'bt'} className="inline-flex items-center gap-1 font-bold text-sky-700 hover:underline cursor-pointer disabled:opacity-50">
-                <Bluetooth className="w-3.5 h-3.5" /> {busy === 'bt' ? 'Printing…' : 'Print on Bluetooth printer'}
+                <Bluetooth className="w-3.5 h-3.5" /> {busy === 'bt' ? tr('Printing…') : tr('Print on Bluetooth printer')}
               </button>
             )}
             {onRequestReturn && (
               <Link href="/invoice-designer" className="inline-flex items-center gap-1 font-bold text-purple-700 hover:underline">
-                <Palette className="w-3.5 h-3.5" /> Invoice theme
+                <Palette className="w-3.5 h-3.5" /> {tr('Invoice theme')}
               </Link>
             )}
-            <span>PDF is always the full A4 Tax Invoice.</span>
+            <span>{tr('PDF is always the full A4 Tax Invoice.')}</span>
           </div>
 
           {notice && (
@@ -303,10 +304,10 @@ export function InvoiceModal({
               {notice.pdfPath && desktop && (
                 <>
                   <button type="button" onClick={() => desktop.openPath(notice.pdfPath!)} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white border border-emerald-300 cursor-pointer">
-                    <ExternalLink className="w-3.5 h-3.5" /> Open
+                    <ExternalLink className="w-3.5 h-3.5" /> {tr('Open')}
                   </button>
                   <button type="button" onClick={() => desktop.showItemInFolder(notice.pdfPath!)} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white border border-emerald-300 cursor-pointer">
-                    <FolderOpen className="w-3.5 h-3.5" /> Show in folder
+                    <FolderOpen className="w-3.5 h-3.5" /> {tr('Show in folder')}
                   </button>
                 </>
               )}
@@ -324,27 +325,27 @@ export function InvoiceModal({
 
 function SummaryStrip({ sale, pay, estimate }: { sale: Sale; pay: ReturnType<typeof getSalePaymentBreakdown>; estimate: boolean }) {
   const chips: { label: string; value: number; tone: string }[] = [
-    { label: 'Cash', value: pay.cash, tone: 'bg-emerald-50 text-emerald-800 border-emerald-200' },
+    { label: tr('Cash'), value: pay.cash, tone: 'bg-emerald-50 text-emerald-800 border-emerald-200' },
     { label: 'UPI', value: pay.upi, tone: 'bg-sky-50 text-sky-800 border-sky-200' },
-    { label: 'Card', value: pay.card, tone: 'bg-indigo-50 text-indigo-800 border-indigo-200' },
-    { label: 'Udhar', value: pay.credit, tone: 'bg-amber-50 text-amber-900 border-amber-200' },
+    { label: tr('Card'), value: pay.card, tone: 'bg-indigo-50 text-indigo-800 border-indigo-200' },
+    { label: tr('Udhar'), value: pay.credit, tone: 'bg-amber-50 text-amber-900 border-amber-200' },
   ].filter((c) => c.value > 0);
 
   return (
     <div className="flex flex-wrap items-center gap-2 text-xs">
       <span className="font-mono font-black text-slate-900 text-sm">{formatINR(sale.grand_total)}</span>
       <span className="text-slate-400">•</span>
-      <span className="text-slate-600">{sale.items.length} item{sale.items.length === 1 ? '' : 's'}</span>
-      {estimate && <span className="px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 font-bold text-slate-700">ESTIMATE</span>}
+      <span className="text-slate-600">{sale.items.length} {sale.items.length === 1 ? tr('item') : tr('items')}</span>
+      {estimate && <span className="px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 font-bold text-slate-700">{tr('ESTIMATE')}</span>}
       {!estimate && chips.map((c) => (
         <span key={c.label} className={cn('px-2 py-0.5 rounded-full border font-bold', c.tone)}>
           {c.label}: {formatINR(c.value)}
         </span>
       ))}
-      {sale.status === 'returned' && <span className="px-2 py-0.5 rounded-full bg-rose-50 border border-rose-200 font-black text-rose-700">RETURNED</span>}
+      {sale.status === 'returned' && <span className="px-2 py-0.5 rounded-full bg-rose-50 border border-rose-200 font-black text-rose-700">{tr('RETURNED')}</span>}
       {sale.status === 'partial_return' && (
         <span className="px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 font-black text-amber-800">
-          PARTIAL RETURN • {formatINR(sale.returned_amount || 0)}
+          {tr('PARTIAL RETURN •')} {formatINR(sale.returned_amount || 0)}
         </span>
       )}
     </div>

@@ -19,6 +19,7 @@ import {
   FileText
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { tr } from '@/lib/i18n/core';
 
 interface MerchantQRModalProps {
   isOpen: boolean;
@@ -74,8 +75,8 @@ export const MerchantQRModal: React.FC<MerchantQRModalProps> = ({
     if (navigator.share) {
       try {
         await navigator.share({
-          title: `${businessName} UPI QR Code`,
-          text: `Pay ${businessName} directly using UPI ID: ${upiId}`,
+          title: tr('{businessName} UPI QR Code', { businessName: businessName }),
+          text: tr('Pay {businessName} directly using UPI ID: {upiId}', { businessName: businessName, upiId: upiId }),
           url: window.location.origin,
         });
       } catch (e) {
@@ -141,7 +142,7 @@ export const MerchantQRModal: React.FC<MerchantQRModalProps> = ({
         <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50 text-slate-900">
           <div className="flex items-center gap-2">
             <Store className="w-4 h-4 text-slate-800" />
-            <span className="text-xs font-extrabold uppercase tracking-wider">Official Counter UPI Standee</span>
+            <span className="text-xs font-extrabold uppercase tracking-wider">{tr('Official Counter UPI Standee')}</span>
           </div>
           <button
             onClick={onClose}
@@ -186,7 +187,7 @@ export const MerchantQRModal: React.FC<MerchantQRModalProps> = ({
 
           {/* Standee Instruction */}
           <div className="text-[11px] font-black uppercase tracking-wider text-slate-800">
-            Scan &amp; Pay With Any UPI App
+            {tr('Scan & Pay With Any UPI App')}
           </div>
 
           {/* QR Code Container with High-Contrast Framing */}
@@ -199,11 +200,11 @@ export const MerchantQRModal: React.FC<MerchantQRModalProps> = ({
               />
             ) : (
               <div className="w-48 h-48 flex items-center justify-center text-xs text-slate-400">
-                Generating QR...
+                {tr('Generating QR...')}
               </div>
             )}
             <div className="mt-2 px-3 py-1 rounded-full bg-slate-100 border border-slate-300 font-mono text-xs font-black text-slate-900 max-w-[260px] truncate">
-              {upiId || 'No UPI ID Configured'}
+              {upiId || tr('No UPI ID Configured')}
             </div>
           </div>
 
@@ -225,7 +226,7 @@ export const MerchantQRModal: React.FC<MerchantQRModalProps> = ({
 
           <div className="text-[10px] text-slate-500 flex items-center justify-center gap-1 font-medium">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            <span>100% Direct Bank Settlement</span>
+            <span>{tr('100% Direct Bank Settlement')}</span>
           </div>
         </div>
 
@@ -240,7 +241,7 @@ export const MerchantQRModal: React.FC<MerchantQRModalProps> = ({
             className="text-xs cursor-pointer"
           >
             {copied ? <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-emerald-600" /> : <Share2 className="w-3.5 h-3.5 mr-1" />}
-            <span>{copied ? 'Copied' : 'Share'}</span>
+            <span>{copied ? tr('Copied') : tr('Share')}</span>
           </Button>
 
           <Button
@@ -250,7 +251,7 @@ export const MerchantQRModal: React.FC<MerchantQRModalProps> = ({
             className="text-xs border-slate-300 text-slate-800 hover:bg-slate-100 cursor-pointer"
           >
             <Printer className="w-3.5 h-3.5 mr-1 text-slate-700" />
-            <span>Print</span>
+            <span>{tr('Print')}</span>
           </Button>
 
           <Button
@@ -260,7 +261,7 @@ export const MerchantQRModal: React.FC<MerchantQRModalProps> = ({
             className="text-xs bg-slate-900 hover:bg-slate-800 text-white cursor-pointer shadow-xs"
           >
             {isGeneratingPdf ? <FileText className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Download className="w-3.5 h-3.5 mr-1 text-amber-400" />}
-            <span>{isGeneratingPdf ? 'Saving...' : 'PDF'}</span>
+            <span>{isGeneratingPdf ? tr('Saving...') : 'PDF'}</span>
           </Button>
         </div>
       </div>

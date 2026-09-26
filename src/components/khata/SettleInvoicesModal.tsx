@@ -19,6 +19,7 @@ import {
   ArrowDownLeft, 
   AlertCircle 
 } from 'lucide-react';
+import { tr } from '@/lib/i18n/core';
 
 interface SettleInvoicesModalProps {
   isOpen: boolean;
@@ -65,7 +66,7 @@ export function SettleInvoicesModal({
     const totalSettlementPaise = enteredPayPaise + enteredDiscPaise;
 
     if (totalSettlementPaise <= 0) {
-      showAlert('Please enter a valid payment amount greater than ₹0.');
+      showAlert(tr('Please enter a valid payment amount greater than ₹0.'));
       return;
     }
 
@@ -164,7 +165,7 @@ export function SettleInvoicesModal({
       onClose();
     } catch (err: any) {
       console.error('Failed to settle invoices:', err);
-      showAlert(`Error settling invoices: ${err?.message || 'Unknown error'}`);
+      showAlert(tr('Error settling invoices: {v1}', { v1: err?.message || 'Unknown error' }));
     } finally {
       setIsSubmitting(false);
     }
@@ -177,19 +178,19 @@ export function SettleInvoicesModal({
       title={
         <div className="flex items-center gap-2">
           <ArrowDownLeft className="w-5 h-5 text-emerald-600" />
-          <span>Settle {selectedSales.length} Selected {selectedSales.length === 1 ? 'Bill' : 'Bills'}</span>
+          <span>{tr('Settle')} {selectedSales.length} {tr('Selected')} {selectedSales.length === 1 ? tr('Bill') : tr('Bills')}</span>
         </div>
       }
-      description={`Record payment collection and clear pending balance for ${customer?.name}.`}
+      description={tr('Record payment collection and clear pending balance for {name}.', { name: customer?.name })}
       size="md"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Selected Invoices Summary Box */}
         <div className="bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700/80 space-y-2">
           <div className="flex items-center justify-between text-xs font-bold text-slate-500">
-            <span>Selected Invoices ({selectedSales.length})</span>
+            <span>{tr('Selected Invoices (')}{selectedSales.length})</span>
             <span className="text-slate-900 dark:text-slate-100 font-mono">
-              Total Due: {formatINR(totalDuePaise)}
+              {tr('Total Due:')} {formatINR(totalDuePaise)}
             </span>
           </div>
 
@@ -216,7 +217,7 @@ export function SettleInvoicesModal({
         {/* Inputs */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Input
-            label="Payment Received (₹) *"
+            label={tr('Payment Received (₹) *')}
             type="number"
             step="0.01"
             placeholder="0.00"
@@ -227,10 +228,10 @@ export function SettleInvoicesModal({
           />
 
           <Input
-            label="Discount / Concession (₹)"
+            label={tr('Discount / Concession (₹)')}
             type="number"
             step="0.01"
-            placeholder="0.00 (Optional)"
+            placeholder={tr('0.00 (Optional)')}
             value={discountAmount}
             onChange={(e) => setDiscountAmount(e.target.value)}
           />
@@ -239,23 +240,23 @@ export function SettleInvoicesModal({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-              Payment Mode
+              {tr('Payment Mode')}
             </label>
             <select
               value={paymentMode}
               onChange={(e) => setPaymentMode(e.target.value as any)}
               className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold"
             >
-              <option value="cash">Cash 💵</option>
-              <option value="upi">UPI / GPay / PhonePe 📲</option>
-              <option value="bank">Bank Transfer 🏦</option>
-              <option value="other">Cheque / Other 📄</option>
+              <option value="cash">{tr('Cash 💵')}</option>
+              <option value="upi">{tr('UPI / GPay / PhonePe 📲')}</option>
+              <option value="bank">{tr('Bank Transfer 🏦')}</option>
+              <option value="other">{tr('Cheque / Other 📄')}</option>
             </select>
           </div>
 
           <div>
             <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-              Payment Date
+              {tr('Payment Date')}
             </label>
             <input
               type="date"
@@ -267,8 +268,8 @@ export function SettleInvoicesModal({
         </div>
 
         <Input
-          label="Notes / Reference (Optional)"
-          placeholder="e.g. Cleared via PhonePe UTR 123456"
+          label={tr('Notes / Reference (Optional)')}
+          placeholder={tr('e.g. Cleared via PhonePe UTR 123456')}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
         />
@@ -276,7 +277,7 @@ export function SettleInvoicesModal({
         {/* Action Buttons */}
         <div className="pt-3 flex justify-end gap-2 border-t border-slate-200 dark:border-slate-800">
           <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={isSubmitting}>
-            Cancel
+            {tr('Cancel')}
           </Button>
           <Button
             type="submit"
@@ -285,7 +286,7 @@ export function SettleInvoicesModal({
             className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold cursor-pointer gap-1.5 active:scale-95"
           >
             <CheckCircle2 className="w-4 h-4" />
-            <span>{isSubmitting ? 'Recording Settlement...' : 'Confirm & Clear Bills'}</span>
+            <span>{isSubmitting ? tr('Recording Settlement...') : tr('Confirm & Clear Bills')}</span>
           </Button>
         </div>
       </form>

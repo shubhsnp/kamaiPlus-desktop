@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
+import { tr } from '@/lib/i18n/core';
 
 interface StoreProfileTabProps {
   name: string;
@@ -72,7 +73,7 @@ export const StoreProfileTab: React.FC<StoreProfileTabProps> = ({
         <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
           <Store className="w-4 h-4 text-sky-600" />
           <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
-            Store Identity &amp; Branding
+            {tr('Store Identity & Branding')}
           </h3>
         </div>
 
@@ -88,14 +89,14 @@ export const StoreProfileTab: React.FC<StoreProfileTabProps> = ({
 
           <div className="flex-1 text-center sm:text-left space-y-1">
             <div className="text-xs font-black text-slate-900 dark:text-slate-100">
-              Store Brand Logo (Printable on Tax Invoices)
+              {tr('Store Brand Logo (Printable on Tax Invoices)')}
             </div>
             <p className="text-[11px] text-slate-400">
-              Recommended size: 250x250 PNG/JPG. Automatically compressed for thermal printing.
+              {tr('Recommended size: 250x250 PNG/JPG. Automatically compressed for thermal printing.')}
             </p>
             <div className="flex items-center justify-center sm:justify-start gap-2 pt-1">
               <label className="px-3 py-1.5 rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-950 font-bold text-xs cursor-pointer hover:bg-slate-800 shadow-2xs">
-                <span>Upload Logo</span>
+                <span>{tr('Upload Logo')}</span>
                 <input type="file" accept="image/*" onChange={onLogoUpload} className="hidden" />
               </label>
               {logoUrl && (
@@ -114,15 +115,15 @@ export const StoreProfileTab: React.FC<StoreProfileTabProps> = ({
         {/* Store Name & Tagline */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Input
-            label="Business / Store Name *"
-            placeholder="e.g. Mahavir Kirana & General Store"
+            label={tr('Business / Store Name *')}
+            placeholder={tr('e.g. Mahavir Kirana & General Store')}
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
           />
           <Input
-            label="Store Tagline / Slogan"
-            placeholder="e.g. Always Fresh, Best Wholesale Rates"
+            label={tr('Store Tagline / Slogan')}
+            placeholder={tr('e.g. Always Fresh, Best Wholesale Rates')}
             value={tagline}
             onChange={(e) => setTagline(e.target.value)}
           />
@@ -136,29 +137,29 @@ export const StoreProfileTab: React.FC<StoreProfileTabProps> = ({
         <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
           <Phone className="w-4 h-4 text-emerald-600" />
           <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
-            Contact &amp; Store Location
+            {tr('Contact & Store Location')}
           </h3>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Input
-            label="Owner / Contact Person *"
-            placeholder="e.g. Ramesh Patel"
+            label={tr('Owner / Contact Person *')}
+            placeholder={tr('e.g. Ramesh Patel')}
             value={ownerName}
             onChange={(e) => setOwnerName(e.target.value)}
             required
           />
           <Input
-            label="Store Mobile Number *"
-            placeholder="e.g. 9876543210"
+            label={tr('Store Mobile Number *')}
+            placeholder={tr('e.g. 9876543210')}
             type="tel"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             required
           />
           <Input
-            label="Email Address (Optional)"
-            placeholder="e.g. store@gmail.com"
+            label={tr('Email Address (Optional)')}
+            placeholder={tr('e.g. store@gmail.com')}
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -168,16 +169,16 @@ export const StoreProfileTab: React.FC<StoreProfileTabProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
           <div className="sm:col-span-3">
             <Input
-              label="Full Store Address (Printed on Bill Header)"
-              placeholder="e.g. Shop No. 12, Gandhi Market, Station Road"
+              label={tr('Full Store Address (Printed on Bill Header)')}
+              placeholder={tr('e.g. Shop No. 12, Gandhi Market, Station Road')}
               value={address}
               onChange={(e) => setAddress(e.target.value)}
             />
           </div>
           <div>
             <Input
-              label="Pincode"
-              placeholder="e.g. 400001"
+              label={tr('Pincode')}
+              placeholder={tr('e.g. 400001')}
               value={pincode}
               onChange={(e) => setPincode(e.target.value)}
             />
@@ -190,14 +191,14 @@ export const StoreProfileTab: React.FC<StoreProfileTabProps> = ({
         <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
           <Building2 className="w-4 h-4 text-indigo-600" />
           <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
-            GST &amp; Statutory Licenses
+            {tr('GST & Statutory Licenses')}
           </h3>
         </div>
 
         <div className="grid grid-cols-1 gap-3">
           <Input
-            label="GSTIN Number (For GST Tax Invoices)"
-            placeholder="e.g. 27AAAAA0000A1Z5"
+            label={tr('GSTIN Number (For GST Tax Invoices)')}
+            placeholder={tr('e.g. 27AAAAA0000A1Z5')}
             value={gstin}
             onChange={(e) => setGstin(e.target.value.toUpperCase())}
           />
@@ -210,28 +211,28 @@ export const StoreProfileTab: React.FC<StoreProfileTabProps> = ({
           <div className="flex items-center gap-2">
             <User className="w-4 h-4 text-slate-700 dark:text-slate-300" />
             <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
-              Account &amp; Session Management
+              {tr('Account & Session Management')}
             </h3>
           </div>
           <span className="text-xs font-mono text-slate-400">
-            Current Device Session
+            {tr('Current Device Session')}
           </span>
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
           <div>
             <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
-              Logged in as {ownerName || 'Merchant'} ({phone || 'Owner'})
+              {tr('Logged in as')} {ownerName || tr('Merchant')} ({phone || tr('Owner')})
             </div>
             <p className="text-[11px] text-slate-400">
-              Log out to switch accounts or securely sign in from another phone number / Google account.
+              {tr('Log out to switch accounts or securely sign in from another phone number / Google account.')}
             </p>
           </div>
 
           <button
             type="button"
             onClick={async () => {
-              if (await showConfirm('Are you sure you want to log out from this device?')) {
+              if (await showConfirm(tr('Are you sure you want to log out from this device?'))) {
                 const { logoutUser } = await import('@/lib/auth');
                 await logoutUser();
               }
@@ -239,7 +240,7 @@ export const StoreProfileTab: React.FC<StoreProfileTabProps> = ({
             className="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 dark:text-rose-300 dark:bg-rose-950/60 dark:border-rose-800 font-bold text-xs flex items-center gap-1.5 self-start sm:self-center transition active:scale-95 cursor-pointer shrink-0"
           >
             <LogOut className="w-3.5 h-3.5" />
-            <span>Logout Account</span>
+            <span>{tr('Logout Account')}</span>
           </button>
         </div>
       </Card>
@@ -251,21 +252,21 @@ export const StoreProfileTab: React.FC<StoreProfileTabProps> = ({
             <div className="flex items-center gap-2">
               <Trash2 className="w-4 h-4 text-rose-600" />
               <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
-                Product Catalog &amp; Data Reset
+                {tr('Product Catalog & Data Reset')}
               </h3>
             </div>
             <span className="text-xs font-bold text-slate-400">
-              Maintenance
+              {tr('Maintenance')}
             </span>
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
             <div>
               <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                Clean All Product Data / Reset Catalog
+                {tr('Clean All Product Data / Reset Catalog')}
               </div>
               <p className="text-[11px] text-slate-400">
-                Testing ke liye sabhi products ko 1-click me clean karein ya fresh sample catalog load karein.
+                {tr('Testing ke liye sabhi products ko 1-click me clean karein ya fresh sample catalog load karein.')}
               </p>
             </div>
 
@@ -274,7 +275,7 @@ export const StoreProfileTab: React.FC<StoreProfileTabProps> = ({
               onClick={onSwitchToDataTab}
               className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 font-bold text-xs flex items-center gap-1.5 self-start sm:self-center transition active:scale-95 cursor-pointer shrink-0"
             >
-              <span>Manage &amp; Clean Data →</span>
+              <span>{tr('Manage & Clean Data →')}</span>
             </button>
           </div>
         </Card>

@@ -25,6 +25,7 @@ import { CashRegisterHeaderActions } from '@/components/cash-register/CashRegist
 import { CashRegisterMetricsRibbon } from '@/components/cash-register/CashRegisterMetricsRibbon';
 import { CashExpensesList } from '@/components/cash-register/CashExpensesList';
 import { AddExpenseModal } from '@/components/cash-register/AddExpenseModal';
+import { tr } from '@/lib/i18n/core';
 const DenominationCalculatorModal = dynamic(
   () => import('@/components/cash-register/DenominationCalculatorModal').then((m) => m.DenominationCalculatorModal),
   { ssr: false }
@@ -142,7 +143,7 @@ export default function CashRegisterPage() {
   };
 
   const handleDeleteExpense = async (id: string) => {
-    if (await showConfirm('Are you sure you want to delete this cash expense?', { danger: true, confirmLabel: 'Delete' })) {
+    if (await showConfirm(tr('Are you sure you want to delete this cash expense?'), { danger: true, confirmLabel: tr('Delete') })) {
       await db.cash_expenses.delete(id);
     }
   };
@@ -209,15 +210,15 @@ export default function CashRegisterPage() {
         title={
           <div className="flex items-center gap-2">
             <Unlock className="w-5 h-5 text-emerald-500" />
-            <span>Open Cash Drawer Shift</span>
+            <span>{tr('Open Cash Drawer Shift')}</span>
           </div>
         }
-        description="Enter the initial morning float cash available in your physical cash drawer."
+        description={tr('Enter the initial morning float cash available in your physical cash drawer.')}
       >
         <form onSubmit={handleOpenShift} className="space-y-3.5">
           <Input
-            label="Morning Opening Float (₹) *"
-            placeholder="e.g. 2000.00"
+            label={tr('Morning Opening Float (₹) *')}
+            placeholder={tr('e.g. 2000.00')}
             type="number"
             step="0.01"
             value={openingCashInput}
@@ -227,10 +228,10 @@ export default function CashRegisterPage() {
           />
           <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => setIsOpeningModalOpen(false)}>
-              Cancel
+              {tr('Cancel')}
             </Button>
             <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white font-black">
-              Start Shift
+              {tr('Start Shift')}
             </Button>
           </div>
         </form>

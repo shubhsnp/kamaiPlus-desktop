@@ -13,6 +13,7 @@ import {
   CircleDollarSign,
   Receipt
 } from 'lucide-react';
+import { tr } from '@/lib/i18n/core';
 
 interface TodayBusinessPulseProps {
   todaysSalesTotal: number;
@@ -47,7 +48,7 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
         <div className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-emerald-500" />
           <h2 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
-            Today's Business Pulse
+            {tr('Today\'s Business Pulse')}
           </h2>
         </div>
         <CashierPrivacyToggleButton />
@@ -62,10 +63,10 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
               <div className="flex items-center justify-between gap-1">
                 <div className="flex items-center gap-1.5 text-emerald-800 dark:text-emerald-300 font-extrabold text-[10.5px] sm:text-xs uppercase tracking-tight truncate">
                   <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  <span className="truncate">Today's Sales</span>
+                  <span className="truncate">{tr('Today\'s Sales')}</span>
                 </div>
                 <span className="px-1.5 py-0.2 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-900 dark:text-emerald-200 text-[9px] font-black">
-                  {todaysSalesCount} Bills
+                  {todaysSalesCount} {tr('Bills')}
                 </span>
               </div>
 
@@ -76,10 +77,10 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
 
             <div className="pt-1.5 mt-1.5 border-t border-emerald-100/80 dark:border-emerald-900/40 flex items-center justify-between text-[10px] sm:text-[11px]">
               <span className="text-slate-500 dark:text-slate-400 font-semibold truncate">
-                Total Revenue
+                {tr('Total Revenue')}
               </span>
               <span className="text-emerald-700 dark:text-emerald-400 font-bold inline-flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform text-[10px]">
-                <span>Bills</span>
+                <span>{tr('Bills')}</span>
                 <ArrowRight className="w-2.5 h-2.5" />
               </span>
             </div>
@@ -93,11 +94,11 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
               <div className="flex items-center justify-between gap-1">
                 <div className="flex items-center gap-1.5 text-blue-800 dark:text-blue-300 font-extrabold text-[10.5px] sm:text-xs uppercase tracking-tight truncate">
                   <CircleDollarSign className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 dark:text-blue-400 shrink-0" />
-                  <span className="truncate">Today's Profit</span>
+                  <span className="truncate">{tr('Today\'s Profit')}</span>
                 </div>
                 {marginBase > 0 && (
                   <span className="px-1.5 py-0.2 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-900 dark:text-blue-200 text-[9px] font-black font-mono">
-                    ~{profitMarginPercent}% Margin
+                    ~{profitMarginPercent}{tr('% Margin')}
                   </span>
                 )}
               </div>
@@ -108,11 +109,11 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
             </div>
 
             <div className="pt-1.5 mt-1.5 border-t border-blue-100/80 dark:border-blue-900/40 flex items-center justify-between text-[10px] sm:text-[11px]">
-              <span className="text-slate-500 dark:text-slate-400 font-semibold truncate" title={isProfitPartial ? 'Some items sold today have no buying price, so they are left out of profit.' : undefined}>
-                {isProfitPartial ? 'Partial • items without buying price skipped' : 'Gross Margin'}
+              <span className="text-slate-500 dark:text-slate-400 font-semibold truncate" title={isProfitPartial ? tr('Some items sold today have no buying price, so they are left out of profit.') : undefined}>
+                {isProfitPartial ? tr('Partial • items without buying price skipped') : tr('Gross Margin')}
               </span>
               <span className="text-blue-700 dark:text-blue-400 font-bold text-[10px]">
-                Owner Only
+                {tr('Owner Only')}
               </span>
             </div>
           </Card>
@@ -125,10 +126,10 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
               <div className="flex items-center justify-between gap-1">
                 <div className="flex items-center gap-1.5 text-amber-800 dark:text-amber-300 font-extrabold text-[10.5px] sm:text-xs uppercase tracking-tight truncate">
                   <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-                  <span className="truncate">Cash in Hand</span>
+                  <span className="truncate">{tr('Cash in Hand')}</span>
                 </div>
                 <span className="px-1.5 py-0.2 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 text-[9px] font-black">
-                  Till / Galla
+                  {tr('Till / Galla')}
                 </span>
               </div>
 
@@ -139,10 +140,10 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
 
             <div className="pt-1.5 mt-1.5 border-t border-amber-100/80 dark:border-amber-900/40 flex items-center justify-between text-[10px] sm:text-[11px]">
               <span className="text-slate-500 dark:text-slate-400 font-semibold truncate">
-                Cash Sales - Exp
+                {tr('Cash Sales - Exp')}
               </span>
               <span className="text-amber-700 dark:text-amber-400 font-bold inline-flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform text-[10px]">
-                <span>Register</span>
+                <span>{tr('Register')}</span>
                 <ArrowRight className="w-2.5 h-2.5" />
               </span>
             </div>
@@ -156,10 +157,10 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
               <div className="flex items-center justify-between gap-1">
                 <div className="flex items-center gap-1.5 text-rose-800 dark:text-rose-300 font-extrabold text-[10.5px] sm:text-xs uppercase tracking-tight truncate">
                   <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-600 dark:text-rose-400 shrink-0" />
-                  <span className="truncate">Market Udhar</span>
+                  <span className="truncate">{tr('Market Udhar')}</span>
                 </div>
                 <span className="px-1.5 py-0.2 rounded-full bg-rose-100 dark:bg-rose-900/60 text-rose-900 dark:text-rose-200 text-[9px] font-black">
-                  {customersWithCreditCount} Debtors
+                  {customersWithCreditCount} {tr('Debtors')}
                 </span>
               </div>
 
@@ -170,10 +171,10 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
 
             <div className="pt-1.5 mt-1.5 border-t border-rose-100/80 dark:border-rose-900/40 flex items-center justify-between text-[10px] sm:text-[11px]">
               <span className="text-slate-500 dark:text-slate-400 font-semibold truncate">
-                Pending Ledger
+                {tr('Pending Ledger')}
               </span>
               <span className="text-rose-700 dark:text-rose-400 font-bold inline-flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform text-[10px]">
-                <span>Khata</span>
+                <span>{tr('Khata')}</span>
                 <ArrowRight className="w-2.5 h-2.5" />
               </span>
             </div>

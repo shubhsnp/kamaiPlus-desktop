@@ -15,6 +15,7 @@ import {
   Sparkles,
   Smartphone
 } from 'lucide-react';
+import { tr } from '@/lib/i18n/core';
 
 interface CustomerSearchAutocompleteProps {
   customers: Customer[];
@@ -30,7 +31,7 @@ export const CustomerSearchAutocomplete: React.FC<CustomerSearchAutocompleteProp
   selectedCustomerId,
   onSelectCustomer,
   onOpenNewCustomerModal,
-  placeholder = 'Search by name or any phone digits (e.g. 7711)...',
+  placeholder = tr('Search by name or any phone digits (e.g. 7711)...'),
   className,
 }) => {
   const [query, setQuery] = useState('');
@@ -67,7 +68,7 @@ export const CustomerSearchAutocomplete: React.FC<CustomerSearchAutocompleteProp
 
   // Helper to highlight matching phone digits like Android dialer
   const renderHighlightedPhone = (phone?: string) => {
-    if (!phone) return <span className="text-slate-400 italic">No phone</span>;
+    if (!phone) return <span className="text-slate-400 italic">{tr('No phone')}</span>;
     const cleanQuery = query.replace(/\D/g, '');
     if (!cleanQuery) return <span>{phone}</span>;
 
@@ -122,12 +123,12 @@ export const CustomerSearchAutocomplete: React.FC<CustomerSearchAutocompleteProp
                 <span>{selectedCustomer.name}</span>
                 {selectedCustomer.current_balance > 0 && (
                   <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 text-[10px] font-extrabold">
-                    Due: {formatINR(selectedCustomer.current_balance)}
+                    {tr('Due:')} {formatINR(selectedCustomer.current_balance)}
                   </span>
                 )}
               </div>
               <div className="text-[11px] text-slate-500 font-mono">
-                {selectedCustomer.phone || 'Walk-in'}
+                {selectedCustomer.phone || tr('Walk-in')}
               </div>
             </div>
           </div>
@@ -137,7 +138,7 @@ export const CustomerSearchAutocomplete: React.FC<CustomerSearchAutocompleteProp
               type="button"
               onClick={handleClearSelected}
               className="p-1 text-slate-400 hover:text-rose-600 hover:bg-white rounded-full transition"
-              title="Clear selection (Switch to Walk-in Cash Customer)"
+              title={tr('Clear selection (Switch to Walk-in Cash Customer)')}
             >
               <X className="w-4 h-4" />
             </button>
@@ -208,8 +209,8 @@ export const CustomerSearchAutocomplete: React.FC<CustomerSearchAutocompleteProp
                 👤
               </div>
               <div>
-                <span className="font-bold text-slate-900">Walk-in Cash Customer</span>
-                <p className="text-[10px] text-slate-400">Regular cash sale (no credit ledger)</p>
+                <span className="font-bold text-slate-900">{tr('Walk-in Cash Customer')}</span>
+                <p className="text-[10px] text-slate-400">{tr('Regular cash sale (no credit ledger)')}</p>
               </div>
             </div>
             {!selectedCustomerId && <Check className="w-4 h-4 text-emerald-600" />}
@@ -229,11 +230,11 @@ export const CustomerSearchAutocomplete: React.FC<CustomerSearchAutocompleteProp
               <div className="flex items-center gap-2">
                 <UserPlus className="w-4 h-4 text-amber-700" />
                 <span>
-                  + Add <span className="underline font-black font-mono">{query.trim()}</span> as New Customer
+                  {tr('+ Add')} <span className="underline font-black font-mono">{query.trim()}</span> {tr('as New Customer')}
                 </span>
               </div>
               <span className="text-[10px] bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded font-black">
-                Quick Save
+                {tr('Quick Save')}
               </span>
             </div>
           )}
@@ -241,7 +242,7 @@ export const CustomerSearchAutocomplete: React.FC<CustomerSearchAutocompleteProp
           {/* Filtered Customers List */}
           {filteredCustomers.length === 0 && !query.trim() ? (
             <div className="p-4 text-center text-xs text-slate-400">
-              No saved customers found.
+              {tr('No saved customers found.')}
             </div>
           ) : (
             filteredCustomers.slice(0, 10).map((c) => {
@@ -264,7 +265,7 @@ export const CustomerSearchAutocomplete: React.FC<CustomerSearchAutocompleteProp
                         <span>{c.name}</span>
                         {c.current_balance > 0 && (
                           <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 text-[10px] font-extrabold font-mono">
-                            Due: {formatINR(c.current_balance)}
+                            {tr('Due:')} {formatINR(c.current_balance)}
                           </span>
                         )}
                       </div>

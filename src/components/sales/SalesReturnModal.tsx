@@ -21,6 +21,7 @@ import {
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { tr } from '@/lib/i18n/core';
 
 interface SalesReturnModalProps {
   isOpen: boolean;
@@ -63,13 +64,13 @@ export const SalesReturnModal: React.FC<SalesReturnModalProps> = ({
     if (found) {
       handleSelectSale(found);
     } else {
-      showAlert(`Invoice #${searchInvoice} not found.`);
+      showAlert(tr('Invoice #{searchInvoice} not found.', { searchInvoice: searchInvoice }));
     }
   };
 
   const handleSelectSale = async (sale: Sale) => {
     if (isEstimate(sale)) {
-      showAlert('This is an estimate / quotation — nothing was sold, so there is nothing to return.');
+      showAlert(tr('This is an estimate / quotation — nothing was sold, so there is nothing to return.'));
       return;
     }
     const previous = await db.sales_returns.where('original_sale_id').equals(sale.id).toArray();
@@ -99,7 +100,7 @@ export const SalesReturnModal: React.FC<SalesReturnModalProps> = ({
     if (!selectedSale || totalRefundPaise <= 0) return;
     const needsCustomer = refundMethod === 'khata_deduction' || refundMethod === 'store_credit';
     if (needsCustomer && !selectedSale.customer_id) {
-      showAlert('Store credit / khata adjustment needs a customer on the bill. Choose Cash or UPI refund for a walk-in sale.');
+      showAlert(tr('Store credit / khata adjustment needs a customer on the bill. Choose Cash or UPI refund for a walk-in sale.'));
       return;
     }
 
@@ -187,7 +188,7 @@ export const SalesReturnModal: React.FC<SalesReturnModalProps> = ({
               id: `exp_refund_${stamp}`,
               business_id: sale.business_id,
               category: 'refund',
-              title: `${refundMethod === 'upi' ? 'UPI' : 'Cash'} Refund: ${returnNumber} (Inv #${sale.invoice_number})`,
+              title: tr('{v1} Refund: {returnNumber} (Inv #{invoice_number})', { v1: refundMethod === 'upi' ? 'UPI' : 'Cash', returnNumber: returnNumber, invoice_number: sale.invoice_number }),
               amount: totalRefundPaise,
               paid_to: sale.customer_name,
               payment_mode: refundMethod === 'upi' ? 'upi' : 'cash',
@@ -237,7 +238,7 @@ export const SalesReturnModal: React.FC<SalesReturnModalProps> = ({
       }
     } catch (err) {
       console.error('Failed to process sales return:', err);
-      showAlert('Return processing failed. Nothing was changed.');
+      showAlert(tr('Return processing failed. Nothing was changed.'));
     } finally {
       setIsProcessing(false);
     }
@@ -256,10 +257,10 @@ export const SalesReturnModal: React.FC<SalesReturnModalProps> = ({
       title={
         <div className="flex items-center gap-2">
           <RotateCcw className="w-4 h-4 text-slate-800" />
-          <span>Sales Return & Credit Notes</span>
+          <span>{tr('Sales Return & Credit Notes')}</span>
         </div>
       }
-      description="Process customer returns, restock inventory items, and issue cash refunds or customer credit notes."
+      description={tr('Process customer returns, restock inventory items, and issue cash refunds or customer credit notes.')}
       size="lg"
     >
       <div className="space-y-4 text-xs">
@@ -268,18 +269,18 @@ export const SalesReturnModal: React.FC<SalesReturnModalProps> = ({
           <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-200 text-center space-y-3">
             <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />
             <div>
-              <h3 className="text-base font-black text-emerald-950">Sales Return Completed!</h3>
+              <h3 className="text-base font-black text-emerald-950">{tr('Sales Return Completed!')}</h3>
               <p className="text-xs text-emerald-800 mt-0.5">
-                Credit Note #{completedReturn.return_number} generated for {formatINR(completedReturn.refund_amount)}
+                {tr('Credit Note #')}{completedReturn.return_number} {tr('generated for')} {formatINR(completedReturn.refund_amount)}
               </p>
             </div>
 
             <div className="flex justify-center gap-2 pt-2">
               <Button size="sm" variant="outline" onClick={handleReset}>
-                Process Another Return
+                {tr('Process Another Return')}
               </Button>
               <Button size="sm" onClick={onClose} className="bg-emerald-600 text-white font-bold">
-                Done
+                {tr('Done')}
               </Button>
             </div>
           </div>
@@ -289,7 +290,7 @@ export const SalesReturnModal: React.FC<SalesReturnModalProps> = ({
             <div className="flex items-center gap-2">
               <input
                 type="text"
-                placeholder="Enter Invoice Number (e.g. INV-1001)..."
+                placeholder={tr('Enter Invoice Number (e.g. INV-1001)...')}
                 value={searchInvoice}
                 onChange={(e) => setSearchInvoice(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -298,12 +299,12 @@ export const SalesReturnModal: React.FC<SalesReturnModalProps> = ({
               />
               <Button onClick={handleSearch} size="sm" className="bg-slate-900 text-white font-bold">
                 <Search className="w-3.5 h-3.5 mr-1" />
-                <span>Search</span>
+                <span>{tr('Search')}</span>
               </Button>
             </div>
 
             <p className="text-[11px] text-slate-500">
-              Tip: You can also initiate a return directly from the Transaction History table.
+              {tr('Tip: You can also initiate a return directly from the Transaction History table.')}
             </p>
           </div>
         ) : (
@@ -313,17 +314,17 @@ export const SalesReturnModal: React.FC<SalesReturnModalProps> = ({
             <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
               <div>
                 <span className="font-extrabold text-slate-900 block">
-                  Invoice #{selectedSale.invoice_number}
+                  {tr('Invoice #')}{selectedSale.invoice_number}
                 </span>
                 <span className="text-[11px] text-slate-500">
-                  {selectedSale.customer_name || 'Cash Customer'} • {new Date(selectedSale.created_at).toLocaleDateString('en-IN')}
+                  {selectedSale.customer_name || tr('Cash Customer')} • {new Date(selectedSale.created_at).toLocaleDateString('en-IN')}
                 </span>
               </div>
               <button
                 onClick={() => setSelectedSale(null)}
                 className="text-[11px] text-slate-500 hover:text-slate-800 font-bold"
               >
-                Change Invoice
+                {tr('Change Invoice')}
               </button>
             </div>
 
@@ -332,11 +333,11 @@ export const SalesReturnModal: React.FC<SalesReturnModalProps> = ({
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-100 text-slate-600 font-bold border-b border-slate-200 text-[10px] uppercase">
                   <tr>
-                    <th className="py-2 px-3">Item Description</th>
-                    <th className="py-2 px-2 text-center">Sold Qty</th>
-                    <th className="py-2 px-2 text-center">Return Qty</th>
-                    <th className="py-2 px-2 text-center">Restock?</th>
-                    <th className="py-2 px-3 text-right">Refund Amount</th>
+                    <th className="py-2 px-3">{tr('Item Description')}</th>
+                    <th className="py-2 px-2 text-center">{tr('Sold Qty')}</th>
+                    <th className="py-2 px-2 text-center">{tr('Return Qty')}</th>
+                    <th className="py-2 px-2 text-center">{tr('Restock?')}</th>
+                    <th className="py-2 px-3 text-right">{tr('Refund Amount')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">
@@ -356,7 +357,7 @@ export const SalesReturnModal: React.FC<SalesReturnModalProps> = ({
                         <td className="py-2.5 px-2 text-center font-bold text-slate-500">
                           {item.quantity}
                           {(alreadyReturned[idx] || 0) > 0 && (
-                            <div className="text-[9.5px] text-rose-600 font-bold">{alreadyReturned[idx]} returned</div>
+                            <div className="text-[9.5px] text-rose-600 font-bold">{alreadyReturned[idx]} {tr('returned')}</div>
                           )}
                         </td>
                         <td className="py-2.5 px-2 text-center">
@@ -415,14 +416,14 @@ export const SalesReturnModal: React.FC<SalesReturnModalProps> = ({
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
               <div>
                 <label className="text-xs font-bold text-slate-800 block mb-1">
-                  Refund Method
+                  {tr('Refund Method')}
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                   {[
-                    { id: 'cash', label: 'Cash Refund' },
-                    { id: 'upi', label: 'UPI Online' },
-                    { id: 'store_credit', label: 'Store Credit' },
-                    { id: 'khata_deduction', label: 'Credit Balance -' },
+                    { id: 'cash', label: tr('Cash Refund') },
+                    { id: 'upi', label: tr('UPI Online') },
+                    { id: 'store_credit', label: tr('Store Credit') },
+                    { id: 'khata_deduction', label: tr('Credit Balance -') },
                   ].map((m) => (
                     <button
                       key={m.id}
@@ -441,14 +442,14 @@ export const SalesReturnModal: React.FC<SalesReturnModalProps> = ({
               </div>
 
               <div className="flex justify-between items-center pt-2 border-t border-slate-200 font-extrabold text-sm text-slate-900">
-                <span>Total Refund Amount:</span>
+                <span>{tr('Total Refund Amount:')}</span>
                 <span className="font-mono text-base text-rose-700">{formatINR(totalRefundPaise)}</span>
               </div>
             </div>
 
             <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
               <Button variant="outline" size="sm" onClick={onClose}>
-                Cancel
+                {tr('Cancel')}
               </Button>
               <Button
                 onClick={handleProcessReturn}
@@ -456,7 +457,7 @@ export const SalesReturnModal: React.FC<SalesReturnModalProps> = ({
                 size="sm"
                 className="bg-slate-900 text-white font-bold"
               >
-                {isProcessing ? 'Processing...' : `Issue Return (${formatINR(totalRefundPaise)})`}
+                {isProcessing ? tr('Processing...') : tr('Issue Return ({v1})', { v1: formatINR(totalRefundPaise) })}
               </Button>
             </div>
           </div>

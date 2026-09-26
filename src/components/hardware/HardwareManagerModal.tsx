@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/Button';
 import { bluetoothPrinter } from '@/lib/hardware/bluetoothPrinter';
 import { ThermalPaperWidth } from '@/lib/hardware/escpos';
 import { playSupermarketBeep } from '@/lib/hardware/barcodeScannerListener';
+import { tr } from '@/lib/i18n/core';
 
 interface HardwareManagerModalProps {
   isOpen: boolean;
@@ -80,7 +81,7 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
       setPrinterName(dev.name);
     } catch (err: any) {
       console.warn('Printer connect error:', err);
-      showAlert(err.message || 'Could not connect to Bluetooth printer.');
+      showAlert(err.message || tr('Could not connect to Bluetooth printer.'));
     } finally {
       setIsConnectingPrinter(false);
     }
@@ -117,15 +118,15 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
         name: 'KamaiPlus Demo Store',
         phone: '9876543210',
         upi_id: '',
-        tagline: 'Bluetooth ESC/POS Thermal Ready',
+        tagline: tr('Bluetooth ESC/POS Thermal Ready'),
         terms_conditions: 'Thank you for testing hardware integration!',
         footer_message: 'Powered by KamaiPlus Retail POS',
       };
       await bluetoothPrinter.printSaleReceipt(sampleSale, sampleBiz, paperWidth);
-      setPrintSuccessMsg(`Test receipt sent to printer (${paperWidth}mm)!`);
+      setPrintSuccessMsg(tr('Test receipt sent to printer ({paperWidth}mm)!', { paperWidth: paperWidth }));
       setTimeout(() => setPrintSuccessMsg(''), 4000);
     } catch (err: any) {
-      showAlert(err.message || 'Printing failed. Make sure printer is turned on and paired.');
+      showAlert(err.message || tr('Printing failed. Make sure printer is turned on and paired.'));
     }
   };
 
@@ -136,10 +137,10 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
       title={
         <div className="flex items-center gap-2">
           <Sliders className="w-4 h-4 text-slate-800" />
-          <span>POS Hardware &amp; Peripherals Manager</span>
+          <span>{tr('POS Hardware & Peripherals Manager')}</span>
         </div>
       }
-      description="Connect Bluetooth thermal receipt printers, configure roll width, and test barcode guns."
+      description={tr('Connect Bluetooth thermal receipt printers, configure roll width, and test barcode guns.')}
       size="lg"
     >
       <div className="space-y-4">
@@ -152,7 +153,7 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
             }`}
           >
             <Printer className="w-3.5 h-3.5" />
-            <span>Thermal Printer</span>
+            <span>{tr('Thermal Printer')}</span>
           </button>
 
           <button
@@ -162,7 +163,7 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
             }`}
           >
             <Barcode className="w-3.5 h-3.5" />
-            <span>Barcode Gun / PDA</span>
+            <span>{tr('Barcode Gun / PDA')}</span>
           </button>
         </div>
 
@@ -183,10 +184,10 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
                 </div>
                 <div>
                   <div className="text-xs font-bold text-slate-900">
-                    {printerConnected ? printerName : 'No Bluetooth Printer Connected'}
+                    {printerConnected ? printerName : tr('No Bluetooth Printer Connected')}
                   </div>
                   <div className="text-[11px] text-slate-500 mt-0.5">
-                    {printerConnected ? 'Ready for 1-click ESC/POS direct printing' : 'Supports Sunmi, TVS, Epson, Everycom, NGX, Rongta'}
+                    {printerConnected ? tr('Ready for 1-click ESC/POS direct printing') : tr('Supports Sunmi, TVS, Epson, Everycom, NGX, Rongta')}
                   </div>
                 </div>
               </div>
@@ -194,12 +195,12 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
               <div>
                 {printerConnected ? (
                   <Button size="sm" variant="outline" onClick={handleDisconnectPrinter} className="text-xs font-bold text-rose-600">
-                    Disconnect
+                    {tr('Disconnect')}
                   </Button>
                 ) : (
                   <Button size="sm" onClick={handleConnectPrinter} disabled={isConnectingPrinter} className="bg-slate-900 text-white text-xs font-bold">
                     <Bluetooth className="w-3.5 h-3.5 mr-1" />
-                    <span>{isConnectingPrinter ? 'Pairing...' : 'Pair Printer'}</span>
+                    <span>{isConnectingPrinter ? tr('Pairing...') : tr('Pair Printer')}</span>
                   </Button>
                 )}
               </div>
@@ -207,11 +208,11 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
 
             {/* Thermal Roll Configuration */}
             <div className="p-3.5 rounded-xl border border-slate-200 bg-white space-y-3">
-              <span className="text-xs font-bold text-slate-900 block">Printer Hardware Preferences</span>
+              <span className="text-xs font-bold text-slate-900 block">{tr('Printer Hardware Preferences')}</span>
               
               {/* Paper Roll Width Selector */}
               <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-slate-700 block">Thermal Paper Roll Width:</label>
+                <label className="text-[11px] font-bold text-slate-700 block">{tr('Thermal Paper Roll Width:')}</label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
@@ -223,7 +224,7 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
                     }`}
                   >
                     <Layers className="w-3.5 h-3.5" />
-                    <span>58mm (2-Inch Standard)</span>
+                    <span>{tr('58mm (2-Inch Standard)')}</span>
                   </button>
 
                   <button
@@ -236,7 +237,7 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
                     }`}
                   >
                     <Layers className="w-3.5 h-3.5" />
-                    <span>80mm (3-Inch Wide)</span>
+                    <span>{tr('80mm (3-Inch Wide)')}</span>
                   </button>
                 </div>
               </div>
@@ -251,8 +252,8 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
                     className="w-4 h-4 rounded text-slate-900 focus:ring-slate-900"
                   />
                   <div>
-                    <span className="font-bold text-slate-900 block">Cash Drawer Kick</span>
-                    <span className="text-[10px] text-slate-500">Pulse open drawer on cash checkout</span>
+                    <span className="font-bold text-slate-900 block">{tr('Cash Drawer Kick')}</span>
+                    <span className="text-[10px] text-slate-500">{tr('Pulse open drawer on cash checkout')}</span>
                   </div>
                 </label>
 
@@ -264,8 +265,8 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
                     className="w-4 h-4 rounded text-slate-900 focus:ring-slate-900"
                   />
                   <div>
-                    <span className="font-bold text-slate-900 block">Dynamic UPI QR Code</span>
-                    <span className="text-[10px] text-slate-500">Print scannable payment QR on receipt</span>
+                    <span className="font-bold text-slate-900 block">{tr('Dynamic UPI QR Code')}</span>
+                    <span className="text-[10px] text-slate-500">{tr('Print scannable payment QR on receipt')}</span>
                   </div>
                 </label>
               </div>
@@ -275,12 +276,12 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
             <div className="p-3.5 rounded-xl border border-slate-200 bg-white space-y-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="text-xs font-bold text-slate-900 block">ESC/POS Fast Printing Test</span>
-                  <span className="text-[11px] text-slate-500">Prints a formatted sample receipt directly to your paired printer</span>
+                  <span className="text-xs font-bold text-slate-900 block">{tr('ESC/POS Fast Printing Test')}</span>
+                  <span className="text-[11px] text-slate-500">{tr('Prints a formatted sample receipt directly to your paired printer')}</span>
                 </div>
                 <Button size="sm" variant="outline" onClick={handleTestPrint} className="text-xs font-bold gap-1">
                   <Play className="w-3.5 h-3.5 text-emerald-600 fill-emerald-600" />
-                  <span>Test Print</span>
+                  <span>{tr('Test Print')}</span>
                 </Button>
               </div>
 
@@ -295,7 +296,7 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
             <div className="text-[11px] text-slate-500 bg-amber-50 border border-amber-200 p-2.5 rounded-lg flex items-start gap-2">
               <Sparkles className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" />
               <span>
-                <strong>Tip:</strong> Once paired, KamaiPlus remembers your printer and roll width for instant 1-click receipts on the counter.
+                <strong>{tr('Tip:')}</strong> {tr('Once paired, KamaiPlus remembers your printer and roll width for instant 1-click receipts on the counter.')}
               </span>
             </div>
           </div>
@@ -315,11 +316,11 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
                 </div>
                 <div>
                   <div className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
-                    <span>Hardware Barcode Listener Active</span>
+                    <span>{tr('Hardware Barcode Listener Active')}</span>
                     <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
                   </div>
                   <div className="text-[11px] text-emerald-800 mt-0.5">
-                    Plug in any USB/OTG or Bluetooth scanner gun (Honeywell, Zebra, TVS, Datalogic)
+                    {tr('Plug in any USB/OTG or Bluetooth scanner gun (Honeywell, Zebra, TVS, Datalogic)')}
                   </div>
                 </div>
               </div>
@@ -327,24 +328,24 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
               <button
                 onClick={playSupermarketBeep}
                 className="px-3 py-1.5 rounded-lg border border-emerald-300 bg-white hover:bg-emerald-100 text-emerald-900 text-xs font-bold flex items-center gap-1"
-                title="Test authentic supermarket scanner sound"
+                title={tr('Test authentic supermarket scanner sound')}
               >
                 <Volume2 className="w-3.5 h-3.5 text-emerald-700" />
-                <span>Test Beep</span>
+                <span>{tr('Test Beep')}</span>
               </button>
             </div>
 
             <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-2">
-              <label className="text-xs font-bold text-slate-800 block">Scanner Laser Gun Test Field:</label>
+              <label className="text-xs font-bold text-slate-800 block">{tr('Scanner Laser Gun Test Field:')}</label>
               <input
                 type="text"
-                placeholder="Point barcode scanner gun here and press trigger..."
+                placeholder={tr('Point barcode scanner gun here and press trigger...')}
                 value={lastScannedBarcode}
                 onChange={(e) => setLastScannedBarcode(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-300 text-slate-900 font-mono font-bold text-xs rounded-xl p-2.5 focus:bg-white focus:outline-none focus:border-slate-900"
               />
               <p className="text-[10px] text-slate-500">
-                Any scanned barcode on the Billing POS screen is automatically matched with your local product catalog and added to the cart!
+                {tr('Any scanned barcode on the Billing POS screen is automatically matched with your local product catalog and added to the cart!')}
               </p>
             </div>
           </div>

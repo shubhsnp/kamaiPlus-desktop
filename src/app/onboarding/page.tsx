@@ -25,6 +25,8 @@ import {
   QrCode
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { getLanguage, tr } from '@/lib/i18n/core';
+import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -68,23 +70,23 @@ export default function OnboardingPage() {
     const cleanUpiId = upiId.trim();
 
     if (!cleanStoreName) {
-      setError('Please enter your Store / Business Name.');
+      setError(tr('Please enter your Store / Business Name.'));
       return;
     }
 
     if (!cleanPhone || cleanPhone.length !== 10) {
-      setError('Please enter a valid 10-digit Store Contact Number.');
+      setError(tr('Please enter a valid 10-digit Store Contact Number.'));
       return;
     }
 
     if (!cleanUpiId) {
-      setError('Please enter your UPI ID (VPA). It is compulsory for generating payment QR codes on invoices.');
+      setError(tr('Please enter your UPI ID (VPA). It is compulsory for generating payment QR codes on invoices.'));
       return;
     }
 
     const upiRegex = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
     if (!upiRegex.test(cleanUpiId)) {
-      setError('Please enter a valid UPI ID (e.g. yourname@upi, 9876543210@paytm, store@okaxis).');
+      setError(tr('Please enter a valid UPI ID (e.g. yourname@upi, 9876543210@paytm, store@okaxis).'));
       return;
     }
 
@@ -110,7 +112,7 @@ export default function OnboardingPage() {
         user_uid: rawUid,
         address: '',
         currency: 'INR',
-        language: 'hi',
+        language: getLanguage(),
         invoice_prefix: 'INV-',
         next_invoice_number: 1,
         terms_conditions: 'Thank you for your business! Goods once sold can be exchanged within 7 days with bill receipt.',
@@ -241,7 +243,7 @@ export default function OnboardingPage() {
       router.replace('/');
     } catch (err: any) {
       console.error('Failed to complete onboarding:', err);
-      setError(err?.message || 'Error setting up your store. Please try again.');
+      setError(err?.message || tr('Error setting up your store. Please try again.'));
       setIsLoading(false);
     }
   };
@@ -252,19 +254,21 @@ export default function OnboardingPage() {
       <div className="absolute -top-40 -left-40 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
+      <LanguageSwitcher className="absolute top-4 right-4 z-20" />
+
       <div className="w-full max-w-xl relative z-10">
         {/* Brand Header */}
         <div className="text-center mb-6">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-400/10 border border-amber-400/20 text-amber-300 text-xs font-bold mb-3 shadow-sm">
             <Sparkles className="w-4 h-4 text-amber-400" />
-            <span>Store Onboarding • Fast &amp; Free Setup</span>
+            <span>{tr('Store Onboarding • Fast & Free Setup')}</span>
           </div>
 
           <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-            Setup Your Store Profile
+            {tr('Setup Your Store Profile')}
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Fill in your shop details to launch your digital billing counter and khata.
+            {tr('Fill in your shop details to launch your digital billing counter and khata.')}
           </p>
         </div>
 
@@ -281,7 +285,7 @@ export default function OnboardingPage() {
             {/* 1. Store / Business Name */}
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                Store / Business Name *
+                {tr('Store / Business Name *')}
               </label>
               <div className="relative flex items-center">
                 <span className="absolute left-3.5 text-amber-400 pointer-events-none">
@@ -291,7 +295,7 @@ export default function OnboardingPage() {
                   type="text"
                   value={businessName}
                   onChange={(e) => setBusinessName(e.target.value)}
-                  placeholder="e.g. Sharma Kirana & General Store"
+                  placeholder={tr('e.g. Sharma Kirana & General Store')}
                   required
                   autoFocus
                   className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl focus:ring-2 focus:ring-amber-400 focus:outline-none text-white text-sm placeholder:text-slate-600 transition"
@@ -302,7 +306,7 @@ export default function OnboardingPage() {
             {/* 2. Owner Name */}
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                Owner / Manager Name
+                {tr('Owner / Manager Name')}
               </label>
               <div className="relative flex items-center">
                 <span className="absolute left-3.5 text-emerald-400 pointer-events-none">
@@ -312,7 +316,7 @@ export default function OnboardingPage() {
                   type="text"
                   value={ownerName}
                   onChange={(e) => setOwnerName(e.target.value)}
-                  placeholder="e.g. Ramesh Sharma"
+                  placeholder={tr('e.g. Ramesh Sharma')}
                   className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl focus:ring-2 focus:ring-amber-400 focus:outline-none text-white text-sm placeholder:text-slate-600 transition"
                 />
               </div>
@@ -321,7 +325,7 @@ export default function OnboardingPage() {
             {/* 3. Primary Mobile / Contact Number */}
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                Primary Contact Mobile Number *
+                {tr('Primary Contact Mobile Number *')}
               </label>
               <div className="flex rounded-xl overflow-hidden border border-slate-800 focus-within:border-amber-400 focus-within:ring-2 focus-within:ring-amber-400/20 transition bg-slate-950">
                 <div className="flex items-center gap-1.5 px-3.5 py-3 bg-slate-900/90 border-r border-slate-800 text-slate-200 text-xs font-bold select-none shrink-0">
@@ -340,15 +344,15 @@ export default function OnboardingPage() {
                 />
               </div>
               <p className="text-[11px] text-slate-500 mt-1">
-                Printed on thermal receipt headers &amp; customer invoices.
+                {tr('Printed on thermal receipt headers & customer invoices.')}
               </p>
             </div>
 
             {/* 4. UPI ID (Compulsory for instant QR & Payments) */}
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 flex items-center justify-between">
-                <span>UPI ID / VPA *</span>
-                <span className="text-[10px] text-amber-400 font-semibold normal-case">Required for Bill QR Codes</span>
+                <span>{tr('UPI ID / VPA *')}</span>
+                <span className="text-[10px] text-amber-400 font-semibold normal-case">{tr('Required for Bill QR Codes')}</span>
               </label>
               <div className="relative flex items-center">
                 <span className="absolute left-3.5 text-cyan-400 pointer-events-none">
@@ -358,13 +362,13 @@ export default function OnboardingPage() {
                   type="text"
                   value={upiId}
                   onChange={(e) => setUpiId(e.target.value.trim())}
-                  placeholder="e.g. 9876543210@paytm or store@okaxis"
+                  placeholder={tr('e.g. 9876543210@paytm or store@okaxis')}
                   required
                   className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl focus:ring-2 focus:ring-amber-400 focus:outline-none text-white text-sm font-mono placeholder:font-sans placeholder:text-slate-600 transition"
                 />
               </div>
               <p className="text-[11px] text-slate-500 mt-1">
-                Printed as dynamic NPCI UPI QR code on all bills &amp; thermal slips.
+                {tr('Printed as dynamic NPCI UPI QR code on all bills & thermal slips.')}
               </p>
             </div>
 
@@ -379,10 +383,10 @@ export default function OnboardingPage() {
                 />
                 <div>
                   <span className="text-xs font-bold text-slate-200 block">
-                    Pre-load starter product catalog
+                    {tr('Pre-load starter product catalog')}
                   </span>
                   <span className="text-[10.5px] text-slate-400 block leading-tight mt-0.5">
-                    Adds 10 sample products (fireworks) with prices and stock — edit or delete them anytime.
+                    {tr('Adds 10 sample products (fireworks) with prices and stock — edit or delete them anytime.')}
                   </span>
                 </div>
               </label>
@@ -395,11 +399,11 @@ export default function OnboardingPage() {
               className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 active:scale-[0.99] text-slate-950 font-black text-sm rounded-xl transition shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               {isLoading ? (
-                <span>Setting Up Store...</span>
+                <span>{tr('Setting Up Store...')}</span>
               ) : (
                 <>
                   <Sparkles className="w-4 h-4 text-slate-950" />
-                  <span>Complete Setup &amp; Launch POS 🚀</span>
+                  <span>{tr('Complete Setup & Launch POS 🚀')}</span>
                   <ArrowRight className="w-4 h-4 text-slate-950" />
                 </>
               )}

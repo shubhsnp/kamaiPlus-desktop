@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { FileSpreadsheet } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Product } from '@/types';
+import { tr } from '@/lib/i18n/core';
 // The inward sheet bundles the Excel/CSV parser (xlsx, ~400 KB); load it on first open.
 const PurchaseInwardOptionsSheet = dynamic(
   () => import('./PurchaseInwardOptionsSheet').then((m) => m.PurchaseInwardOptionsSheet),
@@ -34,10 +35,10 @@ export function InwardBillButton({
         variant="outline"
         size="md"
         className={`border-emerald-400/60 hover:border-emerald-500 text-slate-800 font-bold text-xs gap-1.5 shadow-xs ${className}`}
-        title="Upload a supplier bill as an Excel / CSV file"
+        title={tr('Upload a supplier bill as an Excel / CSV file')}
       >
         <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-        <span>Inward Bill (Excel / CSV)</span>
+        <span>{tr('Inward Bill (Excel / CSV)')}</span>
       </Button>
 
       {isSheetOpen && (

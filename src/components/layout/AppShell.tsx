@@ -12,6 +12,7 @@ import { GlobalDrawers } from './GlobalDrawers';
 import { BusinessProvider } from './BusinessProvider';
 import { UpdateReadyBanner } from './UpdateReadyBanner';
 import { AutoBackupScheduler } from './AutoBackupScheduler';
+import { tr } from '@/lib/i18n/core';
 
 export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
@@ -43,7 +44,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     const handleAccountFrozen = (e: any) => {
       setAccountLockout({
         isFrozen: true,
-        message: e.detail?.message || 'Your merchant store has been frozen/blocked by the platform administrator.',
+        message: e.detail?.message || tr('Your merchant store has been frozen/blocked by the platform administrator.'),
       });
     };
 
@@ -190,14 +191,14 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
             </div>
             <div className="space-y-1">
               <h2 className="text-lg font-black text-slate-900">
-                {accountLockout.isFrozen ? 'Account Suspended' : 'Account Deactivated'}
+                {accountLockout.isFrozen ? tr('Account Suspended') : tr('Account Deactivated')}
               </h2>
               <p className="text-xs text-slate-600 font-medium leading-relaxed">
                 {accountLockout.message}
               </p>
             </div>
             <div className="p-3.5 bg-rose-50 rounded-2xl border border-rose-100 text-xs text-rose-950 space-y-1">
-              <div className="font-bold">Official Platform Support Email:</div>
+              <div className="font-bold">{tr('Official Platform Support Email:')}</div>
               <div className="font-mono font-bold text-rose-700 text-sm select-all">info@proventure.in</div>
             </div>
             <button
@@ -207,7 +208,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
               }}
               className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition cursor-pointer"
             >
-              Return to Login
+              {tr('Return to Login')}
             </button>
           </div>
         </div>

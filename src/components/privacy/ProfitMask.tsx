@@ -5,6 +5,7 @@ import { Lock, Unlock, Eye, EyeOff } from 'lucide-react';
 import { isProfitHidden, setProfitHidden } from '@/lib/auth/cashierPrivacy';
 import { CashierPinModal } from './CashierPinModal';
 import { formatINR } from '@/lib/utils';
+import { tr } from '@/lib/i18n/core';
 
 interface ProfitMaskProps {
   children?: React.ReactNode;
@@ -50,7 +51,7 @@ export function ProfitMask({
           type="button"
           onClick={() => setIsPinModalOpen(true)}
           className={`inline-flex items-center gap-1 text-slate-400 hover:text-amber-600 font-mono text-xs cursor-pointer transition select-none ${className}`}
-          title="Click to unlock with 4-Digit Owner PIN"
+          title={tr('Click to unlock with 4-Digit Owner PIN')}
         >
           <Lock className="w-3 h-3 text-slate-400" />
           <span>{placeholder}</span>
@@ -103,17 +104,17 @@ export function CashierPrivacyToggleButton() {
             ? 'bg-amber-500/10 border-amber-500/30 text-amber-700 hover:bg-amber-500/20'
             : 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200'
         }`}
-        title={hidden ? 'Profit & Costs Hidden (Click to unlock)' : 'Hide Profit Margins from Staff'}
+        title={hidden ? tr('Profit & Costs Hidden (Click to unlock)') : tr('Hide Profit Margins from Staff')}
       >
         {hidden ? (
           <>
             <EyeOff className="w-3.5 h-3.5 text-amber-600" />
-            <span className="hidden sm:inline">Profits Hidden</span>
+            <span className="hidden sm:inline">{tr('Profits Hidden')}</span>
           </>
         ) : (
           <>
             <Eye className="w-3.5 h-3.5 text-slate-500" />
-            <span className="hidden sm:inline">Cashier Privacy</span>
+            <span className="hidden sm:inline">{tr('Cashier Privacy')}</span>
           </>
         )}
       </button>

@@ -13,6 +13,7 @@ import { SupplierFormModal } from '@/components/suppliers/SupplierFormModal';
 import { SupplierEntryModal } from '@/components/suppliers/SupplierEntryModal';
 import { SupplierDetailPanel, SupplierEmptyPanel, balanceLabel } from '@/components/suppliers/SupplierDetailPanel';
 import { CashierPrivacyToggleButton, ProfitMask } from '@/components/privacy/ProfitMask';
+import { tr } from '@/lib/i18n/core';
 
 type Filter = 'all' | 'owe' | 'advance';
 
@@ -46,11 +47,11 @@ export default function SuppliersPage() {
   const selected = suppliers.find((s) => s.id === selectedId) || null;
 
   const handleDelete = async (s: Supplier) => {
-    if (!await showConfirm(`Delete supplier "${s.name}"? Their account history stays in your records.`, { danger: true, confirmLabel: 'Delete' })) return;
+    if (!await showConfirm(tr('Delete supplier "{name}"? Their account history stays in your records.', { name: s.name }), { danger: true, confirmLabel: tr('Delete') })) return;
     const res = await deleteSupplier(s.id);
-    if (!res.ok) return showToast(res.error || 'Could not delete.', false);
+    if (!res.ok) return showToast(res.error || tr('Could not delete.'), false);
     setSelectedId(null);
-    showToast(`Deleted ${s.name}.`);
+    showToast(tr('Deleted {name}.', { name: s.name }));
   };
 
   return (
@@ -67,11 +68,11 @@ export default function SuppliersPage() {
         <div>
           <h1 className="text-lg font-black text-slate-900 flex items-center gap-2">
             <Truck className="w-5 h-5 text-amber-500" />
-            Suppliers
+            {tr('Suppliers')}
           </h1>
           <p className="text-xs text-slate-500">
-            {suppliers.length} suppliers • You owe{' '}
-            <span className="font-black text-rose-700"><ProfitMask>{formatINR(totalOwed)}</ProfitMask></span> to {oweCount}
+            {suppliers.length} {tr('suppliers • You owe')}{' '}
+            <span className="font-black text-rose-700"><ProfitMask>{formatINR(totalOwed)}</ProfitMask></span> {tr('to')} {oweCount}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -81,7 +82,7 @@ export default function SuppliersPage() {
             onClick={() => { setEditing(null); setFormOpen(true); }}
             className="h-9 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer"
           >
-            <Plus className="w-4 h-4" /> Add Supplier
+            <Plus className="w-4 h-4" /> {tr('Add Supplier')}
           </button>
         </div>
       </div>
@@ -95,12 +96,12 @@ export default function SuppliersPage() {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search name, phone or GSTIN"
+                placeholder={tr('Search name, phone or GSTIN')}
                 className="w-full h-9 pl-9 pr-3 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-slate-900"
               />
             </div>
             <div className="flex gap-1.5">
-              {([['all', 'All'], ['owe', 'You owe'], ['advance', 'Advance']] as [Filter, string][]).map(([id, label]) => (
+              {([['all', tr('All')], ['owe', tr('You owe')], ['advance', tr('Advance')]] as [Filter, string][]).map(([id, label]) => (
                 <button
                   key={id}
                   type="button"
@@ -116,7 +117,7 @@ export default function SuppliersPage() {
           <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-slate-100">
             {shown.length === 0 ? (
               <div className="p-8 text-center text-xs text-slate-500">
-                {suppliers.length === 0 ? 'No suppliers yet. Add the wholesalers you buy from.' : 'No supplier matches.'}
+                {suppliers.length === 0 ? tr('No suppliers yet. Add the wholesalers you buy from.') : tr('No supplier matches.')}
               </div>
             ) : (
               shown.map((s) => {
@@ -130,7 +131,7 @@ export default function SuppliersPage() {
                   >
                     <div className="min-w-0">
                       <div className="text-xs font-bold text-slate-900 truncate">{s.name}</div>
-                      <div className="text-[11px] text-slate-500 truncate">{s.phone || 'No phone'}</div>
+                      <div className="text-[11px] text-slate-500 truncate">{s.phone || tr('No phone')}</div>
                     </div>
                     <span className={`px-2 py-0.5 rounded-md border text-[10.5px] font-black whitespace-nowrap ${bal.className}`}>
                       <ProfitMask>{bal.text}</ProfitMask>
@@ -166,7 +167,7 @@ export default function SuppliersPage() {
           existing={editing}
           onSaved={(created) => {
             if (created) setSelectedId(created.id);
-            showToast(editing ? 'Supplier updated.' : 'Supplier added.');
+            showToast(editing ? tr('Supplier updated.') : tr('Supplier added.'));
           }}
         />
       )}

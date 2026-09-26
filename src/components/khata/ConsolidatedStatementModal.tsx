@@ -23,6 +23,7 @@ import {
   Landmark,
   Check
 } from 'lucide-react';
+import { tr } from '@/lib/i18n/core';
 
 interface ConsolidatedStatementModalProps {
   isOpen: boolean;
@@ -127,10 +128,10 @@ export function ConsolidatedStatementModal({
       const fileName = `Statement_${customer?.name?.replace(/\s+/g, '_') || 'Customer'}_${Date.now()}.pdf`;
       const { downloadInvoicePdfFromElement } = await import('@/lib/invoices/pdfGenerator');
       await downloadInvoicePdfFromElement(targetEl, fileName);
-      showToast('✅ Statement PDF downloaded successfully!');
+      showToast(tr('✅ Statement PDF downloaded successfully!'));
     } catch (err: any) {
       console.error('PDF generation error:', err);
-      showToast('⚠️ Could not generate PDF directly. Please use Print button.');
+      showToast(tr('⚠️ Could not generate PDF directly. Please use Print button.'));
     } finally {
       if (prevMode !== 'full') {
         setViewMode(prevMode);
@@ -209,10 +210,10 @@ export function ConsolidatedStatementModal({
       title={
         <div className="flex items-center gap-2">
           <FileText className="w-5 h-5 text-amber-500" />
-          <span>Consolidated Statement / Bill ({selectedSales.length} Invoices)</span>
+          <span>{tr('Consolidated Statement / Bill (')}{selectedSales.length} {tr('Invoices)')}</span>
         </div>
       }
-      description={`Combined multi-invoice billing statement for ${customer?.name}.`}
+      description={tr('Combined multi-invoice billing statement for {name}.', { name: customer?.name })}
       size="xl"
     >
       <div className="space-y-3.5 p-1">
@@ -237,7 +238,7 @@ export function ConsolidatedStatementModal({
                   : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
-              A4 Statement
+              {tr('A4 Statement')}
             </button>
             <button
               type="button"
@@ -248,7 +249,7 @@ export function ConsolidatedStatementModal({
                   : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
-              80mm Thermal Receipt
+              {tr('80mm Thermal Receipt')}
             </button>
           </div>
 
@@ -258,10 +259,10 @@ export function ConsolidatedStatementModal({
               type="button"
               onClick={() => setViewMode(viewMode === 'fit' ? 'full' : 'fit')}
               className="px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center gap-1 cursor-pointer shadow-2xs hover:bg-slate-50"
-              title={viewMode === 'fit' ? 'Zoom to 100%' : 'Fit to screen'}
+              title={viewMode === 'fit' ? tr('Zoom to 100%') : tr('Fit to screen')}
             >
               {viewMode === 'fit' ? <ZoomIn className="w-3.5 h-3.5 text-amber-600" /> : <ZoomOut className="w-3.5 h-3.5 text-amber-600" />}
-              <span>{viewMode === 'fit' ? 'Fit' : '100%'}</span>
+              <span>{viewMode === 'fit' ? tr('Fit') : '100%'}</span>
             </button>
 
             {/* Action Buttons */}
@@ -272,7 +273,7 @@ export function ConsolidatedStatementModal({
               className="bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 font-bold text-xs gap-1.5 cursor-pointer shadow-2xs"
             >
               <Printer className="w-3.5 h-3.5 text-slate-700 dark:text-slate-300" />
-              <span>Print</span>
+              <span>{tr('Print')}</span>
             </Button>
 
             <Button
@@ -283,7 +284,7 @@ export function ConsolidatedStatementModal({
               className="bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 font-bold text-xs gap-1.5 cursor-pointer shadow-2xs"
             >
               {isGeneratingPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5 text-sky-600" />}
-              <span>Download PDF</span>
+              <span>{tr('Download PDF')}</span>
             </Button>
 
           </div>
@@ -316,7 +317,7 @@ export function ConsolidatedStatementModal({
                 <div className="bg-slate-900 text-white p-4 sm:p-5 rounded-xl flex flex-col sm:flex-row items-start justify-between gap-3">
                   <div className="space-y-1">
                     <h1 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-white">
-                      {business?.name || 'Retail Store'}
+                      {business?.name || tr('Retail Store')}
                     </h1>
                     {business?.tagline && (
                       <p className="text-xs text-amber-300 font-medium italic">{business.tagline}</p>
@@ -324,8 +325,8 @@ export function ConsolidatedStatementModal({
                     <div className="text-[11px] text-slate-300 space-y-0.5 pt-0.5">
                       {business?.address && <div>{business.address}{business.pincode ? ` - ${business.pincode}` : ''}</div>}
                       <div className="flex items-center gap-3 text-slate-300 flex-wrap">
-                        {business?.phone && <span>Ph: {business.phone}</span>}
-                        {business?.email && <span>Email: {business.email}</span>}
+                        {business?.phone && <span>{tr('Ph:')} {business.phone}</span>}
+                        {business?.email && <span>{tr('Email:')} {business.email}</span>}
                       </div>
                       {business?.gstin && (
                         <div className="text-amber-300 font-mono font-bold pt-0.5">
@@ -337,13 +338,13 @@ export function ConsolidatedStatementModal({
 
                   <div className="text-left sm:text-right self-stretch sm:self-auto bg-slate-800/80 p-2.5 rounded-lg border border-slate-700 text-xs">
                     <div className="text-xs font-black uppercase tracking-wider text-amber-400">
-                      Consolidated Statement
+                      {tr('Consolidated Statement')}
                     </div>
                     <div className="text-white/80 text-[11px] mt-1">
-                      Date: <b className="text-white">{new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</b>
+                      {tr('Date:')} <b className="text-white">{new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</b>
                     </div>
                     <div className="text-white/80 text-[11px]">
-                      Invoices Count: <b className="text-white">{selectedSales.length} Bills</b>
+                      {tr('Invoices Count:')} <b className="text-white">{selectedSales.length} {tr('Bills')}</b>
                     </div>
                   </div>
                 </div>
@@ -352,7 +353,7 @@ export function ConsolidatedStatementModal({
                 <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 flex flex-col sm:flex-row items-start justify-between gap-3 text-xs">
                   <div>
                     <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">
-                      Statement Billed To
+                      {tr('Statement Billed To')}
                     </div>
                     <div className="text-sm font-black text-slate-900">{customer.name}</div>
                     {customer.phone && (
@@ -367,12 +368,12 @@ export function ConsolidatedStatementModal({
 
                   <div className="text-left sm:text-right space-y-1">
                     <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                      Payment Terms
+                      {tr('Payment Terms')}
                     </div>
-                    <div className="font-bold text-slate-800 uppercase">Khata Credit Account</div>
+                    <div className="font-bold text-slate-800 uppercase">{tr('Khata Credit Account')}</div>
                     {customer.gstin && (
                       <div className="font-mono text-[11px] font-bold text-slate-700">
-                        Customer GSTIN: {customer.gstin}
+                        {tr('Customer GSTIN:')} {customer.gstin}
                       </div>
                     )}
                   </div>
@@ -384,12 +385,12 @@ export function ConsolidatedStatementModal({
                     <thead>
                       <tr className="bg-slate-100 text-slate-800 font-bold border-b border-slate-200">
                         <th className="py-2.5 px-3 w-8 text-center">#</th>
-                        <th className="py-2.5 px-3 w-24">Date</th>
-                        <th className="py-2.5 px-3 w-28">Invoice #</th>
-                        <th className="py-2.5 px-3">Items Purchased</th>
-                        <th className="py-2.5 px-3 text-right w-24">Bill Total</th>
-                        <th className="py-2.5 px-3 text-right w-20">Paid</th>
-                        <th className="py-2.5 px-3 text-right w-24 text-rose-600">Due (₹)</th>
+                        <th className="py-2.5 px-3 w-24">{tr('Date')}</th>
+                        <th className="py-2.5 px-3 w-28">{tr('Invoice #')}</th>
+                        <th className="py-2.5 px-3">{tr('Items Purchased')}</th>
+                        <th className="py-2.5 px-3 text-right w-24">{tr('Bill Total')}</th>
+                        <th className="py-2.5 px-3 text-right w-20">{tr('Paid')}</th>
+                        <th className="py-2.5 px-3 text-right w-24 text-rose-600">{tr('Due (₹)')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -432,7 +433,7 @@ export function ConsolidatedStatementModal({
                   <div className="flex-1 space-y-2.5 w-full">
                     {/* Amount in Words */}
                     <div className="text-[11px] text-slate-600">
-                      <span className="font-bold text-slate-700">Amount in Words:</span>
+                      <span className="font-bold text-slate-700">{tr('Amount in Words:')}</span>
                       <div className="italic font-semibold text-slate-900">{numberToWordsINR(totalDuePaise)}</div>
                     </div>
 
@@ -442,16 +443,16 @@ export function ConsolidatedStatementModal({
                         <img src={qrDataUrl} alt="UPI QR" className="w-20 h-20 rounded-lg border bg-white p-1 shrink-0 shadow-2xs" />
                       ) : (
                         <div className="w-20 h-20 rounded-lg border bg-slate-200 flex items-center justify-center text-slate-400 text-[10px] text-center p-1">
-                          No UPI Configured
+                          {tr('No UPI Configured')}
                         </div>
                       )}
                       <div className="text-xs space-y-0.5">
                         <div className="font-bold text-slate-900 flex items-center gap-1">
                           <QrCode className="w-3.5 h-3.5 text-amber-600" />
-                          <span>Scan &amp; Pay via UPI</span>
+                          <span>{tr('Scan & Pay via UPI')}</span>
                         </div>
                         {business?.upi_id && <div className="text-[11px] font-mono text-slate-700 font-bold">{business.upi_id}</div>}
-                        <div className="text-[10px] text-slate-500 font-medium">GPay • PhonePe • Paytm • BHIM</div>
+                        <div className="text-[10px] text-slate-500 font-medium">{tr('GPay • PhonePe • Paytm • BHIM')}</div>
                       </div>
                     </div>
 
@@ -460,7 +461,7 @@ export function ConsolidatedStatementModal({
                       <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-700 flex flex-wrap gap-x-3 gap-y-0.5 font-medium">
                         <span className="font-bold text-slate-900 flex items-center gap-1">
                           <Landmark className="w-3 h-3 text-slate-500" />
-                          <span>Bank:</span>
+                          <span>{tr('Bank:')}</span>
                         </span>
                         <span>{business.bank_name || '-'}</span>
                         <span>A/C: <b className="font-mono">{business.bank_account_no}</b></span>
@@ -472,15 +473,15 @@ export function ConsolidatedStatementModal({
                   {/* Right: Net Summary Calculation Card */}
                   <div className="w-full sm:w-64 space-y-2 text-xs bg-slate-50 p-3.5 rounded-xl border border-slate-200 shrink-0">
                     <div className="flex justify-between text-slate-600">
-                      <span>Total Invoiced:</span>
+                      <span>{tr('Total Invoiced:')}</span>
                       <span className="font-mono font-bold text-slate-900">{formatINR(totalGrandTotalPaise)}</span>
                     </div>
                     <div className="flex justify-between text-emerald-600 font-medium">
-                      <span>Total Received:</span>
+                      <span>{tr('Total Received:')}</span>
                       <span className="font-mono font-bold">(-) {formatINR(totalPaidPaise)}</span>
                     </div>
                     <div className="border-t border-slate-300 pt-2 flex justify-between items-baseline text-slate-900">
-                      <span className="font-bold text-rose-600">Net Balance Due:</span>
+                      <span className="font-bold text-rose-600">{tr('Net Balance Due:')}</span>
                       <span className="font-mono text-lg font-black text-rose-600">{formatINR(totalDuePaise)}</span>
                     </div>
                   </div>
@@ -489,13 +490,13 @@ export function ConsolidatedStatementModal({
                 {/* 5. Terms & Signatory Footer */}
                 <div className="pt-3 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-[10.5px] text-slate-500">
                   <div className="space-y-0.5 text-center sm:text-left">
-                    <div>Thank you for your business! Please clear the pending balance at your earliest convenience.</div>
-                    <div className="text-slate-400">Generated via KamaiPlus Smart Billing System</div>
+                    <div>{tr('Thank you for your business! Please clear the pending balance at your earliest convenience.')}</div>
+                    <div className="text-slate-400">{tr('Generated via KamaiPlus Smart Billing System')}</div>
                   </div>
                   <div className="text-center sm:text-right shrink-0">
                     <div className="h-8"></div>
                     <div className="border-t border-slate-300 pt-1 font-bold text-slate-700">
-                      For {business?.name || 'Retail Store'} (Authorized Signatory)
+                      {tr('For')} {business?.name || tr('Retail Store')} {tr('(Authorized Signatory)')}
                     </div>
                   </div>
                 </div>
@@ -511,29 +512,29 @@ export function ConsolidatedStatementModal({
               >
                 {/* Store Header */}
                 <div className="text-center space-y-0.5 pb-2 border-b border-dashed border-slate-400">
-                  <h2 className="font-black text-sm uppercase">{business?.name || 'Retail Store'}</h2>
+                  <h2 className="font-black text-sm uppercase">{business?.name || tr('Retail Store')}</h2>
                   {business?.address && <p className="text-[10px] text-slate-600">{business.address}</p>}
-                  {business?.phone && <p className="text-[10px] text-slate-600">Ph: {business.phone}</p>}
+                  {business?.phone && <p className="text-[10px] text-slate-600">{tr('Ph:')} {business.phone}</p>}
                   {business?.gstin && <p className="text-[10px] font-bold">GSTIN: {business.gstin}</p>}
                   <div className="font-black uppercase text-[11px] pt-1 text-slate-900">
-                    CONSOLIDATED STATEMENT
+                    {tr('CONSOLIDATED STATEMENT')}
                   </div>
                   <div className="text-[10px] text-slate-500">
-                    {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} • {selectedSales.length} Bills
+                    {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} • {selectedSales.length} {tr('Bills')}
                   </div>
                 </div>
 
                 {/* Customer Details */}
                 <div className="space-y-0.5 pb-2 border-b border-dashed border-slate-400 text-[11px]">
-                  <div>Customer: <b className="text-slate-900">{customer.name}</b></div>
-                  {customer.phone && <div>Phone: <span className="font-mono">{customer.phone}</span></div>}
+                  <div>{tr('Customer:')} <b className="text-slate-900">{customer.name}</b></div>
+                  {customer.phone && <div>{tr('Phone:')} <span className="font-mono">{customer.phone}</span></div>}
                 </div>
 
                 {/* Invoices List */}
                 <div className="space-y-1.5 pb-2 border-b border-dashed border-slate-400">
                   <div className="flex justify-between font-bold text-[10.5px] uppercase border-b border-slate-200 pb-0.5">
-                    <span>Inv# / Date</span>
-                    <span>Due (₹)</span>
+                    <span>{tr('Inv# / Date')}</span>
+                    <span>{tr('Due (₹)')}</span>
                   </div>
                   {selectedSales.map((sale) => (
                     <div key={sale.id} className="text-[10.5px]">
@@ -542,7 +543,7 @@ export function ConsolidatedStatementModal({
                         <span className="font-mono">{formatINR(sale.balance_due || 0)}</span>
                       </div>
                       <div className="text-[9.5px] text-slate-500 truncate">
-                        Total: {formatINR(sale.grand_total)} | Paid: {formatINR(sale.amount_received || 0)}
+                        {tr('Total:')} {formatINR(sale.grand_total)} {tr('| Paid:')} {formatINR(sale.amount_received || 0)}
                       </div>
                     </div>
                   ))}
@@ -551,15 +552,15 @@ export function ConsolidatedStatementModal({
                 {/* Summary Totals */}
                 <div className="space-y-1 pb-2 border-b border-dashed border-slate-400 text-xs">
                   <div className="flex justify-between text-slate-600">
-                    <span>Total Invoiced:</span>
+                    <span>{tr('Total Invoiced:')}</span>
                     <span className="font-mono">{formatINR(totalGrandTotalPaise)}</span>
                   </div>
                   <div className="flex justify-between text-slate-600">
-                    <span>Total Paid:</span>
+                    <span>{tr('Total Paid:')}</span>
                     <span className="font-mono">(-) {formatINR(totalPaidPaise)}</span>
                   </div>
                   <div className="flex justify-between font-black text-sm pt-1 border-t border-slate-300">
-                    <span>Net Balance Due:</span>
+                    <span>{tr('Net Balance Due:')}</span>
                     <span className="font-mono text-rose-600">{formatINR(totalDuePaise)}</span>
                   </div>
                 </div>
@@ -568,15 +569,15 @@ export function ConsolidatedStatementModal({
                 {qrDataUrl && (
                   <div className="text-center pt-1 flex flex-col items-center space-y-1">
                     <img src={qrDataUrl} alt="UPI QR" className="w-24 h-24 p-1 border border-slate-300" />
-                    <div className="text-[10px] font-bold">Scan to Pay via UPI</div>
+                    <div className="text-[10px] font-bold">{tr('Scan to Pay via UPI')}</div>
                     {business?.upi_id && <div className="text-[9.5px] font-mono text-slate-600">{business.upi_id}</div>}
                   </div>
                 )}
 
                 {/* Thermal Footer */}
                 <div className="text-center text-[9.5px] text-slate-500 pt-1">
-                  <div>Thank you for your business!</div>
-                  <div>KamaiPlus POS</div>
+                  <div>{tr('Thank you for your business!')}</div>
+                  <div>{tr('KamaiPlus POS')}</div>
                 </div>
               </div>
             )}

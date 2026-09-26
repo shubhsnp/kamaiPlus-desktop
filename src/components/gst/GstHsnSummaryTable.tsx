@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/Card';
 import { formatINR } from '@/lib/utils';
 import { ProfitMask } from '@/components/privacy/ProfitMask';
 import { HSNRecord } from '@/lib/gst/gstr1Generator';
+import { tr } from '@/lib/i18n/core';
 
 interface GstHsnSummaryTableProps {
   hsnSummary: HSNRecord[];
@@ -31,7 +32,7 @@ export const GstHsnSummaryTable: React.FC<GstHsnSummaryTableProps> = ({
         <div className="flex items-center gap-2">
           <Layers className="w-4 h-4 text-sky-600" />
           <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
-            Table 12: HSN-wise Sales Summary
+            {tr('Table 12: HSN-wise Sales Summary')}
           </h3>
         </div>
 
@@ -39,7 +40,7 @@ export const GstHsnSummaryTable: React.FC<GstHsnSummaryTableProps> = ({
           <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search HSN code..."
+            placeholder={tr('Search HSN code...')}
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             className="w-full pl-8 pr-7 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-mono"
@@ -61,13 +62,13 @@ export const GstHsnSummaryTable: React.FC<GstHsnSummaryTableProps> = ({
         <table className="w-full text-left text-xs">
           <thead>
             <tr className="border-b border-slate-200 dark:border-slate-800 text-[10.5px] font-black uppercase tracking-wider text-slate-400">
-              <th className="py-2 px-2">HSN Code</th>
-              <th className="py-2 px-2">Description</th>
-              <th className="py-2 px-2 text-right">Qty</th>
-              <th className="py-2 px-2 text-right">Taxable (₹)</th>
-              <th className="py-2 px-2 text-right">CGST (₹)</th>
-              <th className="py-2 px-2 text-right">SGST (₹)</th>
-              <th className="py-2 px-2 text-right">Total Tax (₹)</th>
+              <th className="py-2 px-2">{tr('HSN Code')}</th>
+              <th className="py-2 px-2">{tr('Description')}</th>
+              <th className="py-2 px-2 text-right">{tr('Qty')}</th>
+              <th className="py-2 px-2 text-right">{tr('Taxable (₹)')}</th>
+              <th className="py-2 px-2 text-right">{tr('CGST (₹)')}</th>
+              <th className="py-2 px-2 text-right">{tr('SGST (₹)')}</th>
+              <th className="py-2 px-2 text-right">{tr('Total Tax (₹)')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono">
@@ -100,7 +101,7 @@ export const GstHsnSummaryTable: React.FC<GstHsnSummaryTableProps> = ({
             {filtered.length === 0 && (
               <tr>
                 <td colSpan={7} className="py-8 text-center text-xs text-slate-400 font-sans">
-                  No sales data found for the selected GST filing period.
+                  {tr('No sales data found for the selected GST filing period.')}
                 </td>
               </tr>
             )}

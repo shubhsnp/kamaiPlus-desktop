@@ -19,6 +19,7 @@ import {
   Filter
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { paymentMethodLabel, tr } from '@/lib/i18n/core';
 
 interface CustomerPendingInvoicesTabProps {
   customer: Customer;
@@ -95,7 +96,7 @@ export function CustomerPendingInvoicesTab({
             }`}
           >
             <Clock className="w-3.5 h-3.5" />
-            <span>Pending ({pendingSales.length})</span>
+            <span>{tr('Pending (')}{pendingSales.length})</span>
           </button>
 
           <button
@@ -111,7 +112,7 @@ export function CustomerPendingInvoicesTab({
             }`}
           >
             <FileText className="w-3.5 h-3.5" />
-            <span>All Bills ({customerSales.length})</span>
+            <span>{tr('All Bills (')}{customerSales.length})</span>
           </button>
 
           <button
@@ -127,7 +128,7 @@ export function CustomerPendingInvoicesTab({
             }`}
           >
             <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>Settled ({settledSales.length})</span>
+            <span>{tr('Settled (')}{settledSales.length})</span>
           </button>
         </div>
 
@@ -140,12 +141,12 @@ export function CustomerPendingInvoicesTab({
             {selectedSaleIds.length === displayedSales.length ? (
               <>
                 <CheckSquare className="w-3.5 h-3.5 text-amber-500" />
-                <span>Deselect All</span>
+                <span>{tr('Deselect All')}</span>
               </>
             ) : (
               <>
                 <Square className="w-3.5 h-3.5 text-slate-400" />
-                <span>Select All ({displayedSales.length})</span>
+                <span>{tr('Select All (')}{displayedSales.length})</span>
               </>
             )}
           </button>
@@ -161,21 +162,21 @@ export function CustomerPendingInvoicesTab({
             </div>
             <div>
               <div className="text-xs font-black text-slate-200 flex items-center gap-1.5">
-                <span>{selectedSaleIds.length} {selectedSaleIds.length === 1 ? 'Bill' : 'Bills'} Selected</span>
+                <span>{selectedSaleIds.length} {selectedSaleIds.length === 1 ? tr('Bill') : tr('Bills')} {tr('Selected')}</span>
                 <span className="text-slate-400">•</span>
                 <button
                   type="button"
                   onClick={handleClearSelection}
                   className="text-[11px] text-amber-400 hover:underline cursor-pointer"
                 >
-                  Clear
+                  {tr('Clear')}
                 </button>
               </div>
               <div className="text-sm sm:text-base font-black font-mono text-emerald-400">
-                Total Due: {formatINR(totalSelectedDue)}
+                {tr('Total Due:')} {formatINR(totalSelectedDue)}
                 {totalSelectedGrandTotal !== totalSelectedDue && (
                   <span className="text-xs text-slate-400 ml-1.5 font-normal">
-                    (of {formatINR(totalSelectedGrandTotal)} total)
+                    {tr('(of')} {formatINR(totalSelectedGrandTotal)} {tr('total)')}
                   </span>
                 )}
               </div>
@@ -188,10 +189,10 @@ export function CustomerPendingInvoicesTab({
               variant="outline"
               onClick={() => onOpenConsolidatedModal(selectedSales)}
               className="bg-slate-800 hover:bg-slate-700 text-white border-slate-700 font-bold text-xs py-2 px-3 gap-1.5 cursor-pointer"
-              title="Generate single combined bill / statement for selected invoices"
+              title={tr('Generate single combined bill / statement for selected invoices')}
             >
               <FileText className="w-3.5 h-3.5 text-sky-400" />
-              <span>Consolidated Bill 📄</span>
+              <span>{tr('Consolidated Bill 📄')}</span>
             </Button>
 
             {totalSelectedDue > 0 && (
@@ -199,10 +200,10 @@ export function CustomerPendingInvoicesTab({
                 size="sm"
                 onClick={() => onOpenSettleModal(selectedSales)}
                 className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2 px-3.5 shadow-sm gap-1.5 cursor-pointer active:scale-95"
-                title="Collect payment & clear selected invoices"
+                title={tr('Collect payment & clear selected invoices')}
               >
                 <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Settle Selected (जमा करें)</span>
+                <span>{tr('Settle Selected (जमा करें)')}</span>
               </Button>
             )}
           </div>
@@ -219,7 +220,7 @@ export function CustomerPendingInvoicesTab({
 
           const itemsListSummary = sale.items
             ? sale.items.map((i) => `${i.quantity}x ${i.product_name}`).join(', ')
-            : 'No items breakdown';
+            : tr('No items breakdown');
 
           return (
             <div
@@ -262,12 +263,12 @@ export function CustomerPendingInvoicesTab({
                             : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 border border-emerald-200'
                         }`}
                       >
-                        {isUnpaid ? 'Unpaid (Udhar)' : isPartial ? 'Partially Paid' : 'Fully Paid'}
+                        {isUnpaid ? tr('Unpaid (Udhar)') : isPartial ? tr('Partially Paid') : tr('Fully Paid')}
                       </span>
 
                       {sale.payment_method && (
                         <span className="text-[10px] font-bold text-slate-500 uppercase bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
-                          {sale.payment_method}
+                          {paymentMethodLabel(sale.payment_method)}
                         </span>
                       )}
                     </div>
@@ -284,7 +285,7 @@ export function CustomerPendingInvoicesTab({
                   <div className="mt-2 text-xs text-slate-600 dark:text-slate-300 bg-slate-50/80 dark:bg-slate-800/50 p-2 rounded-xl border border-slate-100 dark:border-slate-800 flex items-start gap-1.5">
                     <ShoppingBag className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                     <div className="min-w-0 flex-1 truncate">
-                      <span className="font-bold text-slate-700 dark:text-slate-200">Items ({sale.items?.length || 0}): </span>
+                      <span className="font-bold text-slate-700 dark:text-slate-200">{tr('Items (')}{sale.items?.length || 0}): </span>
                       <span className="font-mono text-[11.5px]">{itemsListSummary}</span>
                     </div>
                   </div>
@@ -293,7 +294,7 @@ export function CustomerPendingInvoicesTab({
                   <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
                     <div className="flex items-center gap-4 text-xs">
                       <div>
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block leading-none mb-0.5">Bill Total</span>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block leading-none mb-0.5">{tr('Bill Total')}</span>
                         <span className="font-black font-mono text-slate-900 dark:text-slate-100">
                           {formatINR(sale.grand_total)}
                         </span>
@@ -301,7 +302,7 @@ export function CustomerPendingInvoicesTab({
 
                       {sale.amount_received > 0 && (
                         <div>
-                          <span className="text-[10px] uppercase font-bold text-slate-400 block leading-none mb-0.5">Paid</span>
+                          <span className="text-[10px] uppercase font-bold text-slate-400 block leading-none mb-0.5">{tr('Paid')}</span>
                           <span className="font-black font-mono text-emerald-600 dark:text-emerald-400">
                             {formatINR(sale.amount_received)}
                           </span>
@@ -309,7 +310,7 @@ export function CustomerPendingInvoicesTab({
                       )}
 
                       <div>
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block leading-none mb-0.5">Remaining Due</span>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block leading-none mb-0.5">{tr('Remaining Due')}</span>
                         <span className={`font-black font-mono ${
                           (sale.balance_due || 0) > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500'
                         }`}>
@@ -323,10 +324,10 @@ export function CustomerPendingInvoicesTab({
                         type="button"
                         onClick={() => onOpenInvoiceModal(sale)}
                         className="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:hover:bg-blue-900/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-xs font-bold flex items-center gap-1 cursor-pointer transition shadow-2xs"
-                        title="View and reprint individual bill"
+                        title={tr('View and reprint individual bill')}
                       >
                         <Receipt className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                        <span>View Bill 📄</span>
+                        <span>{tr('View Bill 📄')}</span>
                       </button>
 
                       {(sale.balance_due || 0) > 0 && (
@@ -334,10 +335,10 @@ export function CustomerPendingInvoicesTab({
                           type="button"
                           onClick={() => onOpenSettleModal([sale])}
                           className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 cursor-pointer transition shadow-2xs active:scale-95"
-                          title="Settle this specific invoice"
+                          title={tr('Settle this specific invoice')}
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Clear Bill</span>
+                          <span>{tr('Clear Bill')}</span>
                         </button>
                       )}
                     </div>
@@ -353,15 +354,15 @@ export function CustomerPendingInvoicesTab({
             <Receipt className="w-10 h-10 mx-auto text-slate-300 dark:text-slate-600 mb-2" />
             <div className="font-bold text-slate-700 dark:text-slate-300 text-sm">
               {filterMode === 'pending'
-                ? 'No Pending Bills for this Customer'
+                ? tr('No Pending Bills for this Customer')
                 : filterMode === 'settled'
-                ? 'No Settled Invoices Yet'
-                : 'No Invoices Found'}
+                ? tr('No Settled Invoices Yet')
+                : tr('No Invoices Found')}
             </div>
             <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
               {filterMode === 'pending'
-                ? 'All credit purchases for this customer are fully paid and settled! 🎉'
-                : 'Credit bills created on POS will appear here automatically.'}
+                ? tr('All credit purchases for this customer are fully paid and settled! 🎉')
+                : tr('Credit bills created on POS will appear here automatically.')}
             </p>
           </div>
         )}

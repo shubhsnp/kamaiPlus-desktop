@@ -16,6 +16,7 @@ import {
 import { Product } from '@/types';
 import { formatINR, cn } from '@/lib/utils';
 import { ProfitMask } from '@/components/privacy/ProfitMask';
+import { tr } from '@/lib/i18n/core';
 
 interface ProductCardProps {
   product: Product;
@@ -59,7 +60,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                   onClick={() => onOpenVariants?.(product)}
                   className="px-1.5 py-0.2 rounded text-[9.5px] font-black bg-purple-100 text-purple-800 border border-purple-300 cursor-pointer hover:bg-purple-200"
                 >
-                  Variants ▾
+                  {tr('Variants ▾')}
                 </button>
               )}
               {product.variant_label && (
@@ -70,7 +71,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               {product.is_loose_item && (
                 <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-0.5">
                   <Scale className="w-2.5 h-2.5" />
-                  Weighed
+                  {tr('Weighed')}
                 </span>
               )}
             </div>
@@ -100,7 +101,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                   ? "text-amber-500 hover:bg-amber-50" 
                   : "text-slate-300 hover:text-slate-500 hover:bg-slate-100"
               )}
-              title={product.is_favorite ? "Remove from Favorites" : "Mark as Favorite"}
+              title={product.is_favorite ? tr('Remove from Favorites') : tr('Mark as Favorite')}
             >
               <Star className={cn("w-4 h-4", product.is_favorite ? "fill-amber-400" : "")} />
             </button>
@@ -108,7 +109,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               type="button"
               onClick={() => onEdit(product)}
               className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
-              title="Edit Product"
+              title={tr('Edit Product')}
             >
               <Edit3 className="w-3.5 h-3.5" />
             </button>
@@ -119,7 +120,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       {/* Middle: Price, MRP & Margin */}
       <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
         <div>
-          <span className="text-[10px] text-slate-400 uppercase font-bold block">Selling Price</span>
+          <span className="text-[10px] text-slate-400 uppercase font-bold block">{tr('Selling Price')}</span>
           <div className="flex items-baseline gap-1.5">
             <span className="font-mono font-black text-sm text-slate-900 dark:text-slate-100">
               {formatINR(product.selling_price)}
@@ -133,7 +134,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </div>
 
         <div className="text-right">
-          <span className="text-[10px] text-slate-400 uppercase font-bold block">Profit Margin</span>
+          <span className="text-[10px] text-slate-400 uppercase font-bold block">{tr('Profit Margin')}</span>
           <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
             <ProfitMask value={`+${formatINR(profitMarginPaise)}`} />
           </span>
@@ -148,7 +149,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             onClick={() => onOpenVariants?.(product)}
             className="text-[11px] font-bold text-purple-700 hover:underline cursor-pointer"
           >
-            Stock is kept per size / colour — see variants
+            {tr('Stock is kept per size / colour — see variants')}
           </button>
         </div>
       ) : (
@@ -165,9 +166,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               : "bg-emerald-100 text-emerald-900 border border-emerald-300"
           )}>
             {product.is_unlimited_stock 
-              ? 'Unlimited'
+              ? tr('Unlimited')
               : isOutOfStock
-              ? 'Out of Stock'
+              ? tr('Out of Stock')
               : `${product.current_stock} ${product.unit}`}
           </span>
         </div>
@@ -179,7 +180,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               onClick={() => onQuickStockChange(product, -1)}
               disabled={product.current_stock <= 0}
               className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold flex items-center justify-center text-xs disabled:opacity-30 cursor-pointer shadow-2xs"
-              title="Decrease Stock (-1)"
+              title={tr('Decrease Stock (-1)')}
             >
               <Minus className="w-3 h-3" />
             </button>
@@ -187,7 +188,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               type="button"
               onClick={() => onQuickStockChange(product, 1)}
               className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold flex items-center justify-center text-xs cursor-pointer shadow-2xs"
-              title="Increase Stock (+1)"
+              title={tr('Increase Stock (+1)')}
             >
               <Plus className="w-3.5 h-3.5" />
             </button>
@@ -195,7 +196,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               type="button"
               onClick={() => onQuickStockChange(product, 10)}
               className="px-1.5 h-6 rounded-lg bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 font-bold text-[10.5px] cursor-pointer shadow-2xs border border-emerald-200"
-              title="Quick Restock +10"
+              title={tr('Quick Restock +10')}
             >
               +10
             </button>

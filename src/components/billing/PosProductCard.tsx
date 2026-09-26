@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { cn, formatINR } from '@/lib/utils';
+import { tr } from '@/lib/i18n/core';
 
 // Memoized Product Card to prevent re-rendering the entire 200-item grid on every cart update
 export const PosProductCard = React.memo(({
@@ -45,21 +46,21 @@ export const PosProductCard = React.memo(({
     >
       {isOutOfStock ? (
         <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-rose-600 text-white text-[9px] font-black uppercase tracking-wider shadow-xs">
-          Out of Stock
+          {tr('Out of Stock')}
         </div>
       ) : isHighlighted ? (
         <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-emerald-600 text-white text-[9px] font-black font-mono shadow-xs">
-          ↵ Enter
+          {tr('↵ Enter')}
         </div>
       ) : inCartQuantity > 0 ? (
         <div className="absolute top-1.5 right-1.5 px-1.5 py-0.2 rounded-md bg-amber-400 text-slate-950 text-[9px] font-black shadow-xs">
-          {inCartQuantity} in cart
+          {inCartQuantity} {tr('in cart')}
         </div>
       ) : null}
 
       <div className="pr-12">
         <span className="text-[9px] uppercase font-extrabold tracking-wider block leading-tight text-slate-400">
-          {p.category_name || 'Item'}
+          {p.category_name || tr('Item')}
         </span>
         <h4 className={cn(
           "text-xs sm:text-sm font-bold line-clamp-2 mt-0.5 leading-snug",
@@ -71,7 +72,7 @@ export const PosProductCard = React.memo(({
 
       <div className="mt-1.5 pt-1.5 border-t border-slate-100 flex items-baseline justify-between gap-1">
         <div className="truncate">
-          {variants && <span className="text-[10px] text-slate-500 font-medium mr-0.5">from</span>}
+          {variants && <span className="text-[10px] text-slate-500 font-medium mr-0.5">{tr('from')}</span>}
           <span className={cn(
             "text-xs sm:text-sm font-black font-mono",
             isOutOfStock ? "text-slate-400 line-through" : "text-slate-900"
@@ -82,7 +83,7 @@ export const PosProductCard = React.memo(({
         </div>
         {variants ? (
           <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md shrink-0 bg-indigo-100 text-indigo-700">
-            {variants.count} Variants ▾
+            {variants.count} {tr('Variants ▾')}
           </span>
         ) : (
         <span className={cn(

@@ -6,6 +6,7 @@ import {
   getSaleNetTotal,
   isRevenueSale,
 } from '@/lib/sales/saleMath';
+import { msg, tr } from '@/lib/i18n/core';
 
 /**
  * Advanced Sales Analytics — port of the Android ReportsRepository.
@@ -90,7 +91,7 @@ export function isDeadStock(item: ItemSalesSummary): boolean {
 // Periods
 // ---------------------------------------------------------------------------
 
-export const REPORT_PERIOD_LABELS = ['Today', 'Yesterday', '7 Days', 'This Month', 'Last Month'] as const;
+export const REPORT_PERIOD_LABELS = [msg('Today'), msg('Yesterday'), msg('7 Days'), msg('This Month'), msg('Last Month')] as const;
 export type ReportPeriodLabel = (typeof REPORT_PERIOD_LABELS)[number];
 
 export interface ReportPeriod {
@@ -117,7 +118,7 @@ export function resolveReportPeriod(label: string, now: Date = new Date()): Repo
       return { label, start: new Date(y, m - 1, 1), end: new Date(y, m, 1) };
     case 'This Month':
     default:
-      return { label: 'This Month', start: new Date(y, m, 1), end: new Date(y, m + 1, 1) };
+      return { label: tr('This Month'), start: new Date(y, m, 1), end: new Date(y, m + 1, 1) };
   }
 }
 
@@ -257,7 +258,7 @@ export function summarizeParty(
 
   return {
     partyId,
-    partyName: isWalkIn ? 'Walk-in Customer' : name || fallback.name || 'Customer',
+    partyName: isWalkIn ? tr('Walk-in Customer') : name || fallback.name || tr('Customer'),
     partyPhone: isWalkIn ? '' : phone || fallback.phone || '',
     totalSalesPaise: billed,
     totalCostPaise: acc.cost,

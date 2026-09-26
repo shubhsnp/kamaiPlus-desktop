@@ -28,6 +28,7 @@ import { InwardBillButton } from '@/components/purchases/InwardBillButton';
 import { recordSupplierEntry } from '@/lib/suppliers/supplierLedger';
 import { isVariantParent, tracksOwnStock } from '@/lib/products/variants';
 import { CashierPrivacyToggleButton, ProfitMask } from '@/components/privacy/ProfitMask';
+import { tr } from '@/lib/i18n/core';
 
 export default function PurchasesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -63,25 +64,25 @@ export default function PurchasesPage() {
     setModalError(null);
 
     if (!selectedProductId) {
-      setModalError('Please select a product to restock.');
+      setModalError(tr('Please select a product to restock.'));
       return;
     }
 
     const qtyNum = parseFloat(quantity);
     if (isNaN(qtyNum) || qtyNum <= 0) {
-      setModalError('Quantity received must be greater than 0.');
+      setModalError(tr('Quantity received must be greater than 0.'));
       return;
     }
 
     const prod = products.find(p => p.id === selectedProductId);
     if (!prod) {
-      setModalError('Selected product not found in catalog.');
+      setModalError(tr('Selected product not found in catalog.'));
       return;
     }
 
     const costPaise = costPrice ? parseRupeesToPaise(costPrice) : prod.purchase_price || 0;
     if (costPaise < 0) {
-      setModalError('Cost price cannot be negative.');
+      setModalError(tr('Cost price cannot be negative.'));
       return;
     }
 
@@ -127,7 +128,7 @@ export default function PurchasesPage() {
           referenceId: movementId,
           date: now,
         });
-        creditNote = res.ok ? ` • ${formatINR(valuePaise)} added to ${supplier.name}'s account` : ` • Could not update ${supplier.name}'s account: ${res.error}`;
+        creditNote = res.ok ? tr(' • {v1} added to {name}\'s account', { v1: formatINR(valuePaise), name: supplier.name }) : tr(' • Could not update {name}\'s account: {error}', { name: supplier.name, error: res.error });
       }
     }
 
@@ -139,7 +140,7 @@ export default function PurchasesPage() {
     setSupplierId('');
     setOnCredit(false);
     setModalError(null);
-    showToast(`Stock updated for ${prod.name} (+${qtyNum} ${prod.unit})${creditNote}`);
+    showToast(tr('Stock updated for {name} (+{qtyNum} {unit}){creditNote}', { name: prod.name, qtyNum: qtyNum, unit: prod.unit, creditNote: creditNote }));
   };
 
   return (
@@ -157,10 +158,10 @@ export default function PurchasesPage() {
         <div>
           <h1 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <ShoppingBag className="w-5 h-5 text-amber-500" />
-            <span>Purchase &amp; Restock Orders</span>
+            <span>{tr('Purchase & Restock Orders')}</span>
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Record inbound inventory, capture wholesale invoices, and update cost prices.
+            {tr('Record inbound inventory, capture wholesale invoices, and update cost prices.')}
           </p>
         </div>
 
@@ -172,13 +173,13 @@ export default function PurchasesPage() {
             businessId={business?.id}
             existingProducts={products}
             onScanSuccess={(_billId, updated, created) => {
-              showToast(`🎉 Bill inward complete! ${updated} items restocked, ${created} new products created.`);
+              showToast(tr('🎉 Bill inward complete! {updated} items restocked, {created} new products created.', { updated: updated, created: created }));
             }}
           />
 
           <Button onClick={() => setIsModalOpen(true)} size="md" className="text-xs font-bold gap-1.5 cursor-pointer">
             <Plus className="w-4 h-4" />
-            <span>Manual Inward</span>
+            <span>{tr('Manual Inward')}</span>
           </Button>
         </div>
       </div>
@@ -190,17 +191,17 @@ export default function PurchasesPage() {
           <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Truck className="w-4 h-4 text-amber-500" />
-              <span>Items Needing Restock</span>
+              <span>{tr('Items Needing Restock')}</span>
             </div>
             <span className="text-[11px] font-mono text-slate-500">
-              {restockItems.length} items low
+              {restockItems.length} {tr('items low')}
             </span>
           </h3>
 
           <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
             {restockItems.length === 0 ? (
               <div className="p-8 text-center text-xs text-slate-500 font-mono">
-                All inventory stock levels are healthy! 👍
+                {tr('All inventory stock levels are healthy! 👍')}
               </div>
             ) : (
               restockItems.map(p => (
@@ -208,7 +209,7 @@ export default function PurchasesPage() {
                   <div className="min-w-0">
                     <div className="font-bold text-slate-900 dark:text-white truncate">{p.name}</div>
                     <div className="text-amber-900 dark:text-amber-400 font-bold text-[11px]">
-                      Stock: {p.current_stock} {p.unit} (Min Alert: {p.min_stock_level})
+                      {tr('Stock:')} {p.current_stock} {p.unit} {tr('(Min Alert:')} {p.min_stock_level})
                     </div>
                   </div>
                   <Button size="sm" className="bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-950 text-xs font-bold shrink-0" onClick={() => {
@@ -216,7 +217,7 @@ export default function PurchasesPage() {
                     setCostPrice((p.purchase_price / 100).toString());
                     setIsModalOpen(true);
                   }}>
-                    Restock
+                    {tr('Restock')}
                   </Button>
                 </div>
               ))
@@ -229,30 +230,30 @@ export default function PurchasesPage() {
           <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <FileText className="w-4 h-4 text-emerald-500" />
-              <span>Recent Inward Orders &amp; Bills</span>
+              <span>{tr('Recent Inward Orders & Bills')}</span>
             </div>
             <span className="text-[11px] font-mono text-slate-500">
               {purchaseBills.length > 0 || recentMovements.length === 0
-                ? `${purchaseBills.length} bills recorded`
-                : `${recentMovements.length} stock inward${recentMovements.length === 1 ? '' : 's'}`}
+                ? tr('{length} bills recorded', { length: purchaseBills.length })
+                : tr('Stock inwards: {count}', { count: recentMovements.length })}
             </span>
           </h3>
 
           <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
             {purchaseBills.length === 0 && recentMovements.length === 0 ? (
               <div className="p-8 text-center text-xs text-slate-500 font-mono">
-                No purchase bills recorded yet. Use &ldquo;Inward Bill&rdquo; or &ldquo;Manual Inward&rdquo; to add wholesale bills.
+                {tr('No purchase bills recorded yet. Use “Inward Bill” or “Manual Inward” to add wholesale bills.')}
               </div>
             ) : purchaseBills.length > 0 ? (
               purchaseBills.map((bill) => (
                 <div key={bill.id} className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 flex items-center justify-between text-xs gap-2 hover:border-slate-300 transition-colors">
                   <div className="min-w-0">
                     <div className="font-bold text-slate-900 dark:text-white truncate">
-                      {bill.supplier_name_raw || 'Wholesale Supplier'}
+                      {bill.supplier_name_raw || tr('Wholesale Supplier')}
                     </div>
                     <div className="text-[11px] text-slate-500 font-mono">
-                      {bill.bill_number ? `Bill #${bill.bill_number} • ` : ''}
-                      {bill.line_items?.length || 0} items • {new Date(bill.created_at).toLocaleDateString()}
+                      {bill.bill_number ? tr('Bill #{bill_number} • ', { bill_number: bill.bill_number }) : ''}
+                      {bill.line_items?.length || 0} {tr('items •')} {new Date(bill.created_at).toLocaleDateString()}
                     </div>
                   </div>
 
@@ -261,7 +262,7 @@ export default function PurchasesPage() {
                       <ProfitMask>{formatINR(bill.total_amount || 0)}</ProfitMask>
                     </div>
                     <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                      Confirmed
+                      {tr('Confirmed')}
                     </span>
                   </div>
                 </div>
@@ -271,7 +272,7 @@ export default function PurchasesPage() {
                 <div key={mov.id} className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 flex items-center justify-between text-xs gap-2">
                   <div className="min-w-0">
                     <div className="font-bold text-slate-900 dark:text-white truncate">{mov.product_name}</div>
-                    <div className="text-[11px] text-slate-500 font-mono">{mov.reason || 'Restock Inward'}</div>
+                    <div className="text-[11px] text-slate-500 font-mono">{mov.reason || tr('Restock Inward')}</div>
                   </div>
                   <div className="text-right shrink-0 font-bold text-emerald-600 dark:text-emerald-400 font-mono">
                     +{mov.quantity}
@@ -287,30 +288,30 @@ export default function PurchasesPage() {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title="Record Inbound Purchase (Manual)"
-        description="Select product and enter received quantity to update stock."
+        title={tr('Record Inbound Purchase (Manual)')}
+        description={tr('Select product and enter received quantity to update stock.')}
       >
         <form onSubmit={handleRecordPurchase} className="space-y-3">
           <div>
-            <label className="text-xs font-bold text-slate-900 dark:text-slate-200 block mb-1">Select Product</label>
+            <label className="text-xs font-bold text-slate-900 dark:text-slate-200 block mb-1">{tr('Select Product')}</label>
             <select
               value={selectedProductId}
               onChange={(e) => setSelectedProductId(e.target.value)}
               className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl p-2.5 text-xs font-semibold focus:border-slate-900 focus:outline-none min-h-[38px]"
               required
             >
-              <option value="">-- Choose item to restock --</option>
+              <option value="">{tr('-- Choose item to restock --')}</option>
               {products.map(p => (
-                <option key={p.id} value={p.id}>{p.name} (Current: {p.current_stock} {p.unit})</option>
+                <option key={p.id} value={p.id}>{p.name} {tr('(Current:')} {p.current_stock} {p.unit})</option>
               ))}
             </select>
           </div>
 
-          <Input label="Quantity Received" placeholder="e.g. 50" type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} required />
-          <Input label="Purchase Cost Price (₹ per unit)" placeholder="0.00" type="number" step="0.01" value={costPrice} onChange={(e) => setCostPrice(e.target.value)} />
+          <Input label={tr('Quantity Received')} placeholder={tr('e.g. 50')} type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} required />
+          <Input label={tr('Purchase Cost Price (₹ per unit)')} placeholder="0.00" type="number" step="0.01" value={costPrice} onChange={(e) => setCostPrice(e.target.value)} />
           <div className="space-y-1">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Supplier / Vendor</label>
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">{tr('Supplier / Vendor')}</label>
             </div>
             {suppliers.length > 0 && (
               <select
@@ -321,7 +322,7 @@ export default function PurchasesPage() {
                 }}
                 className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl p-2.5 text-xs font-semibold focus:border-slate-900 focus:outline-none min-h-[38px]"
               >
-                <option value="">-- Not a saved supplier --</option>
+                <option value="">{tr('-- Not a saved supplier --')}</option>
                 {suppliers.map((s) => (
                   <option key={s.id} value={s.id}>{s.name}{s.phone ? ` (${s.phone})` : ''}</option>
                 ))}
@@ -329,7 +330,7 @@ export default function PurchasesPage() {
             )}
             {!supplierId && (
               <Input
-                placeholder="e.g. Metro Wholesale"
+                placeholder={tr('e.g. Metro Wholesale')}
                 value={supplierName}
                 onChange={(e) => setSupplierName(e.target.value)}
               />
@@ -337,7 +338,7 @@ export default function PurchasesPage() {
             {supplierId && (
               <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer pt-1">
                 <input type="checkbox" checked={onCredit} onChange={(e) => setOnCredit(e.target.checked)} className="w-4 h-4 accent-rose-600" />
-                Bought on credit — add quantity × cost to what I owe this supplier
+                {tr('Bought on credit — add quantity × cost to what I owe this supplier')}
               </label>
             )}
           </div>
@@ -350,8 +351,8 @@ export default function PurchasesPage() {
           )}
 
           <div className="pt-3 flex justify-end gap-2 border-t border-slate-200 dark:border-slate-800">
-            <Button type="button" variant="outline" size="sm" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-            <Button type="submit" size="sm">Save Stock Inward</Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => setIsModalOpen(false)}>{tr('Cancel')}</Button>
+            <Button type="submit" size="sm">{tr('Save Stock Inward')}</Button>
           </div>
         </form>
       </Modal>

@@ -6,6 +6,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import ts from 'typescript';
 
 // Load .env.local if present in development / simulation
 const envPath = path.resolve(__dirname, '../.env.local');
@@ -854,6 +855,69 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
 {
   const mainJsSrc = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
   assert(/const isRscRequest = searchParams\.has\('_rsc'\) \|\| request\.headers\.get\('rsc'\) === '1';/.test(mainJsSrc) && /isRscRequest \? 'text\/x-component'/.test(mainJsSrc), 'app:// serves RSC page payloads as text/x-component (sidebar clicks do not reload the app)');
+}
+
+// 8x. Hindi / Marathi UI (v4.63.0). The English text is the message id; every
+// tr() / msg() text must have both translations, and screen text may not skip tr().
+{
+  const hiDict = JSON.parse(readSource('locales/hi.json')) as Record<string, string>;
+  const mrDict = JSON.parse(readSource('locales/mr.json')) as Record<string, string>;
+  const holes = (s: string) => (s.match(/\{\w+\}/g) || []).sort().join(',');
+  // Print documents, the invoice/pay pages and the base UI kit stay English on purpose.
+  const NOT_TRANSLATED_UI = /(app[\\/](layout|invoice[\\/]page|pay[\\/]page)\.tsx|components[\\/](invoices[\\/](print[\\/]|InvoicePreview)|reports[\\/]print[\\/]|pwa[\\/]|payments[\\/]PaymentCelebrationModal|ui[\\/](Button|Card|Input)\.tsx|layout[\\/]LanguageSwitcher)|lib[\\/].*\.tsx$)/;
+  const BRANDS = new Set(['KamaiPlus', 'Kamai+', 'Google Pay', 'PhonePe', 'Paytm', 'BHIM', 'BHIM UPI', 'WhatsApp', 'Tally Prime', 'Excel', 'Enter ↵']);
+  const needsTr = (text: string) => {
+    const t = text.replace(/\s+/g, ' ').trim();
+    if (!/[A-Za-z]/.test(t) || BRANDS.has(t) || /^[\w.+-]+@[\w.-]+$/.test(t)) return false;
+    if (/^[A-Z0-9₹+\-/:.,#%()&×\s]{1,6}$/.test(t)) return false; // UPI, GST, F4, PDF
+    return true;
+  };
+  const texts = new Map<string, string>();
+  const dynamicTr: string[] = [];
+  const bareJsx: string[] = [];
+  for (const file of ALL_SOURCE) {
+    const rel = path.relative(SRC_ROOT, file);
+    const sf = ts.createSourceFile(file, fs.readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true, file.endsWith('x') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
+    const translatedUi = file.endsWith('.tsx') && !NOT_TRANSLATED_UI.test(rel);
+    const visit = (node: ts.Node) => {
+      if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && ['tr', 'msg', 't'].includes(node.expression.text) && node.arguments.length) {
+        const a0 = node.arguments[0];
+        if (ts.isStringLiteral(a0) || ts.isNoSubstitutionTemplateLiteral(a0)) {
+          if (!texts.has(a0.text)) texts.set(a0.text, rel);
+        } else if (ts.isTemplateExpression(a0)) dynamicTr.push(`${rel}: ${a0.getText(sf).slice(0, 60)}`);
+      }
+      if (translatedUi && ts.isJsxText(node) && needsTr(node.text)) {
+        const parent = node.parent;
+        const tag = ts.isJsxElement(parent) ? parent.openingElement.tagName.getText(sf) : '';
+        if (!['kbd', 'code', 'pre', 'script', 'style'].includes(tag)) bareJsx.push(`${rel}: "${node.text.replace(/\s+/g, ' ').trim().slice(0, 50)}"`);
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(sf);
+  }
+  const missingHi = Array.from(texts.keys()).filter((k) => !hiDict[k]);
+  const missingMr = Array.from(texts.keys()).filter((k) => !mrDict[k]);
+  assert(texts.size > 1500 && missingHi.length === 0 && missingMr.length === 0,
+    `Every tr()/msg() text (${texts.size}) has a Hindi and a Marathi translation`,
+    [...missingHi.map((k) => `hi: ${k} (${texts.get(k)})`), ...missingMr.map((k) => `mr: ${k} (${texts.get(k)})`)].slice(0, 10).join(' | '));
+  const badHoles = Object.keys(hiDict).filter((k) => holes(k) !== holes(hiDict[k]) || !mrDict[k] || holes(k) !== holes(mrDict[k]));
+  assert(badHoles.length === 0, 'Hindi and Marathi translations keep every {placeholder} of the English text', badHoles.slice(0, 5).join(' | '));
+  assert(Object.values(hiDict).concat(Object.values(mrDict)).every((v) => v.trim().length > 0 && !/â€|Ã|ðŸ/.test(v)), 'No translation is empty or saved in a broken encoding');
+  assert(dynamicTr.length === 0, 'tr() is never given a `template ${literal}` (it could not be looked up) — use tr(\'… {name}\', { name })', dynamicTr.slice(0, 5).join(' | '));
+  assert(bareJsx.length === 0, 'No screen text is written without tr() (it would stay English in Hindi / Marathi)', bareJsx.slice(0, 8).join(' | '));
+
+  const i18nCore = readSource('lib/i18n/core.ts');
+  assert(/export function paymentMethodLabel/.test(i18nCore) && /export function expenseCategoryLabel/.test(i18nCore)
+    && /paymentMethodLabel\(sale\.payment_method\)/.test(readSource('components/transactions/TransactionBillCard.tsx'))
+    && /expenseCategoryLabel\(e\.category\)/.test(readSource('components/cash-register/CashExpensesList.tsx')),
+    'Payment-mode and expense badges show a translated name, not the raw "cash" / "tea_snacks" id');
+  assert(/\{tr\(p\)\}/.test(readSource('app/reports/page.tsx')) && /msg\('This Month'\)/.test(readSource('lib/reports/advancedReports.ts')), 'Report period chips are translated (the English id stays the key)');
+  for (const f of ['app/auth/page.tsx', 'app/onboarding/page.tsx', 'components/licence/LicenceGate.tsx']) {
+    assert(/<LanguageSwitcher/.test(readSource(f)), `${f.split('/').slice(-2).join('/')} lets the shop pick English / हिंदी / मराठी before the app opens`);
+  }
+  const layoutSrc = readSource('app/layout.tsx');
+  assert(layoutSrc.indexOf('<I18nProvider>') > -1 && layoutSrc.indexOf('<I18nProvider>') < layoutSrc.indexOf('<LicenceGate>'), 'The language provider wraps the licence screen too');
+  assert(/language: getLanguage\(\)/.test(readSource('app/onboarding/page.tsx')), 'A new store saves the language picked on the setup screen (not always Hindi)');
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.

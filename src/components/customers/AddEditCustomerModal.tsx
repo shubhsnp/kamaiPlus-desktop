@@ -8,6 +8,7 @@ import { Customer, CustomerType } from '@/types';
 import { Plus, Edit3, Trash2 } from 'lucide-react';
 
 import { validateCustomerData } from '@/lib/validation/validators';
+import { tr } from '@/lib/i18n/core';
 
 interface AddEditCustomerModalProps {
   isOpen: boolean;
@@ -95,7 +96,7 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
     });
 
     if (!validation.isValid) {
-      setFormError(validation.error || 'Please fill in valid customer details.');
+      setFormError(validation.error || tr('Please fill in valid customer details.'));
       return;
     }
 
@@ -122,7 +123,7 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
       onClose();
     } catch (err) {
       console.error('Failed to save customer:', err);
-      setFormError('Failed to save customer. Please try again.');
+      setFormError(tr('Failed to save customer. Please try again.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -135,16 +136,16 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
       title={
         <div className="flex items-center gap-2">
           {editingCustomer ? <Edit3 className="w-5 h-5 text-sky-500" /> : <Plus className="w-5 h-5 text-sky-500" />}
-          <span>{editingCustomer ? `Edit Customer: ${editingCustomer.name}` : 'Add New Customer'}</span>
+          <span>{editingCustomer ? tr('Edit Customer: {name}', { name: editingCustomer.name }) : tr('Add New Customer')}</span>
         </div>
       }
-      description={editingCustomer ? "Update customer profile, address, GSTIN, loyalty points, and credit balance." : "Register a new customer for POS billing, khata credit ledger, and loyalty tracking."}
+      description={editingCustomer ? tr('Update customer profile, address, GSTIN, loyalty points, and credit balance.') : tr('Register a new customer for POS billing, khata credit ledger, and loyalty tracking.')}
       size="lg"
     >
       <form onSubmit={handleSubmit} className="space-y-3.5">
         <Input 
-          label="Customer Full Name *" 
-          placeholder="e.g. Anand Sharma" 
+          label={tr('Customer Full Name *')} 
+          placeholder={tr('e.g. Anand Sharma')} 
           value={name} 
           onChange={(e) => setName(e.target.value)} 
           required 
@@ -153,15 +154,15 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Input 
-            label="Mobile Phone Number" 
-            placeholder="e.g. 9876543210" 
+            label={tr('Mobile Phone Number')} 
+            placeholder={tr('e.g. 9876543210')} 
             type="tel" 
             value={phone} 
             onChange={(e) => setPhone(e.target.value)} 
           />
           <Input 
-            label="Email Address (Optional)" 
-            placeholder="e.g. anand@gmail.com" 
+            label={tr('Email Address (Optional)')} 
+            placeholder={tr('e.g. anand@gmail.com')} 
             type="email" 
             value={email} 
             onChange={(e) => setEmail(e.target.value)} 
@@ -171,45 +172,45 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-              Customer Category
+              {tr('Customer Category')}
             </label>
             <select
               value={customerType}
               onChange={(e) => setCustomerType(e.target.value as CustomerType)}
               className="w-full h-10 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-sky-500"
             >
-              <option value="regular">Regular Customer</option>
-              <option value="vip">⭐ VIP Customer</option>
-              <option value="credit">Credit / Khata Customer</option>
-              <option value="new">New Customer</option>
+              <option value="regular">{tr('Regular Customer')}</option>
+              <option value="vip">{tr('⭐ VIP Customer')}</option>
+              <option value="credit">{tr('Credit / Khata Customer')}</option>
+              <option value="new">{tr('New Customer')}</option>
             </select>
           </div>
 
           <Input 
-            label="Customer GSTIN (For B2B Tax Invoicing)" 
-            placeholder="e.g. 27AAAAA0000A1Z5" 
+            label={tr('Customer GSTIN (For B2B Tax Invoicing)')} 
+            placeholder={tr('e.g. 27AAAAA0000A1Z5')} 
             value={gstin} 
             onChange={(e) => setGstin(e.target.value.toUpperCase())} 
           />
         </div>
 
         <Input 
-          label="Delivery / Billing Address" 
-          placeholder="e.g. Shop 4, MG Road, Mumbai" 
+          label={tr('Delivery / Billing Address')} 
+          placeholder={tr('e.g. Shop 4, MG Road, Mumbai')} 
           value={address} 
           onChange={(e) => setAddress(e.target.value)} 
         />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Input 
-            label="Birthday (DD-MM-YYYY)" 
-            placeholder="e.g. 16-08-1992" 
+            label={tr('Birthday (DD-MM-YYYY)')} 
+            placeholder={tr('e.g. 16-08-1992')} 
             value={dateOfBirth} 
             onChange={(e) => setDateOfBirth(e.target.value)} 
           />
           <Input 
-            label="Anniversary (DD-MM-YYYY)" 
-            placeholder="e.g. 25-12-2018" 
+            label={tr('Anniversary (DD-MM-YYYY)')} 
+            placeholder={tr('e.g. 25-12-2018')} 
             value={anniversaryDate} 
             onChange={(e) => setAnniversaryDate(e.target.value)} 
           />
@@ -217,12 +218,12 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
 
         <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2.5">
           <div className="text-xs font-black text-slate-800 dark:text-slate-200">
-            Opening &amp; Current Balances
+            {tr('Opening & Current Balances')}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input 
-              label="Opening Balance (₹)" 
+              label={tr('Opening Balance (₹)')} 
               placeholder="0.00" 
               type="number" 
               step="0.01" 
@@ -230,7 +231,7 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
               onChange={(e) => setOpeningBalance(e.target.value)} 
             />
             <Input 
-              label="Current Balance Due (₹)" 
+              label={tr('Current Balance Due (₹)')} 
               placeholder="0.00" 
               type="number" 
               step="0.01" 
@@ -242,11 +243,11 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
 
         <div>
           <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-            Customer Notes &amp; Preferences
+            {tr('Customer Notes & Preferences')}
           </label>
           <textarea
             rows={2}
-            placeholder="e.g. Prefers home delivery in evening, special discount 5%..."
+            placeholder={tr('e.g. Prefers home delivery in evening, special discount 5%...')}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500"
@@ -269,16 +270,16 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
               className="text-rose-600 border-rose-200 dark:border-rose-900 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs rounded-xl cursor-pointer"
             >
               <Trash2 className="w-3.5 h-3.5 mr-1" />
-              <span>Delete</span>
+              <span>{tr('Delete')}</span>
             </Button>
           ) : <div />}
 
           <div className="flex items-center gap-2">
             <Button type="button" variant="outline" onClick={onClose} className="rounded-xl">
-              Cancel
+              {tr('Cancel')}
             </Button>
             <Button type="submit" disabled={isSubmitting} className="font-black bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-950 hover:bg-slate-800 rounded-xl">
-              {isSubmitting ? 'Saving...' : editingCustomer ? 'Update Customer' : 'Save Customer'}
+              {isSubmitting ? tr('Saving...') : editingCustomer ? tr('Update Customer') : tr('Save Customer')}
             </Button>
           </div>
         </div>

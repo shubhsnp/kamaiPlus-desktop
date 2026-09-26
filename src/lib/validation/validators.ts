@@ -1,3 +1,4 @@
+import { msg, tr } from '@/lib/i18n/core';
 /**
  * Enterprise Validation Engine for KamaiPlus (Kamai+)
  * Standardized, strict, and user-friendly validation across all platform forms.
@@ -19,11 +20,11 @@ export interface ValidationResult {
 export function validateIndianPhone(
   phone: string | null | undefined,
   required = true,
-  fieldLabel = 'Mobile Number'
+  fieldLabel: string = msg('Mobile Number')
 ): ValidationResult {
   if (!phone || !phone.trim()) {
     if (!required) return { isValid: true, cleanedValue: '' };
-    return { isValid: false, error: `${fieldLabel} is required.` };
+    return { isValid: false, error: tr('{fieldLabel} is required.', { fieldLabel: tr(fieldLabel) }) };
   }
 
   const cleanDigits = phone.replace(/\D/g, '').slice(-10);
@@ -31,7 +32,7 @@ export function validateIndianPhone(
   if (cleanDigits.length !== 10) {
     return {
       isValid: false,
-      error: `Please enter a valid 10-digit ${fieldLabel.toLowerCase()} (e.g. 9876543210).`,
+      error: tr('Please enter a valid 10-digit {v1} (e.g. 9876543210).', { v1: tr(fieldLabel) }),
     };
   }
 
@@ -39,7 +40,7 @@ export function validateIndianPhone(
   if (!/^[6-9]\d{9}$/.test(cleanDigits)) {
     return {
       isValid: false,
-      error: `${fieldLabel} must begin with 6, 7, 8, or 9.`,
+      error: tr('{fieldLabel} must begin with 6, 7, 8, or 9.', { fieldLabel: tr(fieldLabel) }),
     };
   }
 
@@ -52,11 +53,11 @@ export function validateIndianPhone(
 export function validateEmail(
   email: string | null | undefined,
   required = false,
-  fieldLabel = 'Email Address'
+  fieldLabel: string = msg('Email Address')
 ): ValidationResult {
   if (!email || !email.trim()) {
     if (!required) return { isValid: true, cleanedValue: '' };
-    return { isValid: false, error: `${fieldLabel} is required.` };
+    return { isValid: false, error: tr('{fieldLabel} is required.', { fieldLabel: tr(fieldLabel) }) };
   }
 
   const cleanEmail = email.trim().toLowerCase();
@@ -65,7 +66,7 @@ export function validateEmail(
   if (!emailRegex.test(cleanEmail)) {
     return {
       isValid: false,
-      error: `Please enter a valid ${fieldLabel.toLowerCase()} (e.g. name@example.com).`,
+      error: tr('Please enter a valid {v1} (e.g. name@example.com).', { v1: tr(fieldLabel) }),
     };
   }
 
@@ -87,7 +88,7 @@ export function validateGstin(
 ): ValidationResult {
   if (!gstin || !gstin.trim()) {
     if (!required) return { isValid: true, cleanedValue: '' };
-    return { isValid: false, error: 'GSTIN Number is required for tax invoices.' };
+    return { isValid: false, error: tr('GSTIN Number is required for tax invoices.') };
   }
 
   const cleanGstin = gstin.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -95,7 +96,7 @@ export function validateGstin(
   if (cleanGstin.length !== 15) {
     return {
       isValid: false,
-      error: `GSTIN must be exactly 15 characters (currently ${cleanGstin.length}). Example: 27AAAAA0000A1Z5.`,
+      error: tr('GSTIN must be exactly 15 characters (currently {length}). Example: 27AAAAA0000A1Z5.', { length: cleanGstin.length }),
     };
   }
 
@@ -103,7 +104,7 @@ export function validateGstin(
   if (!gstinRegex.test(cleanGstin)) {
     return {
       isValid: false,
-      error: 'Invalid GSTIN structure. Example format: 27AAAAA0000A1Z5 (State + PAN + Entity + Z + Checksum).',
+      error: tr('Invalid GSTIN structure. Example format: 27AAAAA0000A1Z5 (State + PAN + Entity + Z + Checksum).'),
     };
   }
 
@@ -120,7 +121,7 @@ export function validateUpiId(
 ): ValidationResult {
   if (!upiId || !upiId.trim()) {
     if (!required) return { isValid: true, cleanedValue: '' };
-    return { isValid: false, error: 'UPI ID is required for generating customer payment QR codes.' };
+    return { isValid: false, error: tr('UPI ID is required for generating customer payment QR codes.') };
   }
 
   const cleanUpi = upiId.trim().toLowerCase();
@@ -129,7 +130,7 @@ export function validateUpiId(
   if (!upiRegex.test(cleanUpi)) {
     return {
       isValid: false,
-      error: 'Please enter a valid UPI ID / VPA (e.g. yourstore@okaxis, 9876543210@paytm).',
+      error: tr('Please enter a valid UPI ID / VPA (e.g. yourstore@okaxis, 9876543210@paytm).'),
     };
   }
 
@@ -145,14 +146,14 @@ export function validatePincode(
 ): ValidationResult {
   if (!pincode || !pincode.trim()) {
     if (!required) return { isValid: true, cleanedValue: '' };
-    return { isValid: false, error: 'Pincode is required.' };
+    return { isValid: false, error: tr('Pincode is required.') };
   }
 
   const cleanPin = pincode.replace(/\D/g, '');
   if (!/^[1-9][0-9]{5}$/.test(cleanPin)) {
     return {
       isValid: false,
-      error: 'Please enter a valid 6-digit Indian postal Pincode (e.g. 411001).',
+      error: tr('Please enter a valid 6-digit Indian postal Pincode (e.g. 411001).'),
     };
   }
 
@@ -168,14 +169,14 @@ export function validateFssaiLicense(
 ): ValidationResult {
   if (!fssai || !fssai.trim()) {
     if (!required) return { isValid: true, cleanedValue: '' };
-    return { isValid: false, error: 'FSSAI License Number is required for food businesses.' };
+    return { isValid: false, error: tr('FSSAI License Number is required for food businesses.') };
   }
 
   const clean = fssai.replace(/\D/g, '');
   if (!/^[0-9]{14}$/.test(clean)) {
     return {
       isValid: false,
-      error: 'FSSAI License must be exactly 14 numeric digits.',
+      error: tr('FSSAI License must be exactly 14 numeric digits.'),
     };
   }
 
@@ -207,15 +208,15 @@ export function validateProductData(input: ProductValidationInput): ValidationRe
 
   // 1. Name Check
   if (!cleanName || cleanName.length < 2) {
-    return { isValid: false, error: 'Product Name must be at least 2 characters long.' };
+    return { isValid: false, error: tr('Product Name must be at least 2 characters long.') };
   }
   if (cleanName.length > 150) {
-    return { isValid: false, error: 'Product Name cannot exceed 150 characters.' };
+    return { isValid: false, error: tr('Product Name cannot exceed 150 characters.') };
   }
 
   // 2. Selling Price Check
   if (typeof input.sellingPricePaise !== 'number' || isNaN(input.sellingPricePaise) || input.sellingPricePaise <= 0) {
-    return { isValid: false, error: 'Selling Price must be greater than ₹0.' };
+    return { isValid: false, error: tr('Selling Price must be greater than ₹0.') };
   }
 
   // 3. Legal Metrology: MRP cannot be less than Selling Price
@@ -223,22 +224,22 @@ export function validateProductData(input: ProductValidationInput): ValidationRe
   if (mrp < input.sellingPricePaise) {
     return {
       isValid: false,
-      error: `MRP (₹${(mrp / 100).toFixed(2)}) cannot be lower than Selling Price (₹${(input.sellingPricePaise / 100).toFixed(2)}) per Indian Legal Metrology rules.`,
+      error: tr('MRP (₹{v1}) cannot be lower than Selling Price (₹{v2}) per Indian Legal Metrology rules.', { v1: (mrp / 100).toFixed(2), v2: (input.sellingPricePaise / 100).toFixed(2) }),
     };
   }
 
   // 4. Purchase Price Check
   if (input.purchasePricePaise !== undefined && input.purchasePricePaise < 0) {
-    return { isValid: false, error: 'Purchase/Cost Price cannot be negative.' };
+    return { isValid: false, error: tr('Purchase/Cost Price cannot be negative.') };
   }
 
   // 5. Stock Check
   if (!input.isUnlimitedStock && input.currentStock !== undefined && input.currentStock < 0) {
-    return { isValid: false, error: 'Stock Quantity cannot be negative.' };
+    return { isValid: false, error: tr('Stock Quantity cannot be negative.') };
   }
 
   if (input.minStockLevel !== undefined && input.minStockLevel < 0) {
-    return { isValid: false, error: 'Reorder / Min Stock Level cannot be negative.' };
+    return { isValid: false, error: tr('Reorder / Min Stock Level cannot be negative.') };
   }
 
   // 6. Tax Rate Slab Check
@@ -247,7 +248,7 @@ export function validateProductData(input: ProductValidationInput): ValidationRe
   if (input.taxRate !== undefined && !validTaxRates.includes(input.taxRate)) {
     return {
       isValid: false,
-      error: `GST Rate must be an official Indian GST slab (0%, 0.25%, 3%, 5%, 18% or 40%; 12% / 28% for older items).`,
+      error: tr('GST Rate must be an official Indian GST slab (0%, 0.25%, 3%, 5%, 18% or 40%; 12% / 28% for older items).'),
     };
   }
 
@@ -255,7 +256,7 @@ export function validateProductData(input: ProductValidationInput): ValidationRe
   if (input.hsnCode && input.hsnCode.trim()) {
     const cleanHsn = input.hsnCode.replace(/\D/g, '');
     if (cleanHsn.length < 2 || cleanHsn.length > 8) {
-      return { isValid: false, error: 'HSN / SAC code must be 2 to 8 numeric digits.' };
+      return { isValid: false, error: tr('HSN / SAC code must be 2 to 8 numeric digits.') };
     }
   }
 
@@ -277,14 +278,14 @@ export interface CustomerValidationInput {
 export function validateCustomerData(input: CustomerValidationInput): ValidationResult {
   const cleanName = (input.name || '').trim();
   if (!cleanName || cleanName.length < 2) {
-    return { isValid: false, error: 'Customer Name must be at least 2 characters long.' };
+    return { isValid: false, error: tr('Customer Name must be at least 2 characters long.') };
   }
 
-  const phoneRes = validateIndianPhone(input.phone, true, 'Customer Mobile Phone');
+  const phoneRes = validateIndianPhone(input.phone, true, msg('Customer Mobile Phone'));
   if (!phoneRes.isValid) return phoneRes;
 
   if (input.creditLimitPaise !== undefined && input.creditLimitPaise < 0) {
-    return { isValid: false, error: 'Credit Limit cannot be negative.' };
+    return { isValid: false, error: tr('Credit Limit cannot be negative.') };
   }
 
   if (input.gstin && input.gstin.trim()) {
@@ -306,11 +307,11 @@ export function validateCustomerData(input: CustomerValidationInput): Validation
 
 export function validateExpenseData(input: { amountPaise: number; category: string; description?: string }): ValidationResult {
   if (typeof input.amountPaise !== 'number' || isNaN(input.amountPaise) || input.amountPaise <= 0) {
-    return { isValid: false, error: 'Expense Amount must be greater than ₹0.' };
+    return { isValid: false, error: tr('Expense Amount must be greater than ₹0.') };
   }
 
   if (!input.category || !input.category.trim()) {
-    return { isValid: false, error: 'Please select or enter an expense category.' };
+    return { isValid: false, error: tr('Please select or enter an expense category.') };
   }
 
   return { isValid: true };

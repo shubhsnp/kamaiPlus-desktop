@@ -25,13 +25,14 @@ import { OwnerPinPrompt } from '@/components/privacy/OwnerPinPrompt';
 import { CategoryList, DeadStockList, ItemList, PartyList, ProfitView, profitText } from '@/components/reports/analytics/AnalyticsLists';
 import { PartyDetailModal } from '@/components/reports/analytics/PartyDetailModal';
 import { CategoryDetailModal } from '@/components/reports/analytics/CategoryDetailModal';
+import { msg, tr } from '@/lib/i18n/core';
 
 type Tab = 'parties' | 'categories' | 'items' | 'dead';
 
 const SORTS: { id: ReportSort; label: string }[] = [
-  { id: 'sales', label: 'Sales (High to Low)' },
-  { id: 'profit', label: 'Profit (High to Low)' },
-  { id: 'qty', label: 'Quantity Sold' },
+  { id: 'sales', label: msg('Sales (High to Low)') },
+  { id: 'profit', label: msg('Profit (High to Low)') },
+  { id: 'qty', label: msg('Quantity Sold') },
 ];
 
 /**
@@ -76,15 +77,15 @@ export default function SalesAnalyticsPage() {
   const dead = (data?.itemData || []).filter((i) => isDeadStock(i) && (!q || i.itemName.toLowerCase().includes(q) || i.categoryName.toLowerCase().includes(q)));
 
   const report = (res: { ok: boolean; path?: string; error?: string }, label: string) => {
-    if (res.ok) setNotice({ tone: 'ok', text: res.path ? `${label} saved.` : 'Choose "Save as PDF" in the print dialog.', path: res.path });
-    else setNotice({ tone: 'err', text: res.error || `Could not create the ${label.toLowerCase()}.` });
+    if (res.ok) setNotice({ tone: 'ok', text: res.path ? tr('{label} saved.', { label: label }) : tr('Choose "Save as PDF" in the print dialog.'), path: res.path });
+    else setNotice({ tone: 'err', text: res.error || tr('Could not create the {label}.', { label: label.toLowerCase() }) });
   };
 
   const exportGeneral = async () => {
     if (!data) return;
     setExporting('general');
     try {
-      report(await saveGeneralReportPdf({ data, periodLabel, dateSpan, business, includeProfit: unlocked, start: period.start }), 'Sales report PDF');
+      report(await saveGeneralReportPdf({ data, periodLabel, dateSpan, business, includeProfit: unlocked, start: period.start }), tr('Sales report PDF'));
     } finally {
       setExporting(null);
     }
@@ -95,7 +96,7 @@ export default function SalesAnalyticsPage() {
     setExporting(party.partyId);
     try {
       const bills = invoices || sales.filter((s) => (s.customer_id || 'walkin') === party.partyId);
-      report(await savePartyStatementPdf({ party, invoices: bills, returns, periodLabel, dateSpan, business }), 'Account statement PDF');
+      report(await savePartyStatementPdf({ party, invoices: bills, returns, periodLabel, dateSpan, business }), tr('Account statement PDF'));
     } finally {
       setExporting(null);
     }
@@ -104,10 +105,10 @@ export default function SalesAnalyticsPage() {
   const ps = data?.paymentSummary;
   const desktop = getDesktopApi();
   const tabs: { id: Tab; label: string }[] = [
-    { id: 'parties', label: `Parties (${data?.partyData.length ?? 0})` },
-    { id: 'categories', label: `Categories (${data?.categoryData.length ?? 0})` },
-    { id: 'items', label: `Items (${data?.itemData.filter((i) => !isDeadStock(i)).length ?? 0})` },
-    { id: 'dead', label: `Dead Stock (${data?.itemData.filter(isDeadStock).length ?? 0})` },
+    { id: 'parties', label: tr('Parties ({v1})', { v1: data?.partyData.length ?? 0 }) },
+    { id: 'categories', label: tr('Categories ({v1})', { v1: data?.categoryData.length ?? 0 }) },
+    { id: 'items', label: tr('Items ({v1})', { v1: data?.itemData.filter((i) => !isDeadStock(i)).length ?? 0 }) },
+    { id: 'dead', label: tr('Dead Stock ({v1})', { v1: data?.itemData.filter(isDeadStock).length ?? 0 }) },
   ];
 
   return (
@@ -118,8 +119,8 @@ export default function SalesAnalyticsPage() {
             <LineChart className="w-5 h-5" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-lg font-black text-slate-900 leading-tight">Sales Analytics</h1>
-            <p className="text-xs text-slate-500">{!data ? 'Analyzing counter sales…' : `${periodLabel} • ${dateSpan} • ${formatINR(ps?.totalPaise || 0)}`}</p>
+            <h1 className="text-lg font-black text-slate-900 leading-tight">{tr('Sales Analytics')}</h1>
+            <p className="text-xs text-slate-500">{!data ? tr('Analyzing counter sales…') : `${tr(periodLabel)} • ${dateSpan} • ${formatINR(ps?.totalPaise || 0)}`}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -127,9 +128,9 @@ export default function SalesAnalyticsPage() {
             type="button"
             onClick={() => (unlocked ? setUnlocked(false) : setPinOpen(true))}
             className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 inline-flex items-center gap-1.5 cursor-pointer hover:bg-slate-50"
-            title={unlocked ? 'Hide profit' : 'Show profit (owner PIN)'}
+            title={unlocked ? tr('Hide profit') : tr('Show profit (owner PIN)')}
           >
-            {unlocked ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />} {unlocked ? 'Hide Profit' : 'Show Profit'}
+            {unlocked ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />} {unlocked ? tr('Hide Profit') : tr('Show Profit')}
           </button>
           <button
             type="button"
@@ -137,7 +138,7 @@ export default function SalesAnalyticsPage() {
             disabled={!data || exporting !== null}
             className="px-3 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
           >
-            <FileDown className="w-4 h-4 text-amber-300" /> {exporting === 'general' ? 'Saving…' : 'PDF Report'}
+            <FileDown className="w-4 h-4 text-amber-300" /> {exporting === 'general' ? tr('Saving…') : tr('PDF Report')}
           </button>
         </div>
       </div>
@@ -147,11 +148,11 @@ export default function SalesAnalyticsPage() {
           <span className="flex-1">{notice.text}</span>
           {notice.path && desktop && (
             <>
-              <button type="button" onClick={() => desktop.openPath(notice.path!)} className="px-2 py-1 rounded-lg bg-white border border-emerald-300 cursor-pointer">Open</button>
-              <button type="button" onClick={() => desktop.showItemInFolder(notice.path!)} className="px-2 py-1 rounded-lg bg-white border border-emerald-300 cursor-pointer">Show in folder</button>
+              <button type="button" onClick={() => desktop.openPath(notice.path!)} className="px-2 py-1 rounded-lg bg-white border border-emerald-300 cursor-pointer">{tr('Open')}</button>
+              <button type="button" onClick={() => desktop.showItemInFolder(notice.path!)} className="px-2 py-1 rounded-lg bg-white border border-emerald-300 cursor-pointer">{tr('Show in folder')}</button>
             </>
           )}
-          <button type="button" onClick={() => setNotice(null)} className="p-1 cursor-pointer" aria-label="Dismiss">
+          <button type="button" onClick={() => setNotice(null)} className="p-1 cursor-pointer" aria-label={tr('Dismiss')}>
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -169,14 +170,14 @@ export default function SalesAnalyticsPage() {
                 periodLabel === p ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
               )}
             >
-              {p}
+              {tr(p)}
             </button>
           ))}
         </div>
         <select value={sort} onChange={(e) => setSort(e.target.value as ReportSort)} className="text-xs font-bold border border-slate-200 rounded-full px-3 py-1.5 bg-white text-slate-700">
           {SORTS.map((s) => (
             <option key={s.id} value={s.id}>
-              Sort: {s.label}
+              {tr('Sort:')} {tr(s.label)}
             </option>
           ))}
         </select>
@@ -184,19 +185,19 @@ export default function SalesAnalyticsPage() {
 
       {data && ps && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
-          <Metric icon={TrendingUp} tone="text-emerald-600" title="Total Revenue" tag="Turnover" value={formatINR(ps.totalPaise)} valueTone="text-emerald-700" sub={`${data.invoiceCount} bills • net of returns`} />
+          <Metric icon={TrendingUp} tone="text-emerald-600" title={tr('Total Revenue')} tag={tr('Turnover')} value={formatINR(ps.totalPaise)} valueTone="text-emerald-700" sub={tr('{invoiceCount} bills • net of returns', { invoiceCount: data.invoiceCount })} />
           <button type="button" className="text-left" onClick={unlocked ? undefined : () => setPinOpen(true)}>
             <Metric
               icon={PieChart}
               tone={isProfitPartial(data) ? 'text-amber-600' : 'text-indigo-600'}
-              title="Est. Profit"
-              tag={!unlocked ? 'PIN' : isProfitPartial(data) ? 'Partial' : `${marginPercent(data).toFixed(1)}%`}
+              title={tr('Est. Profit')}
+              tag={!unlocked ? 'PIN' : isProfitPartial(data) ? tr('Partial') : `${marginPercent(data).toFixed(1)}%`}
               value={profitText(data.totalProfitPaise, view)}
-              sub={!unlocked ? 'Tap to unlock with owner PIN' : isProfitPartial(data) ? `${data.uncostedLineCount} line(s) lack buying price` : 'Sales − buying cost'}
+              sub={!unlocked ? tr('Tap to unlock with owner PIN') : isProfitPartial(data) ? tr('{uncostedLineCount} line(s) lack buying price', { uncostedLineCount: data.uncostedLineCount }) : tr('Sales − buying cost')}
             />
           </button>
-          <Metric icon={Wallet} tone="text-sky-600" title="Cash & UPI" tag="Liquid" value={formatINR(ps.totalCashPaise + ps.totalUpiPaise + ps.totalCardPaise)} valueTone="text-sky-700" sub={`Cash: ${formatINR(ps.totalCashPaise)}`} />
-          <Metric icon={BookOpen} tone="text-orange-600" title="Udhar Given" tag="Credit" value={formatINR(ps.totalCreditPaise)} valueTone={ps.totalCreditPaise > 0 ? 'text-orange-600' : 'text-slate-900'} sub="Credit sales in period" />
+          <Metric icon={Wallet} tone="text-sky-600" title={tr('Cash & UPI')} tag={tr('Liquid')} value={formatINR(ps.totalCashPaise + ps.totalUpiPaise + ps.totalCardPaise)} valueTone="text-sky-700" sub={tr('Cash: {v1}', { v1: formatINR(ps.totalCashPaise) })} />
+          <Metric icon={BookOpen} tone="text-orange-600" title={tr('Udhar Given')} tag={tr('Credit')} value={formatINR(ps.totalCreditPaise)} valueTone={ps.totalCreditPaise > 0 ? 'text-orange-600' : 'text-slate-900'} sub={tr('Credit sales in period')} />
         </div>
       )}
 
@@ -205,11 +206,11 @@ export default function SalesAnalyticsPage() {
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Filter by customer, category or product…"
+          placeholder={tr('Filter by customer, category or product…')}
           className="w-full pl-9 pr-9 py-2.5 text-sm rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-slate-400"
         />
         {search && (
-          <button type="button" onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer" aria-label="Clear search">
+          <button type="button" onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer" aria-label={tr('Clear search')}>
             <X className="w-4 h-4 text-slate-400" />
           </button>
         )}
@@ -226,13 +227,13 @@ export default function SalesAnalyticsPage() {
               tab === t.id ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-800'
             )}
           >
-            {t.label}
+            {tr(t.label)}
           </button>
         ))}
       </div>
 
       {!data ? (
-        <div className="py-16 text-center text-sm text-slate-500">Loading analytics…</div>
+        <div className="py-16 text-center text-sm text-slate-500">{tr('Loading analytics…')}</div>
       ) : tab === 'parties' ? (
         <PartyList parties={parties} view={view} exportingId={exporting} onOpen={setOpenParty} onExport={(p) => exportParty(p)} />
       ) : tab === 'categories' ? (
@@ -240,14 +241,14 @@ export default function SalesAnalyticsPage() {
       ) : tab === 'items' ? (
         <ItemList items={sold} view={view} />
       ) : (
-        <DeadStockList items={dead} periodLabel={periodLabel} />
+        <DeadStockList items={dead} periodLabel={tr(periodLabel)} />
       )}
 
       <PartyDetailModal
         party={openParty}
         periodSales={sales || []}
         returns={returns || []}
-        periodLabel={periodLabel}
+        periodLabel={tr(periodLabel)}
         business={business}
         view={view}
         exporting={openParty ? exporting === openParty.partyId : false}
@@ -257,7 +258,7 @@ export default function SalesAnalyticsPage() {
       <CategoryDetailModal
         category={openCategory}
         items={(data?.itemData || []).filter((i) => !isDeadStock(i) && i.categoryName === openCategory?.categoryName)}
-        periodLabel={periodLabel}
+        periodLabel={tr(periodLabel)}
         view={view}
         onClose={() => setOpenCategory(null)}
       />

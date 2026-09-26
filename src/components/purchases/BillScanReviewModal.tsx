@@ -22,6 +22,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { MASTER_UNITS } from '@/lib/constants/storeProfiles';
+import { tr } from '@/lib/i18n/core';
 
 interface BillScanReviewModalProps {
   isOpen: boolean;
@@ -103,7 +104,7 @@ export function BillScanReviewModal({
   // Confirm and inward into Dexie
   const handleConfirmInward = async () => {
     if (items.length === 0) {
-      showAlert('No items to inward. Please add at least one line item.');
+      showAlert(tr('No items to inward. Please add at least one line item.'));
       return;
     }
 
@@ -219,27 +220,27 @@ export function BillScanReviewModal({
       onSuccess(purchaseBillId, updatedCount, createdCount);
     } catch (err: any) {
       console.error('Failed to confirm bill inward:', err);
-      showAlert('Error recording purchase bill: ' + (err.message || 'Unknown error'));
+      showAlert(tr('Error recording purchase bill: {error}', { error: err.message || tr('Unknown error') }));
     } finally {
       setIsSaving(false);
     }
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Purchase Bill Review & Stock Inward">
+    <Modal isOpen={isOpen} onClose={onClose} title={tr('Purchase Bill Review & Stock Inward')}>
       <div className="space-y-4 max-h-[80vh] overflow-y-auto pr-1">
         {/* Header summary banner */}
         <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-400/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2 text-amber-300 font-bold">
             <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
-            <span>{items.length} items read from your bill file. Review &amp; confirm below.</span>
+            <span>{items.length} {tr('items read from your bill file. Review & confirm below.')}</span>
           </div>
           <div className="flex items-center gap-2 font-mono shrink-0">
             <span className="px-2 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-300 font-bold">
-              {matchedCount} Matched
+              {matchedCount} {tr('Matched')}
             </span>
             <span className="px-2 py-0.5 rounded-lg bg-amber-400/20 text-amber-300 font-bold">
-              {newProductCount} New
+              {newProductCount} {tr('New')}
             </span>
           </div>
         </div>
@@ -248,33 +249,33 @@ export function BillScanReviewModal({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 bg-slate-100 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
           <div>
             <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
-              Supplier / Wholesaler Name
+              {tr('Supplier / Wholesaler Name')}
             </label>
             <input
               type="text"
               value={supplierName}
               onChange={(e) => setSupplierName(e.target.value)}
-              placeholder="e.g. Balaji Distributors"
+              placeholder={tr('e.g. Balaji Distributors')}
               className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white font-medium"
             />
           </div>
 
           <div>
             <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
-              Bill / Invoice Number
+              {tr('Bill / Invoice Number')}
             </label>
             <input
               type="text"
               value={billNumber}
               onChange={(e) => setBillNumber(e.target.value)}
-              placeholder="e.g. INV-9902"
+              placeholder={tr('e.g. INV-9902')}
               className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white font-mono"
             />
           </div>
 
           <div>
             <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
-              Invoice Date
+              {tr('Invoice Date')}
             </label>
             <input
               type="date"
@@ -291,13 +292,13 @@ export function BillScanReviewModal({
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="bg-slate-100 dark:bg-slate-900/90 text-slate-600 dark:text-slate-400 font-bold text-[11px] border-b border-slate-200 dark:border-slate-800">
-                  <th className="py-2.5 px-3">Product Description</th>
-                  <th className="py-2.5 px-3">Match Status</th>
-                  <th className="py-2.5 px-3 w-20">Qty</th>
-                  <th className="py-2.5 px-3 w-24">Unit</th>
-                  <th className="py-2.5 px-3 w-28">Cost Price (₹)</th>
-                  <th className="py-2.5 px-3 w-28">Selling Price (₹)</th>
-                  <th className="py-2.5 px-3 text-right">Total (₹)</th>
+                  <th className="py-2.5 px-3">{tr('Product Description')}</th>
+                  <th className="py-2.5 px-3">{tr('Match Status')}</th>
+                  <th className="py-2.5 px-3 w-20">{tr('Qty')}</th>
+                  <th className="py-2.5 px-3 w-24">{tr('Unit')}</th>
+                  <th className="py-2.5 px-3 w-28">{tr('Cost Price (₹)')}</th>
+                  <th className="py-2.5 px-3 w-28">{tr('Selling Price (₹)')}</th>
+                  <th className="py-2.5 px-3 text-right">{tr('Total (₹)')}</th>
                   <th className="py-2.5 px-2 text-center w-10"></th>
                 </tr>
               </thead>
@@ -338,11 +339,11 @@ export function BillScanReviewModal({
                               : 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800 text-amber-700 dark:text-amber-300'
                           }`}
                         >
-                          <option value="NEW">➕ Create as New Item</option>
-                          <optgroup label="Map to Existing Inventory:">
+                          <option value="NEW">{tr('➕ Create as New Item')}</option>
+                          <optgroup label={tr('Map to Existing Inventory:')}>
                             {existingProducts.map((p) => (
                               <option key={p.id} value={p.id}>
-                                🔗 {p.name} (Stock: {p.current_stock})
+                                🔗 {p.name} {tr('(Stock:')} {p.current_stock})
                               </option>
                             ))}
                           </optgroup>
@@ -351,7 +352,7 @@ export function BillScanReviewModal({
                         {item.confidence === 'low' && (
                           <div className="flex items-center gap-1 text-[10px] text-rose-500 font-bold">
                             <AlertTriangle className="w-3 h-3" />
-                            <span>Check this row</span>
+                            <span>{tr('Check this row')}</span>
                           </div>
                         )}
                       </div>
@@ -423,7 +424,7 @@ export function BillScanReviewModal({
                         type="button"
                         onClick={() => handleRemoveRow(idx)}
                         className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
-                        title="Remove row"
+                        title={tr('Remove row')}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -445,11 +446,11 @@ export function BillScanReviewModal({
             className="text-xs font-bold gap-1.5"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Add Another Item</span>
+            <span>{tr('Add Another Item')}</span>
           </Button>
 
           <div className="text-right">
-            <span className="text-xs text-slate-500 mr-2">Grand Total:</span>
+            <span className="text-xs text-slate-500 mr-2">{tr('Grand Total:')}</span>
             <span className="text-base font-black font-mono text-emerald-600 dark:text-emerald-400">
               {formatINR(totalAmountPaise)}
             </span>
@@ -459,7 +460,7 @@ export function BillScanReviewModal({
         {/* Action Buttons */}
         <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
           <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={isSaving}>
-            Cancel
+            {tr('Cancel')}
           </Button>
 
           <Button
@@ -470,7 +471,7 @@ export function BillScanReviewModal({
             className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-1.5 shadow-md"
           >
             <Check className="w-4 h-4" />
-            <span>{isSaving ? 'Inwarding Inventory...' : 'Confirm & Inward Stock'}</span>
+            <span>{isSaving ? tr('Inwarding Inventory...') : tr('Confirm & Inward Stock')}</span>
           </Button>
         </div>
       </div>

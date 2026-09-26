@@ -11,6 +11,7 @@ import {
   formatReportQty,
   marginPercent,
 } from '@/lib/reports/advancedReports';
+import { tr } from '@/lib/i18n/core';
 
 export interface ProfitView {
   unlocked: boolean;
@@ -32,11 +33,11 @@ function ProfitCell({ p, view }: { p: ProfitCoverage; view: ProfitView }) {
       type="button"
       onClick={view.unlocked ? undefined : view.onRequestUnlock}
       className={cn('text-[11.5px] font-bold text-emerald-700 whitespace-nowrap', !view.unlocked && 'cursor-pointer hover:text-amber-600')}
-      title={view.unlocked ? (p.uncostedLineCount > 0 ? `${p.uncostedLineCount} line(s) have no buying price` : 'Sales − buying cost') : 'Enter owner PIN to see profit'}
+      title={view.unlocked ? (p.uncostedLineCount > 0 ? tr('{uncostedLineCount} line(s) have no buying price', { uncostedLineCount: p.uncostedLineCount }) : tr('Sales − buying cost')) : tr('Enter owner PIN to see profit')}
     >
-      Profit: {profitText(p.totalProfitPaise, view)}
+      {tr('Profit:')} {profitText(p.totalProfitPaise, view)}
       <Margin p={p} view={view} />
-      {view.unlocked && p.uncostedLineCount > 0 && <span className="ml-1 text-[10px] text-amber-600 font-black">PARTIAL</span>}
+      {view.unlocked && p.uncostedLineCount > 0 && <span className="ml-1 text-[10px] text-amber-600 font-black">{tr('PARTIAL')}</span>}
     </button>
   );
 }
@@ -87,7 +88,7 @@ export function PartyList({
   onOpen: (p: PartySalesSummary) => void;
   onExport: (p: PartySalesSummary) => void;
 }) {
-  if (parties.length === 0) return <EmptyState title="No Customer Sales" subtitle="Sales with customer information will be indexed here." />;
+  if (parties.length === 0) return <EmptyState title={tr('No Customer Sales')} subtitle={tr('Sales with customer information will be indexed here.')} />;
   return (
     <div className="space-y-2">
       {parties.map((p) => (
@@ -113,14 +114,14 @@ export function PartyList({
                 }}
                 disabled={exportingId !== null}
                 className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-black cursor-pointer disabled:opacity-50"
-                title="Save this customer's account statement as PDF"
+                title={tr('Save this customer\'s account statement as PDF')}
               >
                 <FileDown className="w-3 h-3" /> {exportingId === p.partyId ? '…' : 'PDF'}
               </button>
             </div>
             <div className="text-[11.5px] text-slate-500 truncate">
-              {p.invoiceCount} Bill{p.invoiceCount === 1 ? '' : 's'} • {p.partyPhone || 'Walk-in'}
-              {p.creditPaise > 0 && <span className="text-amber-700 font-bold"> • Udhar {formatINR(p.creditPaise)}</span>}
+              {p.invoiceCount} {p.invoiceCount === 1 ? tr('Bill') : tr('Bills')} • {p.partyPhone || tr('Walk-in')}
+              {p.creditPaise > 0 && <span className="text-amber-700 font-bold"> {tr('• Udhar')} {formatINR(p.creditPaise)}</span>}
             </div>
           </div>
           <div className="text-right shrink-0">
@@ -143,7 +144,7 @@ export function CategoryList({
   view: ProfitView;
   onOpen: (c: CategorySalesSummary) => void;
 }) {
-  if (categories.length === 0) return <EmptyState title="No Categories Found" subtitle="Category sales will appear here." />;
+  if (categories.length === 0) return <EmptyState title={tr('No Categories Found')} subtitle={tr('Category sales will appear here.')} />;
   const max = Math.max(...categories.map((c) => c.totalSalesPaise), 0);
   return (
     <div className="space-y-2">
@@ -164,7 +165,7 @@ export function CategoryList({
           </div>
           <Bar fraction={max > 0 ? c.totalSalesPaise / max : 0} color="bg-emerald-500" />
           <div className="flex items-center justify-between text-[11.5px] text-slate-500">
-            <span>Qty Sold: {formatReportQty(c.quantitySold)}</span>
+            <span>{tr('Qty Sold:')} {formatReportQty(c.quantitySold)}</span>
             <ProfitCell p={c} view={view} />
           </div>
         </div>
@@ -174,7 +175,7 @@ export function CategoryList({
 }
 
 export function ItemList({ items, view }: { items: ItemSalesSummary[]; view: ProfitView }) {
-  if (items.length === 0) return <EmptyState title="No Items Sold" subtitle="Product sales for this period will appear here." />;
+  if (items.length === 0) return <EmptyState title={tr('No Items Sold')} subtitle={tr('Product sales for this period will appear here.')} />;
   const max = Math.max(...items.map((c) => c.totalSalesPaise), 0);
   return (
     <div className="space-y-2">
@@ -190,7 +191,7 @@ export function ItemList({ items, view }: { items: ItemSalesSummary[]; view: Pro
           </div>
           <Bar fraction={max > 0 ? it.totalSalesPaise / max : 0} color="bg-sky-500" />
           <div className="flex items-center justify-between text-[11.5px] text-slate-500">
-            <span>Qty: {formatReportQty(it.quantitySold)} {it.unit || 'units'}</span>
+            <span>{tr('Qty:')} {formatReportQty(it.quantitySold)} {it.unit || 'units'}</span>
             <ProfitCell p={it} view={view} />
           </div>
         </div>
@@ -201,13 +202,13 @@ export function ItemList({ items, view }: { items: ItemSalesSummary[]; view: Pro
 
 export function DeadStockList({ items, periodLabel }: { items: ItemSalesSummary[]; periodLabel: string }) {
   if (items.length === 0) {
-    return <EmptyState positive title="Zero Dead Stock! 🎉" subtitle="Every single item in your store generated sales in this period." />;
+    return <EmptyState positive title={tr('Zero Dead Stock! 🎉')} subtitle={tr('Every single item in your store generated sales in this period.')} />;
   }
   return (
     <div className="space-y-2">
       <div className="px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold flex items-center gap-2">
         <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-        {items.length} item{items.length === 1 ? ' has' : 's have'} inventory but 0 sales in {periodLabel}.
+        {tr('{count} item(s) in stock with 0 sales in {period}.', { count: items.length, period: periodLabel })}
       </div>
       {items.map((it) => (
         <div key={it.itemId} className="bg-white border border-rose-200 rounded-2xl p-3 flex items-center gap-3">
@@ -217,7 +218,7 @@ export function DeadStockList({ items, periodLabel }: { items: ItemSalesSummary[
           <div className="flex-1 min-w-0">
             <div className="font-black text-slate-900 text-sm truncate">{it.itemName}</div>
             <div className="text-[11.5px] text-slate-500">
-              {it.categoryName} • {formatReportQty(it.stockQuantity)} {it.unit} in stock
+              {it.categoryName} • {formatReportQty(it.stockQuantity)} {it.unit} {tr('in stock')}
             </div>
           </div>
           <span className="px-2 py-1 rounded-md bg-rose-50 text-rose-600 text-[10px] font-black">0 SOLD</span>
