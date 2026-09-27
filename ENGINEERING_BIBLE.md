@@ -1,7 +1,7 @@
 # 📕 KamaiPlus Desktop — Engineering Bible
 
 > **Canonical context file. Read this before touching any code.**
-> Last verified against the tree at v4.41.0, 2026‑09‑23.
+> Last verified against the tree at v4.68.0, 2026‑09‑27 (sections carry the version they were last touched in).
 
 This file exists so that an agent starting cold does **not** have to scan 180 source
 files, and does **not** re-solve problems that were already solved. Everything here
@@ -305,7 +305,7 @@ src/components/<feature>/   Feature components, one folder per domain
 src/components/ui/          Button, Card, Input, Modal  (that is all of it)
 src/lib/<domain>/           Engines — see table below
 src/types/index.ts          All domain types. Single file.
-scripts/e2e_simulation.ts   The test suite (§11). 405 assertions.
+scripts/e2e_simulation.ts   The test suite (§11). 424 assertions.
 scripts/bump_version.ts     Version bumper (+0.1 minor)
 public/barcodes/*.json      5 shipped offline barcode dictionaries
 ```
@@ -315,6 +315,8 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 | Module | Responsibility |
 | :--- | :--- |
 | `db/index.ts` | Dexie schema, `ensureStarterBusinessIfEmpty`, `seedBusinessStarterData`, `clearAllProductData`, `restoreStarterProductCatalog` |
+| `billing/billTabs.ts` | Open POS bills (tabs) in localStorage `kamai_pos_tabs`: `makeEmptyTab`, `tabsAfterClosing`, `getInitialTabs` |
+| `billing/billCustomer.ts` | Customer typed on the POS counter row (v4.68.0): `resolveBillCustomer` (saved by mobile / only-one-by-name → existing, else new, or a refusal), `suggestCustomers`, `buildBillCustomer` — §6.1 step 0 |
 | `sales/saleMath.ts` | **All bill arithmetic.** `computeBillTotals`, `allocateBillDiscount`, `getSalePaymentBreakdown`, returns/refund math, `getLocalDayRange` |
 | `invoices/invoiceDocument.ts` | Builds the one `InvoiceDocument` model that feeds A4, thermal, ESC/POS and the theme preview |
 | `invoices/invoiceOutput.tsx` | `renderInvoiceHtml` / `printInvoice` / `saveInvoicePdf` — the public print API |
@@ -452,6 +454,12 @@ This is the highest-risk function in the codebase. It writes **five tables** and
 three other screens. The order matters:
 
 ```
+0. customer typed on the counter row (no one picked from the list)      (v4.68.0)
+     resolveBillCustomer(all customers, {name, phone})
+       saved mobile / the only customer with that name → that customer
+         (same name saved without a mobile + mobile typed → mobile filled in: db.customers.update)
+       wrong mobile / two customers with that name     → refused, cursor to that box
+       otherwise                                       → db.customers.put(new customer)
 1. getNextUniqueInvoiceNumber(businessId)      → reserve number (does NOT commit)
 2. db.sales.put(newSale)                        ← the bill is now real & safe
    ├ cloudTrackInvoice(...)                     (fire-and-forget, never awaited)
@@ -470,6 +478,11 @@ three other screens. The order matters:
 ```
 
 **Rules for this function:**
+- There is **no customer pop-up** on the counter (v4.68.0). `components/billing/PosCustomerRow.tsx`
+  is one row — name box + mobile box, saved customers listed underneath (↑ ↓ Enter / click).
+  What is typed lives on the bill tab (`customerName` / `customerPhone` in `kamai_pos_tabs`)
+  until step 0 saves it. Credit / short cash with no customer puts the cursor in the name box
+  (`focusPosCustomerName`). Address / GSTIN are edited on `/customers`.
 - Dexie writes come first and are awaited. Cloud calls are `void`-ed and never awaited.
   If you `await` a cloud call here, you have broken offline billing.
 - Never reorder 2 before 1 (you would burn an invoice number on a failed bill) or
@@ -699,6 +712,17 @@ reads it to make a decision.** Keep it that way.
 What is left in `storeProfiles.ts`: `MASTER_UNITS`, `DEFAULT_UNIT`,
 `RECOMMENDED_UNITS`, `STARTER_CATEGORIES`. That is all it is for now.
 
+### 9.0 Unlimited stock is the default for a new product (v4.68.0)
+
+Same as the Android app: Add Product opens with **"Unlimited Stock (no count)"** on
+(`is_unlimited_stock: true`, no stock boxes, no opening-stock movement). Switching it off
+fills stock **10** and low-stock alert **10** (`DEFAULT_COUNTED_STOCK` in
+`lib/products/variants.ts`); an edited product that was already counted gets its own
+numbers back. Variants of an unlimited product are unlimited too (the matrix shows ∞).
+Billing, returns, inventory, valuation and alerts already skip unlimited items
+(`tracksOwnStock`). Other creators keep their own rule: POS "unknown barcode" quick-add
+= 50 counted, Excel / bill inward = the quantity received.
+
 ### 9.1 Product variants (v4.49.0) — same model as the Android app
 
 Not a per-vertical mode: any shop can use it. `lib/products/variants.ts`.
@@ -759,6 +783,7 @@ Each was a real bug that cost real time. The test suite guards most of them.
 | 22 | **Every sidebar click reloaded the whole app (v4.60.0)** — the screen went black for a moment between pages (the `LicenceGate` "checking" screen of the fresh load). `<Link>` navigation fetches `out/<route>.txt?_rsc=…`; `main.js` served it as `application/octet-stream`, Next.js rejects anything but `text/x-component` and falls back to a full page load. | The `app://` handler serves RSC requests (`_rsc` param or `RSC: 1` header) as `text/x-component`, answers a missing payload with a real 404, and sends `.html` / `.txt` with `no-cache`. Layout (sidebar, navbar, status bar) now stays mounted; pages swap in place. Suite 9 §8v; Electron E2E clicks 4 sidebar links and checks the app was never reloaded. |
 | 25 | **"GSTR-1 JSON" could not be filed (before v4.66.0).** `fp` was taken from the preset name (`'this_month'` has no digits) so every file said **082026**; dates were `yyyy-mm-dd`; a B2B bill was repeated once per line; HSN rows had no `rt` and an old `val`; B2CS was always INTRA; 0 % lines sat in B2B / B2CS; `doc_issue` used `canc`; `cur_gt` was the period's taxable value. The GST page quarters used the calendar year (in Jan 2027 "Q1" would be the future Apr–Jun 2027) and "Full Year" was Jan–Dec. | `lib/gst/gstr1Json.ts` builds the file from the bills: `fp` MMYYYY (quarter = its last month), `idt` dd-mm-yyyy, `b2b` ctin → one `inv` per bill (`inv_typ` R) → items per rate, CGST+SGST or IGST keys only, `b2cs` per state + rate with `typ` OE, 0 % lines → `nil`, `hsn` split into `hsn_b2b` / `hsn_b2c` with `rt`, `doc_issue` per invoice series with `cancel`. Before download the page lists what the portal would reject (no shop GSTIN, items without HSN, wrong buyer GSTIN, B2B invoice number > 16 chars) and asks. Full year → no JSON (GSTR-1 is monthly / quarterly). Periods on the Indian FY; quarters = latest occurrence. **Limits:** counter customers without GSTIN are taken as within the shop's state (no B2CL); partial returns are reported net (no CDNR credit-note table); cess is 0. The `version` string is a best guess — the shop / CA should import the file in the GSTN offline tool once before uploading. Suite 21 (15 checks). |
 | 24 | **Language menu changed almost nothing (before v4.63.0)** — `t()` existed but only the Navbar used it; `en.json` held ~40 unused keys, every screen was hard-coded English. | ~1,940 texts wrapped in `tr()` across ~115 files, full Hindi + Marathi tables, badge / period-chip label helpers, language pills before login. Suite 9 §8x (every text translated, placeholders kept, no bare JSX text, no dynamic `tr()`). Live-checked 16 screens in हिंदी and मराठी: only shop data, brands and print previews stay English. |
+| 26 | **Enter / F10 completed a hidden bill (before v4.68.0).** With two bills open, completing one opened "Sale completed" on top of the other; pressing Enter (e.g. on the focused Print button) or F10 there completed the waiting bill underneath — found by driving the real app. The customer also needed a pop-up to be added. | Billing shortcuts return early while `counterCovered` (Sale completed, item edit, camera, rapid scan, printer setup, big QR, unknown-barcode windows) or the variant picker is open; the `DialogHost` confirm already captured Enter. Customer typed inline (§6.1 step 0). Credit button shows F9. Suite 9 §9b (19 checks); Electron E2E presses Enter + F10 under "Sale completed". |
 | 21 | **Wiring & calculation audit (v4.59.0).** (a) A double Enter / click on Complete Sale could save the cart twice (two bills, stock cut twice, same invoice number). (b) Cash typed in cash mode stayed in the tab and turned a later UPI / card / credit bill into a part payment. (c) Short cash with no customer saved an udhar nobody owed. (d) An overpaid split counted the excess as drawer cash. (e) +/− or re-scanning reset a rate the cashier had edited to the catalogue price. (f) Settings → "Default GST Calculation" did nothing: every product was saved tax-inclusive. (g) Excel import stamped HSN `1905` on every product without one. (h) Changing a balance in customer details wrote no ledger entry. | (a) `completingSaleRef` guard. (b)(c) `typedCashPaise` is read only in cash mode; short cash needs a customer. (d) excess must fit in the cash part and is recorded as `change_returned`. (e) existing lines keep `unit_price`. (f) new / imported products take the shop mode, edited ones keep theirs; cart lines store the resolved mode so POS tax and `saleMath` agree. (g) no HSN = none. (h) the change goes to the ledger on top of the fresh balance. Suite 9 §8u; Electron E2E double-clicks Complete Sale. |
 ---
 
@@ -768,7 +793,7 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 405/405, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 424/424, 0 failures
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
 git push origin main
@@ -779,21 +804,24 @@ billing), also run the real app:
 
 ```bash
 npx next build                      # out/ must be current
-npm run test:electron               # scripts/electron_e2e.mjs — 25/25
+npm run test:electron               # scripts/electron_e2e.mjs — 30/30
 ```
 
 `electron_e2e.mjs` launches the actual Electron app with Playwright (`playwright-core`,
 no browser download) and checks: no licence / forged licence → activation screen only;
 signed licence → master password → store setup → sell one starter item → one cash bill
 in paise, stock −1, no page errors; restart → still licensed offline, master password
-asked (even for `/billing`), wrong one refused, data kept, error log empty. Its data goes to a temp folder via `KAMAI_E2E_DIR` (main.js honours it only
+asked (even for `/billing`), wrong one refused, data kept, error log empty. Since v4.68.0
+also: Add Product opens unlimited (off → 10 / 10), a customer typed on the counter row is
+saved and linked to the bill, F1 / F2 / F4 / F8 / F9 / Esc work, and Enter / F10 under
+"Sale completed" never complete the bill waiting behind it. Its data goes to a temp folder via `KAMAI_E2E_DIR` (main.js honours it only
 when `!app.isPackaged`). The licence is **signed for this PC with the private key** in
 `%USERPROFILE%\KamaiPlus-Secrets\` (or `KAMAI_LICENCE_PRIVATE_KEY`) — nothing is
 bypassed; without the key only the no-licence checks run. The script removes
 `ELECTRON_RUN_AS_NODE` (set by VS Code terminals), which otherwise stops Electron
 launching. Failure screenshots go to `%TEMP%\kamaiplus-e2e-shots\`.
 
-### Test suite map — `scripts/e2e_simulation.ts` (405 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (424 assertions)
 
 | Suite | Covers |
 | :--- | :--- |
@@ -841,8 +869,13 @@ Recorded so the next agent does not rediscover them. None are fixed as of v4.38.
    | F4 / F8 / F9 | Payment = cash / UPI / credit |
    | F10 or Enter | Complete sale |
    | Esc | Clear search |
+   | ↑ ↓ + Enter (in search) | Pick a product from the results |
+   | Ctrl+1 … Ctrl+9 | Switch to bill 1…9 |
+   | 1–9 (variant picker open) | Pick that size / colour |
    | Ctrl+B | Toggle sidebar (global) |
-   None of F1/F2/F4 do anything outside `/billing`.
+   None of F1/F2/F4 do anything outside `/billing`. **Since v4.68.0 none of the billing
+   keys fire while a window covers the counter** (`counterCovered`, §10 #26) — verified
+   key by key in the real app; the Credit button shows "F9" like Cash "F4" / UPI "F8".
 
 2. ~~`/pay` was unreachable when logged out~~ — **fixed in v4.47.0**: `AppShell` treats
    `/pay` like the public `/invoice` link (no login, standalone layout).

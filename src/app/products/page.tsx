@@ -27,7 +27,7 @@ import { ProductTableView } from '@/components/products/ProductTableView';
 import { QuickBarcodePrintModal } from '@/components/products/QuickBarcodePrintModal';
 import { AddEditProductModal } from '@/components/products/AddEditProductModal';
 import { VariantRow } from '@/components/products/VariantMatrixEditor';
-import { createProductWithVariants, deleteProductAndVariants, isVariantChild, isVariantParent, tracksOwnStock } from '@/lib/products/variants';
+import { createProductWithVariants, DEFAULT_COUNTED_STOCK, deleteProductAndVariants, isVariantChild, isVariantParent, tracksOwnStock } from '@/lib/products/variants';
 import { tr } from '@/lib/i18n/core';
 
 const VariantsManagerModal = dynamic(
@@ -192,11 +192,12 @@ export default function ProductsPage() {
     setFormPurchasePrice('');
     setFormSellingPrice('');
     setFormIsLooseItem(false);
-    setFormIsUnlimitedStock(false);
+    // New items are "Unlimited stock" (not counted) by default, like the Android app.
+    setFormIsUnlimitedStock(true);
     setFormMrp('');
     setFormTaxRate(0);
     setFormStock('0');
-    setFormMinStock('5');
+    setFormMinStock(String(DEFAULT_COUNTED_STOCK));
     setFormBarcode('');
     setFormHsn('');
     setFormIsFavorite(false);
@@ -321,7 +322,7 @@ export default function ProductsPage() {
             label: r.label,
             sellingPricePaise: parseRupeesToPaise(r.price || '0'),
             mrpPaise: r.mrp ? parseRupeesToPaise(r.mrp) : 0,
-            stock: parseFloat(r.stock) || 0,
+            stock: formIsUnlimitedStock ? 0 : parseFloat(r.stock) || 0,
             barcode: r.barcode,
           }))
         );
@@ -332,8 +333,8 @@ export default function ProductsPage() {
           id: newId,
         });
 
-        // Add inventory movement log
-        await db.inventory_movements.put({
+        // Opening-stock entry in the stock history (an unlimited item has no count to record)
+        if (!formIsUnlimitedStock) await db.inventory_movements.put({
           id: `mov_${Date.now()}`,
           business_id: business?.id || 'biz_default',
           product_id: newId,

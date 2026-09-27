@@ -139,6 +139,7 @@ async function run() {
   let productId = '';
   let stockBefore = 0;
   let priceSold = 0;
+  let expectedSales = 1;
   {
     const { app, page, pageErrors } = await launch(dataDir);
     let step = 'start';
@@ -218,6 +219,82 @@ async function run() {
       check(await page.evaluate(() => window.__kpNoReload === true), 'Sidebar navigation changes pages without reloading the app (no black blink)');
       check(billSeenInTransactions, `The new bill (${sale.invoice_number}) shows up in Transactions after navigating there`);
 
+      // v4.68.0 — Add Product opens "Unlimited stock"; off = stock 10 / alert 10.
+      step = 'product form';
+      await page.locator('aside a[href="/products"]').first().click();
+      await page.waitForURL(/\/products/, { waitUntil: 'commit', timeout: 10000 });
+      await page.getByRole('button', { name: /Add Product/ }).first().click();
+      const unlimited = page.getByRole('checkbox', { name: 'Unlimited Stock (no count)' });
+      await unlimited.waitFor({ state: 'attached', timeout: 10000 });
+      const onByDefault = await unlimited.isChecked();
+      await page.locator('label:has(input[aria-label="Unlimited Stock (no count)"])').click();
+      const tenTen = (await page.getByPlaceholder('e.g. 50').inputValue()) === '10' && (await page.getByPlaceholder('e.g. 5', { exact: true }).inputValue()) === '10';
+      check(onByDefault && tenTen, 'Add Product: Unlimited stock is on by default; switching it off fills stock 10 and low-stock alert 10');
+      await page.locator('label:has(input[aria-label="Unlimited Stock (no count)"])').click();
+      await page.getByPlaceholder('e.g. Fortune Sunflower Oil 1L').fill('E2E Unlimited Item');
+      await page.getByPlaceholder('e.g. 150.00').fill('25');
+      await page.getByRole('button', { name: /Save Product/ }).click();
+      await page.waitForTimeout(800);
+      const unlimitedItem = (await readStore(page, 'products')).find((p) => p.name === 'E2E Unlimited Item');
+      check(unlimitedItem && unlimitedItem.is_unlimited_stock === true, 'The new item is saved as unlimited stock');
+
+      // v4.68.0 — customer typed on the counter row (no pop-up) is saved with the bill.
+      step = 'counter customer';
+      await page.locator('aside a[href="/billing"]').first().click();
+      await page.waitForURL(/\/billing/, { waitUntil: 'commit', timeout: 10000 });
+      const posSearch = page.getByPlaceholder(/Search products/).first();
+      await posSearch.waitFor({ timeout: 10000 });
+      const addByName = async (name) => { await posSearch.fill(name); await page.waitForTimeout(500); await posSearch.press('Enter'); await page.waitForTimeout(300); };
+      const salesCount = async () => (await readStore(page, 'sales')).length;
+      const closeSaleWindow = async () => { await page.getByRole('button', { name: /New Bill/i }).first().click(); await page.waitForTimeout(400); };
+      await addByName('E2E Unlimited Item');
+      await page.locator('input[data-pos-customer-name]').first().fill('Anil Verma');
+      await page.locator('input[data-pos-customer-phone]').first().fill('91234 56780');
+      const n0 = await salesCount();
+      await page.keyboard.press('F10');
+      await page.waitForTimeout(1500);
+      const custSale = (await readStore(page, 'sales')).find((s) => s.customer_name === 'Anil Verma');
+      const anil = (await readStore(page, 'customers')).find((c) => c.name === 'Anil Verma');
+      check((await salesCount()) === n0 + 1 && anil && anil.phone === '9123456780' && custSale && custSale.customer_id === anil.id, 'Customer name + mobile typed on the counter (no pop-up) is saved and linked to the bill (F10)');
+      await closeSaleWindow();
+
+      // Shortcuts on the counter, and none of them fires under the "Sale completed" window.
+      step = 'shortcuts';
+      const tabsNow = () => page.evaluate(() => JSON.parse(localStorage.getItem('kamai_pos_tabs') || '[]'));
+      await page.locator('main').first().click({ position: { x: 5, y: 5 } }).catch(() => {});
+      const t0 = (await tabsNow()).length;
+      await page.keyboard.press('F1');
+      await page.waitForTimeout(300);
+      const t1 = await tabsNow();
+      await page.keyboard.press('F8'); await page.waitForTimeout(150);
+      const upi = (await tabsNow()).some((t) => t.paymentMethod === 'upi');
+      await page.keyboard.press('F9'); await page.waitForTimeout(150);
+      const credit = (await tabsNow()).some((t) => t.paymentMethod === 'credit');
+      await page.keyboard.press('F4'); await page.waitForTimeout(150);
+      const cash = (await tabsNow()).every((t) => t.paymentMethod === 'cash');
+      await page.keyboard.press('F2');
+      const searchFocused = await posSearch.evaluate((el) => el === document.activeElement);
+      await posSearch.fill('E2E');
+      await page.keyboard.press('Escape');
+      const cleared = (await posSearch.inputValue()) === '';
+      check(t1.length === t0 + 1 && upi && credit && cash && searchFocused && cleared, 'F1 new bill, F8 UPI, F9 Credit, F4 Cash, F2 search, Esc clears search all work');
+      await addByName('E2E Unlimited Item');      // this bill waits…
+      await page.keyboard.press('F1');
+      await page.waitForTimeout(300);
+      await addByName('E2E Unlimited Item');      // …while this one is sold
+      await posSearch.evaluate((el) => el.blur());
+      const n1 = await salesCount();
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(1500);
+      const n2 = await salesCount();
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(800);
+      await page.keyboard.press('F10');
+      await page.waitForTimeout(1200);
+      check(n2 === n1 + 1 && (await salesCount()) === n2, 'Enter completes the sale; Enter / F10 under the "Sale completed" window never complete the bill waiting behind it');
+      await closeSaleWindow();
+      expectedSales = await salesCount();
+
       step = 'errors';
       check(pageErrors.length === 0, `No uncaught page errors during the flow${pageErrors.length ? `: ${pageErrors.slice(0, 3).join(' | ')}` : ''}`);
     } catch (err) {
@@ -268,7 +345,7 @@ async function run() {
       }
       const sales = await readStore(page, 'sales');
       const product = (await readStore(page, 'products')).find((p) => p.id === productId);
-      check(sales.length === 1 && product && Number(product.current_stock) === stockBefore - 1, 'The bill and the new stock are still there after closing and reopening the app');
+      check(sales.length === expectedSales && product && Number(product.current_stock) === stockBefore - 1, `The ${expectedSales} bills and the new stock are still there after closing and reopening the app`);
       const logFile = path.join(dataDir, 'userData', 'logs', 'errors.log');
       const logged = fs.existsSync(logFile) ? fs.readFileSync(logFile, 'utf8').trim().split('\n').filter(Boolean) : [];
       check(logged.length === 0, `Error log is empty after the whole flow${logged.length ? ` (${logged.length} entries, first: ${logged[0].slice(0, 160)})` : ''}`);

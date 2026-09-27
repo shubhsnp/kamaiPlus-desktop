@@ -6,6 +6,9 @@ export interface BillTab {
   tabNumber: number;
   cart: CartItem[];
   selectedCustomerId: string;
+  /** Typed on the counter row when no saved customer is picked; saved with the bill. */
+  customerName?: string;
+  customerPhone?: string;
   paymentMethod: PaymentMethod;
   amountReceivedInput: string;
   splitCash: string;
@@ -28,6 +31,8 @@ export function makeEmptyTab(id: string, tabNumber: number): BillTab {
     tabNumber,
     cart: [],
     selectedCustomerId: '',
+    customerName: '',
+    customerPhone: '',
     paymentMethod: 'cash',
     amountReceivedInput: '',
     splitCash: '',

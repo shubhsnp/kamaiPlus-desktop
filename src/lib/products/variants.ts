@@ -40,6 +40,12 @@ export const isVariantChild = (p: Pick<Product, 'parent_id'>): boolean => Boolea
 export const tracksOwnStock = (p: Pick<Product, 'has_variants' | 'is_unlimited_stock'>): boolean =>
   !p.is_unlimited_stock && !isVariantParent(p);
 
+/**
+ * New products are "Unlimited stock" (not counted) by default, like the Android app.
+ * Switching that off in the product form fills stock and the low-stock alert with this.
+ */
+export const DEFAULT_COUNTED_STOCK = 10;
+
 export function variantChildName(parentName: string, label: string): string {
   return `${parentName.trim()} (${label.trim()})`;
 }

@@ -21,6 +21,8 @@ interface VariantMatrixEditorProps {
   onChange: (rows: VariantRow[]) => void;
   /** Pre-fill for a new row: the product's own price / MRP / stock fields. */
   defaults: { price: string; mrp: string; stock: string };
+  /** The product is "Unlimited stock": variants are not counted, so no stock box. */
+  unlimitedStock?: boolean;
 }
 
 /**
@@ -28,7 +30,7 @@ interface VariantMatrixEditorProps {
  * switch on, tap presets or type a custom label, then set price / MRP / stock
  * (and an optional barcode) for each variant.
  */
-export function VariantMatrixEditor({ enabled, onToggle, rows, onChange, defaults }: VariantMatrixEditorProps) {
+export function VariantMatrixEditor({ enabled, onToggle, rows, onChange, defaults, unlimitedStock = false }: VariantMatrixEditorProps) {
   const [custom, setCustom] = useState('');
   const has = (label: string) => rows.some((r) => r.label.toLowerCase() === label.toLowerCase());
 
@@ -113,7 +115,11 @@ export function VariantMatrixEditor({ enabled, onToggle, rows, onChange, default
                   <span className="px-2 py-1.5 rounded-lg bg-purple-100 text-purple-800 text-xs font-black truncate">{r.label}</span>
                   <input type="number" step="0.01" min="0" value={r.price} onChange={(e) => update(r.label, 'price', e.target.value)} className="h-8 px-2 rounded-lg border border-slate-300 text-xs font-mono focus:outline-none focus:border-purple-500" />
                   <input type="number" step="0.01" min="0" value={r.mrp} onChange={(e) => update(r.label, 'mrp', e.target.value)} className="h-8 px-2 rounded-lg border border-slate-300 text-xs font-mono focus:outline-none focus:border-purple-500" />
-                  <input type="number" step="any" min="0" value={r.stock} onChange={(e) => update(r.label, 'stock', e.target.value)} className="h-8 px-2 rounded-lg border border-slate-300 text-xs font-mono focus:outline-none focus:border-purple-500" />
+                  {unlimitedStock ? (
+                    <span className="h-8 px-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-black flex items-center justify-center" title={tr('Unlimited Stock (no count)')}>∞</span>
+                  ) : (
+                    <input type="number" step="any" min="0" value={r.stock} onChange={(e) => update(r.label, 'stock', e.target.value)} className="h-8 px-2 rounded-lg border border-slate-300 text-xs font-mono focus:outline-none focus:border-purple-500" />
+                  )}
                   <input value={r.barcode} onChange={(e) => update(r.label, 'barcode', e.target.value)} placeholder={tr('optional')} className="h-8 px-2 rounded-lg border border-slate-300 text-xs font-mono focus:outline-none focus:border-purple-500" />
                   <button type="button" onClick={() => remove(r.label)} className="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center cursor-pointer" aria-label={tr('Remove {label}', { label: r.label })}>
                     <X className="w-3.5 h-3.5" />

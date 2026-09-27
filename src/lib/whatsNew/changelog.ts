@@ -15,6 +15,14 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.68.0',
+    items: [
+      msg('Billing: type the customer\'s name and mobile right on the bill — no pop-up. Saved customers show underneath; someone new is saved when the bill is completed.'),
+      msg('New products are "Unlimited stock" (no count) by default. Switch it off to count stock — it starts at 10 with a low-stock alert at 10.'),
+      msg('Enter / F10 no longer complete a waiting bill while the "Sale completed" window is open. The Credit button shows its F9 key.'),
+    ],
+  },
+  {
     version: '4.67.0',
     items: [
       msg('"What\'s new" after every update. See it again any time in Settings → Help & Support, or click the version number at the bottom right.'),

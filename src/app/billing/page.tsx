@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { db, ensureStarterBusinessIfEmpty, seedBusinessStarterData } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslation } from '@/lib/i18n';
-import { Product, Customer, CartItem, PaymentMethod, ProductUnit, LedgerTransaction } from '@/types';
+import { Product, CartItem, PaymentMethod, ProductUnit, LedgerTransaction } from '@/types';
 import { formatINR, parseRupeesToPaise, generateUPILink, cn } from '@/lib/utils';
 import { allocateBillDiscount, computeBillTotals, isLineTaxInclusive } from '@/lib/sales/saleMath';
 import QRCode from 'qrcode';
@@ -39,7 +39,6 @@ import {
   Globe,
   Tag,
   Edit2,
-  UserPlus,
   X,
   ShoppingCart,
   ChevronUp,
@@ -57,7 +56,8 @@ import { Modal } from '@/components/ui/Modal';
 import dynamic from 'next/dynamic';
 import { useHardwareBarcodeScanner } from '@/lib/hardware/barcodeScannerListener';
 
-import { CustomerSearchAutocomplete } from '@/components/customers/CustomerSearchAutocomplete';
+import { focusPosCustomerName, PosCustomerRow } from '@/components/billing/PosCustomerRow';
+import { buildBillCustomer, CustomerDraft, isDraftEmpty, resolveBillCustomer } from '@/lib/billing/billCustomer';
 import { Sale } from '@/types';
 
 import { cloudMerge, cloudSyncSoon, cloudTrackInvoice, prewarmCloud } from '@/lib/firebase/lazyCloud';
@@ -88,7 +88,7 @@ import { PosItemEditModal } from '@/components/billing/PosItemEditModal';
 import { VariantPickerModal } from '@/components/billing/VariantPickerModal';
 import { PosProductCard } from '@/components/billing/PosProductCard';
 import { generalCategoryId } from '@/lib/products/defaultCategory';
-import { BillingToast, BillingToastData, FullscreenUpiQrModal, QuickAddCustomerModal, QuickAddScannedProductModal } from '@/components/billing/PosDialogs';
+import { BillingToast, BillingToastData, FullscreenUpiQrModal, QuickAddScannedProductModal } from '@/components/billing/PosDialogs';
 import { CashTenderPanel, SplitPaymentPanel, UpiQrCard } from '@/components/billing/PosPaymentPanels';
 import { BillTab, getInitialTabs, makeEmptyTab, tabsAfterClosing, TABS_STORAGE_KEY } from '@/lib/billing/billTabs';
 import { tr } from '@/lib/i18n/core';
@@ -153,8 +153,14 @@ export default function BillingPage() {
     }));
   };
 
+  // Picking a saved customer (or going back to walk-in) replaces whatever was typed.
   const setSelectedCustomerId = (id: string) => {
-    updateActiveTab((tab) => ({ ...tab, selectedCustomerId: id }));
+    updateActiveTab((tab) => ({ ...tab, selectedCustomerId: id, customerName: '', customerPhone: '' }));
+  };
+
+  const customerDraft: CustomerDraft = { name: activeTab.customerName || '', phone: activeTab.customerPhone || '' };
+  const setCustomerDraft = (draft: CustomerDraft) => {
+    updateActiveTab((tab) => ({ ...tab, customerName: draft.name, customerPhone: draft.phone }));
   };
 
   const setPaymentMethod = (method: PaymentMethod) => {
@@ -242,12 +248,6 @@ export default function BillingPage() {
   const [editItemDiscount, setEditItemDiscount] = useState<string>('0');
   const [editItemDiscountType, setEditItemDiscountType] = useState<'flat' | 'percentage'>('flat');
   
-  // Quick Add Customer State
-  const [isAddCustomerModalOpen, setIsAddCustomerModalOpen] = useState(false);
-  const [newCustName, setNewCustName] = useState('');
-  const [newCustPhone, setNewCustPhone] = useState('');
-  const [newCustAddress, setNewCustAddress] = useState('');
-
   // Hardware Modals
   const [isHardwareModalOpen, setIsHardwareModalOpen] = useState<boolean>(false);
 
@@ -655,37 +655,6 @@ export default function BillingPage() {
     setEditingCartItem(null);
   };
 
-  // Quick Add Customer Handler
-  const handleSaveQuickCustomer = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newCustName.trim()) return;
-
-    const newId = `cust_${Date.now()}`;
-    const newCust: Customer = {
-      id: newId,
-      business_id: business?.id || 'biz_default',
-      name: newCustName.trim(),
-      phone: newCustPhone.trim() || '',
-      address: newCustAddress.trim() || undefined,
-      opening_balance: 0,
-      current_balance: 0,
-      loyalty_points: 0,
-      total_spent: 0,
-      total_visits: 1,
-      customer_type: 'regular',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      sync_status: 'synced',
-    };
-
-    await db.customers.put(newCust);
-    setSelectedCustomerId(newId);
-    setIsAddCustomerModalOpen(false);
-    setNewCustName('');
-    setNewCustPhone('');
-    setNewCustAddress('');
-  };
-
   // Barcode scanned handler
   const handleBarcodeScanned = async (barcode: string) => {
     const clean = barcode.trim();
@@ -851,12 +820,25 @@ export default function BillingPage() {
       targetCustomer = await db.customers.get(selectedCustomerId);
     }
 
+    // Nobody picked from the list: the name / mobile typed on the counter row is a saved
+    // customer (same mobile / only one with that name) or someone new, saved with the bill.
+    const typed = targetCustomer || isDraftEmpty(customerDraft) ? null : resolveBillCustomer(await db.customers.toArray(), customerDraft);
+    if (typed?.kind === 'error') {
+      playBeepSound('alert');
+      showBillingToast(typed.message, 'error');
+      focusPosCustomerName(typed.field);
+      return;
+    }
+    if (typed?.kind === 'existing') targetCustomer = typed.customer;
+    const newCustomer = typed?.kind === 'new' ? typed : null;
+    const hasCustomer = Boolean(targetCustomer || newCustomer);
+
     // MANDATORY CUSTOMER VALIDATION FOR CREDIT / UDHAR PAYMENT MODE
     const isCreditMode = paymentMethod === 'credit' || (paymentMethod === 'split' && parseFloat(splitCredit || '0') > 0);
-    if (isCreditMode && !targetCustomer) {
+    if (isCreditMode && !hasCustomer) {
       playBeepSound('alert');
-      showBillingToast(tr('Customer name is mandatory for Credit (Udhar) sale. Please select or add a customer.'), 'error');
-      setIsAddCustomerModalOpen(true);
+      showBillingToast(tr('Customer name is mandatory for Credit (Udhar) sale. Type the customer name or mobile number.'), 'error');
+      focusPosCustomerName();
       return;
     }
 
@@ -865,7 +847,7 @@ export default function BillingPage() {
     const typedCashPaise = paymentMethod === 'cash' && amountReceivedInput
       ? Math.round((parseFloat(amountReceivedInput) || 0) * 100)
       : null;
-    if (typedCashPaise !== null && typedCashPaise < grandTotalPaise && !targetCustomer) {
+    if (typedCashPaise !== null && typedCashPaise < grandTotalPaise && !hasCustomer) {
       playBeepSound('alert');
       showBillingToast(tr('Cash received is {v1} short. Correct the amount, or select a customer to put the rest on udhar.', { v1: formatINR(grandTotalPaise - typedCashPaise) }), 'error');
       return;
@@ -885,6 +867,17 @@ export default function BillingPage() {
     try {
       const currentBiz = business || (await ensureStarterBusinessIfEmpty());
       const businessId = currentBiz?.id || 'biz_default';
+
+      // 0. Save the customer typed on the counter row (someone new, or a missing mobile filled in).
+      const custNow = new Date().toISOString();
+      if (newCustomer) {
+        targetCustomer = buildBillCustomer(`cust_${Date.now()}`, businessId, newCustomer.name, newCustomer.phone, custNow);
+        await db.customers.put(targetCustomer);
+      } else if (targetCustomer && typed?.kind === 'existing' && typed.addPhone) {
+        await db.customers.update(targetCustomer.id, { phone: typed.addPhone, updated_at: custNow });
+        targetCustomer = { ...targetCustomer, phone: typed.addPhone };
+      }
+
       const { invoiceNumber, nextSeq } = await getNextUniqueInvoiceNumber(businessId);
       const now = new Date().toISOString();
 
@@ -1114,12 +1107,17 @@ export default function BillingPage() {
     }
   };
 
+  // A window on top of the counter (sale completed, item edit, camera, rapid scan,
+  // printer setup, big QR, unknown barcode) owns the keyboard: Enter / F10 pressed
+  // there must never complete the bill waiting underneath.
+  const counterCovered = isInvoiceModalOpen || Boolean(editingCartItem) || isQuickAddModalOpen || isBarcodeModalOpen || isRapidScanModeOpen || isHardwareModalOpen || isEnlargeQrModalOpen;
+
   // Desktop POS High-Speed Keyboard Shortcuts Handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // The variant picker owns the keyboard while open — otherwise Enter on a
       // focused variant would also run "Complete sale".
-      if (variantPick) return;
+      if (variantPick || counterCovered) return;
 
       // Tab switching via Ctrl + 1..9
       if ((e.ctrlKey || e.metaKey) && e.key >= '1' && e.key <= '9') {
@@ -1240,7 +1238,7 @@ export default function BillingPage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cart, searchQuery, handleCompleteSale, products, highlightedIndex, tabs, variantPick]);
+  }, [cart, searchQuery, handleCompleteSale, products, highlightedIndex, tabs, variantPick, counterCovered]);
 
   // Reusable Checkout Panel Component for Desktop side-panel and Mobile Bottom Drawer
   const renderCheckoutPanel = () => (
@@ -1255,7 +1253,8 @@ export default function BillingPage() {
           const isActive = tab.id === activeTabId;
           const count = tab.cart.reduce((s, i) => s + i.quantity, 0);
           const cust = customers.find((c) => c.id === tab.selectedCustomerId);
-          const tabTitle = cust ? cust.name.split(' ')[0] : tr('Bill #{tabNumber}', { tabNumber: tab.tabNumber });
+          const typedName = (tab.customerName || '').trim() || (tab.customerPhone || '').trim();
+          const tabTitle = cust ? cust.name.split(' ')[0] : typedName ? typedName.split(' ')[0] : tr('Bill #{tabNumber}', { tabNumber: tab.tabNumber });
 
           return (
             <div
@@ -1331,7 +1330,7 @@ export default function BillingPage() {
         </div>
       </div>
 
-      {/* Customer Picker & Quick Add */}
+      {/* Customer: one row, no pop-up — name / mobile, saved customers show underneath */}
       <div>
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
@@ -1345,26 +1344,17 @@ export default function BillingPage() {
               </span>
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => setIsAddCustomerModalOpen(true)}
-            className="text-[11px] font-bold text-slate-700 hover:text-slate-950 flex items-center gap-1 cursor-pointer"
-          >
-            <UserPlus className="w-3.5 h-3.5" />
-            <span>{tr('+ New Customer')}</span>
-          </button>
+          {!selectedCustomer && isDraftEmpty(customerDraft) && (
+            <span className="text-[10.5px] font-semibold text-slate-400">{tr('Empty = walk-in customer')}</span>
+          )}
         </div>
 
-        <CustomerSearchAutocomplete
+        <PosCustomerRow
           customers={customers}
-          selectedCustomerId={selectedCustomerId}
-          onSelectCustomer={setSelectedCustomerId}
-          onOpenNewCustomerModal={(initialPhone) => {
-            if (initialPhone) {
-              setNewCustPhone(initialPhone);
-            }
-            setIsAddCustomerModalOpen(true);
-          }}
+          selectedCustomer={selectedCustomer}
+          draft={customerDraft}
+          onDraftChange={setCustomerDraft}
+          onSelect={setSelectedCustomerId}
         />
       </div>
 
@@ -1509,7 +1499,7 @@ export default function BillingPage() {
           {[
             { id: 'cash', label: tr('Cash'), icon: Banknote, shortcut: 'F4' },
             { id: 'upi', label: tr('UPI / QR'), icon: QrCode, shortcut: 'F8' },
-            { id: 'credit', label: tr('Credit'), icon: BookOpen },
+            { id: 'credit', label: tr('Credit'), icon: BookOpen, shortcut: 'F9' },
             { id: 'split', label: tr('Split'), icon: CreditCard },
           ].map((m) => {
             const Icon = m.icon;
@@ -1524,8 +1514,8 @@ export default function BillingPage() {
                     setSplitCash((grandTotalPaise / 200).toString());
                     setSplitUpi((grandTotalPaise / 200).toString());
                   }
-                  if (m.id === 'credit' && !selectedCustomerId) {
-                    setIsAddCustomerModalOpen(true);
+                  if (m.id === 'credit' && !selectedCustomerId && isDraftEmpty(customerDraft)) {
+                    focusPosCustomerName();
                   }
                 }}
                 className={cn(
@@ -1552,7 +1542,7 @@ export default function BillingPage() {
       </div>
 
       {/* Credit Mode Mandatory Customer Alert Banner */}
-      {paymentMethod === 'credit' && !selectedCustomerId && (
+      {paymentMethod === 'credit' && !selectedCustomerId && isDraftEmpty(customerDraft) && (
         <div className="p-2.5 bg-rose-50 border border-rose-300 rounded-xl text-xs text-rose-950 flex items-center justify-between gap-2 shadow-2xs">
           <div className="flex items-center gap-1.5 min-w-0">
             <span className="text-base flex-shrink-0">⚠️</span>
@@ -1560,7 +1550,7 @@ export default function BillingPage() {
           </div>
           <button
             type="button"
-            onClick={() => setIsAddCustomerModalOpen(true)}
+            onClick={() => focusPosCustomerName()}
             className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] cursor-pointer flex-shrink-0 transition shadow-xs"
           >
             {tr('+ Add Customer')}
@@ -2103,19 +2093,6 @@ export default function BillingPage() {
         editItemDiscount={editItemDiscount}
         setEditItemDiscount={setEditItemDiscount}
         handleSaveEditItem={handleSaveEditItem}
-      />
-
-      {/* Quick Add Customer Modal */}
-      <QuickAddCustomerModal
-        isOpen={isAddCustomerModalOpen}
-        onClose={() => setIsAddCustomerModalOpen(false)}
-        onSubmit={handleSaveQuickCustomer}
-        name={newCustName}
-        setName={setNewCustName}
-        phone={newCustPhone}
-        setPhone={setNewCustPhone}
-        address={newCustAddress}
-        setAddress={setNewCustAddress}
       />
 
       {/* Quick Add Scanned Product Modal */}

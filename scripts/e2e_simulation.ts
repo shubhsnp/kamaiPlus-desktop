@@ -68,7 +68,8 @@ import { makeEmptyTab, tabsAfterClosing } from '../src/lib/billing/billTabs';
 import { applyPaymentToBill, openBillsOldestFirst, planBillAllocation } from '../src/lib/khata/billAllocation';
 import { generalCategoryId } from '../src/lib/products/defaultCategory';
 import { nextSupplierBalance } from '../src/lib/suppliers/supplierLedger';
-import { cleanVariantLabels, summarizeVariants, tracksOwnStock } from '../src/lib/products/variants';
+import { cleanVariantLabels, DEFAULT_COUNTED_STOCK, summarizeVariants, tracksOwnStock } from '../src/lib/products/variants';
+import { buildBillCustomer, isDraftEmpty, resolveBillCustomer, splitDraft, suggestCustomers } from '../src/lib/billing/billCustomer';
 import {
   WALK_IN_ID,
   buildAdvancedReport,
@@ -702,7 +703,7 @@ assert(JSON.stringify(cleanVariantLabels([' M', 'm', '', 'XL'])) === JSON.string
 assert(!tracksOwnStock({ has_variants: true } as any) && tracksOwnStock({ has_variants: false } as any), 'Stock alerts skip a variant parent (its stock lives in the sizes / colours)');
 assert(summarizeVariants([{ selling_price: 64900, current_stock: 2 }, { selling_price: 59900, current_stock: 3 }] as any).minPricePaise === 59900, 'POS shows a variant parent "from" its cheapest variant');
 assert(/if \(product\.has_variants\) \{\s*setVariantPick/.test(billingSrc), 'Every POS add path opens the variant picker for a parent (never sells the parent)');
-assert(/if \(variantPick\) return;/.test(billingSrc), 'Billing shortcuts (Enter = complete sale) are off while the variant picker is open');
+assert(/if \(variantPick \|\| counterCovered\) return;/.test(billingSrc), 'Billing shortcuts (Enter = complete sale) are off while the variant picker is open');
 assert(/searching \|\| !p\.parent_id/.test(billingSrc), 'POS grid hides variants under their parent unless searching');
 assert(/\.\.\.editingProduct,\s*\.\.\.productPayload/.test(readSource('app/products/page.tsx')), 'Editing a product keeps its variant links (parent_id / has_variants)');
 for (const rel of ['app/inventory/page.tsx', 'app/purchases/page.tsx', 'components/dashboard/DashboardHome.tsx']) {
@@ -781,7 +782,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   const pos = billingSrc;
   assert(/if \(completingSaleRef\.current\) return;\s*completingSaleRef\.current = true;/.test(pos), 'Complete Sale ignores a second Enter / click while the first sale is saving (no double bill, no double stock cut)');
   assert(/const typedCashPaise = paymentMethod === 'cash' && amountReceivedInput/.test(pos) && /receivedPaise = typedCashPaise \?\?/.test(pos), 'Cash typed in cash mode never leaks into a UPI / card / credit bill as a part payment');
-  assert(/typedCashPaise < grandTotalPaise && !targetCustomer/.test(pos), 'Short cash without a customer is refused (no untracked udhar)');
+  assert(/typedCashPaise < grandTotalPaise && !hasCustomer/.test(pos) && /const hasCustomer = Boolean\(targetCustomer \|\| newCustomer\);/.test(pos), 'Short cash without a customer (picked or typed) is refused (no untracked udhar)');
   assert(/if \(excess > parts\[0\]\)/.test(pos) && /changeReturnedPaise = excessP;/.test(pos), 'Overpaid split: the excess is change from the cash part, never counted in the drawer');
   assert(/const price = existing\.unit_price;/.test(pos) && /const price = item\.unit_price;/.test(pos) && (pos.match(/const price = product\.selling_price;/g) || []).length === 1, 'Adding more of a line keeps the rate the cashier edited (only a new line takes the catalogue price)');
   assert((pos.match(/is_tax_inclusive: product\.is_tax_inclusive \?\? !isBusinessGstExclusive/g) || []).length === 2, 'Cart lines store a resolved tax mode, so POS tax and bill totals (saleMath) agree');
@@ -979,6 +980,62 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(/markWhatsNewSeen\(APP_VERSION\);\s*setStoredUser\(completeAuthUser\)/.test(readSource('app/onboarding/page.tsx')), 'A new shop is marked up to date before its first screen (no pop-up on day one)');
   assert(/<WhatsNewModal \/>/.test(readSource('components/layout/AppShell.tsx')) && /onClick=\{openWhatsNew\}/.test(readSource('components/layout/DesktopStatusBar.tsx')) && /<WhatsNewCard \/>/.test(readSource('components/settings/HelpSupportTab.tsx')),
     '"What\'s new" opens after an update, from the status-bar version and from Help & Support');
+}
+
+// 9b. Counter customer row, unlimited stock by default, shortcuts under a window (v4.68.0).
+{
+  const mk = (id: string, name: string, phone: string, due = 0) => ({ ...buildBillCustomer(id, 'biz', name, phone, '2026-09-27T00:00:00.000Z'), current_balance: due });
+  const saved = [mk('c_ram', 'Ramesh Patil', '+91 98220 12345', 50000), mk('c_sita', 'Sita Devi', ''), mk('c_raj1', 'Raju', '9000000001'), mk('c_raj2', 'Raju', '9000000002')];
+
+  // (a) Typed customer → saved one, new one, or a clear refusal. Never a duplicate.
+  assert(resolveBillCustomer(saved, { name: '', phone: '' }).kind === 'none' && isDraftEmpty({ name: '  ', phone: '' }), 'Empty customer boxes = walk-in bill');
+  const byPhone = resolveBillCustomer(saved, { name: 'Somebody', phone: '9822012345' });
+  assert(byPhone.kind === 'existing' && byPhone.customer.id === 'c_ram', 'A mobile a saved customer has picks that customer (+91 / spaces ignored), whatever name is typed');
+  const byName = resolveBillCustomer(saved, { name: '  ramesh   patil ', phone: '' });
+  assert(byName.kind === 'existing' && byName.customer.id === 'c_ram', 'The only customer with that name is used (case / spaces ignored)');
+  const fill = resolveBillCustomer(saved, { name: 'Sita Devi', phone: '9123400000' });
+  assert(fill.kind === 'existing' && fill.customer.id === 'c_sita' && fill.addPhone === '9123400000', 'Same name saved without a mobile + a mobile typed → same customer, number filled in (no duplicate)');
+  const twoRaju = resolveBillCustomer(saved, { name: 'Raju', phone: '' });
+  assert(twoRaju.kind === 'error' && twoRaju.field === 'name', 'Two customers with the typed name and no mobile → refused, the cashier must pick one');
+  const newOne = resolveBillCustomer(saved, { name: 'Anil Verma', phone: '91234 56780' });
+  assert(newOne.kind === 'new' && newOne.name === 'Anil Verma' && newOne.phone === '9123456780', 'Someone new is saved with a clean 10-digit mobile');
+  const phoneOnly = resolveBillCustomer(saved, { name: '9123456780', phone: '' });
+  assert(splitDraft({ name: '98220', phone: '' }).phoneDigits === '98220' && phoneOnly.kind === 'new' && phoneOnly.phone === '9123456780' && phoneOnly.name === '9123456780', 'A number typed in the name box counts as the mobile (one box is enough)');
+  const shortNo = resolveBillCustomer(saved, { name: 'Anil', phone: '12345' });
+  assert(shortNo.kind === 'error' && shortNo.field === 'phone' && resolveBillCustomer(saved, { name: 'Anil', phone: '5123456789' }).kind === 'error', 'A wrong mobile (short, or not 6–9) stops the bill instead of saving a bad number');
+  const sug = suggestCustomers(saved, { name: '', phone: '98220' });
+  assert(sug.length === 1 && sug[0].id === 'c_ram' && suggestCustomers(saved, { name: 'ra', phone: '' }).map((c) => c.id).join() === 'c_raj1,c_raj2,c_ram', 'Saved customers show underneath while typing part of a name or number');
+  const nc = buildBillCustomer('c_new', 'biz', ' Anil ', '9123456780', 'now');
+  assert(nc.name === 'Anil' && nc.current_balance === 0 && nc.opening_balance === 0 && nc.customer_type === 'regular', 'A customer saved from the counter starts with no balance');
+
+  // (b) The counter keeps what was typed per bill, and a finished bill forgets it.
+  const typedTab = { ...makeEmptyTab('t_typed', 1), customerName: 'Anil', customerPhone: '9123456780', cart: [{ product_id: 'x' } as any] };
+  const nextTab = tabsAfterClosing([typedTab], 't_typed', 't_next');
+  const blank = nextTab.tabs.find((t) => t.id === nextTab.activeTabId)!;
+  assert(makeEmptyTab('t', 1).customerName === '' && makeEmptyTab('t', 1).customerPhone === '' && blank.customerName === '' && blank.customerPhone === '', 'After a sale the next bill starts with empty customer boxes');
+
+  // (c) No pop-up; the customer is saved with the bill, before the invoice number is taken.
+  const pos = billingSrc;
+  assert(!/QuickAddCustomerModal|setIsAddCustomerModalOpen|CustomerSearchAutocomplete/.test(pos + readSource('components/billing/PosDialogs.tsx')) && /<PosCustomerRow/.test(pos), 'Billing takes the customer in one row on the screen — no "Add customer" pop-up');
+  const saleFn = pos.slice(pos.indexOf('const completeSale = async'), pos.indexOf('// Desktop POS High-Speed Keyboard Shortcuts'));
+  assert(saleFn.indexOf('resolveBillCustomer(') > -1 && saleFn.indexOf('await db.customers.put(targetCustomer)') > -1 && saleFn.indexOf('await db.customers.put(targetCustomer)') < saleFn.indexOf('getNextUniqueInvoiceNumber(businessId)') && saleFn.indexOf('getNextUniqueInvoiceNumber(businessId)') < saleFn.indexOf('await db.sales.put(newSale)'),
+    'Complete Sale: typed customer is resolved / saved first, then the invoice number, then the bill');
+  assert(/isCreditMode && !hasCustomer/.test(saleFn) && /focusPosCustomerName\(typed\.field\)/.test(saleFn) && /focusPosCustomerName\(\);/.test(saleFn), 'Udhar with no customer (or a wrong mobile) puts the cursor in the name box instead of opening a pop-up');
+
+  // (d) Shortcuts: every key on the status bar works, and none fires under a window.
+  assert(/const counterCovered = isInvoiceModalOpen \|\| Boolean\(editingCartItem\) \|\| isQuickAddModalOpen \|\| isBarcodeModalOpen \|\| isRapidScanModeOpen \|\| isHardwareModalOpen \|\| isEnlargeQrModalOpen;/.test(pos),
+    'Enter / F10 never complete the waiting bill while "Sale completed", item edit, camera, rapid scan, printer or QR window is open');
+  assert(billingSrc.includes("e.key === 'Escape'") && billingSrc.includes("e.key === '/'") && /\{ id: 'credit', label: tr\('Credit'\), icon: BookOpen, shortcut: 'F9' \}/.test(pos), 'Esc and / work on the counter; the Credit button shows its F9 key like Cash (F4) and UPI (F8)');
+
+  // (e) New products are "Unlimited stock" by default; switching it off gives 10 / 10.
+  const productsSrc = readSource('app/products/page.tsx');
+  const formSrc = readSource('components/products/AddEditProductModal.tsx');
+  const openAdd = productsSrc.slice(productsSrc.indexOf('const handleOpenAddModal'), productsSrc.indexOf('const handleOpenEditModal'));
+  assert(DEFAULT_COUNTED_STOCK === 10 && /setFormIsUnlimitedStock\(true\)/.test(openAdd) && /setFormIsUnlimitedStock\(Boolean\(p\.is_unlimited_stock\)\)/.test(productsSrc), 'Add Product opens with Unlimited stock ON; editing keeps the product\'s own setting');
+  assert(/setFormStock\(counted \? String\(editingProduct\.current_stock\) : String\(DEFAULT_COUNTED_STOCK\)\)/.test(formSrc) && /setFormMinStock\(counted \? String\(editingProduct\.min_stock_level \|\| 5\) : String\(DEFAULT_COUNTED_STOCK\)\)/.test(formSrc),
+    'Switching Unlimited off fills stock 10 and low-stock alert 10 (an already counted product gets its own numbers back)');
+  assert(/stock: formIsUnlimitedStock \? 0 : parseFloat\(r\.stock\) \|\| 0/.test(productsSrc) && /unlimitedStock=\{formIsUnlimitedStock\}/.test(formSrc) && !tracksOwnStock({ has_variants: false, is_unlimited_stock: true }),
+    'Unlimited variants carry no stock count and never show in low-stock alerts');
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.
