@@ -65,8 +65,6 @@ import { Sale } from '@/types';
 import { cloudMerge, cloudSyncSoon, cloudTrackInvoice, prewarmCloud } from '@/lib/firebase/lazyCloud';
 import { getDesktopApi } from '@/lib/desktop/desktopBridge';
 import { resolveInvoiceConfig } from '@/lib/invoices/themeDefaults';
-import { getPrimaryUpiVpa, buildInvoiceDocument } from '@/lib/invoices/invoiceDocument';
-import { renderInvoiceHtml } from '@/lib/invoices/invoiceOutput';
 import { getPrintSettings, printerForFormat } from '@/lib/hardware/printSettings';
 
 // Lazy-load non-critical heavy modals
@@ -80,7 +78,8 @@ import { PosProductCard } from '@/components/billing/PosProductCard';
 import { generalCategoryId } from '@/lib/products/defaultCategory';
 import { BillingToast, BillingToastData, FullscreenUpiQrModal, QuickAddScannedProductModal } from '@/components/billing/PosDialogs';
 import { CashTenderPanel, SplitPaymentPanel, UpiQrCard } from '@/components/billing/PosPaymentPanels';
-import { BillTab, getInitialTabs, makeEmptyTab, tabsAfterClosing, TABS_STORAGE_KEY } from '@/lib/billing/billTabs';
+import { BillTab, getInitialTabs, makeEmptyTab, tabsAfterClosing, tabsAfterSale, TABS_STORAGE_KEY } from '@/lib/billing/billTabs';
+import { PrintFailureBar, useBackgroundBillPrint, warmBillPrinting } from '@/components/billing/BillPrintQueue';
 import { tr } from '@/lib/i18n/core';
 
 
@@ -101,6 +100,12 @@ export default function BillingPage() {
     window.clearTimeout(toastTimerRef.current);
     toastTimerRef.current = window.setTimeout(() => setBillingToast(null), 4000);
   };
+
+  // Bills printed in the background (v4.74.0); one that did not print waits in a red bar.
+  const billPrint = useBackgroundBillPrint({
+    printed: (sale) => showBillingToast(tr('⚡ Silent Printed Invoice #{invoiceNumber}', { invoiceNumber: sale.invoice_number }), 'success'),
+    failed: (_sale, error) => showBillingToast(tr('Bill saved, but it did not print: {error}', { error }), 'error'),
+  });
 
   // Silent Instant Thermal Print State
   const [silentPrint, setSilentPrint] = useState<boolean>(() => {
@@ -140,9 +145,15 @@ export default function BillingPage() {
     } catch {}
   }, [tabs]);
 
+  // The bill the counter is on right now — read when an item is added, so a scan never
+  // lands in a bill that was just completed (v4.74.0: such items used to vanish).
+  const activeTabIdRef = React.useRef(activeTabId);
+  activeTabIdRef.current = activeTabId;
+
   const updateActiveTab = (updater: (prevTab: BillTab) => BillTab) => {
+    const id = activeTabIdRef.current;
     setTabs((prev) =>
-      prev.map((t) => (t.id === activeTabId ? updater(t) : t))
+      prev.map((t) => (t.id === id ? updater(t) : t))
     );
   };
 
@@ -332,7 +343,7 @@ export default function BillingPage() {
     prewarmCloud();
     // Same idea for invoice numbering: scan the invoice-number index once now, so
     // the first "Complete Sale" of the session uses the cache.
-    const warm = () => { void warmInvoiceNumberCache(); };
+    const warm = () => { void warmInvoiceNumberCache(); warmBillPrinting(business); };
     const ric = (window as any).requestIdleCallback as ((cb: () => void, opts?: { timeout: number }) => number) | undefined;
     if (ric) ric(warm, { timeout: 3000 });
     else window.setTimeout(warm, 1000);
@@ -397,6 +408,12 @@ export default function BillingPage() {
     return isExclusive
       ? Math.round((lineTotal * taxRate) / 100)
       : Math.round(lineTotal - lineTotal / (1 + taxRate / 100));
+  };
+
+  // A cart line at a new quantity, totals worked out again (the same rule as adding an item).
+  const retotalLine = (line: CartItem, quantity: number): CartItem => {
+    const lineTotal = Math.max(0, Math.round(quantity * line.unit_price) - (line.discount_amount || 0));
+    return { ...line, quantity, total_amount: lineTotal, tax_amount: calculateItemTax(lineTotal, line.tax_rate || 0, line.is_tax_inclusive) };
   };
 
   const getAvailableStockForProduct = (product: Product) => {
@@ -815,6 +832,9 @@ export default function BillingPage() {
   };
 
   const completeSale = async () => {
+    // What this bill is at the moment Enter was pressed — scans after this are the next customer's.
+    const soldTabId = activeTabId;
+    const soldCart = cart;
     // Resolve target customer reliably from state or Dexie
     let targetCustomer = selectedCustomer;
     if (!targetCustomer && selectedCustomerId) {
@@ -1060,7 +1080,16 @@ export default function BillingPage() {
         }
       }
 
-      // 5. Open detailed Invoice & thermal receipt modal (or Silent Print directly)
+      // 5. The counter moves on to the next bill now — it never waits for the printer — and
+      // anything scanned for the next customer while this bill was being saved goes with it.
+      const newTabId = `tab_${Date.now()}`;
+      const nextTabId = tabsAfterClosing(tabs, soldTabId, newTabId).activeTabId;
+      setTabs((prev) => tabsAfterSale(prev, soldTabId, soldCart, newTabId, retotalLine).tabs);
+      setActiveTabId(nextTabId);
+      activeTabIdRef.current = nextTabId;
+      setIsMobileCartOpen(false);
+
+      // 6. "Sale completed", or straight to the bill printer in the background (BillPrintQueue).
       setActiveSaleForInvoice(newSale);
       setCompletedSaleDetails({
         invoiceNumber,
@@ -1068,48 +1097,17 @@ export default function BillingPage() {
         customerPhone: targetCustomer?.phone,
         grandTotalPaise,
         balanceDuePaise,
-        items: [...cart],
+        items: [...soldCart],
       });
-
-      const desktopApi = getDesktopApi();
-      if (silentPrint && desktopApi) {
-        try {
-          const printSettings = getPrintSettings();
-          const format = printSettings.defaultFormat || 'thermal-80';
-          const vpa = getPrimaryUpiVpa(currentBiz);
-          const html = await renderInvoiceHtml(
-            { sale: newSale, business: currentBiz, customer: targetCustomer, upiVpa: vpa },
-            format
-          );
-          const printed = await desktopApi.print({
-            html,
-            paper: format,
-            deviceName: printerForFormat(printSettings, format) || undefined,
-            silent: true,
-          });
-          // print() reports a failed job instead of throwing: show the bill so it can be printed again.
-          if (!printed.ok) throw new Error(printed.error || 'Printing failed');
-          showBillingToast(tr('⚡ Silent Printed Invoice #{invoiceNumber}', { invoiceNumber: invoiceNumber }), 'success');
-          focusProductSearch();
-        } catch (silentErr: any) {
-          console.warn('Silent print notice, opening modal:', silentErr);
-          showBillingToast(tr('Bill saved, but it did not print: {error}', { error: silentErr?.message || '' }), 'error');
-          searchInputRef.current?.blur();
-          setIsInvoiceModalOpen(true);
-        }
+      if (silentPrint && getDesktopApi() && currentBiz) {
+        billPrint.print({ sale: newSale, business: currentBiz, customer: targetCustomer });
+        focusProductSearch();
       } else {
         // Focus leaves the search box so the next scan reaches the scanner listener,
         // which closes this window and starts the next bill.
         searchInputRef.current?.blur();
         setIsInvoiceModalOpen(true);
       }
-      setIsMobileCartOpen(false);
-
-      // 7. The finished bill goes away completely; the next customer starts on a
-      // waiting (not held) bill or a blank one — no leftover customer, discount or split.
-      const next = tabsAfterClosing(tabs, activeTabId, `tab_${Date.now()}`);
-      setTabs(next.tabs);
-      setActiveTabId(next.activeTabId);
     } catch (saleErr) {
       console.error('Sale completion encountered an error:', saleErr);
       showAlert(tr('Encountered an unexpected error completing the sale. Please verify inventory.'));
@@ -1384,6 +1382,17 @@ export default function BillingPage() {
           </button>
         </div>
       </div>
+
+      <PrintFailureBar
+        failed={billPrint.failed}
+        onRetry={(job) => billPrint.print(job)}
+        onOpen={(job) => {
+          setActiveSaleForInvoice(job.sale);
+          searchInputRef.current?.blur();
+          setIsInvoiceModalOpen(true);
+        }}
+        onDismiss={billPrint.dismiss}
+      />
 
       {/* Customer: one row, no pop-up — name / mobile, saved customers show underneath */}
       <div>

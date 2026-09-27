@@ -64,7 +64,7 @@ import {
   isRevenueSale,
 } from '../src/lib/sales/saleMath';
 import { computeDrawerSummary, localDateKey } from '../src/lib/reports/cashDrawer';
-import { makeEmptyTab, tabsAfterClosing } from '../src/lib/billing/billTabs';
+import { cartBeyond, makeEmptyTab, tabsAfterClosing, tabsAfterSale } from '../src/lib/billing/billTabs';
 import { applyPaymentToBill, openBillsOldestFirst, planBillAllocation } from '../src/lib/khata/billAllocation';
 import { generalCategoryId } from '../src/lib/products/defaultCategory';
 import { nextSupplierBalance } from '../src/lib/suppliers/supplierLedger';
@@ -73,7 +73,7 @@ import { buildBillCustomer, isDraftEmpty, resolveBillCustomer, splitDraft, sugge
 import { DEFAULT_FEATURE_SWITCHES, FEATURES, featureForPath, isPathEnabled, parseFeatureSwitches, showSellingPriceField } from '../src/lib/features/featureSwitches';
 import { buildImportRows, buildItemName, findHeaderRow, guessColumnRoles, mapUnit, parseAmount, planImport } from '../src/lib/import/catalogImport';
 import { ean13CheckDigit, isValidEan13, nextStoreBarcodes } from '../src/lib/barcode/storeBarcodes';
-import type { Product } from '../src/types';
+import type { CartItem, Product } from '../src/types';
 import { barcodeSymbol } from '../src/lib/barcode/barcodeGenerator';
 import { DEFAULT_LABEL_SETTINGS, LABEL_STOCKS, labelPageMm, labelsPerPage, parseLabelSettings, stockFor } from '../src/lib/labels/labelSettings';
 import { buildLabelHtml } from '../src/lib/labels/labelSheet';
@@ -1248,8 +1248,8 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     'The listener times keys by when they were pressed (event timestamp), so a busy screen never cuts a code short');
   assert(/if \(isInvoiceModalOpen\) \{\s*setIsInvoiceModalOpen\(false\);/.test(pos) && /addToCart\(product, 1\);\s*focusProductSearch\(\);/.test(pos),
     'A scan closes "Sale completed", adds the item and puts the cursor back in the search box');
-  assert(/if \(!printed\.ok\) throw new Error/.test(pos) && /tr\('Bill saved, but it did not print: \{error\}'/.test(pos),
-    'Silent print checks the printer answer: a failed print shows the error and opens the bill to print again');
+  assert(/if \(!res\.ok\) throw new Error/.test(readSource('components/billing/BillPrintQueue.tsx')) && /tr\('Bill saved, but it did not print: \{error\}'/.test(pos),
+    'Silent print checks the printer answer: a failed print shows the error and keeps the bill ready to print again');
   assert(/window\.clearTimeout\(toastTimerRef\.current\);/.test(pos), 'Billing toasts use one timer (an old toast never hides a newer one)');
   const setup = readSource('components/billing/BillPrinterSetup.tsx');
   assert(/<BillPrinterSetup/.test(pos) && /if \(next && !printerForFormat\(ps, ps\.defaultFormat\)\) \{?\s*setIsBillPrinterOpen\(true\)/.test(pos)
@@ -1289,6 +1289,45 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(!/BarcodeScannerModal|RapidScanMode|HardwareManagerModal|isBarcodeModalOpen|isHardwareModalOpen|Scan Barcode via Camera/.test(pos)
     && !fs.existsSync(path.join(SRC_ROOT, 'components/billing/RapidScanMode.tsx')) && !fs.existsSync(path.join(SRC_ROOT, 'components/hardware/HardwareManagerModal.tsx')),
     'The counter has no webcam scanner, Rapid (webcam) mode or Bluetooth hardware manager — the gun types into the search box, the bill printer is set with the ⚙ button');
+}
+
+// 9h. Peak hour (v4.74.0): the counter never waits for the printer, and an item scanned
+// while a bill is being saved goes into the next bill — before, it vanished (3 of 3 in a
+// live test with a printer taking 1.5 s).
+{
+  const line = (id: string, qty: number, price = 1000): CartItem => ({ product_id: id, product_name: id, quantity: qty, unit: 'piece', unit_price: price, discount_amount: 0, tax_rate: 0, tax_amount: 0, total_amount: qty * price } as CartItem);
+  const retotal = (l: CartItem, q: number): CartItem => ({ ...l, quantity: q, total_amount: Math.round(q * l.unit_price) - (l.discount_amount || 0) });
+  const show = (cart: CartItem[]) => cart.map((l) => `${l.product_id}${l.quantity}`).join(',');
+  const sold = [line('A', 2), line('B', 1)];
+  const extra = cartBeyond([line('A', 3), line('B', 1), line('C', 1)], sold, retotal);
+  assert(show(extra) === 'A1,C1' && extra[0].total_amount === 1000 && cartBeyond(sold, sold, retotal).length === 0 && cartBeyond([line('K', 1.5)], [line('K', 1)], retotal)[0].quantity === 0.5,
+    'Items beyond what was sold: A sold ×2 and now ×3 gives A ×1 (re-totalled), a new C comes whole, loose quantities too');
+  const done = { ...makeEmptyTab('t1', 1), cart: [line('A', 3), line('B', 1), line('C', 1)] };
+  const held = { ...makeEmptyTab('t2', 2), cart: [line('Z', 1)], isHeld: true };
+  const r = tabsAfterSale([done, held], 't1', sold, 't3', retotal);
+  const next = r.tabs.find((t) => t.id === r.activeTabId)!;
+  assert(r.activeTabId === 't3' && show(next.cart) === 'A1,C1' && show(r.tabs.find((t) => t.id === 't2')!.cart) === 'Z1' && !r.tabs.some((t) => t.id === 't1'),
+    'The finished bill closes; what was scanned meanwhile opens the next bill; a held bill is not touched');
+  const waiting = { ...makeEmptyTab('t4', 4), cart: [line('A', 1)] };
+  const r2 = tabsAfterSale([done, waiting], 't1', sold, 't5', retotal);
+  const plain = [{ ...done, cart: sold }];
+  assert(r2.activeTabId === 't4' && show(r2.tabs.find((t) => t.id === 't4')!.cart) === 'A2,C1' && JSON.stringify(tabsAfterSale(plain, 't1', sold, 't6', retotal)) === JSON.stringify(tabsAfterClosing(plain, 't1', 't6')),
+    'Going on to a waiting bill merges the extra items into it; nothing scanned meanwhile = exactly the old closing');
+
+  const pos = readSource('app/billing/page.tsx');
+  const queue = readSource('components/billing/BillPrintQueue.tsx');
+  const closeAt = pos.indexOf('tabsAfterSale(prev, soldTabId, soldCart, newTabId, retotalLine)');
+  assert(closeAt > 0 && closeAt < pos.indexOf('billPrint.print({ sale: newSale') && !/await desktopApi\.print|await getDesktopApi\(\)/.test(pos) && !/await api\.print[\s\S]*setTabs/.test(queue),
+    'Billing closes the bill first and prints in the background — the counter never awaits the printer');
+  assert(/const id = activeTabIdRef\.current;\s*setTabs\(\(prev\) =>\s*prev\.map\(\(t\) => \(t\.id === id \? updater\(t\) : t\)\)/.test(pos) && /activeTabIdRef\.current = nextTabId;/.test(pos),
+    'An item is always added to the bill the counter is on now (never to one that was just completed)');
+  assert(/if \(!res\.ok\) throw new Error/.test(queue) && /<PrintFailureBar/.test(pos) && /data-print-retry/.test(queue) && !/setIsInvoiceModalOpen\(true\);\s*\}\s*\);?\s*$/.test(queue),
+    'A bill that did not print waits in a red bar with "Print again" — no window pops over the next customer');
+  assert(/warmBillPrinting\(business\)/.test(pos) && /import\('@\/components\/invoices\/InvoiceModal'\)/.test(queue) && /getBrandLogoDataUrl\(\)/.test(queue),
+    'The bill-printing code, "Sale completed" and the logo are loaded while the counter is idle');
+  const beep = readSource('lib/voice/speechParser.ts');
+  assert((beep.match(/new Ctor\(\)/g) || []).length === 1 && /beepContext\.state === 'closed'/.test(beep) && !/new AudioContext\(\)/.test(beep),
+    'Every beep uses one shared sound context (one per scan was never closed)');
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.

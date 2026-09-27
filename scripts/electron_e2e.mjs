@@ -420,7 +420,13 @@ async function run() {
       await app.evaluate(({ ipcMain }) => {
         globalThis.__billJobs = [];
         ipcMain.removeHandler('kp:print');
-        ipcMain.handle('kp:print', async (_e, opts) => { globalThis.__billJobs.push({ paper: opts.paper, silent: opts.silent, deviceName: opts.deviceName || '' }); return { ok: true }; });
+        globalThis.__billDelay = 0;
+        globalThis.__billAnswer = { ok: true };
+        ipcMain.handle('kp:print', async (_e, opts) => {
+          globalThis.__billJobs.push({ paper: opts.paper, silent: opts.silent, deviceName: opts.deviceName || '' });
+          await new Promise((r) => setTimeout(r, globalThis.__billDelay));
+          return globalThis.__billAnswer;
+        });
       });
       await page.getByRole('button', { name: /Silent: OFF/ }).click();
       await page.locator('[data-bill-autoprint]').waitFor({ timeout: 5000 });
@@ -439,6 +445,32 @@ async function run() {
       check(savedPs.defaultFormat === 'thermal-80' && (savedPs.thermalPrinter || '') === (printerNames[0] || '') && (await salesCount()) === g1 + 1
         && billJob && billJob.paper === 'thermal-80' && billJob.silent === true && billJob.deviceName === (printerNames[0] || '') && !(await saleWindow()) && (await inSearch()),
         `Bill printer set once on the counter: Enter saves the bill and prints it straight to that printer, no window, cursor ready for the next scan (${JSON.stringify(billJob)})`);
+      // v4.74.0 — a printer that takes 1.5 s: the counter is cleared at once, and the next
+      // customer's scan 0.3 s after Enter goes into the next bill (it used to vanish).
+      await app.evaluate(() => { globalThis.__billDelay = 1500; });
+      await gun(gB.barcode);
+      const g2 = await salesCount();
+      const tEnter = Date.now();
+      await page.keyboard.press('Enter');
+      await page.waitForFunction(() => /CART ITEMS \(0\)/.test(document.body.innerText), null, { timeout: 5000 }).catch(() => {});
+      const clearedMs = Date.now() - tEnter;
+      await page.keyboard.type(gA.barcode, { delay: 3 });
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(2200);
+      const soldNow = (await readStore(page, 'sales')).sort((a, b) => a.created_at.localeCompare(b.created_at)).pop();
+      check((await salesCount()) === g2 + 1 && clearedMs < 1000 && soldNow.items.length === 1 && soldNow.items[0].product_id === gB.id && (await cartQty(gA.id)) === 1,
+        `Slow printer: the counter is ready in ${clearedMs} ms (no waiting for the printer) and a scan made meanwhile goes into the next bill`);
+      // A bill that did not print waits in a red bar; "Print again" prints it.
+      await app.evaluate(() => { globalThis.__billDelay = 0; globalThis.__billAnswer = { ok: false, error: 'Printer is offline' }; });
+      await page.keyboard.press('Enter');
+      const barShown = await page.locator('[data-print-failed]').waitFor({ timeout: 5000 }).then(() => true, () => false);
+      const barText = barShown ? await page.locator('[data-print-failed]').innerText() : '';
+      await app.evaluate(() => { globalThis.__billAnswer = { ok: true }; });
+      const jobsBefore = (await app.evaluate(() => globalThis.__billJobs)).length;
+      if (barShown) await page.locator('[data-print-retry]').first().click();
+      await page.waitForTimeout(800);
+      check(barShown && /Printer is offline/.test(barText) && !(await saleWindow()) && (await page.locator('[data-print-failed]').count()) === 0 && (await app.evaluate(() => globalThis.__billJobs)).length === jobsBefore + 1,
+        'A bill that did not print shows in a red bar (no window over the next customer); "Print again" prints it and the bar goes away');
       await page.getByRole('button', { name: /Silent: ON/ }).click(); // back off before the restart checks
       await page.waitForTimeout(300);
 

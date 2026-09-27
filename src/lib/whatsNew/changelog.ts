@@ -15,6 +15,14 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.74.0',
+    items: [
+      msg('Faster in busy hours: the next bill is ready the moment you press Enter — the counter no longer waits for the printer.'),
+      msg('Fixed: an item scanned while the last bill was still being saved was lost. It now goes into the next bill.'),
+      msg('A bill that did not print stays in a red bar on the counter with "Print again" — no window pops up over the next customer.'),
+    ],
+  },
+  {
     version: '4.73.0',
     items: [
       msg('Search in English letters: type "rocket", "chitput" or "silver" and Hindi / Marathi items (रॉकेट, चीटपुट, सिल्व्हर) are found — in Billing, Products, Barcode Studio and when editing a bill.'),

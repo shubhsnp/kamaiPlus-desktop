@@ -305,7 +305,7 @@ src/components/<feature>/   Feature components, one folder per domain
 src/components/ui/          Button, Card, Input, Modal  (that is all of it)
 src/lib/<domain>/           Engines — see table below
 src/types/index.ts          All domain types. Single file.
-scripts/e2e_simulation.ts   The test suite (§11). 482 assertions.
+scripts/e2e_simulation.ts   The test suite (§11). 490 assertions.
 scripts/bump_version.ts     Version bumper (+0.1 minor)
 public/barcodes/*.json      5 shipped offline barcode dictionaries
 ```
@@ -315,7 +315,7 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 | Module | Responsibility |
 | :--- | :--- |
 | `db/index.ts` | Dexie schema, `ensureStarterBusinessIfEmpty`, `seedBusinessStarterData`, `clearAllProductData`, `restoreStarterProductCatalog` |
-| `billing/billTabs.ts` | Open POS bills (tabs) in localStorage `kamai_pos_tabs`: `makeEmptyTab`, `tabsAfterClosing`, `getInitialTabs` |
+| `billing/billTabs.ts` | Open POS bills (tabs) in localStorage `kamai_pos_tabs`: `makeEmptyTab`, `tabsAfterClosing`, `tabsAfterSale` + `cartBeyond` (scans made while a bill saves → next bill, v4.74.0), `getInitialTabs` |
 | `search/productSearch.ts` | Product search in English or हिंदी / मराठी (v4.73.0): `searchProducts` (filter + best first), `productSearchScore`, `makeProductQuery`, `wordSoundKey` — §9.6 |
 | `billing/scanInput.ts` | Barcode gun on the counter (v4.72.0): `searchEnterAction` (what Enter in the search box does), `looksLikeBarcode` — §9.5 |
 | `billing/billCustomer.ts` | Customer typed on the POS counter row (v4.68.0): `resolveBillCustomer` (saved by mobile / only-one-by-name → existing, else new, or a refusal), `suggestCustomers`, `buildBillCustomer` — §6.1 step 0 |
@@ -486,9 +486,12 @@ three other screens. The order matters:
      db.customers.update(balance)               → khata balance
      db.ledger_transactions.put(...)            → khata entry
      cloudMerge(customers/<id> + ledger/<id>)   (fire-and-forget)
-6. setActiveSaleForInvoice → InvoiceModal, or silent print if enabled
-     silent: kp:print to the bill printer; answer {ok:false} → toast + InvoiceModal  (v4.72.0)
-7. close/reset the bill tab
+6. close the bill tab FIRST — tabsAfterSale(prev, soldTabId, soldCart, …)          (v4.74.0)
+     items scanned while 1–5 ran (cart beyond soldCart) move into the next bill;
+     activeTabIdRef → the next bill, so a later scan never lands in the sold one
+7. setActiveSaleForInvoice → InvoiceModal, or silent print if enabled
+     silent: billPrint.print(...) — NOT awaited (components/billing/BillPrintQueue.tsx);
+     answer {ok:false} → toast + red "did not print" bar with Print again  (v4.74.0)
 ```
 
 **Rules for this function:**
@@ -501,6 +504,8 @@ three other screens. The order matters:
   If you `await` a cloud call here, you have broken offline billing.
 - Never reorder 2 before 1 (you would burn an invoice number on a failed bill) or
   3 before 2 (you would skip a number).
+- Never `await` the printer here, and never close the tab with the live `cart` — use
+  `soldCart` (the cart when Enter was pressed). Both lost the next customer's scans (§9.7).
 - Changing it affects `/inventory`, `/khata`, `/customers`, `/transactions`, `/reports`
   and `/cash-register`. Check all of them.
 
@@ -850,8 +855,8 @@ normally the product search box (it has focus when Billing opens and after every
   print. Same `kamai_print_settings` as Settings → Printer Setup. Turning Silent on with no
   printer chosen for the bill size opens this first. With it on, Enter saves the bill and
   prints it with no window, and the cursor is ready for the next scan; if the printer
-  answers `{ok:false}` the bill is still saved, the error is shown and "Sale completed"
-  opens so it can be printed again.
+  answers `{ok:false}` the bill is still saved, the error is shown and the bill waits in a
+  red bar with "Print again" (v4.74.0 — before, "Sale completed" opened; §9.7).
 - Verified in the real app with a CDP key burst (all keys queued at once, 3 ms apart) while
   the page was kept 92 % busy, and by the Electron E2E (§11). Playwright's `keyboard.type`
   waits for each key to be handled, so under a busy page its own gaps grow — do not use it
@@ -877,6 +882,32 @@ sound match (penalty: vowels differ +4, joined words +2, not the first word +1) 
 section (Billing only, as before). Keys are cached per name (20 000 entries).
 Used by Billing (with category), Products, Barcode Studio's item search and Edit Invoice.
 Suite 9 §9g checks real price-list names; Electron E2E types `chaurasa` / `anar special`.
+
+### 9.7 Peak hour — the counter never waits for the printer (v4.74.0)
+
+In a live test with a printer taking 1.5 s, the next customer's first scan vanished 3 of
+3 times: `completeSale` awaited the print, then closed the tab with `tabsAfterClosing`,
+dropping everything scanned meanwhile; `updateActiveTab` also used the render's
+`activeTabId`, so a scan could land in the bill just closed.
+
+- **Close first, print after.** Step 6 of §6.1 closes the tab with
+  `tabsAfterSale(prev, soldTabId, soldCart, newTabId, retotalLine)` (`lib/billing/billTabs.ts`):
+  `cartBeyond` takes what is in the bill beyond `soldCart` (A sold ×2, now ×3 → A ×1,
+  re-totalled via the POS `retotalLine`; a new line comes whole) and puts it into the bill
+  the counter goes to (merged into a waiting bill; a held bill is never touched). Nothing
+  scanned meanwhile → exactly `tabsAfterClosing`.
+- **`activeTabIdRef`** — `updateActiveTab` reads the ref; `completeSale` sets it to the next
+  bill at once, before React re-renders.
+- **Background print** — `components/billing/BillPrintQueue.tsx`: `useBackgroundBillPrint`
+  renders + sends `kp:print` without the counter awaiting it (main.js already queues jobs
+  one at a time). `{ok:false}` / throw → toast + `PrintFailureBar` above the customer row:
+  "Print again", "Open bill" (InvoiceModal), ✕. No window pops over the next customer.
+- **Warm-up** — `warmBillPrinting(business)` runs with the invoice-number warm-up when the
+  counter is idle: loads `InvoiceModal`, the logo and renders a sample bill once.
+- **One beep context** — `playBeepSound` (`lib/voice/speechParser.ts`) reuses one
+  `AudioContext`; one per scan was never closed.
+- Suite 9 §9h; Electron E2E: a 1.5 s printer — counter clear in < 1 s and a scan 0.3 s after
+  Enter lands in the next bill; `{ok:false}` → red bar, "Print again" prints and it goes.
 
 ### 9.1 Product variants (v4.49.0) — same model as the Android app
 
@@ -943,6 +974,7 @@ Each was a real bug that cost real time. The test suite guards most of them.
 | 28 | **About 1 barcode label in 3 could not be scanned (before v4.71.0).** Code-128 took the check character's pattern from `Object.keys()` of a character map; JS lists the digit keys first, so check values 0–25 got the wrong pattern and 95–102 had none. ZXing rejected 127 of 400 sample labels. Labels also printed through `window.print()` at A4 even on 50 × 25 rolls. | Patterns looked up by value from the standard 0–106 table; EAN-13 for store codes; Code-128 C for even digits. Labels print at their own mm page size through `kp:print` (`paper: 'label'`). Suite 9 §9e decodes every check value with ZXing. |
 | 21 | **Wiring & calculation audit (v4.59.0).** (a) A double Enter / click on Complete Sale could save the cart twice (two bills, stock cut twice, same invoice number). (b) Cash typed in cash mode stayed in the tab and turned a later UPI / card / credit bill into a part payment. (c) Short cash with no customer saved an udhar nobody owed. (d) An overpaid split counted the excess as drawer cash. (e) +/− or re-scanning reset a rate the cashier had edited to the catalogue price. (f) Settings → "Default GST Calculation" did nothing: every product was saved tax-inclusive. (g) Excel import stamped HSN `1905` on every product without one. (h) Changing a balance in customer details wrote no ledger entry. | (a) `completingSaleRef` guard. (b)(c) `typedCashPaise` is read only in cash mode; short cash needs a customer. (d) excess must fit in the cash part and is recorded as `change_returned`. (e) existing lines keep `unit_price`. (f) new / imported products take the shop mode, edited ones keep theirs; cart lines store the resolved mode so POS tax and `saleMath` agree. (g) no HSN = none. (h) the change goes to the ledger on top of the fresh balance. Suite 9 §8u; Electron E2E double-clicks Complete Sale. |
 | 29 | **Barcode gun on the counter (before v4.72.0).** The scan stayed in the focused search box and was also caught by the key-timing listener, which timed keys by when its code ran — a busy screen (the "Sale completed" preview being drawn) looked like slow typing and cut the code short ("unknown barcode" with half the code). Enter on an empty box added the first product instead of finishing the bill; scans were ignored under "Sale completed". Silent print ignored a `{ok:false}` answer (bill looked printed); an older toast's timer hid newer toasts. | §9.5: the search box reads the whole code on Enter (`searchEnterAction`), the listener stands aside while it has focus and uses `e.timeStamp`; a scan closes "Sale completed"; `if (!printed.ok) throw` → toast + window; one `toastTimerRef`. Bill printer set once on the counter. Suite 9 §9f; Electron E2E scans, Enter-finishes, scan-under-window and silent print. |
+| 30 | **The next customer's scan vanished in busy hours (before v4.74.0).** `completeSale` awaited the silent print before closing the bill, so the counter stood still for the printer; scans made meanwhile went into the bill being closed and were dropped by `tabsAfterClosing`; a failed print opened "Sale completed" over the next customer. Every beep created an `AudioContext` that was never closed. | §9.7: close first with `tabsAfterSale` (extras move to the next bill) + `activeTabIdRef`; `BillPrintQueue` prints in the background, failures wait in a red bar; one shared beep context. Suite 9 §9h; Electron E2E slow-printer + failed-print checks. |
 ---
 
 ## 11. Verification protocol (AGENTS.md Rule 6)
@@ -951,7 +983,7 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 482/482, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 490/490, 0 failures
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
 git push origin main
@@ -962,7 +994,7 @@ billing), also run the real app:
 
 ```bash
 npx next build                      # out/ must be current
-npm run test:electron               # scripts/electron_e2e.mjs — 43/43
+npm run test:electron               # scripts/electron_e2e.mjs — 45/45
 ```
 
 `electron_e2e.mjs` launches the actual Electron app with Playwright (`playwright-core`,
@@ -982,14 +1014,16 @@ v4.72.0: gun scans typed into the search box add the items, Enter on the empty b
 the bill, the next scan closes "Sale completed", and a bill printer set once on the counter
 gets the next bill silently with no window (`kp:print` caught; Silent is switched back off).
 Since v4.73.0: "chaurasa" / "anar special" typed in English add the Hindi-named items, and
-the counter has no camera / Rapid / hardware buttons. Its data goes to a temp folder via `KAMAI_E2E_DIR` (main.js honours it only
+the counter has no camera / Rapid / hardware buttons. Since v4.74.0: with a printer taking
+1.5 s the counter is clear in < 1 s and a scan made meanwhile lands in the next bill; a
+failed print shows the red bar and "Print again" prints it. Its data goes to a temp folder via `KAMAI_E2E_DIR` (main.js honours it only
 when `!app.isPackaged`). The licence is **signed for this PC with the private key** in
 `%USERPROFILE%\KamaiPlus-Secrets\` (or `KAMAI_LICENCE_PRIVATE_KEY`) — nothing is
 bypassed; without the key only the no-licence checks run. The script removes
 `ELECTRON_RUN_AS_NODE` (set by VS Code terminals), which otherwise stops Electron
 launching. Failure screenshots go to `%TEMP%\kamaiplus-e2e-shots\`.
 
-### Test suite map — `scripts/e2e_simulation.ts` (482 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (490 assertions)
 
 | Suite | Covers |
 | :--- | :--- |

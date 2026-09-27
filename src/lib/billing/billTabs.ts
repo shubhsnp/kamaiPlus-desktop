@@ -60,6 +60,47 @@ export function tabsAfterClosing(tabs: BillTab[], doneId: string, newId: string)
   return { tabs: [...remaining, fresh], activeTabId: fresh.id };
 }
 
+/** A cart line at a new quantity, its totals worked out again (the POS supplies the tax rule). */
+export type RetotalLine = (line: CartItem, quantity: number) => CartItem;
+
+/**
+ * What is in the bill beyond what was sold — items scanned for the next customer while
+ * the finished bill was still being saved (v4.74.0). A line sold as 2 and now 3 gives 1.
+ */
+export function cartBeyond(current: CartItem[], sold: CartItem[], retotal: RetotalLine): CartItem[] {
+  const out: CartItem[] = [];
+  for (const line of current) {
+    const soldQty = sold.filter((s) => s.product_id === line.product_id).reduce((a, s) => a + s.quantity, 0);
+    const extra = Math.round((line.quantity - soldQty) * 1000) / 1000;
+    if (extra <= 0) continue;
+    out.push(soldQty > 0 ? retotal({ ...line, discount_amount: 0 }, extra) : line);
+  }
+  return out;
+}
+
+/**
+ * Close a finished bill (like tabsAfterClosing) without losing anything scanned while it
+ * was being saved: those items move into the bill the counter goes to next.
+ */
+export function tabsAfterSale(tabs: BillTab[], doneId: string, sold: CartItem[], newId: string, retotal: RetotalLine): { tabs: BillTab[]; activeTabId: string } {
+  const done = tabs.find((t) => t.id === doneId);
+  const extra = done ? cartBeyond(done.cart, sold, retotal) : [];
+  const next = tabsAfterClosing(tabs, doneId, newId);
+  if (extra.length === 0) return next;
+  return {
+    activeTabId: next.activeTabId,
+    tabs: next.tabs.map((t) => {
+      if (t.id !== next.activeTabId) return t;
+      let cart = t.cart;
+      for (const line of extra) {
+        const same = cart.find((c) => c.product_id === line.product_id);
+        cart = same ? cart.map((c) => (c === same ? retotal(c, c.quantity + line.quantity) : c)) : [...cart, line];
+      }
+      return { ...t, cart };
+    }),
+  };
+}
+
 export function getInitialTabs(): { tabs: BillTab[]; activeTabId: string } {
   if (typeof window !== 'undefined') {
     try {

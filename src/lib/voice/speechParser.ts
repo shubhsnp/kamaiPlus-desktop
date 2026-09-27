@@ -148,12 +148,22 @@ export function parseSpokenBillingText(
 /**
  * Play a gentle Web Audio API sound for voice/barcode recognition confirmation
  */
+// One sound device connection for every beep (v4.74.0). A new AudioContext per scan was
+// never closed — hundreds a day piled up and slowed the counter down.
+let beepContext: AudioContext | null = null;
+function getBeepContext(): AudioContext | null {
+  const Ctor = window.AudioContext || (window as any).webkitAudioContext;
+  if (!Ctor) return null;
+  if (!beepContext || beepContext.state === 'closed') beepContext = new Ctor();
+  if (beepContext.state === 'suspended') void beepContext.resume().catch(() => {});
+  return beepContext;
+}
+
 export function playBeepSound(type: 'success' | 'alert' = 'success') {
   if (isSoundMuted()) return; // 🔇 in the top bar
   try {
-    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
+    const ctx = getBeepContext();
+    if (!ctx) return;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
