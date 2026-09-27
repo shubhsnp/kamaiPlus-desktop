@@ -391,6 +391,56 @@ async function run() {
       await page.waitForTimeout(1200);
       check(n2 === n1 + 1 && (await salesCount()) === n2, 'Enter completes the sale; Enter / F10 under the "Sale completed" window never complete the bill waiting behind it');
       await closeSaleWindow();
+
+      // v4.72.0 — barcode gun: a code typed into the search box adds its item, Enter on the
+      // empty box finishes the bill, the next scan closes "Sale completed", and with a bill
+      // printer set once on the counter Enter prints straight to it. kp:print is caught in
+      // the main process — nothing reaches a real printer.
+      step = 'barcode gun';
+      const [gA, gB] = listed; // the imported items, with saved store barcodes
+      const cartQty = async (pid) => (await tabsNow()).flatMap((t) => t.cart).filter((i) => i.product_id === pid).reduce((a, i) => a + i.quantity, 0);
+      const gun = async (code) => { await page.keyboard.type(code, { delay: 3 }); await page.keyboard.press('Enter'); await page.waitForTimeout(700); };
+      const saleWindow = () => page.getByText('Sale Completed').first().isVisible().catch(() => false);
+      const inSearch = () => posSearch.evaluate((el) => el === document.activeElement);
+      await posSearch.click();
+      await gun(gA.barcode);
+      await gun(gA.barcode);
+      await gun(gB.barcode);
+      check((await cartQty(gA.id)) === 2 && (await cartQty(gB.id)) === 1 && (await posSearch.inputValue()) === '' && !(await page.getByText(/Add Scanned Barcode/).count()),
+        `Gun scans into the search box add the items (A ×${await cartQty(gA.id)}, B ×${await cartQty(gB.id)}) and leave the box empty`);
+      const g0 = await salesCount();
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(1500);
+      check((await salesCount()) === g0 + 1 && (await saleWindow()), 'Enter on the empty search box finishes the bill ("Sale completed" shows)');
+      await gun(gB.barcode);
+      await page.waitForTimeout(400);
+      check(!(await saleWindow()) && (await cartQty(gB.id)) === 1 && (await cartQty(gA.id)) === 0 && (await inSearch()),
+        "The next customer's scan closes 'Sale completed', starts the next bill, and the cursor is back in the search box");
+
+      await app.evaluate(({ ipcMain }) => {
+        globalThis.__billJobs = [];
+        ipcMain.removeHandler('kp:print');
+        ipcMain.handle('kp:print', async (_e, opts) => { globalThis.__billJobs.push({ paper: opts.paper, silent: opts.silent, deviceName: opts.deviceName || '' }); return { ok: true }; });
+      });
+      await page.getByRole('button', { name: /Silent: OFF/ }).click();
+      await page.locator('[data-bill-autoprint]').waitFor({ timeout: 5000 });
+      await page.locator('[data-bill-format="thermal-80"]').click();
+      const printerNames = await page.locator('select[data-bill-printer] option').evaluateAll((os) => os.map((o) => o.value).filter(Boolean));
+      if (printerNames.length) await page.locator('select[data-bill-printer]').selectOption(printerNames[0]);
+      await page.locator('[data-bill-autoprint]').check();
+      await page.getByRole('button', { name: /^Done$/ }).click();
+      await page.waitForTimeout(400);
+      const savedPs = await page.evaluate(() => JSON.parse(localStorage.getItem('kamai_print_settings') || '{}'));
+      await gun(gA.barcode);
+      const g1 = await salesCount();
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(1800);
+      const [billJob] = await app.evaluate(() => globalThis.__billJobs);
+      check(savedPs.defaultFormat === 'thermal-80' && (savedPs.thermalPrinter || '') === (printerNames[0] || '') && (await salesCount()) === g1 + 1
+        && billJob && billJob.paper === 'thermal-80' && billJob.silent === true && billJob.deviceName === (printerNames[0] || '') && !(await saleWindow()) && (await inSearch()),
+        `Bill printer set once on the counter: Enter saves the bill and prints it straight to that printer, no window, cursor ready for the next scan (${JSON.stringify(billJob)})`);
+      await page.getByRole('button', { name: /Silent: ON/ }).click(); // back off before the restart checks
+      await page.waitForTimeout(300);
       expectedSales = await salesCount();
 
       step = 'errors';

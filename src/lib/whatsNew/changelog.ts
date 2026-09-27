@@ -15,6 +15,14 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.72.0',
+    items: [
+      msg("Barcode gun billing: scan and the item is in the bill. Press Enter on the empty search box to finish the bill, and the next customer's scan starts a new bill."),
+      msg('Set your bill printer once on the counter (Billing → printer button). Turn on "Enter prints the bill straight away" and every bill prints with no window.'),
+      msg('Fixed: a fast scan sometimes showed "unknown barcode" with half the code.'),
+    ],
+  },
+  {
     version: '4.71.0',
     items: [
       msg('Barcode labels for any printer: roll labels (50 × 25, 38 × 25, 2 across…), A4 sticker sheets or your own size. Set the label printer once in Settings → Invoice & Bill Rules and test it.'),

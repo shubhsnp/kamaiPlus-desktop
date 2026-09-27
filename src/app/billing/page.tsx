@@ -40,6 +40,7 @@ import {
   Tag,
   Edit2,
   X,
+  Settings2,
   ShoppingCart,
   ChevronUp,
   ChevronDown,
@@ -57,6 +58,8 @@ import dynamic from 'next/dynamic';
 import { useHardwareBarcodeScanner } from '@/lib/hardware/barcodeScannerListener';
 
 import { focusPosCustomerName, PosCustomerRow } from '@/components/billing/PosCustomerRow';
+import { searchEnterAction } from '@/lib/billing/scanInput';
+import { BillPrinterSetup } from '@/components/billing/BillPrinterSetup';
 import { buildBillCustomer, CustomerDraft, isDraftEmpty, resolveBillCustomer } from '@/lib/billing/billCustomer';
 import { Sale } from '@/types';
 
@@ -104,9 +107,12 @@ export default function BillingPage() {
   const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
   const [billingToast, setBillingToast] = useState<BillingToastData | null>(null);
 
+  // One timer for the toast: an older toast's timer must not hide a newer message early.
+  const toastTimerRef = React.useRef<number | undefined>(undefined);
   const showBillingToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
     setBillingToast({ message, type });
-    setTimeout(() => setBillingToast(null), 4000);
+    window.clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = window.setTimeout(() => setBillingToast(null), 4000);
   };
 
   // Silent Instant Thermal Print State
@@ -116,6 +122,13 @@ export default function BillingPage() {
     }
     return false;
   });
+
+  const setAutoPrint = (next: boolean) => {
+    setSilentPrint(next);
+    if (typeof window !== 'undefined') localStorage.setItem('kamai_silent_print', String(next));
+    showBillingToast(next ? tr('⚡ Silent Print: Active (Direct Thermal)') : tr('Silent Print: Off (Preview Dialog)'), 'info');
+  };
+  const [isBillPrinterOpen, setIsBillPrinterOpen] = useState(false);
 
   // Multi-Bill Tabs State
   const [tabs, setTabs] = useState<BillTab[]>(() => getInitialTabs().tabs);
@@ -655,15 +668,23 @@ export default function BillingPage() {
     setEditingCartItem(null);
   };
 
-  // Barcode scanned handler
+  // Barcode scanned handler (gun, camera, rapid scan, or a code typed into the search box)
   const handleBarcodeScanned = async (barcode: string) => {
     const clean = barcode.trim();
     if (!clean) return;
+    // The next customer's first scan closes the "Sale completed" window (v4.72.0).
+    if (isInvoiceModalOpen) {
+      setIsInvoiceModalOpen(false);
+      setActiveSaleForInvoice(null);
+    }
+    // A gun types into whatever has focus: never leave the code behind in the search box.
+    if (searchInputRef.current && searchInputRef.current.value.includes(clean)) setSearchQuery('');
 
     try {
       const product = await db.products.where('barcode').equals(clean).first();
       if (product) {
         addToCart(product, 1);
+        focusProductSearch();
         return;
       }
     } catch (err) {
@@ -677,10 +698,18 @@ export default function BillingPage() {
     setIsQuickAddModalOpen(true);
   };
 
+  // Back to the product search box, ready for the next scan.
+  const focusProductSearch = () => window.setTimeout(() => searchInputRef.current?.focus(), 0);
+  // The search box reads a whole scanned code on Enter itself (handleSearchEnter), so the
+  // key-timing listener stands aside while it has focus.
+  const searchBoxHasFocus = React.useCallback(() => document.activeElement === searchInputRef.current, []);
+
   useHardwareBarcodeScanner({
     onScan: handleBarcodeScanned,
     // Off while the variant picker is open: scanner digits would pick variants 1–9.
-    enabled: !isBarcodeModalOpen && !isRapidScanModeOpen && !isInvoiceModalOpen && !variantPick,
+    // On while "Sale completed" is open: the next scan closes it and starts the next bill.
+    enabled: !isBarcodeModalOpen && !isRapidScanModeOpen && !variantPick && !isBillPrinterOpen,
+    ignore: searchBoxHasFocus,
   });
 
   const handleSaveQuickAddItem = async (e: React.FormEvent) => {
@@ -1080,18 +1109,26 @@ export default function BillingPage() {
             { sale: newSale, business: currentBiz, customer: targetCustomer, upiVpa: vpa },
             format
           );
-          await desktopApi.print({
+          const printed = await desktopApi.print({
             html,
             paper: format,
             deviceName: printerForFormat(printSettings, format) || undefined,
             silent: true,
           });
+          // print() reports a failed job instead of throwing: show the bill so it can be printed again.
+          if (!printed.ok) throw new Error(printed.error || 'Printing failed');
           showBillingToast(tr('⚡ Silent Printed Invoice #{invoiceNumber}', { invoiceNumber: invoiceNumber }), 'success');
-        } catch (silentErr) {
+          focusProductSearch();
+        } catch (silentErr: any) {
           console.warn('Silent print notice, opening modal:', silentErr);
+          showBillingToast(tr('Bill saved, but it did not print: {error}', { error: silentErr?.message || '' }), 'error');
+          searchInputRef.current?.blur();
           setIsInvoiceModalOpen(true);
         }
       } else {
+        // Focus leaves the search box so the next scan reaches the scanner listener,
+        // which closes this window and starts the next bill.
+        searchInputRef.current?.blur();
         setIsInvoiceModalOpen(true);
       }
       setIsMobileCartOpen(false);
@@ -1107,17 +1144,73 @@ export default function BillingPage() {
     }
   };
 
+  // The highlighted (or first) search result goes into the bill.
+  const addHighlightedResult = () => {
+    const targetProd = (highlightedIndex >= 0 && products[highlightedIndex]) || (products.length > 0 ? products[0] : null);
+    if (!targetProd) return;
+    const stockNum = Number(targetProd.current_stock ?? 0);
+    const isOutOfStock = !targetProd.has_variants && !targetProd.is_unlimited_stock && stockNum <= 0;
+    if (targetProd.has_variants) {
+      // Opens the size / colour picker; the chosen variant is added from there.
+      addToCart(targetProd, 1);
+      setSearchQuery('');
+      setHighlightedIndex(-1);
+    } else if (isOutOfStock) {
+      playBeepSound('alert');
+      showBillingToast(tr('Out of Stock: "{name}"', { name: targetProd.name }), 'error');
+    } else {
+      addToCart(targetProd, 1);
+      playBeepSound('success');
+      showBillingToast(tr('Added: {name}', { name: targetProd.name }), 'success');
+      setSearchQuery('');
+      setHighlightedIndex(-1);
+    }
+  };
+
+  // Enter in the product search box (v4.72.0 — see lib/billing/scanInput.ts): an empty box
+  // finishes the bill, a scanned code adds its item (or offers to add a new one), typed words
+  // add the highlighted result. The box's own text is read, so a code is never cut short.
+  const handleSearchEnter = async () => {
+    const text = (searchInputRef.current?.value || '').trim();
+    let exact: Product | undefined;
+    if (text) {
+      try {
+        exact = await db.products.where('barcode').equals(text).first();
+      } catch {}
+    }
+    const action = searchEnterAction(text, cart.length, Boolean(exact), products.length);
+    // Under "Sale completed" only a scanned code counts (it closes the window and starts the
+    // next bill); an Enter on its own never finishes the bill waiting underneath.
+    if (isInvoiceModalOpen && action !== 'add-exact' && action !== 'unknown-code') return;
+    if (action === 'complete-sale') return handleCompleteSale();
+    if (action === 'add-exact' || action === 'unknown-code') {
+      setSearchQuery('');
+      setHighlightedIndex(-1);
+      return handleBarcodeScanned(text);
+    }
+    if (action === 'add-highlighted') addHighlightedResult();
+  };
+
   // A window on top of the counter (sale completed, item edit, camera, rapid scan,
   // printer setup, big QR, unknown barcode) owns the keyboard: Enter / F10 pressed
   // there must never complete the bill waiting underneath.
-  const counterCovered = isInvoiceModalOpen || Boolean(editingCartItem) || isQuickAddModalOpen || isBarcodeModalOpen || isRapidScanModeOpen || isHardwareModalOpen || isEnlargeQrModalOpen;
+  const counterCovered = isInvoiceModalOpen || Boolean(editingCartItem) || isQuickAddModalOpen || isBarcodeModalOpen || isRapidScanModeOpen || isHardwareModalOpen || isEnlargeQrModalOpen || isBillPrinterOpen;
+  // Only "Sale completed" is open: a scan typed into the search box behind it still counts.
+  const onlySaleWindowOpen = isInvoiceModalOpen && !(Boolean(editingCartItem) || isQuickAddModalOpen || isBarcodeModalOpen || isRapidScanModeOpen || isHardwareModalOpen || isEnlargeQrModalOpen || isBillPrinterOpen);
 
   // Desktop POS High-Speed Keyboard Shortcuts Handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // The variant picker owns the keyboard while open — otherwise Enter on a
       // focused variant would also run "Complete sale".
-      if (variantPick || counterCovered) return;
+      if (variantPick) return;
+      const searchFocused = document.activeElement === searchInputRef.current;
+      if (searchFocused && e.key === 'Enter' && (!counterCovered || onlySaleWindowOpen)) {
+        e.preventDefault();
+        void handleSearchEnter();
+        return;
+      }
+      if (counterCovered) return;
 
       // Tab switching via Ctrl + 1..9
       if ((e.ctrlKey || e.metaKey) && e.key >= '1' && e.key <= '9') {
@@ -1148,30 +1241,6 @@ export default function BillingPage() {
           return;
         }
 
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          const targetProd = (highlightedIndex >= 0 && products[highlightedIndex]) || (products.length > 0 ? products[0] : null);
-          if (targetProd) {
-            const stockNum = Number(targetProd.current_stock ?? 0);
-            const isOutOfStock = !targetProd.has_variants && !targetProd.is_unlimited_stock && stockNum <= 0;
-            if (targetProd.has_variants) {
-              // Opens the size / colour picker; the chosen variant is added from there.
-              addToCart(targetProd, 1);
-              setSearchQuery('');
-              setHighlightedIndex(-1);
-            } else if (isOutOfStock) {
-              playBeepSound('alert');
-              showBillingToast(tr('Out of Stock: "{name}"', { name: targetProd.name }), 'error');
-            } else {
-              addToCart(targetProd, 1);
-              playBeepSound('success');
-              showBillingToast(tr('Added: {name}', { name: targetProd.name }), 'success');
-              setSearchQuery('');
-              setHighlightedIndex(-1);
-            }
-          }
-          return;
-        }
       }
 
       if (e.ctrlKey || e.altKey || e.metaKey) return;
@@ -1238,7 +1307,7 @@ export default function BillingPage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cart, searchQuery, handleCompleteSale, products, highlightedIndex, tabs, variantPick, counterCovered]);
+  }, [cart, searchQuery, handleCompleteSale, products, highlightedIndex, tabs, variantPick, counterCovered, onlySaleWindowOpen]);
 
   // Reusable Checkout Panel Component for Desktop side-panel and Mobile Bottom Drawer
   const renderCheckoutPanel = () => (
@@ -1312,9 +1381,13 @@ export default function BillingPage() {
             type="button"
             onClick={() => {
               const next = !silentPrint;
-              setSilentPrint(next);
-              if (typeof window !== 'undefined') localStorage.setItem('kamai_silent_print', String(next));
-              showBillingToast(next ? tr('⚡ Silent Print: Active (Direct Thermal)') : tr('Silent Print: Off (Preview Dialog)'), 'info');
+              // First time on with no bill printer chosen: pick it first (else it prints to the Windows default).
+              const ps = getPrintSettings();
+              if (next && !printerForFormat(ps, ps.defaultFormat)) {
+                setIsBillPrinterOpen(true);
+                return;
+              }
+              setAutoPrint(next);
             }}
             className={cn(
               "px-2 py-1 rounded-lg text-[10.5px] font-bold flex items-center gap-1 transition-all cursor-pointer border",
@@ -1326,6 +1399,16 @@ export default function BillingPage() {
           >
             <Printer className="w-3 h-3" />
             <span>{silentPrint ? tr('⚡ Silent: ON') : tr('Silent: OFF')}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsBillPrinterOpen(true)}
+            className="p-1 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 cursor-pointer"
+            title={tr('Bill printer')}
+            aria-label={tr('Bill printer')}
+            data-bill-printer-open
+          >
+            <Settings2 className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
@@ -2095,6 +2178,19 @@ export default function BillingPage() {
         handleSaveEditItem={handleSaveEditItem}
       />
 
+      {/* Bill printer setup (size, printer, Enter prints straight away, test print) */}
+      {isBillPrinterOpen && (
+        <BillPrinterSetup
+          onClose={() => {
+            setIsBillPrinterOpen(false);
+            focusProductSearch();
+          }}
+          business={business}
+          autoPrint={silentPrint}
+          onAutoPrintChange={setAutoPrint}
+        />
+      )}
+
       {/* Quick Add Scanned Product Modal */}
       <QuickAddScannedProductModal
         isOpen={isQuickAddModalOpen}
@@ -2137,12 +2233,14 @@ export default function BillingPage() {
           onClose={() => {
             setIsInvoiceModalOpen(false);
             setActiveSaleForInvoice(null);
+            focusProductSearch();
           }}
           onNewBill={() => {
             // The finished bill was already cleared when it was saved. Do not touch
             // the cart here: the tab now on screen may be another customer's bill.
             setIsInvoiceModalOpen(false);
             setActiveSaleForInvoice(null);
+            focusProductSearch();
           }}
           sale={activeSaleForInvoice}
           business={business || null}

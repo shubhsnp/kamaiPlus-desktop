@@ -4,6 +4,6 @@
  * Auto-incremented on every git commit & push.
  */
 
-export const APP_VERSION = '4.71.0';
+export const APP_VERSION = '4.72.0';
 export const APP_RELEASE_DATE = '2026-09-27';
 export const APP_BUILD_NAME = 'KamaiPlus Pro Enterprise';

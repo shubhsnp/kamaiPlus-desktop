@@ -1,7 +1,7 @@
 # 📕 KamaiPlus Desktop — Engineering Bible
 
 > **Canonical context file. Read this before touching any code.**
-> Last verified against the tree at v4.71.0, 2026‑09‑27 (sections carry the version they were last touched in).
+> Last verified against the tree at v4.72.0, 2026‑09‑27 (sections carry the version they were last touched in).
 
 This file exists so that an agent starting cold does **not** have to scan 180 source
 files, and does **not** re-solve problems that were already solved. Everything here
@@ -305,7 +305,7 @@ src/components/<feature>/   Feature components, one folder per domain
 src/components/ui/          Button, Card, Input, Modal  (that is all of it)
 src/lib/<domain>/           Engines — see table below
 src/types/index.ts          All domain types. Single file.
-scripts/e2e_simulation.ts   The test suite (§11). 466 assertions.
+scripts/e2e_simulation.ts   The test suite (§11). 476 assertions.
 scripts/bump_version.ts     Version bumper (+0.1 minor)
 public/barcodes/*.json      5 shipped offline barcode dictionaries
 ```
@@ -316,6 +316,7 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 | :--- | :--- |
 | `db/index.ts` | Dexie schema, `ensureStarterBusinessIfEmpty`, `seedBusinessStarterData`, `clearAllProductData`, `restoreStarterProductCatalog` |
 | `billing/billTabs.ts` | Open POS bills (tabs) in localStorage `kamai_pos_tabs`: `makeEmptyTab`, `tabsAfterClosing`, `getInitialTabs` |
+| `billing/scanInput.ts` | Barcode gun on the counter (v4.72.0): `searchEnterAction` (what Enter in the search box does), `looksLikeBarcode` — §9.5 |
 | `billing/billCustomer.ts` | Customer typed on the POS counter row (v4.68.0): `resolveBillCustomer` (saved by mobile / only-one-by-name → existing, else new, or a refusal), `suggestCustomers`, `buildBillCustomer` — §6.1 step 0 |
 | `sales/saleMath.ts` | **All bill arithmetic.** `computeBillTotals`, `allocateBillDiscount`, `getSalePaymentBreakdown`, returns/refund math, `getLocalDayRange` |
 | `invoices/invoiceDocument.ts` | Builds the one `InvoiceDocument` model that feeds A4, thermal, ESC/POS and the theme preview |
@@ -326,7 +327,7 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 | `hardware/printSettings.ts` | Per-computer printer choice in localStorage |
 | `hardware/escpos.ts` | Raw ESC/POS bytecode (ASCII-safe: ₹ • — are transliterated) |
 | `hardware/bluetoothPrinter.ts` | Web Bluetooth thermal printer |
-| `hardware/barcodeScannerListener.ts` | USB/HID scanner keystroke capture |
+| `hardware/barcodeScannerListener.ts` | USB/HID scanner keystroke capture when **no** text box owns the scan (key timing by `e.timeStamp`; `ignore` lets the POS search box read scans itself) — §9.5 |
 | `firebase/lazyCloud.ts` | **The only way billing touches the cloud.** §6.4 |
 | `firebase/firestoreSync.ts` | Full push/pull sync + `sanitizeForFirestore` |
 | `backup/cloudBackupService.ts` | Local JSON backup/restore of every table |
@@ -485,6 +486,7 @@ three other screens. The order matters:
      db.ledger_transactions.put(...)            → khata entry
      cloudMerge(customers/<id> + ledger/<id>)   (fire-and-forget)
 6. setActiveSaleForInvoice → InvoiceModal, or silent print if enabled
+     silent: kp:print to the bill printer; answer {ok:false} → toast + InvoiceModal  (v4.72.0)
 7. close/reset the bill tab
 ```
 
@@ -821,6 +823,39 @@ with the reason) → import.
   **Not tested on a physical label printer** — the driver may need the same size set in
   its own preferences.
 
+### 9.5 Barcode gun on the counter & the bill printer (v4.72.0)
+
+A USB gun types the code into whatever has focus and presses Enter. On the POS that is
+normally the product search box (it has focus when Billing opens and after every add).
+
+- **The search box reads the scan itself** — `handleSearchEnter` in `app/billing/page.tsx`
+  reads the box's whole text on Enter and asks `searchEnterAction` (`lib/billing/scanInput.ts`):
+  empty box → finish the bill (if it has items) · a saved barcode → add it · a code nobody
+  has (`looksLikeBarcode`: 6+ digits, or 6+ capitals/digits/dashes with 4+ digits) →
+  "Add Scanned Barcode" with the whole code · words → the highlighted result (old
+  behaviour). The code is cleared from the box and the cursor goes back to it.
+- **The key-timing listener** (`useHardwareBarcodeScanner`) stands aside while the search
+  box has focus (`ignore: searchBoxHasFocus`) and catches scans when nothing else does
+  (e.g. under "Sale completed", where focus is on the page). It times keys by the event's
+  own `timeStamp` (stamped when the key arrived, not when the busy page got to it), and
+  outside a text box allows 250 ms between keys.
+- **"Sale completed" + next customer:** the listener stays on under that window; a scan
+  closes it and starts the next bill (`handleBarcodeScanned`). A plain Enter / F10 there
+  never completes the bill waiting underneath (§10 #26 still holds: `onlySaleWindowOpen`
+  lets only a scanned code through).
+- **Bill printer, set once** (`components/billing/BillPrinterSetup.tsx`, gear button next
+  to the Silent pill): bill size (80 mm / 58 mm / A4 → `defaultFormat`), the printer for
+  that size, "Enter prints the bill straight away" (= `kamai_silent_print`) and a test
+  print. Same `kamai_print_settings` as Settings → Printer Setup. Turning Silent on with no
+  printer chosen for the bill size opens this first. With it on, Enter saves the bill and
+  prints it with no window, and the cursor is ready for the next scan; if the printer
+  answers `{ok:false}` the bill is still saved, the error is shown and "Sale completed"
+  opens so it can be printed again.
+- Verified in the real app with a CDP key burst (all keys queued at once, 3 ms apart) while
+  the page was kept 92 % busy, and by the Electron E2E (§11). Playwright's `keyboard.type`
+  waits for each key to be handled, so under a busy page its own gaps grow — do not use it
+  to judge the timing listener.
+
 ### 9.1 Product variants (v4.49.0) — same model as the Android app
 
 Not a per-vertical mode: any shop can use it. `lib/products/variants.ts`.
@@ -885,6 +920,7 @@ Each was a real bug that cost real time. The test suite guards most of them.
 | 27 | **Labels that could never scan (before v4.70.0).** An item without a barcode got a code made up at print time — Barcode Studio `KP` + last 6 id characters, the 1-click label the id's first 10 characters (the same `PROD_IMP_1` for every imported item) — and it was never saved, so the counter said "unknown barcode". The Excel importer read only its own template: a real price list (`Item (आयटम)`, `Price (भाव)`…) imported 0 of 825 rows; with a renamed column it lost company / section / unit, invented a cost price and counted stock at 10. | `lib/barcode/storeBarcodes.ts` saves an EAN-13 `200…` code before any label is printed; `lib/import/` imports any sheet by its headings, updates prices on re-upload (§9.3). Suite 9 §9d. |
 | 28 | **About 1 barcode label in 3 could not be scanned (before v4.71.0).** Code-128 took the check character's pattern from `Object.keys()` of a character map; JS lists the digit keys first, so check values 0–25 got the wrong pattern and 95–102 had none. ZXing rejected 127 of 400 sample labels. Labels also printed through `window.print()` at A4 even on 50 × 25 rolls. | Patterns looked up by value from the standard 0–106 table; EAN-13 for store codes; Code-128 C for even digits. Labels print at their own mm page size through `kp:print` (`paper: 'label'`). Suite 9 §9e decodes every check value with ZXing. |
 | 21 | **Wiring & calculation audit (v4.59.0).** (a) A double Enter / click on Complete Sale could save the cart twice (two bills, stock cut twice, same invoice number). (b) Cash typed in cash mode stayed in the tab and turned a later UPI / card / credit bill into a part payment. (c) Short cash with no customer saved an udhar nobody owed. (d) An overpaid split counted the excess as drawer cash. (e) +/− or re-scanning reset a rate the cashier had edited to the catalogue price. (f) Settings → "Default GST Calculation" did nothing: every product was saved tax-inclusive. (g) Excel import stamped HSN `1905` on every product without one. (h) Changing a balance in customer details wrote no ledger entry. | (a) `completingSaleRef` guard. (b)(c) `typedCashPaise` is read only in cash mode; short cash needs a customer. (d) excess must fit in the cash part and is recorded as `change_returned`. (e) existing lines keep `unit_price`. (f) new / imported products take the shop mode, edited ones keep theirs; cart lines store the resolved mode so POS tax and `saleMath` agree. (g) no HSN = none. (h) the change goes to the ledger on top of the fresh balance. Suite 9 §8u; Electron E2E double-clicks Complete Sale. |
+| 29 | **Barcode gun on the counter (before v4.72.0).** The scan stayed in the focused search box and was also caught by the key-timing listener, which timed keys by when its code ran — a busy screen (the "Sale completed" preview being drawn) looked like slow typing and cut the code short ("unknown barcode" with half the code). Enter on an empty box added the first product instead of finishing the bill; scans were ignored under "Sale completed". Silent print ignored a `{ok:false}` answer (bill looked printed); an older toast's timer hid newer toasts. | §9.5: the search box reads the whole code on Enter (`searchEnterAction`), the listener stands aside while it has focus and uses `e.timeStamp`; a scan closes "Sale completed"; `if (!printed.ok) throw` → toast + window; one `toastTimerRef`. Bill printer set once on the counter. Suite 9 §9f; Electron E2E scans, Enter-finishes, scan-under-window and silent print. |
 ---
 
 ## 11. Verification protocol (AGENTS.md Rule 6)
@@ -893,7 +929,7 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 466/466, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 476/476, 0 failures
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
 git push origin main
@@ -904,7 +940,7 @@ billing), also run the real app:
 
 ```bash
 npx next build                      # out/ must be current
-npm run test:electron               # scripts/electron_e2e.mjs — 37/37
+npm run test:electron               # scripts/electron_e2e.mjs — 41/41
 ```
 
 `electron_e2e.mjs` launches the actual Electron app with Playwright (`playwright-core`,
@@ -919,14 +955,17 @@ Add Product form (MRP only), menu without the switched-off screens, the "turned 
 a switch going on in Settings → Features, and the 🔊 / 🔇 button. Since v4.70.0: an Excel
 sheet with Hindi headings is imported (saved barcodes) and re-imported with a new price.
 Since v4.71.0: "Print labels" after the import sends one 50 × 25 mm page per label (the
-test catches `kp:print` in the main process and renders PDF — no real printer). Its data goes to a temp folder via `KAMAI_E2E_DIR` (main.js honours it only
+test catches `kp:print` in the main process and renders PDF — no real printer). Since
+v4.72.0: gun scans typed into the search box add the items, Enter on the empty box finishes
+the bill, the next scan closes "Sale completed", and a bill printer set once on the counter
+gets the next bill silently with no window (`kp:print` caught; Silent is switched back off). Its data goes to a temp folder via `KAMAI_E2E_DIR` (main.js honours it only
 when `!app.isPackaged`). The licence is **signed for this PC with the private key** in
 `%USERPROFILE%\KamaiPlus-Secrets\` (or `KAMAI_LICENCE_PRIVATE_KEY`) — nothing is
 bypassed; without the key only the no-licence checks run. The script removes
 `ELECTRON_RUN_AS_NODE` (set by VS Code terminals), which otherwise stops Electron
 launching. Failure screenshots go to `%TEMP%\kamaiplus-e2e-shots\`.
 
-### Test suite map — `scripts/e2e_simulation.ts` (466 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (476 assertions)
 
 | Suite | Covers |
 | :--- | :--- |
@@ -1037,11 +1076,8 @@ Recorded so the next agent does not rediscover them. None are fixed as of v4.38.
     automated; the Electron E2E waits for the redirect before clicking. Harmless in practice
     (the page opens on the second click).
 
-13. **USB barcode gun on the POS** (probed on v4.69.0, fix planned v4.72.0): the scan is typed
-    into the focused search box and stays there; the scanner is recognised only by key
-    timing (≤ 50 ms), so a busy screen can cut a code short ("unknown barcode" pop-up with
-    part of the code); Enter can add the first search result instead of finishing the bill;
-    scans are ignored while "Sale completed" is open.
+13. ~~USB barcode gun on the POS~~ — **fixed in v4.72.0** (§9.5, §10 #29). Not yet tried with a
+    physical gun + thermal printer in a shop; the fix was proven with queued key bursts.
 
 ---
 

@@ -34,6 +34,8 @@ export interface BarcodeScannerOptions {
   enabled?: boolean;
   minChars?: number;
   maxIntervalMs?: number; // max milliseconds between keystrokes to qualify as laser gun
+  /** Stand aside (e.g. the POS search box has focus and reads the whole code itself on Enter). */
+  ignore?: () => boolean;
 }
 
 export function useHardwareBarcodeScanner({
@@ -41,6 +43,7 @@ export function useHardwareBarcodeScanner({
   enabled = true,
   minChars = 3,
   maxIntervalMs = 50,
+  ignore,
 }: BarcodeScannerOptions) {
   const bufferRef = useRef<string>('');
   const lastKeyTimeRef = useRef<number>(0);
@@ -49,12 +52,21 @@ export function useHardwareBarcodeScanner({
     if (!enabled || typeof window === 'undefined') return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      const now = Date.now();
-      const timeDiff = now - lastKeyTimeRef.current;
+      if (ignore && ignore()) {
+        bufferRef.current = '';
+        return;
+      }
+      // v4.72.0: time the keys by when they were pressed (the event's own timestamp), not
+      // when this code gets to run — a busy screen (e.g. the "Sale completed" preview being
+      // drawn) delayed the handler, looked like slow typing, and cut the code short.
+      const now = e.timeStamp > 0 ? e.timeStamp : Date.now();
+      const timeDiff = Math.abs(now - lastKeyTimeRef.current);
       lastKeyTimeRef.current = now;
 
-      // If time between keystrokes was too long (human typing speed > 60ms), reset buffer
-      if (timeDiff > maxIntervalMs) {
+      // Nobody types into a page with no text box focused, so outside one a slower gun is fine.
+      const active = document.activeElement as HTMLElement | null;
+      const inTextBox = Boolean(active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable));
+      if (timeDiff > (inTextBox ? maxIntervalMs : Math.max(maxIntervalMs, 250))) {
         bufferRef.current = '';
       }
 
@@ -81,5 +93,5 @@ export function useHardwareBarcodeScanner({
     return () => {
       window.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, [onScan, enabled, minChars, maxIntervalMs]);
+  }, [onScan, enabled, minChars, maxIntervalMs, ignore]);
 }

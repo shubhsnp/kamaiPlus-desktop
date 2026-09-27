@@ -78,6 +78,7 @@ import { barcodeSymbol } from '../src/lib/barcode/barcodeGenerator';
 import { DEFAULT_LABEL_SETTINGS, LABEL_STOCKS, labelPageMm, labelsPerPage, parseLabelSettings, stockFor } from '../src/lib/labels/labelSettings';
 import { buildLabelHtml } from '../src/lib/labels/labelSheet';
 import { expandCopies } from '../src/lib/labels/printLabels';
+import { looksLikeBarcode, searchEnterAction } from '../src/lib/billing/scanInput';
 import {
   WALK_IN_ID,
   buildAdvancedReport,
@@ -711,7 +712,7 @@ assert(JSON.stringify(cleanVariantLabels([' M', 'm', '', 'XL'])) === JSON.string
 assert(!tracksOwnStock({ has_variants: true } as any) && tracksOwnStock({ has_variants: false } as any), 'Stock alerts skip a variant parent (its stock lives in the sizes / colours)');
 assert(summarizeVariants([{ selling_price: 64900, current_stock: 2 }, { selling_price: 59900, current_stock: 3 }] as any).minPricePaise === 59900, 'POS shows a variant parent "from" its cheapest variant');
 assert(/if \(product\.has_variants\) \{\s*setVariantPick/.test(billingSrc), 'Every POS add path opens the variant picker for a parent (never sells the parent)');
-assert(/if \(variantPick \|\| counterCovered\) return;/.test(billingSrc), 'Billing shortcuts (Enter = complete sale) are off while the variant picker is open');
+assert(/if \(variantPick\) return;/.test(billingSrc) && /if \(counterCovered\) return;/.test(billingSrc), 'Billing shortcuts (Enter = complete sale) are off while the variant picker is open');
 assert(/searching \|\| !p\.parent_id/.test(billingSrc), 'POS grid hides variants under their parent unless searching');
 assert(/\.\.\.editingProduct,\s*\.\.\.productPayload/.test(readSource('app/products/page.tsx')), 'Editing a product keeps its variant links (parent_id / has_variants)');
 for (const rel of ['app/inventory/page.tsx', 'app/purchases/page.tsx', 'components/dashboard/DashboardHome.tsx']) {
@@ -1031,7 +1032,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(/isCreditMode && !hasCustomer/.test(saleFn) && /focusPosCustomerName\(typed\.field\)/.test(saleFn) && /focusPosCustomerName\(\);/.test(saleFn), 'Udhar with no customer (or a wrong mobile) puts the cursor in the name box instead of opening a pop-up');
 
   // (d) Shortcuts: every key on the status bar works, and none fires under a window.
-  assert(/const counterCovered = isInvoiceModalOpen \|\| Boolean\(editingCartItem\) \|\| isQuickAddModalOpen \|\| isBarcodeModalOpen \|\| isRapidScanModeOpen \|\| isHardwareModalOpen \|\| isEnlargeQrModalOpen;/.test(pos),
+  assert(/const counterCovered = isInvoiceModalOpen \|\| Boolean\(editingCartItem\) \|\| isQuickAddModalOpen \|\| isBarcodeModalOpen \|\| isRapidScanModeOpen \|\| isHardwareModalOpen \|\| isEnlargeQrModalOpen \|\| isBillPrinterOpen;/.test(pos),
     'Enter / F10 never complete the waiting bill while "Sale completed", item edit, camera, rapid scan, printer or QR window is open');
   assert(billingSrc.includes("e.key === 'Escape'") && billingSrc.includes("e.key === '/'") && /\{ id: 'credit', label: tr\('Credit'\), icon: BookOpen, shortcut: 'F9' \}/.test(pos), 'Esc and / work on the counter; the Credit button shows its F9 key like Cash (F4) and UPI (F8)');
 
@@ -1222,6 +1223,37 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(/printLabels\(labels, settings, storeName\)/.test(readSource('components/products/QuickBarcodePrintModal.tsx')) && /<LabelPrinterCard \/>/.test(readSource('components/settings/InvoiceSettingsTab.tsx'))
     && /saveLastImportIds\(res\.createdIds\.concat\(res\.updatedIds\)\)/.test(readSource('components/import/CatalogImportModal.tsx')),
     '1-click label uses the same label setup; Settings has the label printer; an Excel import offers its labels');
+}
+
+// 9f. Barcode gun on the counter (v4.72.0): the search box reads a whole scanned code on
+// Enter, an empty box + Enter finishes the bill, and a bill printer is set once.
+{
+  assert(searchEnterAction('', 3, false, 20) === 'complete-sale' && searchEnterAction('  ', 0, false, 20) === 'none',
+    'Search box: Enter on an empty box finishes the bill (never adds the first product); nothing happens with an empty bill');
+  assert(searchEnterAction('2000000000015', 0, true, 0) === 'add-exact' && searchEnterAction('8901234567897', 2, false, 5) === 'unknown-code' && searchEnterAction('maggi', 2, false, 4) === 'add-highlighted' && searchEnterAction('zzz', 2, false, 0) === 'none',
+    'Search box: a saved code adds its item, an unknown code offers "Add scanned barcode" (not the first result), words add the highlighted result');
+  assert(looksLikeBarcode('8901234567897') && looksLikeBarcode('SKU-00123') && looksLikeBarcode('123456') && !looksLikeBarcode('maggi2') && !looksLikeBarcode('12345') && !looksLikeBarcode('Parle-G 2024'),
+    'A code is 6+ digits or 6+ capitals / digits / dashes with 4+ digits; words with a number are not');
+
+  const pos = readSource('app/billing/page.tsx');
+  const listener = readSource('lib/hardware/barcodeScannerListener.ts');
+  assert(/searchFocused && e\.key === 'Enter' && \(!counterCovered \|\| onlySaleWindowOpen\)\) \{\s*e\.preventDefault\(\);\s*void handleSearchEnter\(\);/.test(pos)
+    && /if \(isInvoiceModalOpen && action !== 'add-exact' && action !== 'unknown-code'\) return;/.test(pos),
+    'Enter in the search box goes through handleSearchEnter; under "Sale completed" only a scanned code counts');
+  assert(/ignore: searchBoxHasFocus/.test(pos) && /enabled: !isBarcodeModalOpen && !isRapidScanModeOpen && !variantPick && !isBillPrinterOpen,/.test(pos)
+    && /if \(ignore && ignore\(\)\)/.test(listener),
+    'The key-timing listener stands aside while the search box has focus, and stays on under "Sale completed" (the next scan closes it)');
+  assert(/const now = e\.timeStamp > 0 \? e\.timeStamp : Date\.now\(\);/.test(listener) && /inTextBox \? maxIntervalMs : Math\.max\(maxIntervalMs, 250\)/.test(listener),
+    'The listener times keys by when they were pressed (event timestamp), so a busy screen never cuts a code short');
+  assert(/if \(isInvoiceModalOpen\) \{\s*setIsInvoiceModalOpen\(false\);/.test(pos) && /addToCart\(product, 1\);\s*focusProductSearch\(\);/.test(pos),
+    'A scan closes "Sale completed", adds the item and puts the cursor back in the search box');
+  assert(/if \(!printed\.ok\) throw new Error/.test(pos) && /tr\('Bill saved, but it did not print: \{error\}'/.test(pos),
+    'Silent print checks the printer answer: a failed print shows the error and opens the bill to print again');
+  assert(/window\.clearTimeout\(toastTimerRef\.current\);/.test(pos), 'Billing toasts use one timer (an old toast never hides a newer one)');
+  const setup = readSource('components/billing/BillPrinterSetup.tsx');
+  assert(/<BillPrinterSetup/.test(pos) && /if \(next && !printerForFormat\(ps, ps\.defaultFormat\)\) \{?\s*setIsBillPrinterOpen\(true\)/.test(pos)
+    && /savePrintSettings\(next\)/.test(setup) && /a4Printer: name \} : \{ thermalPrinter: name \}/.test(setup),
+    'Bill printer: set once on the counter (saved with Printer Setup); turning Enter-prints on with no printer opens the setup first');
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.
