@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useMemo, useRef, useState } from 'react';
-import { CheckCircle2, Database, Download, FileSpreadsheet, RefreshCw, UploadCloud } from 'lucide-react';
+import { Barcode, CheckCircle2, Database, Download, FileSpreadsheet, RefreshCw, UploadCloud } from 'lucide-react';
+import Link from 'next/link';
+import { saveLastImportIds } from '@/lib/labels/labelSettings';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { db } from '@/lib/db';
@@ -115,6 +117,8 @@ export function CatalogImportModal({ onClose, businessId, onImportComplete }: Ca
         giveBarcodes,
       });
       setResult(res);
+      // New and re-priced items: Barcode Studio offers their labels ("Last Excel import").
+      saveLastImportIds(res.createdIds.concat(res.updatedIds));
       setStep('done');
       onImportComplete?.(res);
     } catch (err) {
@@ -261,9 +265,22 @@ export function CatalogImportModal({ onClose, businessId, onImportComplete }: Ca
             </Button>
           )}
           {step === 'done' && (
-            <Button size="sm" onClick={onClose} className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs h-10 px-6 rounded-xl">
-              {tr('Done & View Catalog')}
-            </Button>
+            <div className="flex items-center gap-2">
+              {result && result.created + result.updated > 0 && (
+                <Link
+                  href="/barcode-generator?from=import"
+                  prefetch={false}
+                  onClick={onClose}
+                  className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-900 font-black text-xs"
+                  data-import-print-labels
+                >
+                  <Barcode className="w-4 h-4" /> {tr('Print labels for these {count} items', { count: result.created + result.updated })}
+                </Link>
+              )}
+              <Button size="sm" onClick={onClose} className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs h-10 px-6 rounded-xl">
+                {tr('Done & View Catalog')}
+              </Button>
+            </div>
           )}
         </div>
       </div>

@@ -95,12 +95,12 @@ function printViaIframe(html: string): Promise<DesktopResult> {
 
 export async function printHtml(
   html: string,
-  paper: PaperFormat,
-  opts: { deviceName?: string; silent?: boolean } = {}
+  paper: PaperFormat | 'label',
+  opts: { deviceName?: string; silent?: boolean; pageSizeMm?: { width: number; height: number } } = {}
 ): Promise<DesktopResult & { method: 'desktop' | 'browser' }> {
   const api = getDesktopApi();
   if (api) {
-    const res = await api.print({ html, paper, deviceName: opts.deviceName || undefined, silent: Boolean(opts.silent) });
+    const res = await api.print({ html, paper, pageSizeMm: opts.pageSizeMm, deviceName: opts.deviceName || undefined, silent: Boolean(opts.silent) });
     return { ...res, method: 'desktop' };
   }
   const res = await printViaIframe(html);

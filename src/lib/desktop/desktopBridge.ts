@@ -58,7 +58,8 @@ export interface BackupWriteResult {
 export interface KamaiDesktopApi {
   isDesktop: true;
   printToPdf(opts: { html: string; fileName: string; folder: 'Invoices' | 'Reports' | 'Statements' }): Promise<DesktopResult>;
-  print(opts: { html: string; paper: PaperFormat; deviceName?: string; silent?: boolean }): Promise<DesktopResult>;
+  /** paper 'label' (v4.71.0): a barcode-label page of pageSizeMm (one roll row). */
+  print(opts: { html: string; paper: PaperFormat | 'label'; pageSizeMm?: { width: number; height: number }; deviceName?: string; silent?: boolean }): Promise<DesktopResult>;
   getPrinters(): Promise<DesktopPrinter[]>;
   openPath(path: string): Promise<DesktopResult>;
   showItemInFolder(path: string): Promise<DesktopResult>;

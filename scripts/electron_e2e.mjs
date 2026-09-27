@@ -301,7 +301,40 @@ async function run() {
       const again = listed.find((p) => p.id === chaurasa.id);
       check((await productCount()) === itemsBefore + 2 && again.selling_price === 35000 && again.barcode === chaurasa.barcode,
         'Uploading the sheet again with a new price updates that price — no copies, barcode kept');
-      await page.getByRole('button', { name: /Done & View Catalog/ }).click();
+
+      // v4.71.0 — "Print labels" after the import: Studio opens with the re-priced item and
+      // the label printer gets one 50 × 25 mm page per label. kp:print is caught in the main
+      // process and rendered to PDF — nothing reaches a real printer.
+      step = 'label print';
+      const pdfDir = path.join(dataDir, 'label-pdf');
+      fs.mkdirSync(pdfDir, { recursive: true });
+      await app.evaluate(({ ipcMain, BrowserWindow }, dir) => {
+        const fsm = process.mainModule.require('fs');
+        const pathm = process.mainModule.require('path');
+        globalThis.__labelJobs = [];
+        ipcMain.removeHandler('kp:print');
+        ipcMain.handle('kp:print', async (_e, opts) => {
+          const file = pathm.join(dir, `job${globalThis.__labelJobs.length}.html`);
+          fsm.writeFileSync(file, opts.html, 'utf8');
+          const win = new BrowserWindow({ show: false });
+          await win.loadFile(file);
+          const size = opts.paper === 'label' ? { width: opts.pageSizeMm.width / 25.4, height: opts.pageSizeMm.height / 25.4 } : 'A4';
+          const pdf = await win.webContents.printToPDF({ pageSize: size, printBackground: true, margins: { top: 0, bottom: 0, left: 0, right: 0 } });
+          win.destroy();
+          const pages = (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
+          globalThis.__labelJobs.push({ paper: opts.paper, pageSizeMm: opts.pageSizeMm, silent: opts.silent, pages });
+          return { ok: true };
+        });
+      }, pdfDir);
+      await page.locator('[data-import-print-labels]').click();
+      await page.waitForURL(/barcode-generator/, { timeout: 15000 });
+      await page.locator('[data-label-preview]').waitFor({ timeout: 15000 });
+      await page.locator('[data-print-labels]').click();
+      await page.locator('[data-print-notice]').waitFor({ timeout: 30000 });
+      const [labelJob] = await app.evaluate(() => globalThis.__labelJobs);
+      const labelHtml = fs.readFileSync(path.join(pdfDir, 'job0.html'), 'utf8');
+      check(labelJob && labelJob.paper === 'label' && labelJob.pageSizeMm.width === 50 && labelJob.pageSizeMm.height === 25 && labelJob.pages === 1 && labelHtml.includes(chaurasa.barcode),
+        `Import → Print labels → the label printer gets one 50 × 25 mm page with the item's saved barcode (${JSON.stringify(labelJob)})`);
 
       // v4.68.0 — customer typed on the counter row (no pop-up) is saved with the bill.
       step = 'counter customer';

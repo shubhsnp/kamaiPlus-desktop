@@ -1,7 +1,7 @@
 # 📕 KamaiPlus Desktop — Engineering Bible
 
 > **Canonical context file. Read this before touching any code.**
-> Last verified against the tree at v4.70.0, 2026‑09‑27 (sections carry the version they were last touched in).
+> Last verified against the tree at v4.71.0, 2026‑09‑27 (sections carry the version they were last touched in).
 
 This file exists so that an agent starting cold does **not** have to scan 180 source
 files, and does **not** re-solve problems that were already solved. Everything here
@@ -103,7 +103,7 @@ Defined in `main.js` (`ipcMain.handle`), exposed in `preload.js`, typed in
 | Channel | Bridge method | Does |
 | :--- | :--- | :--- |
 | `kp:print-to-pdf` | `printToPdf({html, fileName, folder})` | Vector A4 PDF → `Documents/KamaiPlus/{Invoices\|Reports\|Statements}` |
-| `kp:print` | `print({html, paper, deviceName, silent})` | Sends to OS printer; thermal page height is measured from the DOM |
+| `kp:print` | `print({html, paper, deviceName, silent, pageSizeMm})` | Sends to OS printer; thermal page height is measured from the DOM; `paper: 'label'` (v4.71.0) prints at `pageSizeMm` (10–300 mm, one label-roll row per page) |
 | `kp:get-printers` | `getPrinters()` | Installed printer list |
 | `kp:open-path` | `openPath(target)` | Opens a saved file — **only inside `Documents/KamaiPlus`** |
 | `kp:show-in-folder` | `showItemInFolder(target)` | Same path restriction |
@@ -305,7 +305,7 @@ src/components/<feature>/   Feature components, one folder per domain
 src/components/ui/          Button, Card, Input, Modal  (that is all of it)
 src/lib/<domain>/           Engines — see table below
 src/types/index.ts          All domain types. Single file.
-scripts/e2e_simulation.ts   The test suite (§11). 454 assertions.
+scripts/e2e_simulation.ts   The test suite (§11). 466 assertions.
 scripts/bump_version.ts     Version bumper (+0.1 minor)
 public/barcodes/*.json      5 shipped offline barcode dictionaries
 ```
@@ -345,7 +345,9 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 | `sound/soundSettings.ts` | 🔊 / 🔇 for every beep and voice (`isSoundMuted`, `setSoundMuted`) — §9.2 |
 | `import/catalogImport.ts` | Excel / CSV price-list import, pure (§9.3): `guessColumnRoles`, `mapUnit`, `buildItemName`, `buildImportRows`, `planImport` |
 | `import/catalogImportDb.ts` | `applyImportPlan` — categories, new items, price updates, store barcodes in one Dexie transaction (§9.3) |
-| `barcode/storeBarcodes.ts` | The shop's own saved barcodes, EAN-13 `200…` (§9.3): `nextStoreBarcodes`, `ensureProductBarcode`, `assignMissingBarcodes` |
+| `barcode/storeBarcodes.ts` | The shop's own saved barcodes, EAN-13 `200…` (§9.3): `nextStoreBarcodes`, `ensureProductBarcode`, `ensureProductBarcodes` (bulk) |
+| `barcode/barcodeGenerator.ts` | Bar codes as SVG (§9.4): `barcodeSymbol` (EAN-13 for valid EAN-13, else Code-128 B / C), `barcodeSVG`, `code128Modules`, `ean13Modules` |
+| `labels/` | Barcode labels (§9.4): `labelSettings.ts` (stocks, per-computer setup), `labelSheet.ts` (`buildLabelHtml` — preview = print), `printLabels.ts` |
 
 ---
 
@@ -607,11 +609,10 @@ There is no global state library. Modules talk through window events:
 `kamai_sidebar_collapsed` · `kamai_products_view_mode` · `kamai_products_manually_cleared` ·
 `kamai_thermal_paper_width` · `kamai_silent_print` · `kamai_print_upi_qr` ·
 `kamai_cash_drawer_enabled` · `kamai_saved_bt_printer_mac` ·
-`kamai_barcode_layout` · `kamai_barcode_type` · `kamai_barcode_store_name` ·
-`kamai_barcode_price` · `kamai_barcode_mrp` · `kamai_barcode_date` ·
 `kamai_soundbox_lang` · `kamai_soundbox_vol` · `kamai_last_backup_time` ·
 `kamai_last_backup_type` · `kamai_last_restore_time` · `kamai_app_installed` ·
 `kamai_pwa_banner_dismissed` · `kamai_cashier_owner_pin` · `kamai_cashier_privacy_locked` ·
+`kamai_print_settings` (bill printers) · `kamai_label_settings` · `kamai_last_import_ids` ·
 `kamai_feature_switches` · `kamai_sound_muted` · `vyapar_language`
 
 sessionStorage (emptied when the app closes): `kamai_unlocked` · `kamai_return_to`.
@@ -791,6 +792,35 @@ with the reason) → import.
   50 categories, 796 unique valid codes; re-upload with 2 prices changed → 2 updated, 0 new.
   Suite 9 §9d; Electron E2E imports and re-imports a sheet with Hindi headings.
 
+### 9.4 Barcode labels — any printer, any size (v4.71.0)
+
+- **Setup per computer** (`lib/labels/labelSettings.ts`, localStorage `kamai_label_settings`):
+  label stock (rolls 50×25, 38×25, 38×25 2-across, 50×25 2-across, 40×30, 50×30, 75×50,
+  100×50; A4 sheets of 24 / 40 / 65; or a custom roll: width, height, 1–5 across, gap),
+  label printer ('' = print dialog), print without dialog, what the label shows (shop,
+  name, price, MRP when higher, digits, date, QR instead of bars), default copies.
+  Edited in `LabelSetupPanel` — Settings → Invoice & Bill Rules (`LabelPrinterCard`),
+  Barcode Studio and the 1-click label share it, with a **Test print**.
+- **One HTML for preview and print** (`buildLabelHtml`): sizes in mm; a roll is one row of
+  labels per page (`@page` = across × width + gaps by height), an A4 sheet one sheet per
+  page. Names render in Nirmala UI (Devanagari). The preview is that HTML in a sandboxed
+  iframe (`LabelPreview`). Printing: `printLabels` → `printHtml(…, 'label', {pageSizeMm})`
+  → `kp:print` (Electron) or the iframe dialog (browser).
+- **Barcode Studio** (`app/barcode-generator`, < 250 lines + `components/labels/`): add one
+  item, a whole category, all items, or the **last Excel import** (`kamai_last_import_ids`,
+  new + re-priced items; the import's done screen links to `?from=import`); copies for
+  all or "= stock". Every catalogue item gets a saved barcode before it is listed
+  (`ensureProductBarcodes`). Bluetooth ESC/POS stays as a secondary button (ASCII only).
+- **Bar codes** (`barcodeGenerator.ts`): valid EAN-13 → EAN-13 (all store codes), digits of
+  even length → Code-128 C, anything else → Code-128 B. **Verified with ZXing** (the
+  decoder in `html5-qrcode/third_party`): every check value, 300 store codes and real
+  EANs decode (Suite 9 §9e); label images rendered at ~203 dpi decode too.
+- Real-app check (printing caught in the main process and rendered to PDF): 50×25 → one
+  50×25 page per label; 38×25 2-across → 78×25 pages; A4 → one A4 page; custom 60×40 to a
+  chosen printer → silent. Electron E2E does the same for "Print labels" after an import.
+  **Not tested on a physical label printer** — the driver may need the same size set in
+  its own preferences.
+
 ### 9.1 Product variants (v4.49.0) — same model as the Android app
 
 Not a per-vertical mode: any shop can use it. `lib/products/variants.ts`.
@@ -853,6 +883,7 @@ Each was a real bug that cost real time. The test suite guards most of them.
 | 24 | **Language menu changed almost nothing (before v4.63.0)** — `t()` existed but only the Navbar used it; `en.json` held ~40 unused keys, every screen was hard-coded English. | ~1,940 texts wrapped in `tr()` across ~115 files, full Hindi + Marathi tables, badge / period-chip label helpers, language pills before login. Suite 9 §8x (every text translated, placeholders kept, no bare JSX text, no dynamic `tr()`). Live-checked 16 screens in हिंदी and मराठी: only shop data, brands and print previews stay English. |
 | 26 | **Enter / F10 completed a hidden bill (before v4.68.0).** With two bills open, completing one opened "Sale completed" on top of the other; pressing Enter (e.g. on the focused Print button) or F10 there completed the waiting bill underneath — found by driving the real app. The customer also needed a pop-up to be added. | Billing shortcuts return early while `counterCovered` (Sale completed, item edit, camera, rapid scan, printer setup, big QR, unknown-barcode windows) or the variant picker is open; the `DialogHost` confirm already captured Enter. Customer typed inline (§6.1 step 0). Credit button shows F9. Suite 9 §9b (19 checks); Electron E2E presses Enter + F10 under "Sale completed". |
 | 27 | **Labels that could never scan (before v4.70.0).** An item without a barcode got a code made up at print time — Barcode Studio `KP` + last 6 id characters, the 1-click label the id's first 10 characters (the same `PROD_IMP_1` for every imported item) — and it was never saved, so the counter said "unknown barcode". The Excel importer read only its own template: a real price list (`Item (आयटम)`, `Price (भाव)`…) imported 0 of 825 rows; with a renamed column it lost company / section / unit, invented a cost price and counted stock at 10. | `lib/barcode/storeBarcodes.ts` saves an EAN-13 `200…` code before any label is printed; `lib/import/` imports any sheet by its headings, updates prices on re-upload (§9.3). Suite 9 §9d. |
+| 28 | **About 1 barcode label in 3 could not be scanned (before v4.71.0).** Code-128 took the check character's pattern from `Object.keys()` of a character map; JS lists the digit keys first, so check values 0–25 got the wrong pattern and 95–102 had none. ZXing rejected 127 of 400 sample labels. Labels also printed through `window.print()` at A4 even on 50 × 25 rolls. | Patterns looked up by value from the standard 0–106 table; EAN-13 for store codes; Code-128 C for even digits. Labels print at their own mm page size through `kp:print` (`paper: 'label'`). Suite 9 §9e decodes every check value with ZXing. |
 | 21 | **Wiring & calculation audit (v4.59.0).** (a) A double Enter / click on Complete Sale could save the cart twice (two bills, stock cut twice, same invoice number). (b) Cash typed in cash mode stayed in the tab and turned a later UPI / card / credit bill into a part payment. (c) Short cash with no customer saved an udhar nobody owed. (d) An overpaid split counted the excess as drawer cash. (e) +/− or re-scanning reset a rate the cashier had edited to the catalogue price. (f) Settings → "Default GST Calculation" did nothing: every product was saved tax-inclusive. (g) Excel import stamped HSN `1905` on every product without one. (h) Changing a balance in customer details wrote no ledger entry. | (a) `completingSaleRef` guard. (b)(c) `typedCashPaise` is read only in cash mode; short cash needs a customer. (d) excess must fit in the cash part and is recorded as `change_returned`. (e) existing lines keep `unit_price`. (f) new / imported products take the shop mode, edited ones keep theirs; cart lines store the resolved mode so POS tax and `saleMath` agree. (g) no HSN = none. (h) the change goes to the ledger on top of the fresh balance. Suite 9 §8u; Electron E2E double-clicks Complete Sale. |
 ---
 
@@ -862,7 +893,7 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 454/454, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 466/466, 0 failures
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
 git push origin main
@@ -873,7 +904,7 @@ billing), also run the real app:
 
 ```bash
 npx next build                      # out/ must be current
-npm run test:electron               # scripts/electron_e2e.mjs — 36/36
+npm run test:electron               # scripts/electron_e2e.mjs — 37/37
 ```
 
 `electron_e2e.mjs` launches the actual Electron app with Playwright (`playwright-core`,
@@ -886,14 +917,16 @@ saved and linked to the bill, F1 / F2 / F4 / F8 / F9 / Esc work, and Enter / F10
 "Sale completed" never complete the bill waiting behind it. Since v4.69.0: a new shop's
 Add Product form (MRP only), menu without the switched-off screens, the "turned off" card,
 a switch going on in Settings → Features, and the 🔊 / 🔇 button. Since v4.70.0: an Excel
-sheet with Hindi headings is imported (saved barcodes) and re-imported with a new price. Its data goes to a temp folder via `KAMAI_E2E_DIR` (main.js honours it only
+sheet with Hindi headings is imported (saved barcodes) and re-imported with a new price.
+Since v4.71.0: "Print labels" after the import sends one 50 × 25 mm page per label (the
+test catches `kp:print` in the main process and renders PDF — no real printer). Its data goes to a temp folder via `KAMAI_E2E_DIR` (main.js honours it only
 when `!app.isPackaged`). The licence is **signed for this PC with the private key** in
 `%USERPROFILE%\KamaiPlus-Secrets\` (or `KAMAI_LICENCE_PRIVATE_KEY`) — nothing is
 bypassed; without the key only the no-licence checks run. The script removes
 `ELECTRON_RUN_AS_NODE` (set by VS Code terminals), which otherwise stops Electron
 launching. Failure screenshots go to `%TEMP%\kamaiplus-e2e-shots\`.
 
-### Test suite map — `scripts/e2e_simulation.ts` (454 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (466 assertions)
 
 | Suite | Covers |
 | :--- | :--- |
@@ -996,9 +1029,8 @@ Recorded so the next agent does not rediscover them. None are fixed as of v4.38.
     Electron E2E checks it (restart → password, `/billing` blocked, wrong password
     refused). **Idle lock + "Lock now" added in v4.65.0** — see the route-guard section (§4).
 
-11. **Code-128 check character is wrong for ~1 code in 13** (`lib/barcode/barcodeGenerator.ts`):
-    values 95–102 have no pattern in the ASCII table and fall back to value 0, so a scanner
-    rejects that label. Fix planned with label printing (v4.71.0).
+11. ~~Code-128 check character wrong~~ — **fixed in v4.71.0**, and worse than first thought
+    (≈ 1 label in 3, see §10 #28).
 
 12. **A click in the first moment after unlocking can be undone** by the unlock's own
     redirect (AuthForm and AppShell both `router.replace` to the saved page). Seen only when

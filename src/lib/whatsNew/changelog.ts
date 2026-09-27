@@ -15,6 +15,14 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.71.0',
+    items: [
+      msg('Barcode labels for any printer: roll labels (50 × 25, 38 × 25, 2 across…), A4 sticker sheets or your own size. Set the label printer once in Settings → Invoice & Bill Rules and test it.'),
+      msg('Barcode Studio: add all items, a whole category or your last Excel import at once, set copies for all, and print straight to the label printer.'),
+      msg('Fixed: about 1 in 3 barcode labels printed before could not be scanned. Please reprint old labels.'),
+    ],
+  },
+  {
     version: '4.70.0',
     items: [
       msg('Products → Import Excel: load your whole price list at once. The app reads your own column headings (also in Hindi / Marathi) and shows what will change before saving.'),

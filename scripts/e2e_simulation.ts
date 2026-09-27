@@ -74,6 +74,10 @@ import { DEFAULT_FEATURE_SWITCHES, FEATURES, featureForPath, isPathEnabled, pars
 import { buildImportRows, buildItemName, findHeaderRow, guessColumnRoles, mapUnit, parseAmount, planImport } from '../src/lib/import/catalogImport';
 import { ean13CheckDigit, isValidEan13, nextStoreBarcodes } from '../src/lib/barcode/storeBarcodes';
 import type { Product } from '../src/types';
+import { barcodeSymbol } from '../src/lib/barcode/barcodeGenerator';
+import { DEFAULT_LABEL_SETTINGS, LABEL_STOCKS, labelPageMm, labelsPerPage, parseLabelSettings, stockFor } from '../src/lib/labels/labelSettings';
+import { buildLabelHtml } from '../src/lib/labels/labelSheet';
+import { expandCopies } from '../src/lib/labels/printLabels';
 import {
   WALK_IN_ID,
   buildAdvancedReport,
@@ -1150,7 +1154,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   // (e) Wiring: no label prints a code that is not saved on the item; xlsx loads only when importing.
   const studioSrc = readSource('app/barcode-generator/page.tsx');
   const quickSrc = readSource('components/products/QuickBarcodePrintModal.tsx');
-  assert(!/KP\$\{p(rod)?\.id/.test(studioSrc) && /await ensureProductBarcode\(prod\)/.test(studioSrc) && !/product\.id\.slice\(0, 10\)/.test(quickSrc) && /ensureProductBarcode\(product\)/.test(quickSrc),
+  assert(!/KP\$\{p(rod)?\.id/.test(studioSrc) && /await ensureProductBarcodes\(list\)/.test(studioSrc) && !/product\.id\.slice\(0, 10\)/.test(quickSrc) && /ensureProductBarcode\(product\)/.test(quickSrc),
     'Labels always carry the item\'s saved barcode (an item without one gets its own code first) — a label scanned at the counter finds the item');
   const importModalSrc = readSource('components/import/CatalogImportModal.tsx');
   assert(/await import\('xlsx'\)/.test(importModalSrc) && !/from 'xlsx'/.test(importModalSrc)
@@ -1159,6 +1163,65 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     'Excel import loads xlsx only when a file is opened, is mounted only while open, and the old importer is gone');
   assert(/is_unlimited_stock: !counted/.test(readSource('lib/import/catalogImportDb.ts')) && /onOpenExcelImporter && \(/.test(readSource('components/products/ProductHeaderActions.tsx')),
     'Imported items without a stock column are not counted (scanning never blocked); Products has an "Import Excel" button');
+}
+
+// 9e. Barcode labels (v4.71.0): every printed bar code is read back by ZXing — the
+// decoder behind the camera scanner — and labels print at the chosen size.
+{
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const ZXing = require('../node_modules/html5-qrcode/third_party/zxing-js.umd.js');
+  const decode = (text: string) => {
+    const { modules, format } = barcodeSymbol(text);
+    const bits = new ZXing.BitArray(modules.length);
+    modules.forEach((b: boolean, i: number) => b && bits.set(i));
+    const reader = format === 'EAN-13' ? new ZXing.EAN13Reader() : new ZXing.Code128Reader();
+    try { return reader.decodeRow(0, bits, new Map()).getText(); } catch { return null; }
+  };
+  // Code-128 B: collect strings until every check value 0–102 has appeared (the old
+  // generator was wrong for 0–25 and 95–102 — about 1 label in 3 did not scan).
+  const checkValue = (s: string) => { let sum = 104; for (let i = 0; i < s.length; i++) sum += (s.charCodeAt(i) - 32) * (i + 1); return sum % 103; };
+  const seen = new Map<number, string>();
+  for (let n = 0; seen.size < 103 && n < 20000; n++) {
+    const s = `KP${n}-x`;
+    if (!seen.has(checkValue(s))) seen.set(checkValue(s), s);
+  }
+  const bFails = Array.from(seen.values()).filter((s) => decode(s) !== s);
+  assert(seen.size === 103 && bFails.length === 0, `Code-128: all 103 check values decode with ZXing (failed: ${bFails.slice(0, 3).join(', ') || 'none'})`);
+  const cSamples = ['12345678', '00000000', '99999999', '2000000000', '123456789012'];
+  assert(cSamples.every((s) => decode(s) === s) && barcodeSymbol('12345678').format === 'CODE-128', 'Code-128 C (even-length digits) decodes');
+  const store = nextStoreBarcodes([], 300);
+  assert(store.every((c) => barcodeSymbol(c).format === 'EAN-13' && decode(c) === c) && ['8901719101037', '4006381333931', '0012345678905'].every((c) => decode(c) === c),
+    'Every store code (and real EAN-13 codes) prints as EAN-13 and decodes');
+  assert(!/Object\.keys\(CODE128/.test(readSource('lib/barcode/barcodeGenerator.ts')), 'The Code-128 check character is looked up by value, never by object key order');
+
+  // Label setup: saved per computer, broken values fall back, sizes give the right page.
+  assert(parseLabelSettings(null).stockId === 'roll_50x25' && parseLabelSettings('{bad').copies === 1 && parseLabelSettings(JSON.stringify({ stockId: 'nope' })).stockId === 'roll_50x25',
+    'Label settings: a new computer starts on 50 × 25 mm roll; broken or unknown values fall back');
+  const custom = parseLabelSettings(JSON.stringify({ stockId: 'custom', custom: { widthMm: 60, heightMm: 40, across: 9, gapMm: 3 } }));
+  assert(custom.custom.across === 1 && stockFor(custom).kind === 'roll' && stockFor(custom).widthMm === 60, 'Custom sizes are limited to sensible values (1–5 across, 15–120 mm)');
+  const two = LABEL_STOCKS.find((s) => s.id === 'roll_38x25_2')!;
+  const a4 = LABEL_STOCKS.find((s) => s.id === 'a4_24')!;
+  assert(labelPageMm(two).widthMm === 78 && labelPageMm(two).heightMm === 25 && labelPageMm(a4).widthMm === 210 && labelsPerPage(a4) === 24 && labelsPerPage(two) === 2,
+    'A roll prints one row per page (2 across 38 mm + 2 mm gap = 78 × 25 mm); an A4 sheet holds 24');
+
+  // One HTML for preview and print.
+  const items = [{ name: 'अनार स्पेशल – विन', barcode: '2000000000015', pricePaise: 59000, mrpPaise: 65000 }, { name: '<b>x</b>', barcode: 'KP1', pricePaise: 100 }];
+  const html = buildLabelHtml(expandCopies(items.map((i, n) => ({ ...i, copies: n === 0 ? 3 : 1 }))), two, DEFAULT_LABEL_SETTINGS.content, { shopName: 'Shop' });
+  assert((html.match(/class="label"/g) || []).length === 4 && (html.match(/class="page"/g) || []).length === 2 && html.includes('@page { size: 78mm 25mm') && html.includes('अनार स्पेशल') && html.includes('&lt;b&gt;x&lt;/b&gt;') && !html.includes('<b>x</b>'),
+    'Label HTML: copies expanded, 2 across → 2 pages, page size in mm, Devanagari kept, names escaped');
+  const off = buildLabelHtml([items[0]], two, { ...DEFAULT_LABEL_SETTINGS.content, shopName: false, mrp: false, qr: true }, { shopName: 'Shop', qrDataUrls: { '2000000000015': 'data:image/png;base64,AA' } });
+  assert(!off.includes('class="shop"') && !off.includes('class="mrp"') && off.includes('<img src="data:image/png;base64,AA"'), 'Label content switches work (shop name, MRP off; QR instead of bars)');
+
+  // Wiring.
+  const mainJsSrc = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+  assert(/function labelPageSize\(pageSizeMm\)/.test(mainJsSrc) && /w >= 10 && w <= 300 && h >= 10 && h <= 300/.test(mainJsSrc) && /paper === 'thermal-80' \|\| paper === 'thermal-58'/.test(mainJsSrc),
+    'Electron prints labels at their own page size (10–300 mm checked); bill printing unchanged');
+  const studio = readSource('app/barcode-generator/page.tsx');
+  assert(/ensureProductBarcodes\(list\)/.test(studio) && /printLabels\(labels, settings, shopName\)/.test(studio) && !/window\.print\(\)/.test(studio) && studio.split('\n').length < 400,
+    'Barcode Studio: bulk adds get saved barcodes, printing goes to the label printer (no browser page print), page split into components');
+  assert(/printLabels\(labels, settings, storeName\)/.test(readSource('components/products/QuickBarcodePrintModal.tsx')) && /<LabelPrinterCard \/>/.test(readSource('components/settings/InvoiceSettingsTab.tsx'))
+    && /saveLastImportIds\(res\.createdIds\.concat\(res\.updatedIds\)\)/.test(readSource('components/import/CatalogImportModal.tsx')),
+    '1-click label uses the same label setup; Settings has the label printer; an Excel import offers its labels');
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.

@@ -329,15 +329,29 @@ async function printToPdfJob(opts) {
 
 ipcMain.handle('kp:print', (_event, opts) => enqueuePrintJob(() => printJob(opts)));
 
+/**
+ * Barcode labels (v4.71.0): the page is one row of a label roll, sized in mm by the
+ * page (e.g. 50 × 25). Anything outside 10–300 mm is refused rather than printed.
+ */
+function labelPageSize(pageSizeMm) {
+  const w = Number(pageSizeMm && pageSizeMm.width);
+  const h = Number(pageSizeMm && pageSizeMm.height);
+  if (!(w >= 10 && w <= 300 && h >= 10 && h <= 300)) return null;
+  return { width: Math.round(w * 1000), height: Math.round(h * 1000) };
+}
+
 async function printJob(opts) {
-  const { html, paper, deviceName, silent } = opts || {};
+  const { html, paper, deviceName, silent, pageSizeMm } = opts || {};
   if (typeof html !== 'string' || !html) return { ok: false, error: 'Nothing to print.' };
+  const labelSize = paper === 'label' ? labelPageSize(pageSizeMm) : null;
+  if (paper === 'label' && !labelSize) return { ok: false, error: 'Label size is not valid.' };
   let job;
   try {
     job = await withPrintRecovery(() => loadHtmlOffscreen(html));
-    const pageSize = paper === 'thermal-80' || paper === 'thermal-58'
-      ? await thermalPageSize(job.win, paper === 'thermal-80' ? 80 : 58)
-      : 'A4';
+    const pageSize = labelSize
+      || (paper === 'thermal-80' || paper === 'thermal-58'
+        ? await thermalPageSize(job.win, paper === 'thermal-80' ? 80 : 58)
+        : 'A4');
     const result = await new Promise((resolve) => {
       job.win.webContents.print(
         {

@@ -1,854 +1,204 @@
 'use client';
-import { showAlert } from '@/lib/ui/dialogs';
 
-import React, { useState, useMemo, useRef } from 'react';
-import { db } from '@/lib/db';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { Barcode, Bluetooth, CheckCircle2, ChevronDown, ChevronUp, Printer, Settings2, XCircle } from 'lucide-react';
+import { db } from '@/lib/db';
 import { useBusiness } from '@/components/layout/BusinessProvider';
-import { useTranslation } from '@/lib/i18n';
-import { formatINR } from '@/lib/utils';
 import { Product } from '@/types';
-import { generateCode128SVG } from '@/lib/barcode/barcodeGenerator';
+import { formatINR } from '@/lib/utils';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 import { bluetoothPrinter } from '@/lib/hardware/bluetoothPrinter';
 import { EscPosEncoder } from '@/lib/hardware/escpos';
-import QRCode from 'qrcode';
-import { 
-  Barcode, 
-  Printer, 
-  Download, 
-  Plus, 
-  Trash2, 
-  Search, 
-  Sparkles, 
-  FileText, 
-  Settings2, 
-  Grid, 
-  Layers, 
-  CheckCircle2, 
-  Eye, 
-  Copy, 
-  Share2, 
-  Package, 
-  Sliders, 
-  Tag, 
-  ZoomIn, 
-  ZoomOut,
-  RefreshCw,
-  QrCode,
-  Crown,
-  Lock
-} from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { Modal } from '@/components/ui/Modal';
-import { Input } from '@/components/ui/Input';
+import { ensureProductBarcodes } from '@/lib/barcode/storeBarcodes';
+import { getLabelSettings, getLastImportIds, LABEL_SETTINGS_EVENT, LabelSettings } from '@/lib/labels/labelSettings';
+import { expandCopies, printLabels } from '@/lib/labels/printLabels';
+import { LabelSetupPanel } from '@/components/labels/LabelSetupPanel';
+import { LabelPreview } from '@/components/labels/LabelPreview';
+import { LabelQueuePanel, QueueItem } from '@/components/labels/LabelQueuePanel';
+import { CustomLabelModal } from '@/components/labels/CustomLabelModal';
 import { tr } from '@/lib/i18n/core';
-import { ensureProductBarcode } from '@/lib/barcode/storeBarcodes';
 
-export type LabelLayout = 
-  | 'a4_24'      // 3 cols x 8 rows (63.5 x 33.9 mm)
-  | 'a4_30'      // 3 cols x 10 rows (70 x 29.7 mm)
-  | 'a4_40'      // 4 cols x 10 rows (52.5 x 29.7 mm)
-  | 'thermal_50x25' // 50mm x 25mm single roll
-  | 'thermal_38x25' // 38mm x 25mm single roll
-  | 'pos_58mm'   // 58mm ESC/POS continuous strip
-  | 'pos_80mm';  // 80mm ESC/POS continuous strip
-
-interface LabelItem {
-  id: string;
-  name: string;
-  barcode: string;
-  selling_price: number; // in paise
-  mrp: number; // in paise
-  unit: string;
-  copies: number;
-  packed_date?: string;
-  expiry_date?: string;
-}
-
+/**
+ * Barcode Studio (v4.71.0): pick items (one, a category, all, or the last Excel
+ * import), set copies, print on this computer's label printer. Every catalogue item
+ * gets a saved barcode before its label prints, so each label scans at the counter.
+ * Label size / printer live in LabelSetupPanel (also in Settings → Invoice & Bill Rules).
+ */
 export default function BarcodeGeneratorPage() {
-  const { language } = useTranslation();
   const business = useBusiness();
-  const allProducts = useLiveQuery(async () => {
-    const prods = await db.products.toArray();
-    // Labels are printed per size / colour (each variant has its own barcode), not for the parent.
-    return prods.filter((p) => p.is_active !== false && !p.has_variants);
-  }) || [];
+  const shopName = business?.name || '';
+  // Labels are printed per size / colour (each variant has its own barcode), not for the parent.
+  const products = useLiveQuery(async () => (await db.products.toArray()).filter((p) => p.is_active !== false && !p.has_variants)) || [];
+  const categories = useLiveQuery(() => db.categories.toArray()) || [];
 
-  // Print Layout State
-  const [layout, setLayout] = useState<LabelLayout>('a4_24');
-  const [barcodeType, setBarcodeType] = useState<'code128' | 'qr'>('code128');
+  const [settings, setSettings] = useState<LabelSettings>(getLabelSettings);
+  const [queue, setQueue] = useState<QueueItem[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
+  const [customOpen, setCustomOpen] = useState(false);
+  const [setupOpen, setSetupOpen] = useState(() => !getLabelSettings().printer);
+  const [lastImportIds, setLastImportIds] = useState<string[]>([]);
 
-  // Label Customization Options
-  const [showStoreName, setShowStoreName] = useState(true);
-  const [showProductName, setShowProductName] = useState(true);
-  const [showPrice, setShowPrice] = useState(true);
-  const [showMRP, setShowMRP] = useState(true);
-  const [showSavings, setShowSavings] = useState(true);
-  const [showBarcodeText, setShowBarcodeText] = useState(true);
-  const [showDate, setShowDate] = useState(false);
-  const [customTagline, setCustomTagline] = useState('');
-  const [isSavedFeedback, setIsSavedFeedback] = useState(false);
-
-  // Load saved default settings from localStorage on initial mount
-  React.useEffect(() => {
-    try {
-      const savedLayout = localStorage.getItem('kamai_barcode_layout') as LabelLayout;
-      const savedBarcodeType = localStorage.getItem('kamai_barcode_type') as any;
-      const savedStoreName = localStorage.getItem('kamai_barcode_store_name');
-      const savedPrice = localStorage.getItem('kamai_barcode_price');
-      const savedMRP = localStorage.getItem('kamai_barcode_mrp');
-
-      if (savedLayout) setLayout(savedLayout);
-      if (savedBarcodeType) setBarcodeType(savedBarcodeType);
-      if (savedStoreName !== null) setShowStoreName(savedStoreName === 'true');
-      if (savedPrice !== null) setShowPrice(savedPrice === 'true');
-      if (savedMRP !== null) setShowMRP(savedMRP === 'true');
-    } catch (e) {
-      // ignore
-    }
+  useEffect(() => {
+    const refresh = () => setSettings(getLabelSettings());
+    window.addEventListener(LABEL_SETTINGS_EVENT, refresh);
+    setLastImportIds(getLastImportIds());
+    return () => window.removeEventListener(LABEL_SETTINGS_EVENT, refresh);
   }, []);
 
-  // Save Settings as Default Preset
-  const handleSaveSettings = () => {
+  /** Adds items with their saved barcodes (items without one get a store code now). */
+  const addProducts = async (list: Product[]) => {
+    if (list.length === 0) return;
+    setBusy(true);
     try {
-      localStorage.setItem('kamai_barcode_layout', layout);
-      localStorage.setItem('kamai_barcode_type', barcodeType);
-      localStorage.setItem('kamai_barcode_store_name', String(showStoreName));
-      localStorage.setItem('kamai_barcode_price', String(showPrice));
-      localStorage.setItem('kamai_barcode_mrp', String(showMRP));
-      localStorage.setItem('kamai_barcode_date', String(showDate));
-      setIsSavedFeedback(true);
-      setTimeout(() => setIsSavedFeedback(false), 2500);
-    } catch (e) {
-      // ignore
-    }
-  };
-
-  // Selected Queue of items to print
-  const [queue, setQueue] = useState<LabelItem[]>([]);
-  const [productSearch, setProductSearch] = useState('');
-  const [isAddCustomModalOpen, setIsAddCustomModalOpen] = useState(false);
-
-  // Custom Product State
-  const [customName, setCustomName] = useState('');
-  const [customPrice, setCustomPrice] = useState('');
-  const [customMRP, setCustomMRP] = useState('');
-  const [customBarcode, setCustomBarcode] = useState('');
-  const [customUnit, setCustomUnit] = useState('piece');
-  const [customCopies, setCustomCopies] = useState('12');
-
-  // QR Code Cache for QR mode
-  const [qrCodeDataUrls, setQrCodeDataUrls] = useState<{ [code: string]: string }>({});
-
-  // Seed starter items into queue if queue is empty and products load
-  React.useEffect(() => {
-    if (queue.length === 0 && allProducts.length > 0) {
-      // Only items that already have a saved barcode (a label must scan back to the item).
-      const starters = allProducts.filter((p) => p.barcode?.trim()).slice(0, 4).map((p) => ({
-        id: p.id,
-        name: p.name,
-        barcode: p.barcode!.trim(),
-        selling_price: p.selling_price,
-        mrp: p.mrp || p.selling_price,
-        unit: p.unit,
-        copies: 6,
-        packed_date: new Date().toLocaleDateString('en-IN'),
-      }));
-      setQueue(starters);
-    }
-  }, [allProducts]);
-
-  // Pre-generate QR codes when barcodeType is 'qr'
-  React.useEffect(() => {
-    if (barcodeType === 'qr') {
-      queue.forEach((item) => {
-        if (!qrCodeDataUrls[item.barcode]) {
-          QRCode.toDataURL(item.barcode, { width: 120, margin: 1 })
-            .then((url) => setQrCodeDataUrls((prev) => ({ ...prev, [item.barcode]: url })))
-            .catch((err) => console.error(err));
+      const codes = await ensureProductBarcodes(list);
+      setQueue((prev) => {
+        const byId = new Map(prev.map((q) => [q.id, q]));
+        for (const p of list) {
+          const had = byId.get(p.id);
+          byId.set(p.id, had
+            ? { ...had, copies: had.copies + settings.copies }
+            : { id: p.id, name: p.name, barcode: codes.get(p.id) || '', pricePaise: p.selling_price, mrpPaise: p.mrp, copies: settings.copies, stock: p.is_unlimited_stock ? null : p.current_stock });
         }
+        return Array.from(byId.values());
       });
-    }
-  }, [barcodeType, queue]);
-
-  // Flatten queue into individual label stickers
-  const individualLabels = useMemo(() => {
-    const list: LabelItem[] = [];
-    queue.forEach((item) => {
-      for (let i = 0; i < item.copies; i++) {
-        list.push(item);
-      }
-    });
-    return list;
-  }, [queue]);
-
-  // Add Product from DB to Queue
-  const handleAddProductToQueue = async (prod: Product) => {
-    // An item without a barcode gets its own store code saved first — a printed code
-    // that is not saved on the item would say "unknown barcode" at the counter.
-    const code = await ensureProductBarcode(prod);
-    const existing = queue.find((q) => q.id === prod.id);
-    if (existing) {
-      setQueue((prev) =>
-        prev.map((q) => (q.id === prod.id ? { ...q, copies: q.copies + 6 } : q))
-      );
-    } else {
-      setQueue((prev) => [
-        ...prev,
-        {
-          id: prod.id,
-          name: prod.name,
-          barcode: code,
-          selling_price: prod.selling_price,
-          mrp: prod.mrp || prod.selling_price,
-          unit: prod.unit,
-          copies: 6,
-          packed_date: new Date().toLocaleDateString('en-IN'),
-        },
-      ]);
+    } finally {
+      setBusy(false);
     }
   };
 
-  // Add Custom Loose Item
-  const handleAddCustomItem = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!customName.trim()) return;
+  const lastImport = useMemo(() => {
+    const ids = new Set(lastImportIds);
+    return products.filter((p) => ids.has(p.id));
+  }, [products, lastImportIds]);
 
-    const pricePaise = Math.round(parseFloat(customPrice || '0') * 100);
-    const mrpPaise = customMRP ? Math.round(parseFloat(customMRP) * 100) : pricePaise;
-    const generatedBarcode = customBarcode.trim() || `KP${Date.now().toString().slice(-6)}`;
-    const count = parseInt(customCopies) || 12;
+  // Opened from "Print labels" after an Excel import: start with those items.
+  const [autoLoaded, setAutoLoaded] = useState(false);
+  useEffect(() => {
+    if (autoLoaded || lastImport.length === 0) return;
+    if (new URLSearchParams(window.location.search).get('from') === 'import') {
+      setAutoLoaded(true);
+      void addProducts(lastImport);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastImport.length, autoLoaded]);
 
-    setQueue((prev) => [
-      ...prev,
-      {
-        id: `custom_${Date.now()}`,
-        name: customName.trim(),
-        barcode: generatedBarcode,
-        selling_price: pricePaise,
-        mrp: mrpPaise,
-        unit: customUnit,
-        copies: count,
-        packed_date: new Date().toLocaleDateString('en-IN'),
-      },
-    ]);
+  const labels = useMemo(() => expandCopies(queue), [queue]);
 
-    setIsAddCustomModalOpen(false);
-    setCustomName('');
-    setCustomPrice('');
-    setCustomMRP('');
-    setCustomBarcode('');
-  };
-
-  // Update copies
-  const handleUpdateCopies = (id: string, delta: number) => {
-    setQueue((prev) =>
-      prev
-        .map((q) => (q.id === id ? { ...q, copies: Math.max(1, q.copies + delta) } : q))
-        .filter((q) => q.copies > 0)
-    );
-  };
-
-  const handleRemoveFromQueue = (id: string) => {
-    setQueue((prev) => prev.filter((q) => q.id !== id));
-  };
-
-  // 1-Click Standard Browser / A4 High-Res Print
-  const handleBrowserPrint = () => {
-    window.print();
-  };
-
-  // 1-Click Direct Bluetooth ESC/POS Print for 58mm/80mm Thermal rolls
-  const handleBluetoothPrint = async () => {
-    if (individualLabels.length === 0 || !business) return;
+  const handlePrint = async () => {
+    if (labels.length === 0) return;
+    setBusy(true);
+    setNotice(null);
     try {
-      const is80mm = layout === 'pos_80mm';
-      const enc = new EscPosEncoder(is80mm ? 80 : 58);
+      const res = await printLabels(labels, settings, shopName);
+      setNotice(res.ok
+        ? { ok: true, text: tr('{count} labels sent to the printer.', { count: labels.length }) }
+        : { ok: false, text: tr('Could not print: {error}', { error: res.error || '' }) });
+    } finally {
+      setBusy(false);
+    }
+  };
 
-      for (const item of individualLabels) {
+  // Bluetooth ESC/POS receipt printers (58 / 80 mm). They print ASCII only: Hindi / Marathi names come out as "?".
+  const handleBluetoothPrint = async () => {
+    if (labels.length === 0) return;
+    try {
+      const enc = new EscPosEncoder(80);
+      for (const l of labels) {
         enc.alignCenter();
-        if (showStoreName) {
-          enc.bold(true).textLine(business.name).bold(false);
-        }
-        if (showProductName) {
-          enc.doubleHeight(true).textLine(item.name).doubleHeight(false);
-        }
-        
-        // Barcode or QR Code
-        enc.textLine(`MRP: ${formatINR(item.mrp)} | OUR PRICE: ${formatINR(item.selling_price)}`);
-        if (barcodeType === 'qr') {
-          enc.qrcode(item.barcode, 5);
-        } else {
-          enc.barcode(item.barcode, 'CODE128', 50);
-        }
-        if (showBarcodeText) {
-          enc.textLine(`* ${item.barcode} *`);
-        }
+        if (settings.content.shopName && shopName) enc.bold(true).textLine(shopName).bold(false);
+        if (settings.content.itemName) enc.doubleHeight(true).textLine(l.name).doubleHeight(false);
+        enc.textLine(`MRP: ${formatINR(l.mrpPaise || l.pricePaise)} | PRICE: ${formatINR(l.pricePaise)}`);
+        if (settings.content.qr) enc.qrcode(l.barcode, 5);
+        else enc.barcode(l.barcode, 'CODE128', 50);
+        if (settings.content.code) enc.textLine(l.barcode);
         enc.feed(1);
         enc.hr();
       }
-
       enc.feed(2);
       enc.cut();
-
       await bluetoothPrinter.sendRawBytes(enc.getBytes());
+      setNotice({ ok: true, text: tr('{count} labels sent to the Bluetooth printer.', { count: labels.length }) });
     } catch (err: any) {
-      showAlert(err.message || tr('Bluetooth label printing failed.'));
+      setNotice({ ok: false, text: err?.message || tr('Bluetooth label printing failed.') });
     }
   };
 
-  // Filtered Products for Search Dropdown
-  const searchResults = useMemo(() => {
-    if (!productSearch.trim()) return [];
-    const q = productSearch.toLowerCase();
-    return allProducts.filter((p) => p.name.toLowerCase().includes(q) || (p.barcode && p.barcode.includes(q))).slice(0, 5);
-  }, [allProducts, productSearch]);
-
   return (
     <div className="space-y-4 pb-16">
-      {/* ---------------- SCREEN HEADER (Single Row Compact) ---------------- */}
-      <div className="print:hidden bg-white px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between gap-2">
+      <div className="bg-white px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 truncate">
             <Barcode className="w-4 h-4 text-slate-800 shrink-0" />
-            <h1 className="text-sm xs:text-base sm:text-lg font-black text-slate-900 truncate">
-              {tr('Barcode & Price Label Studio')}
-            </h1>
+            <h1 className="text-sm sm:text-lg font-black text-slate-900 truncate">{tr('Barcode & Price Label Studio')}</h1>
           </div>
-          <p className="text-[10px] sm:text-xs text-slate-500 truncate">
-            {tr('A4 sticker sheets & thermal roll price tags •')} {individualLabels.length} {tr('stickers in queue')}
-          </p>
+          <p className="text-[10px] sm:text-xs text-slate-500 truncate">{tr('Every label carries the item\'s own saved barcode — it scans straight into the bill.')}</p>
         </div>
-
-        {/* Top Print Actions — Compact Single Row */}
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          {layout.startsWith('pos') || layout.startsWith('thermal') ? (
-            <Button
-              size="sm"
-              onClick={handleBluetoothPrint}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1 px-2.5 py-1.5 shadow-2xs cursor-pointer whitespace-nowrap"
-            >
-              <Printer className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{tr('BT Print')}</span>
-            </Button>
-          ) : null}
-
-          <Button
-            size="sm"
-            onClick={handleBrowserPrint}
-            className="bg-slate-900 hover:bg-slate-950 text-white font-bold text-xs gap-1 px-2.5 py-1.5 shadow-2xs cursor-pointer whitespace-nowrap"
-          >
+          <Button size="sm" variant="outline" onClick={handleBluetoothPrint} disabled={labels.length === 0} className="text-xs font-bold gap-1" title={tr('Bluetooth receipt printer — English names only')}>
+            <Bluetooth className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">{tr('Bluetooth')}</span>
+          </Button>
+          <Button size="sm" onClick={handlePrint} disabled={busy || labels.length === 0} className="bg-slate-900 hover:bg-slate-950 text-white font-bold text-xs gap-1 px-3" data-print-labels>
             <Printer className="w-3.5 h-3.5 text-amber-400" />
-            <span>{tr('Print')} {layout.startsWith('a4') ? tr('A4 Sheet') : tr('Labels')} ({individualLabels.length})</span>
+            <span>{tr('Print {count} labels', { count: labels.length })}</span>
           </Button>
         </div>
       </div>
 
-      {/* ---------------- 2-COLUMN STUDIO LAYOUT ---------------- */}
+      {notice && (
+        <div className={`p-3 rounded-xl border text-xs font-bold flex items-center gap-2 ${notice.ok ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-rose-50 border-rose-200 text-rose-800'}`} data-print-notice>
+          {notice.ok ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+          <span>{notice.text}</span>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* ========================================================================= */}
-        {/* LEFT COLUMN: CONTROLS & PRODUCT QUEUE (5 Cols) - Hidden on Print */}
-        {/* ========================================================================= */}
-        <div className="print:hidden lg:col-span-4 space-y-3.5">
-          {/* CARD 1: PRINTER & SHEET LAYOUT */}
-          <Card className="p-3 sm:p-3.5 bg-white border border-slate-200 space-y-2.5 shadow-2xs">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
-              <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                <Grid className="w-3.5 h-3.5 text-slate-700" />
-                <span>{tr('Printer & Sheet Layout')}</span>
-              </h3>
-              {isSavedFeedback && (
-                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-                  {tr('✓ Saved')}
-                </span>
-              )}
-            </div>
-
-            {/* Compact Layout Dropdown */}
-            <div className="space-y-1">
-              <select
-                value={layout}
-                onChange={(e) => setLayout(e.target.value as LabelLayout)}
-                className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 text-slate-900 text-xs font-bold rounded-lg p-2 focus:outline-none focus:border-slate-900 transition-colors shadow-2xs"
-              >
-                <optgroup label={tr('📄 A4 Sticker Sheets (Office Laser / Inkjet)')}>
-                  <option value="a4_24">{tr('A4 Sheet: 24 Labels (3x8 Grid • 63.5 x 33.9 mm)')}</option>
-                  <option value="a4_30">{tr('A4 Sheet: 30 Labels (3x10 Grid • 70 x 29.7 mm)')}</option>
-                  <option value="a4_40">{tr('A4 Sheet: 40 Labels (4x10 Grid • 52.5 x 29.7 mm)')}</option>
-                </optgroup>
-                <optgroup label={tr('🏷️ Continuous Thermal Label Rolls (TSC / TVS / Zebra)')}>
-                  <option value="thermal_50x25">{tr('Thermal Roll: 50mm x 25mm (2" x 1" Supermarket)')}</option>
-                  <option value="thermal_38x25">{tr('Thermal Roll: 38mm x 25mm (Compact Kirana)')}</option>
-                </optgroup>
-                <optgroup label={tr('🧾 POS Bluetooth Receipt Printers')}>
-                  <option value="pos_58mm">{tr('58mm Portable Bluetooth Thermal Slip')}</option>
-                  <option value="pos_80mm">{tr('80mm Desktop POS Thermal Slip')}</option>
-                </optgroup>
-              </select>
-            </div>
-
-            {/* Barcode Symbology & Save Setting Action */}
-            <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between gap-2 text-xs">
-              <div className="flex items-center gap-1.5">
-                <span className="font-bold text-slate-700 text-[11px]">{tr('Type:')}</span>
-                <div className="flex rounded-lg border border-slate-200 p-0.5 bg-slate-100 shadow-2xs">
-                  <button
-                    type="button"
-                    onClick={() => setBarcodeType('code128')}
-                    className={`px-2 py-0.5 rounded text-[11px] font-bold cursor-pointer transition ${
-                      barcodeType === 'code128' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    {tr('1D Code-128')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setBarcodeType('qr')}
-                    className={`px-2 py-0.5 rounded text-[11px] font-bold cursor-pointer transition ${
-                      barcodeType === 'qr' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    2D QR
-                  </button>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleSaveSettings}
-                title={tr('Save current layout & toggles as your default preference')}
-                className="px-2.5 py-1 rounded-lg border border-slate-300 hover:bg-slate-100 text-slate-700 text-[11px] font-bold active:scale-95 transition-all"
-              >
-                {tr('Save Default')}
-              </button>
-            </div>
+        <div className="lg:col-span-5 space-y-3.5">
+          <Card className="p-3 sm:p-3.5 bg-white border border-slate-200 shadow-2xs">
+            <button type="button" onClick={() => setSetupOpen(!setupOpen)} className="w-full flex items-center justify-between cursor-pointer">
+              <span className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                <Settings2 className="w-3.5 h-3.5" /> {tr('Label printer & size')}
+              </span>
+              <span className="flex items-center gap-1 text-[11px] text-slate-500">
+                {settings.printer || tr('print dialog')}
+                {setupOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </span>
+            </button>
+            {setupOpen && <div className="pt-3 mt-2.5 border-t border-slate-100"><LabelSetupPanel shopName={shopName} /></div>}
           </Card>
 
-          {/* CARD 2: LABEL CONTENT TOGGLES */}
-          <Card className="p-3 sm:p-3.5 bg-white border border-slate-200 space-y-2 shadow-2xs text-xs">
-            <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-1.5">
-              <Sliders className="w-3.5 h-3.5 text-slate-700" />
-              <span>{tr('Label Content Elements')}</span>
-            </h3>
-
-            <div className="grid grid-cols-2 gap-1.5 text-[11px]">
-              <label className="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700 hover:text-slate-900">
-                <input
-                  type="checkbox"
-                  checked={showStoreName}
-                  onChange={(e) => setShowStoreName(e.target.checked)}
-                  className="rounded text-slate-900 focus:ring-0"
-                />
-                <span>{tr('Store Name')}</span>
-              </label>
-
-              <label className="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700 hover:text-slate-900">
-                <input
-                  type="checkbox"
-                  checked={showProductName}
-                  onChange={(e) => setShowProductName(e.target.checked)}
-                  className="rounded text-slate-900 focus:ring-0"
-                />
-                <span>{tr('Product Name')}</span>
-              </label>
-
-              <label className="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700 hover:text-slate-900">
-                <input
-                  type="checkbox"
-                  checked={showPrice}
-                  onChange={(e) => setShowPrice(e.target.checked)}
-                  className="rounded text-slate-900 focus:ring-0"
-                />
-                <span>{tr('Our Price (₹)')}</span>
-              </label>
-
-              <label className="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700 hover:text-slate-900">
-                <input
-                  type="checkbox"
-                  checked={showMRP}
-                  onChange={(e) => setShowMRP(e.target.checked)}
-                  className="rounded text-slate-900 focus:ring-0"
-                />
-                <span>{tr('MRP & Savings')}</span>
-              </label>
-
-              <label className="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700 hover:text-slate-900">
-                <input
-                  type="checkbox"
-                  checked={showBarcodeText}
-                  onChange={(e) => setShowBarcodeText(e.target.checked)}
-                  className="rounded text-slate-900 focus:ring-0"
-                />
-                <span>{tr('Barcode Digits')}</span>
-              </label>
-
-              <label className="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700 hover:text-slate-900">
-                <input
-                  type="checkbox"
-                  checked={showDate}
-                  onChange={(e) => setShowDate(e.target.checked)}
-                  className="rounded text-slate-900 focus:ring-0"
-                />
-                <span>{tr('Packing Date')}</span>
-              </label>
-            </div>
-          </Card>
-
-          {/* CARD 3: PRODUCTS SELECTION & COPIES QUEUE */}
-          <Card className="p-3 sm:p-3.5 bg-white border border-slate-200 space-y-2.5 shadow-2xs">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
-              <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                {tr('Print Queue (')}{queue.length} {tr('items •')} {individualLabels.length} {tr('stickers)')}
-              </h3>
-              <button
-                onClick={() => setIsAddCustomModalOpen(true)}
-                className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-0.5 cursor-pointer"
-              >
-                <Plus className="w-3 h-3" />
-                <span>{tr('Custom Item')}</span>
-              </button>
-            </div>
-
-            {/* Product Search Box */}
-            <div className="relative">
-              <div className="flex items-center bg-slate-50 hover:bg-white focus-within:bg-white border border-slate-200 focus-within:border-slate-800 rounded-lg p-1.5 text-xs transition shadow-2xs">
-                <Search className="w-3.5 h-3.5 text-slate-400 mr-1.5 flex-shrink-0" />
-                <input
-                  type="text"
-                  placeholder={tr('Search item to add stickers...')}
-                  value={productSearch}
-                  onChange={(e) => setProductSearch(e.target.value)}
-                  className="w-full bg-transparent focus:outline-none font-medium text-slate-900 placeholder:text-slate-400"
-                />
-              </div>
-
-              {/* Search Dropdown */}
-              {searchResults.length > 0 && (
-                <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-300 rounded-xl shadow-lg divide-y divide-slate-100 max-h-48 overflow-y-auto">
-                  {searchResults.map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => {
-                        handleAddProductToQueue(p);
-                        setProductSearch('');
-                      }}
-                      className="w-full text-left p-2.5 text-xs hover:bg-slate-50 flex items-center justify-between"
-                    >
-                      <div>
-                        <div className="font-bold text-slate-900">{p.name}</div>
-                        <div className="text-[10px] text-slate-500 font-mono">
-                          {p.barcode || tr('No barcode')} • {formatINR(p.selling_price)}
-                        </div>
-                      </div>
-                      <span className="text-[11px] font-bold text-emerald-700">{tr('+ Add 6')}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Queue List with Steppers */}
-            <div className="divide-y divide-slate-100 max-h-56 overflow-y-auto pr-1">
-              {queue.length === 0 ? (
-                <div className="py-6 text-center text-xs text-slate-400">
-                  {tr('Print queue is empty. Add products above.')}
-                </div>
-              ) : (
-                queue.map((item) => (
-                  <div key={item.id} className="py-2 flex items-center justify-between text-xs gap-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="font-bold text-slate-900 truncate">{item.name}</div>
-                      <div className="text-[10px] text-slate-500 font-mono">
-                        {item.barcode} • {formatINR(item.selling_price)}
-                      </div>
-                    </div>
-
-                    {/* Quantity Stepper */}
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => handleUpdateCopies(item.id, -1)}
-                        className="w-5 h-5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center font-bold"
-                      >
-                        -
-                      </button>
-                      <span className="w-5 text-center font-mono font-bold text-slate-900">{item.copies}</span>
-                      <button
-                        onClick={() => handleUpdateCopies(item.id, 1)}
-                        className="w-5 h-5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center font-bold"
-                      >
-                        +
-                      </button>
-                      <button
-                        onClick={() => handleRemoveFromQueue(item.id)}
-                        className="p-1 text-slate-400 hover:text-rose-600 ml-1"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+          <Card className="p-3 sm:p-3.5 bg-white border border-slate-200 shadow-2xs">
+            <LabelQueuePanel
+              queue={queue}
+              onChange={setQueue}
+              products={products}
+              categories={categories}
+              onAdd={(list) => void addProducts(list)}
+              lastImportCount={lastImport.length}
+              onAddLastImport={() => void addProducts(lastImport)}
+              onCustom={() => setCustomOpen(true)}
+              busy={busy}
+            />
           </Card>
         </div>
 
-        {/* ========================================================================= */}
-        {/* RIGHT COLUMN: LIVE SHEET & STICKER PREVIEW (7 Cols) */}
-        {/* ========================================================================= */}
-        <div className="lg:col-span-8 space-y-3">
-          {/* Visual Header */}
-          <div className="print:hidden flex items-center justify-between bg-white p-3 rounded-xl border border-slate-200 shadow-xs">
-            <div className="flex items-center gap-2">
-              <Eye className="w-4 h-4 text-slate-700" />
-              <span className="text-xs font-bold text-slate-900">
-                {tr('Live Sheet Preview •')} {individualLabels.length} {tr('Total Labels')}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleBrowserPrint}
-                className="text-xs font-bold gap-1"
-              >
-                <Printer className="w-3.5 h-3.5" />
-                <span>{tr('Print Preview')}</span>
-              </Button>
-            </div>
-          </div>
-
-          {/* ======================================================================= */}
-          {/* PRINTABLE PREVIEW CONTAINER */}
-          {/* ======================================================================= */}
-          <div className="bg-slate-200/80 p-3 sm:p-6 rounded-2xl overflow-x-auto flex justify-center border border-slate-300">
-            {/* ---------------- A4 SHEET VIEW ---------------- */}
-            {layout.startsWith('a4') ? (
-              <div 
-                id="printable-barcode-sheet"
-                className={`bg-white shadow-2xl p-[8mm] text-black border border-slate-300 box-border mx-auto ${
-                  layout === 'a4_24'
-                    ? 'grid grid-cols-3 gap-[2.5mm] w-[210mm] min-h-[297mm]'
-                    : layout === 'a4_30'
-                    ? 'grid grid-cols-3 gap-[2mm] w-[210mm] min-h-[297mm]'
-                    : 'grid grid-cols-4 gap-[2mm] w-[210mm] min-h-[297mm]'
-                }`}
-                style={{
-                  width: '210mm',
-                  minHeight: '297mm',
-                  backgroundColor: '#ffffff',
-                }}
-              >
-                {individualLabels.map((item, idx) => (
-                  <div
-                    key={`${item.id}_${idx}`}
-                    className="border border-dashed border-slate-300 p-2 rounded flex flex-col justify-between items-center text-center bg-white overflow-hidden relative"
-                    style={{
-                      height: layout === 'a4_24' ? '33.9mm' : '29.7mm',
-                    }}
-                  >
-                    {/* Store Name Header */}
-                    {showStoreName && (
-                      <div className="text-[9px] font-black uppercase tracking-wider text-slate-800 line-clamp-1 w-full border-b border-slate-100 pb-0.5">
-                        {business?.name || tr('SHARMA STORE')}
-                      </div>
-                    )}
-
-                    {/* Product Name */}
-                    {showProductName && (
-                      <div className="text-[10px] font-extrabold text-slate-900 leading-tight line-clamp-1 w-full mt-0.5">
-                        {item.name}
-                      </div>
-                    )}
-
-                    {/* Barcode Render (Code-128 or QR) */}
-                    <div className="w-full flex items-center justify-center my-0.5 max-h-[14mm] overflow-hidden">
-                      {barcodeType === 'code128' ? (
-                        <div
-                          className="w-full h-8 flex items-center justify-center"
-                          dangerouslySetInnerHTML={{
-                            __html: generateCode128SVG(item.barcode, {
-                              height: 28,
-                              showText: showBarcodeText,
-                              fontSize: 8,
-                            }),
-                          }}
-                        />
-                      ) : (
-                        <div className="flex items-center justify-center gap-1">
-                          {qrCodeDataUrls[item.barcode] && (
-                            <img
-                              src={qrCodeDataUrls[item.barcode]}
-                              alt={item.barcode}
-                              className="w-10 h-10 object-contain"
-                            />
-                          )}
-                          {showBarcodeText && (
-                            <span className="text-[8px] font-mono font-bold text-slate-700">{item.barcode}</span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Price & Savings Footer */}
-                    <div className="w-full flex items-center justify-between text-[9px] font-bold border-t border-slate-100 pt-0.5">
-                      {showMRP && item.mrp > item.selling_price && (
-                        <span className="text-slate-400 line-through">
-                          MRP: {formatINR(item.mrp)}
-                        </span>
-                      )}
-                      {showPrice && (
-                        <span className="text-slate-900 font-black ml-auto text-[10px]">
-                          {tr('Price:')} {formatINR(item.selling_price)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
+        <div className="lg:col-span-7">
+          <Card className="p-3 bg-white border border-slate-200 shadow-2xs">
+            {labels.length === 0 ? (
+              <div className="h-[62vh] flex items-center justify-center text-xs text-slate-400 text-center px-6">
+                {tr('Add items on the left — the labels appear here exactly as they will print.')}
               </div>
             ) : (
-              /* ---------------- THERMAL ROLL / POS STRIP VIEW ---------------- */
-              <div 
-                className={`bg-white shadow-xl p-3 border border-slate-300 space-y-3 ${
-                  layout === 'pos_58mm' ? 'w-[58mm]' : layout === 'pos_80mm' ? 'w-[80mm]' : 'w-[50mm]'
-                }`}
-              >
-                {individualLabels.map((item, idx) => (
-                  <div
-                    key={`${item.id}_${idx}`}
-                    className="p-2 border border-dashed border-slate-400 rounded text-center space-y-1 bg-white"
-                  >
-                    {showStoreName && (
-                      <div className="text-[9px] font-black uppercase text-slate-800">
-                        {business?.name || tr('SHARMA STORE')}
-                      </div>
-                    )}
-                    {showProductName && (
-                      <div className="text-[11px] font-black text-slate-900 leading-tight">
-                        {item.name}
-                      </div>
-                    )}
-                    <div className="flex justify-center my-1">
-                      <div
-                        className="w-full h-8 flex items-center justify-center"
-                        dangerouslySetInnerHTML={{
-                          __html: generateCode128SVG(item.barcode, {
-                            height: 28,
-                            showText: showBarcodeText,
-                            fontSize: 8,
-                          }),
-                        }}
-                      />
-                    </div>
-                    <div className="flex justify-between items-center text-[10px] font-bold border-t border-slate-200 pt-1">
-                      <span className="text-slate-500 text-[9px]">MRP: {formatINR(item.mrp)}</span>
-                      <span className="text-slate-900 font-black">OUR: {formatINR(item.selling_price)}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <LabelPreview labels={labels} settings={settings} shopName={shopName} />
             )}
-          </div>
+          </Card>
         </div>
       </div>
 
-      {/* ========================================================================= */}
-      {/* MODAL: ADD CUSTOM LOOSE ITEM (Unlisted Rice, Spices, Apparel) */}
-      {/* ========================================================================= */}
-      <Modal
-        isOpen={isAddCustomModalOpen}
-        onClose={() => setIsAddCustomModalOpen(false)}
-        title={tr('Create Custom Barcode Price Tag')}
-        description={tr('Generate sticker tags for loose grains, bakery items, dry fruits, or custom products.')}
-      >
-        <form onSubmit={handleAddCustomItem} className="space-y-3 text-xs">
-          <Input
-            label={tr('Product Description / Name')}
-            placeholder={tr('e.g. Premium California Almonds 250g, Loose Sugar 1kg')}
-            value={customName}
-            onChange={(e) => setCustomName(e.target.value)}
-            required
-            autoFocus
-          />
-
-          <div className="grid grid-cols-2 gap-2">
-            <Input
-              label={tr('Selling Price (₹)')}
-              type="number"
-              step="1"
-              placeholder={tr('e.g. 240')}
-              value={customPrice}
-              onChange={(e) => setCustomPrice(e.target.value)}
-              required
-            />
-            <Input
-              label={tr('MRP (₹, Optional)')}
-              type="number"
-              step="1"
-              placeholder={tr('e.g. 280')}
-              value={customMRP}
-              onChange={(e) => setCustomMRP(e.target.value)}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <Input
-              label={tr('Custom Barcode / SKU (Optional)')}
-              placeholder={tr('Leave blank for auto-generate')}
-              value={customBarcode}
-              onChange={(e) => setCustomBarcode(e.target.value)}
-            />
-            <Input
-              label={tr('Number of Label Copies')}
-              type="number"
-              min="1"
-              max="200"
-              placeholder="12"
-              value={customCopies}
-              onChange={(e) => setCustomCopies(e.target.value)}
-            />
-          </div>
-
-          <div className="pt-2 flex justify-end gap-2 border-t border-slate-200">
-            <Button type="button" variant="outline" size="sm" onClick={() => setIsAddCustomModalOpen(false)}>
-              {tr('Cancel')}
-            </Button>
-            <Button type="submit" size="sm" className="bg-slate-900 text-white font-bold">
-              {tr('Add to Print Queue')}
-            </Button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* ========================================================================= */}
-      {/* GLOBAL PRINT STYLES (Optimized strictly for A4 Sticker Millimeter Precision) */}
-      {/* ========================================================================= */}
-      <style jsx global>{`
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          #printable-barcode-sheet,
-          #printable-barcode-sheet * {
-            visibility: visible;
-          }
-          #printable-barcode-sheet {
-            position: absolute;
-            left: 0;
-            top: 0;
-            margin: 0;
-            padding: 5mm;
-            border: none;
-            box-shadow: none;
-          }
-          @page {
-            size: A4 portrait;
-            margin: 0;
-          }
-        }
-      `}</style>
+      {customOpen && <CustomLabelModal defaultCopies={settings.copies} onClose={() => setCustomOpen(false)} onAdd={(item) => setQueue((q) => [...q, item])} />}
     </div>
   );
 }

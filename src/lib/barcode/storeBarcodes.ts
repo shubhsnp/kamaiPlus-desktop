@@ -65,14 +65,27 @@ export async function ensureProductBarcode(product: Pick<Product, 'id' | 'barcod
   });
 }
 
-/** Gives every sellable product without a barcode its own store code. Returns how many. */
-export async function assignMissingBarcodes(): Promise<number> {
-  return db.transaction('rw', db.products, async () => {
-    const missing = await db.products.filter((p) => !p.barcode?.trim() && !p.has_variants && p.is_active !== false).toArray();
-    if (missing.length === 0) return 0;
-    const codes = nextStoreBarcodes(await barcodesInUse(), missing.length);
+/**
+ * Bulk version for label printing: every listed product ends up with a saved barcode
+ * (one transaction, fresh rows re-read). Returns product id → barcode.
+ */
+export async function ensureProductBarcodes(products: Pick<Product, 'id' | 'barcode'>[]): Promise<Map<string, string>> {
+  const codes = new Map<string, string>();
+  const missingIds: string[] = [];
+  for (const p of products) {
+    if (p.barcode?.trim()) codes.set(p.id, p.barcode.trim());
+    else missingIds.push(p.id);
+  }
+  if (missingIds.length === 0) return codes;
+  await db.transaction('rw', db.products, async () => {
+    const fresh = (await db.products.bulkGet(missingIds)).filter((p): p is Product => Boolean(p));
+    const stillMissing = fresh.filter((p) => !p.barcode?.trim());
+    fresh.filter((p) => p.barcode?.trim()).forEach((p) => codes.set(p.id, p.barcode!.trim()));
+    if (stillMissing.length === 0) return;
+    const newCodes = nextStoreBarcodes(await barcodesInUse(), stillMissing.length);
     const now = new Date().toISOString();
-    await db.products.bulkPut(missing.map((p, i) => ({ ...p, barcode: codes[i], updated_at: now })));
-    return missing.length;
+    await db.products.bulkPut(stillMissing.map((p, i) => ({ ...p, barcode: newCodes[i], updated_at: now })));
+    stillMissing.forEach((p, i) => codes.set(p.id, newCodes[i]));
   });
+  return codes;
 }

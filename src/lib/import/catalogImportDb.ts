@@ -23,6 +23,8 @@ export interface ImportResult {
   categoriesCreated: number;
   barcodesGiven: number;
   createdIds: string[];
+  /** Saved items whose price or details changed (their labels may need reprinting). */
+  updatedIds: string[];
 }
 
 /** Writes an import plan in one transaction: new categories, new items (with barcodes), changed prices. */
@@ -149,6 +151,7 @@ export async function applyImportPlan(plan: ImportPlan, ctx: ImportContext): Pro
       categoriesCreated: newCategories.length,
       barcodesGiven: freshIndex,
       createdIds: creates.map((p) => p.id),
+      updatedIds: updates.map((p) => p.id),
     };
   });
 }
