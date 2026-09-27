@@ -268,6 +268,41 @@ async function run() {
       const unmutedNow = await page.evaluate(() => localStorage.getItem('kamai_sound_muted'));
       check(mutedNow === 'true' && unmutedNow === 'false', 'Top bar sound button mutes and unmutes the app');
 
+      // v4.70.0 — Excel price list: Hindi headings understood, every new item gets a saved
+      // barcode, uploading the sheet again with a new price updates it (no copies).
+      step = 'excel import';
+      const XLSX = require('xlsx');
+      const sheetFile = (rows) => {
+        const f = path.join(dataDir, `list_${Date.now()}.xlsx`);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Section', 'Item (आयटम)', 'Company (कंपनी)', 'Price (भाव)', 'Per (प्रति)'], ...rows]), 'Items');
+        XLSX.writeFile(wb, f);
+        return f;
+      };
+      const runImport = async (file) => {
+        await page.evaluate(() => { window.location.href = '/products/'; });
+        await page.getByRole('button', { name: /Import Excel/ }).first().click();
+        await page.locator('input[data-import-file]').setInputFiles(file);
+        await page.getByRole('button', { name: /Next: check changes/ }).click();
+        await page.getByRole('button', { name: /^Import:/ }).click();
+        await page.locator('[data-import-done]').waitFor({ timeout: 30000 });
+      };
+      const productCount = async () => (await readStore(page, 'products')).length;
+      const itemsBefore = await productCount();
+      await runImport(sheetFile([['चौरसा', '8 वाला', 'अतिसिया', 320, '100 नग'], ['अनार', 'अनार स्पेशल', 'विन', 590, 'युनिट'], ['अटॅम बॉम्ब', 'Saddam', 'Regular', '', 'युनिट']]));
+      let listed = (await readStore(page, 'products')).filter((p) => p.id.startsWith('prod_imp_'));
+      const chaurasa = listed.find((p) => p.name === 'चौरसा 8 वाला – अतिसिया (100 नग)');
+      const validEan = (c) => /^200\d{10}$/.test(c || '') && (10 - ([...c.slice(0, 12)].reduce((s, d, i) => s + Number(d) * (i % 2 ? 3 : 1), 0) % 10)) % 10 === Number(c[12]);
+      check((await productCount()) === itemsBefore + 2 && chaurasa && chaurasa.selling_price === 32000 && chaurasa.unit === 'box' && listed.every((p) => validEan(p.barcode) && p.is_unlimited_stock),
+        'Excel import: Hindi headings read, 2 items added (row without price skipped), each with its own saved barcode, price in paise');
+      await page.getByRole('button', { name: /Done & View Catalog/ }).click();
+      await runImport(sheetFile([['चौरसा', '8 वाला', 'अतिसिया', 350, '100 नग'], ['अनार', 'अनार स्पेशल', 'विन', 590, 'युनिट']]));
+      listed = (await readStore(page, 'products')).filter((p) => p.id.startsWith('prod_imp_'));
+      const again = listed.find((p) => p.id === chaurasa.id);
+      check((await productCount()) === itemsBefore + 2 && again.selling_price === 35000 && again.barcode === chaurasa.barcode,
+        'Uploading the sheet again with a new price updates that price — no copies, barcode kept');
+      await page.getByRole('button', { name: /Done & View Catalog/ }).click();
+
       // v4.68.0 — customer typed on the counter row (no pop-up) is saved with the bill.
       step = 'counter customer';
       await page.locator('aside a[href="/billing"]').first().click();
@@ -358,9 +393,14 @@ async function run() {
         check(await textVisible(page, 'E2E Kirana Store'), 'The right password opens the shop with its own name (signed-in user kept)');
 
         // Lock now (v4.65.0): store menu → password screen → back on the same page.
+        // Let the unlock finish its own redirect first: a click in the same instant can be
+        // undone by it (the test used to lock while still on Home and then blame the return).
+        await page.waitForURL((u) => !u.pathname.startsWith('/auth'), { timeout: 10000 }).catch(() => {});
+        await page.waitForTimeout(1000);
         await page.locator('aside a[href="/products"]').first().click();
         await page.waitForURL(/\/products/, { waitUntil: 'commit', timeout: 10000 }).catch(() => {});
         await page.waitForTimeout(800);
+        const lockedFrom = new URL(page.url()).pathname.replace(/\/$/, '');
         await page.locator('header button[title="Click for Store Menu, Language & Settings"]').click();
         await page.getByRole('button', { name: /Lock now/ }).click();
         const relocked = await pw.waitFor({ state: 'visible', timeout: 10000 }).then(() => true, () => false);
@@ -370,7 +410,10 @@ async function run() {
           await pw.press('Enter');
           await page.waitForURL(/\/products/, { waitUntil: 'commit', timeout: 10000 }).catch(() => {});
           await page.waitForTimeout(800);
-          check(new URL(page.url()).pathname.replace(/\/$/, '') === '/products' && (await page.locator('aside').count()) > 0, 'After the password the app returns to the page that was open (Products)');
+          const backPath = new URL(page.url()).pathname.replace(/\/$/, '');
+          const asideCount = await page.locator('aside').count();
+          check(lockedFrom === '/products' && backPath === '/products' && asideCount > 0, `After the password the app returns to the page that was open (Products)${lockedFrom === '/products' && backPath === '/products' && asideCount > 0 ? '' : ` — locked on "${lockedFrom}", came back to "${backPath}", sidebar ${asideCount ? 'shown' : 'missing'}`}`);
+          if (!(backPath === '/products' && asideCount > 0)) await shot(page, 'failed-lock-return');
         }
       }
       const sales = await readStore(page, 'sales');

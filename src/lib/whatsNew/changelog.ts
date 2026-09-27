@@ -15,6 +15,14 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.70.0',
+    items: [
+      msg('Products → Import Excel: load your whole price list at once. The app reads your own column headings (also in Hindi / Marathi) and shows what will change before saving.'),
+      msg('Change prices in the sheet and upload it again — the prices are updated, nothing is added twice.'),
+      msg('Every imported item gets its own barcode, and a label printed for any item now always scans at the counter.'),
+    ],
+  },
+  {
     version: '4.69.0',
     items: [
       msg('Settings → Features: switch Cash Register, Purchases, Suppliers, GST reports and extra product fields on or off. Switching off only hides them — nothing is deleted.'),

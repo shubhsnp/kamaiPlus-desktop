@@ -41,8 +41,8 @@ const PurchaseInwardOptionsSheet = dynamic(
   () => import('@/components/purchases/PurchaseInwardOptionsSheet').then((m) => m.PurchaseInwardOptionsSheet),
   { ssr: false }
 );
-const ExcelInventoryImporter = dynamic(
-  () => import('@/components/inventory/ExcelInventoryImporter').then((m) => m.ExcelInventoryImporter),
+const CatalogImportModal = dynamic(
+  () => import('@/components/import/CatalogImportModal').then((m) => m.CatalogImportModal),
   { ssr: false }
 );
 const BarcodeScannerModal = dynamic(
@@ -621,12 +621,13 @@ export default function ProductsPage() {
         onScan={handleBarcodeScanned}
       />
 
-      {/* Excel Inventory Importer Modal */}
-      <ExcelInventoryImporter
-        isOpen={isExcelImporterOpen}
-        onClose={() => setIsExcelImporterOpen(false)}
-        businessId={business?.id || 'biz_default'}
-      />
+      {/* Excel / CSV price-list import (mounted only while open — xlsx is heavy) */}
+      {isExcelImporterOpen && (
+        <CatalogImportModal
+          onClose={() => setIsExcelImporterOpen(false)}
+          businessId={business?.id || 'biz_default'}
+        />
+      )}
 
       {/* Purchase Inward Sheet */}
       <PurchaseInwardOptionsSheet

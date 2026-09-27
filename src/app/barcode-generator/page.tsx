@@ -43,6 +43,7 @@ import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { tr } from '@/lib/i18n/core';
+import { ensureProductBarcode } from '@/lib/barcode/storeBarcodes';
 
 export type LabelLayout = 
   | 'a4_24'      // 3 cols x 8 rows (63.5 x 33.9 mm)
@@ -143,10 +144,11 @@ export default function BarcodeGeneratorPage() {
   // Seed starter items into queue if queue is empty and products load
   React.useEffect(() => {
     if (queue.length === 0 && allProducts.length > 0) {
-      const starters = allProducts.slice(0, 4).map((p) => ({
+      // Only items that already have a saved barcode (a label must scan back to the item).
+      const starters = allProducts.filter((p) => p.barcode?.trim()).slice(0, 4).map((p) => ({
         id: p.id,
         name: p.name,
-        barcode: p.barcode || `KP${p.id.slice(-6).toUpperCase()}`,
+        barcode: p.barcode!.trim(),
         selling_price: p.selling_price,
         mrp: p.mrp || p.selling_price,
         unit: p.unit,
@@ -182,7 +184,10 @@ export default function BarcodeGeneratorPage() {
   }, [queue]);
 
   // Add Product from DB to Queue
-  const handleAddProductToQueue = (prod: Product) => {
+  const handleAddProductToQueue = async (prod: Product) => {
+    // An item without a barcode gets its own store code saved first — a printed code
+    // that is not saved on the item would say "unknown barcode" at the counter.
+    const code = await ensureProductBarcode(prod);
     const existing = queue.find((q) => q.id === prod.id);
     if (existing) {
       setQueue((prev) =>
@@ -194,7 +199,7 @@ export default function BarcodeGeneratorPage() {
         {
           id: prod.id,
           name: prod.name,
-          barcode: prod.barcode || `KP${prod.id.slice(-6).toUpperCase()}`,
+          barcode: code,
           selling_price: prod.selling_price,
           mrp: prod.mrp || prod.selling_price,
           unit: prod.unit,

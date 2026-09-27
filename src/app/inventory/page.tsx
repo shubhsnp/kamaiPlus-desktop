@@ -18,8 +18,8 @@ import { StockMovementsList } from '@/components/inventory/StockMovementsList';
 import { tr } from '@/lib/i18n/core';
 
 // Lazy-load heavy modals
-const ExcelInventoryImporter = dynamic(
-  () => import('@/components/inventory/ExcelInventoryImporter').then((m) => m.ExcelInventoryImporter),
+const CatalogImportModal = dynamic(
+  () => import('@/components/import/CatalogImportModal').then((m) => m.CatalogImportModal),
   { ssr: false }
 );
 
@@ -122,11 +122,12 @@ export default function InventoryPage() {
       )}
 
       {/* ---------------- MODALS ---------------- */}
-      <ExcelInventoryImporter
-        isOpen={isExcelImporterOpen}
-        onClose={() => setIsExcelImporterOpen(false)}
-        businessId={business?.id || 'biz_default'}
-      />
+      {isExcelImporterOpen && (
+        <CatalogImportModal
+          onClose={() => setIsExcelImporterOpen(false)}
+          businessId={business?.id || 'biz_default'}
+        />
+      )}
 
       {/* Floating Toast */}
       {invToast && (

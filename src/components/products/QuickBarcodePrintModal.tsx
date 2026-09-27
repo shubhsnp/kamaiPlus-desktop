@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Product } from '@/types';
 import { formatINR } from '@/lib/utils';
 import { generateCode128SVG } from '@/lib/barcode/barcodeGenerator';
+import { ensureProductBarcode } from '@/lib/barcode/storeBarcodes';
 import { getDesktopApi } from '@/lib/desktop/desktopBridge';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
@@ -26,10 +27,23 @@ export const QuickBarcodePrintModal: React.FC<QuickBarcodePrintModalProps> = ({
   const [copies, setCopies] = useState<number>(1);
   const [labelSize, setLabelSize] = useState<'50x25' | '38x25' | 'pos_58' | 'pos_80'>('50x25');
   const [isPrinting, setIsPrinting] = useState(false);
+  // The label must carry a code the POS can find: an item without one gets its own
+  // store barcode saved now (a made-up code that is not saved could never be scanned).
+  const [barcodeValue, setBarcodeValue] = useState('');
+  useEffect(() => {
+    if (!isOpen || !product) return;
+    let live = true;
+    setBarcodeValue(product.barcode?.trim() || '');
+    if (!product.barcode?.trim()) {
+      ensureProductBarcode(product).then((code) => live && setBarcodeValue(code)).catch((err) => console.error('Barcode assign failed:', err));
+    }
+    return () => {
+      live = false;
+    };
+  }, [isOpen, product]);
 
   if (!isOpen || !product) return null;
 
-  const barcodeValue = product.barcode || product.id.slice(0, 10).toUpperCase();
   const svgMarkup = generateCode128SVG(barcodeValue, {
     height: 38,
     fontSize: 10,
@@ -214,7 +228,7 @@ export const QuickBarcodePrintModal: React.FC<QuickBarcodePrintModalProps> = ({
           </Button>
           <Button
             onClick={handlePrint}
-            disabled={isPrinting}
+            disabled={isPrinting || !barcodeValue}
             className="flex-1 py-2 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center gap-1.5"
           >
             <Printer className="w-3.5 h-3.5" />

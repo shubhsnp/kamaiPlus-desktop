@@ -1,7 +1,7 @@
 # 📕 KamaiPlus Desktop — Engineering Bible
 
 > **Canonical context file. Read this before touching any code.**
-> Last verified against the tree at v4.69.0, 2026‑09‑27 (sections carry the version they were last touched in).
+> Last verified against the tree at v4.70.0, 2026‑09‑27 (sections carry the version they were last touched in).
 
 This file exists so that an agent starting cold does **not** have to scan 180 source
 files, and does **not** re-solve problems that were already solved. Everything here
@@ -305,7 +305,7 @@ src/components/<feature>/   Feature components, one folder per domain
 src/components/ui/          Button, Card, Input, Modal  (that is all of it)
 src/lib/<domain>/           Engines — see table below
 src/types/index.ts          All domain types. Single file.
-scripts/e2e_simulation.ts   The test suite (§11). 438 assertions.
+scripts/e2e_simulation.ts   The test suite (§11). 454 assertions.
 scripts/bump_version.ts     Version bumper (+0.1 minor)
 public/barcodes/*.json      5 shipped offline barcode dictionaries
 ```
@@ -343,6 +343,9 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 | `support/contact.ts` | Support WhatsApp / phone / e-mail and their links (§2.5) |
 | `features/featureSwitches.ts` | Settings → Features on / off switches (§9.2): `useFeatureSwitches`, `isFeatureOn`, `featureForPath`, `showSellingPriceField` |
 | `sound/soundSettings.ts` | 🔊 / 🔇 for every beep and voice (`isSoundMuted`, `setSoundMuted`) — §9.2 |
+| `import/catalogImport.ts` | Excel / CSV price-list import, pure (§9.3): `guessColumnRoles`, `mapUnit`, `buildItemName`, `buildImportRows`, `planImport` |
+| `import/catalogImportDb.ts` | `applyImportPlan` — categories, new items, price updates, store barcodes in one Dexie transaction (§9.3) |
+| `barcode/storeBarcodes.ts` | The shop's own saved barcodes, EAN-13 `200…` (§9.3): `nextStoreBarcodes`, `ensureProductBarcode`, `assignMissingBarcodes` |
 
 ---
 
@@ -391,12 +394,12 @@ them readable — assume they touch everything:
 | **`businesses`** | `app/invoice-designer/page.tsx` (update)<br>`app/settings/page.tsx` (update)<br>`components/layout/Navbar.tsx` (update)<br>`lib/invoices/invoiceNumberService.ts` (update) |
 | **`cash_expenses`** | `app/cash-register/page.tsx` (delete,put)<br>`components/sales/SalesReturnModal.tsx` (put)<br>`lib/suppliers/supplierLedger.ts` (put — cash supplier payments, category `supplier_payout`) |
 | **`cash_registers`** | `app/cash-register/page.tsx` (put,update) |
-| **`categories`** | `app/products/page.tsx` (put)<br>`components/settings/DataMaintenanceTab.tsx` (clear)<br>`lib/constants/defaultProducts.ts` (put) |
+| **`categories`** | `app/products/page.tsx` (put)<br>`components/settings/DataMaintenanceTab.tsx` (clear)<br>`lib/constants/defaultProducts.ts` (put)<br>`lib/import/catalogImportDb.ts` (bulkPut — sections of an imported price list) |
 | **`customers`** | `app/billing/page.tsx` (put,update)<br>`app/customers/page.tsx` (delete,put)<br>`app/khata/page.tsx` (put,update)<br>`app/transactions/page.tsx` (update)<br>`components/invoices/EditInvoiceModal.tsx` (update)<br>`components/khata/SettleInvoicesModal.tsx` (update)<br>`components/sales/SalesReturnModal.tsx` (update) |
-| **`inventory_movements`** | `app/billing/page.tsx` (put)<br>`app/inventory/page.tsx` (put)<br>`app/products/page.tsx` (put)<br>`app/purchases/page.tsx` (put)<br>`app/transactions/page.tsx` (put)<br>`components/dashboard/DashboardHome.tsx` (put)<br>`components/invoices/EditInvoiceModal.tsx` (put)<br>`components/purchases/BillScanReviewModal.tsx` (put)<br>`components/sales/SalesReturnModal.tsx` (put) |
+| **`inventory_movements`** | `lib/import/catalogImportDb.ts` (bulkPut — opening stock, only when the sheet has a stock column)<br>`app/billing/page.tsx` (put)<br>`app/inventory/page.tsx` (put)<br>`app/products/page.tsx` (put)<br>`app/purchases/page.tsx` (put)<br>`app/transactions/page.tsx` (put)<br>`components/dashboard/DashboardHome.tsx` (put)<br>`components/invoices/EditInvoiceModal.tsx` (put)<br>`components/purchases/BillScanReviewModal.tsx` (put)<br>`components/sales/SalesReturnModal.tsx` (put) |
 | **`ledger_transactions`** | `app/billing/page.tsx` (put)<br>`app/customers/page.tsx` (put)<br>`app/khata/page.tsx` (delete,put,update)<br>`app/transactions/page.tsx` (put)<br>`components/invoices/EditInvoiceModal.tsx` (put)<br>`components/khata/SettleInvoicesModal.tsx` (put)<br>`components/sales/SalesReturnModal.tsx` (put)<br>`lib/suppliers/supplierLedger.ts` (put, modify — `party_type: 'supplier'` rows) |
 | **`marketing_templates`** | _only the four shared modules above_ |
-| **`products`** | `app/billing/page.tsx` (put)<br>`app/inventory/page.tsx` (update)<br>`app/products/page.tsx` (delete,put,update)<br>`app/purchases/page.tsx` (update)<br>`app/transactions/page.tsx` (put)<br>`components/dashboard/DashboardHome.tsx` (update)<br>`components/inventory/ExcelInventoryImporter.tsx` (bulkPut)<br>`components/invoices/EditInvoiceModal.tsx` (update)<br>`components/purchases/BillScanReviewModal.tsx` (put,update)<br>`components/sales/SalesReturnModal.tsx` (update)<br>`lib/constants/defaultProducts.ts` (bulkPut)<br>`lib/products/variants.ts` (put, bulkPut, update, delete — parent + variants in one transaction, §9.1) |
+| **`products`** | `app/billing/page.tsx` (put)<br>`app/inventory/page.tsx` (update)<br>`app/products/page.tsx` (delete,put,update)<br>`app/purchases/page.tsx` (update)<br>`app/transactions/page.tsx` (put)<br>`components/dashboard/DashboardHome.tsx` (update)<br>`lib/import/catalogImportDb.ts` (bulkPut — Excel import, new + updated items)<br>`lib/barcode/storeBarcodes.ts` (update, bulkPut — a saved barcode for items that get a label)<br>`components/invoices/EditInvoiceModal.tsx` (update)<br>`components/purchases/BillScanReviewModal.tsx` (put,update)<br>`components/sales/SalesReturnModal.tsx` (update)<br>`lib/constants/defaultProducts.ts` (bulkPut)<br>`lib/products/variants.ts` (put, bulkPut, update, delete — parent + variants in one transaction, §9.1) |
 | **`purchase_bills`** | `components/purchases/BillScanReviewModal.tsx` (put) |
 | **`sales`** | `app/billing/page.tsx` (put)<br>`app/transactions/page.tsx` (clear,put)<br>`components/invoices/EditInvoiceModal.tsx` (put)<br>`components/khata/SettleInvoicesModal.tsx` (put)<br>`components/sales/SalesReturnModal.tsx` (update) |
 | **`sales_returns`** | `app/transactions/page.tsx` (clear)<br>`components/sales/SalesReturnModal.tsx` (put) |
@@ -755,6 +758,39 @@ module is `featureSwitches`). Switching off only hides; no data is deleted.
 - Suite 9 §9c; Electron E2E checks the new-shop form, menu, "turned off" card, a switch
   going on, and the sound button.
 
+### 9.3 Excel price-list import & the shop's own barcodes (v4.70.0)
+
+`components/import/CatalogImportModal.tsx` (Products → **Import Excel**, Inventory →
+Excel Import; mounted only while open, `xlsx` loaded with `await import`). Steps: file →
+**column check** (`ImportColumnMapper`: every column's role is guessed from its heading —
+English / Hindi / Marathi, e.g. `Item (आयटम)`, `Price (भाव)`, `Per (प्रति)`, `Section` —
+and can be changed) → **preview** (`ImportPreview`: new / updated / no change / skipped,
+with the reason) → import.
+
+- **The sheet's price is the selling price** (`selling_price = mrp = price`; an MRP column,
+  if present, sets MRP). No wholesale / margin logic, no invented cost price.
+- **Upload again = update.** A row finds its saved item by barcode, else by the item name
+  built from it (`buildItemName` is deterministic for the same sheet), and only changed
+  fields are written; items missing from the sheet are left alone; unmapped columns never
+  overwrite saved values; stock is never overwritten on an update.
+- Name = item [+ `– company`] [+ `(pack)`]. Names starting with a size / number get their
+  section in front (`चौरसा 8 वाला`, option on the column step). A "company" cell that is a
+  pack size (`1 Piece`, `5 नग`, `50 Box/Case`) is not a company. Two rows with the same
+  name get `– section`; still the same → the later row is skipped.
+- `प्रति` → unit (`mapUnit`): बॉक्स/Box → box, युनिट → piece, पॅकेट → packet; a pack of many
+  (`100 नग`, `10 थैली`) is sold as one box / bundle and the pack text goes into the name.
+- Section column → categories (created once, reused by name). No stock column → items are
+  **Unlimited stock** (scanning never blocked). No HSN / GST column → none / 0 %.
+- **Barcodes:** every new item gets its own saved code unless the sheet has one:
+  EAN-13 with the GS1 in-store prefix `200` + running number + check digit
+  (`nextStoreBarcodes`, never reused). Labels (Barcode Studio queue, 1-click label) call
+  `ensureProductBarcode` first, so **a printed code is always saved on the item**
+  (before v4.70.0 they printed `KP…` / the id's first 10 characters, never saved — every
+  such label said "unknown barcode" at the counter).
+- Tested with the real 825-row fireworks list: 796 items, 29 rows without a price skipped,
+  50 categories, 796 unique valid codes; re-upload with 2 prices changed → 2 updated, 0 new.
+  Suite 9 §9d; Electron E2E imports and re-imports a sheet with Hindi headings.
+
 ### 9.1 Product variants (v4.49.0) — same model as the Android app
 
 Not a per-vertical mode: any shop can use it. `lib/products/variants.ts`.
@@ -816,6 +852,7 @@ Each was a real bug that cost real time. The test suite guards most of them.
 | 25 | **"GSTR-1 JSON" could not be filed (before v4.66.0).** `fp` was taken from the preset name (`'this_month'` has no digits) so every file said **082026**; dates were `yyyy-mm-dd`; a B2B bill was repeated once per line; HSN rows had no `rt` and an old `val`; B2CS was always INTRA; 0 % lines sat in B2B / B2CS; `doc_issue` used `canc`; `cur_gt` was the period's taxable value. The GST page quarters used the calendar year (in Jan 2027 "Q1" would be the future Apr–Jun 2027) and "Full Year" was Jan–Dec. | `lib/gst/gstr1Json.ts` builds the file from the bills: `fp` MMYYYY (quarter = its last month), `idt` dd-mm-yyyy, `b2b` ctin → one `inv` per bill (`inv_typ` R) → items per rate, CGST+SGST or IGST keys only, `b2cs` per state + rate with `typ` OE, 0 % lines → `nil`, `hsn` split into `hsn_b2b` / `hsn_b2c` with `rt`, `doc_issue` per invoice series with `cancel`. Before download the page lists what the portal would reject (no shop GSTIN, items without HSN, wrong buyer GSTIN, B2B invoice number > 16 chars) and asks. Full year → no JSON (GSTR-1 is monthly / quarterly). Periods on the Indian FY; quarters = latest occurrence. **Limits:** counter customers without GSTIN are taken as within the shop's state (no B2CL); partial returns are reported net (no CDNR credit-note table); cess is 0. The `version` string is a best guess — the shop / CA should import the file in the GSTN offline tool once before uploading. Suite 21 (15 checks). |
 | 24 | **Language menu changed almost nothing (before v4.63.0)** — `t()` existed but only the Navbar used it; `en.json` held ~40 unused keys, every screen was hard-coded English. | ~1,940 texts wrapped in `tr()` across ~115 files, full Hindi + Marathi tables, badge / period-chip label helpers, language pills before login. Suite 9 §8x (every text translated, placeholders kept, no bare JSX text, no dynamic `tr()`). Live-checked 16 screens in हिंदी and मराठी: only shop data, brands and print previews stay English. |
 | 26 | **Enter / F10 completed a hidden bill (before v4.68.0).** With two bills open, completing one opened "Sale completed" on top of the other; pressing Enter (e.g. on the focused Print button) or F10 there completed the waiting bill underneath — found by driving the real app. The customer also needed a pop-up to be added. | Billing shortcuts return early while `counterCovered` (Sale completed, item edit, camera, rapid scan, printer setup, big QR, unknown-barcode windows) or the variant picker is open; the `DialogHost` confirm already captured Enter. Customer typed inline (§6.1 step 0). Credit button shows F9. Suite 9 §9b (19 checks); Electron E2E presses Enter + F10 under "Sale completed". |
+| 27 | **Labels that could never scan (before v4.70.0).** An item without a barcode got a code made up at print time — Barcode Studio `KP` + last 6 id characters, the 1-click label the id's first 10 characters (the same `PROD_IMP_1` for every imported item) — and it was never saved, so the counter said "unknown barcode". The Excel importer read only its own template: a real price list (`Item (आयटम)`, `Price (भाव)`…) imported 0 of 825 rows; with a renamed column it lost company / section / unit, invented a cost price and counted stock at 10. | `lib/barcode/storeBarcodes.ts` saves an EAN-13 `200…` code before any label is printed; `lib/import/` imports any sheet by its headings, updates prices on re-upload (§9.3). Suite 9 §9d. |
 | 21 | **Wiring & calculation audit (v4.59.0).** (a) A double Enter / click on Complete Sale could save the cart twice (two bills, stock cut twice, same invoice number). (b) Cash typed in cash mode stayed in the tab and turned a later UPI / card / credit bill into a part payment. (c) Short cash with no customer saved an udhar nobody owed. (d) An overpaid split counted the excess as drawer cash. (e) +/− or re-scanning reset a rate the cashier had edited to the catalogue price. (f) Settings → "Default GST Calculation" did nothing: every product was saved tax-inclusive. (g) Excel import stamped HSN `1905` on every product without one. (h) Changing a balance in customer details wrote no ledger entry. | (a) `completingSaleRef` guard. (b)(c) `typedCashPaise` is read only in cash mode; short cash needs a customer. (d) excess must fit in the cash part and is recorded as `change_returned`. (e) existing lines keep `unit_price`. (f) new / imported products take the shop mode, edited ones keep theirs; cart lines store the resolved mode so POS tax and `saleMath` agree. (g) no HSN = none. (h) the change goes to the ledger on top of the fresh balance. Suite 9 §8u; Electron E2E double-clicks Complete Sale. |
 ---
 
@@ -825,7 +862,7 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 438/438, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 454/454, 0 failures
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
 git push origin main
@@ -836,7 +873,7 @@ billing), also run the real app:
 
 ```bash
 npx next build                      # out/ must be current
-npm run test:electron               # scripts/electron_e2e.mjs — 34/34
+npm run test:electron               # scripts/electron_e2e.mjs — 36/36
 ```
 
 `electron_e2e.mjs` launches the actual Electron app with Playwright (`playwright-core`,
@@ -848,14 +885,15 @@ also: Add Product opens unlimited (off → 10 / 10), a customer typed on the cou
 saved and linked to the bill, F1 / F2 / F4 / F8 / F9 / Esc work, and Enter / F10 under
 "Sale completed" never complete the bill waiting behind it. Since v4.69.0: a new shop's
 Add Product form (MRP only), menu without the switched-off screens, the "turned off" card,
-a switch going on in Settings → Features, and the 🔊 / 🔇 button. Its data goes to a temp folder via `KAMAI_E2E_DIR` (main.js honours it only
+a switch going on in Settings → Features, and the 🔊 / 🔇 button. Since v4.70.0: an Excel
+sheet with Hindi headings is imported (saved barcodes) and re-imported with a new price. Its data goes to a temp folder via `KAMAI_E2E_DIR` (main.js honours it only
 when `!app.isPackaged`). The licence is **signed for this PC with the private key** in
 `%USERPROFILE%\KamaiPlus-Secrets\` (or `KAMAI_LICENCE_PRIVATE_KEY`) — nothing is
 bypassed; without the key only the no-licence checks run. The script removes
 `ELECTRON_RUN_AS_NODE` (set by VS Code terminals), which otherwise stops Electron
 launching. Failure screenshots go to `%TEMP%\kamaiplus-e2e-shots\`.
 
-### Test suite map — `scripts/e2e_simulation.ts` (438 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (454 assertions)
 
 | Suite | Covers |
 | :--- | :--- |
@@ -957,6 +995,21 @@ Recorded so the next agent does not rediscover them. None are fixed as of v4.38.
     keeps its stored user (owner name) and only renews the session time.
     Electron E2E checks it (restart → password, `/billing` blocked, wrong password
     refused). **Idle lock + "Lock now" added in v4.65.0** — see the route-guard section (§4).
+
+11. **Code-128 check character is wrong for ~1 code in 13** (`lib/barcode/barcodeGenerator.ts`):
+    values 95–102 have no pattern in the ASCII table and fall back to value 0, so a scanner
+    rejects that label. Fix planned with label printing (v4.71.0).
+
+12. **A click in the first moment after unlocking can be undone** by the unlock's own
+    redirect (AuthForm and AppShell both `router.replace` to the saved page). Seen only when
+    automated; the Electron E2E waits for the redirect before clicking. Harmless in practice
+    (the page opens on the second click).
+
+13. **USB barcode gun on the POS** (probed on v4.69.0, fix planned v4.72.0): the scan is typed
+    into the focused search box and stays there; the scanner is recognised only by key
+    timing (≤ 50 ms), so a busy screen can cut a code short ("unknown barcode" pop-up with
+    part of the code); Enter can add the first search result instead of finishing the bill;
+    scans are ignored while "Sale completed" is open.
 
 ---
 

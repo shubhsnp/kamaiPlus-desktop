@@ -71,6 +71,9 @@ import { nextSupplierBalance } from '../src/lib/suppliers/supplierLedger';
 import { cleanVariantLabels, DEFAULT_COUNTED_STOCK, summarizeVariants, tracksOwnStock } from '../src/lib/products/variants';
 import { buildBillCustomer, isDraftEmpty, resolveBillCustomer, splitDraft, suggestCustomers } from '../src/lib/billing/billCustomer';
 import { DEFAULT_FEATURE_SWITCHES, FEATURES, featureForPath, isPathEnabled, parseFeatureSwitches, showSellingPriceField } from '../src/lib/features/featureSwitches';
+import { buildImportRows, buildItemName, findHeaderRow, guessColumnRoles, mapUnit, parseAmount, planImport } from '../src/lib/import/catalogImport';
+import { ean13CheckDigit, isValidEan13, nextStoreBarcodes } from '../src/lib/barcode/storeBarcodes';
+import type { Product } from '../src/types';
 import {
   WALK_IN_ID,
   buildAdvancedReport,
@@ -791,9 +794,9 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   const grand = 84800; const cash = 90000; const excess = cash - grand;
   assert(excess === 5200 && cash - excess === grand, 'Split overpay: cash kept + change = cash tendered, kept cash = bill');
   const productsSrc = readSource('app/products/page.tsx');
-  const importSrc = readSource('components/inventory/ExcelInventoryImporter.tsx');
-  assert(/is_tax_inclusive: editingProduct\?\.is_tax_inclusive \?\? business\?\.gst_pricing_mode !== 'exclusive'/.test(productsSrc) && /is_tax_inclusive: taxInclusive/.test(importSrc), 'New and imported products follow Settings → Default GST Calculation (the setting is wired)');
-  assert(!/hsn_code: r\.hsn_code \|\| '1905'/.test(importSrc), 'Excel import never invents an HSN code');
+  const importSrc = readSource('lib/import/catalogImportDb.ts');
+  assert(/is_tax_inclusive: editingProduct\?\.is_tax_inclusive \?\? business\?\.gst_pricing_mode !== 'exclusive'/.test(productsSrc) && /is_tax_inclusive: ctx\.taxInclusive/.test(importSrc), 'New and imported products follow Settings → Default GST Calculation (the setting is wired)');
+  assert(!/hsn_code: r\.hsn_code \|\| '1905'/.test(importSrc) && /hsn_code: r\.hsn \|\| undefined/.test(importSrc), 'Excel import never invents an HSN code');
   const custSrc = readSource('app/customers/page.tsx');
   assert(/notes: 'Balance corrected in customer details'/.test(custSrc), 'A balance changed in customer details is written to the khata ledger');
 }
@@ -1083,6 +1086,79 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     && /isSoundMuted\(\)\) return;/.test(readSource('lib/payments/soundboxEngine.ts')),
     '🔇 silences POS beeps, the scanner beep and the soundbox voice');
   assert(/<SoundToggleButton \/>/.test(readSource('components/layout/Navbar.tsx')) && /aria-pressed=\{muted\}/.test(readSource('components/layout/SoundToggleButton.tsx')), 'The top bar has the 🔊 / 🔇 button');
+}
+
+// 9d. Smart Excel price-list import + saved store barcodes (v4.70.0).
+{
+  // (a) Columns are recognised from the shop's own headings (the real fireworks list, and an English sheet).
+  assert(guessColumnRoles(['Sr No', 'Section', 'Item (आयटम)', 'Company (कंपनी)', 'Price (भाव)', 'Per (प्रति)', 'Page', 'Table Side', 'Review Note']).join() === 'ignore,category,name,company,price,unit,ignore,ignore,ignore',
+    'Fireworks price list: Section → category, Item → name, Company, Price → price, Per → unit; the rest is left out');
+  assert(guessColumnRoles(['Item Code', 'Item Name', 'Company Name', 'Category', 'Purchase Price', 'Selling Price', 'MRP', 'Unit', 'Qty', 'GST %', 'HSN Code']).join() === 'barcode,name,company,category,cost,price,mrp,unit,stock,gst,hsn'
+    && guessColumnRoles(['Name', 'Product']).join() === 'name,ignore',
+    'English sheet: purchase price is not mistaken for the selling price, HSN Code is not a barcode, a role is used once');
+  assert(parseAmount('₹1,250.00') === 1250 && parseAmount(47) === 47 && parseAmount('-') === null && parseAmount('') === null && parseAmount('abc') === null, 'Prices are read from "₹1,250.00", numbers and blanks correctly');
+  const u = (t: string) => { const m = mapUnit(t); return `${m.unit}${m.pack ? ':' + m.pack : ''}`; };
+  assert([u('बॉक्स'), u('Box'), u('युनिट'), u('पॅकेट'), u('100 नग'), u('10 थैली'), u('10 पॅकेट'), u('1 नग'), u('kg'), u('')].join() === 'box,box,piece,packet,box:100 नग,bundle:10 थैली,bundle:10 पॅकेट,piece,kg,piece',
+    '"प्रति" becomes a real unit; a pack of many ("100 नग") is sold as one box / bundle');
+  const opt = { prefixSection: true };
+  assert(buildItemName('8 वाला', 'अतिसिया', 'चौरसा', '100 नग', opt) === 'चौरसा 8 वाला – अतिसिया (100 नग)'
+    && buildItemName('15 Shot', '1 Piece', 'Fancy Item Mayur', undefined, opt) === 'Fancy Item Mayur 15 Shot'
+    && buildItemName('7 शॉट', '10 नग', 'Fancy Items Pothi', undefined, opt) === 'Fancy Items Pothi 7 शॉट (10 नग)'
+    && buildItemName('2.5" 2 Piece', '2 Piece', 'Fancy Item Mercury', undefined, opt) === 'Fancy Item Mercury 2.5" 2 Piece'
+    && buildItemName('अनार स्पेशल', 'विन', 'अनार', undefined, opt) === 'अनार स्पेशल – विन'
+    && buildItemName('Zoom (11 Items)', '50 Box/Case', 'Gift Box ROBO', undefined, opt) === 'Zoom (11 Items)'
+    && buildItemName('9 cm प्लेन Nett', 'चंद्रा', 'सिल्वर', undefined, { prefixSection: false }) === '9 cm प्लेन Nett – चंद्रा',
+    'Item names: size-only names get their section, company is added, a pack-size "company" is not, no pack is written twice');
+
+  // (b) Rows: blanks, missing prices and repeats are caught; clashing names get their section.
+  const grid = [
+    ['Section', 'Item', 'Company', 'Price', 'Per'],
+    ['चौरसा', '8 वाला', 'अतिसिया', 320, '100 नग'],
+    ['Fancy Item Fathers', 'Helicopter', '5 Piece', 85, 'बॉक्स'],
+    ['Fancy Item Royal', 'Helicopter', '5 Piece', 80, 'बॉक्स'],
+    ['अटॅम बॉम्ब', 'Saddam', 'Regular', '', 'युनिट'],
+    ['', '', '', '', ''],
+    ['अनार', 'अनार स्पेशल', 'विन', 590, 'युनिट'],
+    ['अनार', 'अनार स्पेशल', 'विन', 600, 'युनिट'],
+  ];
+  const roles = guessColumnRoles(grid[0] as string[]);
+  const rows = buildImportRows(grid, findHeaderRow(grid), roles, opt);
+  const byRow = (n: number) => rows.find((r) => r.rowNumber === n)!;
+  assert(rows.length === 6 && byRow(2).pricePaise === 32000 && byRow(2).unit === 'box' && byRow(3).name === 'Helicopter (5 Piece) – Fancy Item Fathers' && byRow(4).name === 'Helicopter (5 Piece) – Fancy Item Royal',
+    'Sheet rows: prices in paise, blank lines ignored, two brands\' "Helicopter" told apart by their section');
+  assert(byRow(5).skip === 'No price' && /twice/.test(byRow(8).skip || '') && !byRow(7).skip, 'A row without a price, and the same item twice, are skipped with the reason shown');
+  assert(buildImportRows(grid, 0, roles, opt).map((r) => r.name).join('|') === rows.map((r) => r.name).join('|'), 'The same sheet always gives the same names (re-uploading finds the saved items)');
+
+  // (c) Re-upload: saved items are updated (by barcode, else by name), unchanged ones left alone.
+  const saved = (id: string, name: string, pricePaise: number, category: string, barcode?: string) =>
+    ({ id, name, selling_price: pricePaise, mrp: pricePaise, category_name: category, unit: 'box', purchase_price: 0, tax_rate: 0, barcode } as unknown as Product);
+  const A = saved('pA', 'चौरसा 8 वाला – अतिसिया (100 नग)', 30000, 'चौरसा', '2000000000015');
+  const B = saved('pB', 'Helicopter (5 Piece) – Fancy Item Fathers', 8500, 'Fancy Item Fathers');
+  const plan = planImport(rows, [A, B], false);
+  assert(plan.creates.length === 2 && plan.updates.length === 1 && plan.updates[0].product.id === 'pA' && plan.updates[0].changes.includes('price') && plan.unchanged.length === 1 && plan.skipped.length === 2,
+    'Upload again with a new price: 1 price updated, 1 unchanged, 2 new, 2 skipped — nothing added twice');
+  const byCode = planImport([{ ...byRow(7), barcode: '2000000000015' }], [A, B], false);
+  assert(byCode.updates.length === 1 && byCode.updates[0].product.id === 'pA', 'A barcode in the sheet finds the saved item even if its name changed');
+
+  // (d) Store barcodes: saved EAN-13 "200…" codes, valid check digit, never reused.
+  assert(ean13CheckDigit('400638133393') === 1 && isValidEan13('4006381333931') && !isValidEan13('4006381333932'), 'EAN-13 check digit is right');
+  const codes = nextStoreBarcodes([], 3);
+  assert(codes.join() === '2000000000015,2000000000022,2000000000039' && codes.every(isValidEan13), 'New store barcodes: 200 + running number + check digit');
+  assert(nextStoreBarcodes(['2000000000022', 'abc', '8901719101037'], 1)[0] === '2000000000039' && nextStoreBarcodes(['2000000000039', '2000000000015'], 1)[0] === '2000000000046',
+    'The next store barcode follows the highest one in use and never repeats a code');
+
+  // (e) Wiring: no label prints a code that is not saved on the item; xlsx loads only when importing.
+  const studioSrc = readSource('app/barcode-generator/page.tsx');
+  const quickSrc = readSource('components/products/QuickBarcodePrintModal.tsx');
+  assert(!/KP\$\{p(rod)?\.id/.test(studioSrc) && /await ensureProductBarcode\(prod\)/.test(studioSrc) && !/product\.id\.slice\(0, 10\)/.test(quickSrc) && /ensureProductBarcode\(product\)/.test(quickSrc),
+    'Labels always carry the item\'s saved barcode (an item without one gets its own code first) — a label scanned at the counter finds the item');
+  const importModalSrc = readSource('components/import/CatalogImportModal.tsx');
+  assert(/await import\('xlsx'\)/.test(importModalSrc) && !/from 'xlsx'/.test(importModalSrc)
+    && ['app/products/page.tsx', 'app/inventory/page.tsx'].every((f) => /\{isExcelImporterOpen && \(\s*<CatalogImportModal/.test(readSource(f)))
+    && !fs.existsSync(path.join(SRC_ROOT, 'components/inventory/ExcelInventoryImporter.tsx')),
+    'Excel import loads xlsx only when a file is opened, is mounted only while open, and the old importer is gone');
+  assert(/is_unlimited_stock: !counted/.test(readSource('lib/import/catalogImportDb.ts')) && /onOpenExcelImporter && \(/.test(readSource('components/products/ProductHeaderActions.tsx')),
+    'Imported items without a stock column are not counted (scanning never blocked); Products has an "Import Excel" button');
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.

@@ -63,6 +63,20 @@ export const ProductHeaderActions: React.FC<ProductHeaderActionsProps> = ({
           </Button>
         )}
 
+        {/* Excel / CSV price list: new items and price updates in one go */}
+        {onOpenExcelImporter && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onOpenExcelImporter}
+            className="text-xs font-black gap-1.5 rounded-xl border-slate-300 bg-white hover:bg-slate-50 cursor-pointer shadow-2xs"
+            title={tr('Add or update many items from an Excel / CSV price list')}
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+            <span>{tr('Import Excel')}</span>
+          </Button>
+        )}
+
         <Button
           size="sm"
           onClick={onOpenAddModal}
