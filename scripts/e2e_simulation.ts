@@ -70,6 +70,7 @@ import { generalCategoryId } from '../src/lib/products/defaultCategory';
 import { nextSupplierBalance } from '../src/lib/suppliers/supplierLedger';
 import { cleanVariantLabels, DEFAULT_COUNTED_STOCK, summarizeVariants, tracksOwnStock } from '../src/lib/products/variants';
 import { buildBillCustomer, isDraftEmpty, resolveBillCustomer, splitDraft, suggestCustomers } from '../src/lib/billing/billCustomer';
+import { DEFAULT_FEATURE_SWITCHES, FEATURES, featureForPath, isPathEnabled, parseFeatureSwitches, showSellingPriceField } from '../src/lib/features/featureSwitches';
 import {
   WALK_IN_ID,
   buildAdvancedReport,
@@ -1036,6 +1037,52 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     'Switching Unlimited off fills stock 10 and low-stock alert 10 (an already counted product gets its own numbers back)');
   assert(/stock: formIsUnlimitedStock \? 0 : parseFloat\(r\.stock\) \|\| 0/.test(productsSrc) && /unlimitedStock=\{formIsUnlimitedStock\}/.test(formSrc) && !tracksOwnStock({ has_variants: false, is_unlimited_stock: true }),
     'Unlimited variants carry no stock count and never show in low-stock alerts');
+}
+
+// 9c. Feature switches (v4.69.0): Settings → Features hides screens and form fields
+// (nothing is deleted); a 🔊 / 🔇 button mutes every sound in the app.
+{
+  const D = DEFAULT_FEATURE_SWITCHES;
+  assert(D.profit_privacy === true && !D.cash_register && !D.purchases && !D.suppliers && !D.gst_reports
+    && !D.product_selling_price && !D.product_cost_price && !D.product_hsn && !D.product_gst_rate && !D.product_size_colour && !D.product_variants,
+    'A new shop starts simple: Cash Register, Purchases, Suppliers, GST reports and the extra product fields are off; profit privacy is on');
+  assert(FEATURES.length === Object.keys(D).length && FEATURES.every((f) => f.id in D) && new Set(FEATURES.map((f) => f.id)).size === FEATURES.length, 'Every switch is listed once in Settings → Features');
+  const parsed = parseFeatureSwitches(JSON.stringify({ cash_register: true, suppliers: 'yes', business_type: 'pharmacy', purchases: false }));
+  assert(parsed.cash_register === true && parsed.suppliers === false && !('business_type' in parsed) && parseFeatureSwitches('{broken').gst_reports === false && parseFeatureSwitches(null).profit_privacy === true,
+    'Saved switches are read safely: only known switches with true / false count, a broken value falls back to the defaults');
+  assert(featureForPath('/cash-register/') === 'cash_register' && featureForPath('/cash-register?tally=open') === 'cash_register' && featureForPath('/purchases') === 'purchases'
+    && featureForPath('/suppliers') === 'suppliers' && featureForPath('/gst-reports') === 'gst_reports' && featureForPath('/billing') === undefined && featureForPath('/settings') === undefined,
+    'Each switchable screen is matched by its address (with / without trailing slash or query); billing and settings can never be switched off');
+  assert(!isPathEnabled('/purchases', D) && isPathEnabled('/purchases', { ...D, purchases: true }) && isPathEnabled('/khata', D), 'A screen is reachable only while its switch is on');
+  assert(!showSellingPriceField(false, null) && showSellingPriceField(true, null) && showSellingPriceField(false, { selling_price: 9000, mrp: 10000 }) && !showSellingPriceField(false, { selling_price: 10000, mrp: 10000 }),
+    'Selling Price off: the form shows only MRP — but an item whose price differs from its MRP still shows both, so saving never changes its price');
+
+  const sidebarSrc = readSource('components/layout/Sidebar.tsx');
+  const shellSrc = readSource('components/layout/AppShell.tsx');
+  const gateSrc = readSource('components/features/FeatureGate.tsx');
+  assert(/isPathEnabled\(item\.href, switches\)/.test(sidebarSrc) && /isPathEnabled\(tool\.href, switches\)/.test(readSource('components/dashboard/QuickToolsGrid.tsx')),
+    'Switched-off screens leave the menu and the Home shortcuts');
+  assert(/<FeatureGate pathname=\{pathname\}>\{children\}<\/FeatureGate>/.test(shellSrc) && /featureForPath\(pathname\)/.test(gateSrc) && /\/settings\?tab=features/.test(gateSrc),
+    'A switched-off screen opened by address shows "turned off — Settings → Features" instead of the page');
+  assert(/isFeatureOn\('profit_privacy'\)/.test(readSource('lib/auth/cashierPrivacy.ts')) && /if \(!privacyOn\) return null;/.test(readSource('components/privacy/ProfitMask.tsx'))
+    && /const unlocked = pinUnlocked \|\| !privacyOn;/.test(readSource('app/reports/page.tsx')),
+    'Privacy switch off: no "Cashier Privacy" button, no profit lock, reports show profit without a PIN');
+  const featuresTabSrc = readSource('components/settings/FeaturesTab.tsx');
+  assert(/useState\(\(\) => !hasOwnerPin\(\)\)/.test(featuresTabSrc) && /<OwnerPinPrompt/.test(featuresTabSrc) && /<FeaturesTab \/>/.test(readSource('app/settings/page.tsx')),
+    'Settings → Features needs the owner PIN when one is set (staff cannot switch profit privacy off)');
+  const formSrc = readSource('components/products/AddEditProductModal.tsx');
+  assert(['product_cost_price', 'product_hsn', 'product_gst_rate', 'product_size_colour', 'product_variants'].every((id) => formSrc.includes(`switches.${id} &&`)) && /\{showSellingPrice && \(/.test(formSrc) && /required=\{!showSellingPrice\}/.test(formSrc),
+    'Add Product: cost price, HSN, GST rate, size / colour and variants appear only when switched on; MRP is required when it is the only price');
+  const productsSrc = readSource('app/products/page.tsx');
+  assert(/const sellingPricePaise = sellingShown \? parseRupeesToPaise\(formSellingPrice\) : parseRupeesToPaise\(formMrp\);/.test(productsSrc)
+    && (productsSrc.match(/onOpenInwardSheet=\{switches\.purchases \?/g) || []).length === 2,
+    'An item saved without a separate selling price sells at its MRP; Bulk Inward (part of Purchases) hides with Purchases');
+
+  // Mute: every sound source checks the one switch.
+  assert(/if \(isSoundMuted\(\)\) return;/.test(readSource('lib/voice/speechParser.ts')) && /isSoundMuted\(\)\) return;/.test(readSource('lib/hardware/barcodeScannerListener.ts'))
+    && /isSoundMuted\(\)\) return;/.test(readSource('lib/payments/soundboxEngine.ts')),
+    '🔇 silences POS beeps, the scanner beep and the soundbox voice');
+  assert(/<SoundToggleButton \/>/.test(readSource('components/layout/Navbar.tsx')) && /aria-pressed=\{muted\}/.test(readSource('components/layout/SoundToggleButton.tsx')), 'The top bar has the 🔊 / 🔇 button');
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.

@@ -1,4 +1,5 @@
 import { Product } from '@/types';
+import { isSoundMuted } from '@/lib/sound/soundSettings';
 
 export interface ParsedVoiceItem {
   rawText: string;
@@ -148,6 +149,7 @@ export function parseSpokenBillingText(
  * Play a gentle Web Audio API sound for voice/barcode recognition confirmation
  */
 export function playBeepSound(type: 'success' | 'alert' = 'success') {
+  if (isSoundMuted()) return; // 🔇 in the top bar
   try {
     const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
     if (!AudioContext) return;

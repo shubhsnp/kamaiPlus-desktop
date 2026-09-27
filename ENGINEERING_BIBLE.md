@@ -1,7 +1,7 @@
 # 📕 KamaiPlus Desktop — Engineering Bible
 
 > **Canonical context file. Read this before touching any code.**
-> Last verified against the tree at v4.68.0, 2026‑09‑27 (sections carry the version they were last touched in).
+> Last verified against the tree at v4.69.0, 2026‑09‑27 (sections carry the version they were last touched in).
 
 This file exists so that an agent starting cold does **not** have to scan 180 source
 files, and does **not** re-solve problems that were already solved. Everything here
@@ -305,7 +305,7 @@ src/components/<feature>/   Feature components, one folder per domain
 src/components/ui/          Button, Card, Input, Modal  (that is all of it)
 src/lib/<domain>/           Engines — see table below
 src/types/index.ts          All domain types. Single file.
-scripts/e2e_simulation.ts   The test suite (§11). 424 assertions.
+scripts/e2e_simulation.ts   The test suite (§11). 438 assertions.
 scripts/bump_version.ts     Version bumper (+0.1 minor)
 public/barcodes/*.json      5 shipped offline barcode dictionaries
 ```
@@ -341,6 +341,8 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 | `i18n/core.ts` | `tr()` / `msg()` / `paymentMethodLabel` / `expenseCategoryLabel`; lazy-loads `src/locales/hi.json` / `mr.json` (§7.1) |
 | `i18n/index.tsx` | `I18nProvider` + `useTranslation()` (language state, remount on change) |
 | `support/contact.ts` | Support WhatsApp / phone / e-mail and their links (§2.5) |
+| `features/featureSwitches.ts` | Settings → Features on / off switches (§9.2): `useFeatureSwitches`, `isFeatureOn`, `featureForPath`, `showSellingPriceField` |
+| `sound/soundSettings.ts` | 🔊 / 🔇 for every beep and voice (`isSoundMuted`, `setSoundMuted`) — §9.2 |
 
 ---
 
@@ -370,6 +372,10 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 | `/onboarding` | First-run store creation | **standalone** |
 | `/invoice` | Public customer invoice link | **standalone** |
 | `/pay` | Public UPI payment link (`?pa=&pn=&am=`) | ⚠️ see §12 |
+
+`/cash-register`, `/purchases`, `/suppliers` and `/gst-reports` can be switched off in
+Settings → Features (§9.2): off = not in the Sidebar or on Home, and the address shows a
+"turned off" card (`<FeatureGate>` in AppShell). **Off by default for a new shop.**
 
 ### 4.1 Which file writes which Dexie table (verified — the real side-effect map)
 
@@ -558,9 +564,10 @@ src/app/layout.tsx          (server component — metadata, viewport, fonts)
     (└── <LicenceGate>      sits here, between the two — activation screen until licensed)
     └── <AppShell>          'use client' — auth guard, route classification, lockout
         └── <BusinessProvider>            ◄── THE single db.businesses live query
-            ├── <Navbar>                  store menu, language, lazy MerchantQRModal
+            ├── <Navbar>                  store menu, language, lazy MerchantQRModal, 🔊 SoundToggleButton
             ├── <Sidebar>                 4 sections, Ctrl+B collapse, prefetch={false}
-            ├── <main>{children}</main>   ◄── the route renders here
+            ├── <main><FeatureGate>{children}</FeatureGate></main>   ◄── the route renders here
+            │                                (switched-off screen → "turned off" card, §9.2)
             ├── <DesktopStatusBar>        online/printer/clock/version
             └── <GlobalDrawers>           right-edge Checkout + History pull-tabs
                                           (hidden on /billing)
@@ -587,6 +594,8 @@ There is no global state library. Modules talk through window events:
 | `print_settings_changed` | settings → print consumers |
 | `privacy_mode_changed` | cashier privacy toggle → ProfitMask |
 | `auto_backup_saved` | `autoBackup.ts` → AutoBackupCard refresh |
+| `feature_switches_changed` | `setFeatureSwitch` → every `useFeatureSwitches()` (Sidebar, Home, form, ProfitMask…) |
+| `sound_mute_changed` | `setSoundMuted` → SoundToggleButton |
 
 ### localStorage keys (complete, verified)
 
@@ -599,7 +608,8 @@ There is no global state library. Modules talk through window events:
 `kamai_barcode_price` · `kamai_barcode_mrp` · `kamai_barcode_date` ·
 `kamai_soundbox_lang` · `kamai_soundbox_vol` · `kamai_last_backup_time` ·
 `kamai_last_backup_type` · `kamai_last_restore_time` · `kamai_app_installed` ·
-`kamai_pwa_banner_dismissed` · `vyapar_language`
+`kamai_pwa_banner_dismissed` · `kamai_cashier_owner_pin` · `kamai_cashier_privacy_locked` ·
+`kamai_feature_switches` · `kamai_sound_muted` · `vyapar_language`
 
 sessionStorage (emptied when the app closes): `kamai_unlocked` · `kamai_return_to`.
 
@@ -723,6 +733,28 @@ Billing, returns, inventory, valuation and alerts already skip unlimited items
 (`tracksOwnStock`). Other creators keep their own rule: POS "unknown barcode" quick-add
 = 50 counted, Excel / bill inward = the quantity received.
 
+### 9.2 Feature switches — Settings → Features (v4.69.0)
+
+A shop hides what it does not use. **Per feature, never per trade** — nothing may branch
+on `business_type` (Suite 9 still bans it, and the identifier `featureToggles`; the
+module is `featureSwitches`). Switching off only hides; no data is deleted.
+
+| Switch | Default | Off means |
+| :--- | :--- | :--- |
+| `cash_register`, `purchases`, `suppliers`, `gst_reports` | off | not in Sidebar / Home tiles / Home links; the address shows `<FeatureGate>`'s "turned off" card. `purchases` off also hides Bulk Inward (Excel) on Products and in the Add Product form. |
+| `product_selling_price` | off | Add Product shows only **MRP (required)**; the item sells at MRP (`selling_price = mrp`). An existing item whose price ≠ MRP still shows both boxes (`showSellingPriceField`) so a save never changes its price. |
+| `product_cost_price`, `product_hsn`, `product_gst_rate`, `product_size_colour`, `product_variants` | off | field not shown; a new item gets 0 / empty / 0 % GST, an edited one keeps its value. |
+| `profit_privacy` | **on** | off = no "Cashier Privacy" button anywhere, `isProfitHidden()` always false, Reports show profit without the owner PIN. |
+
+- Stored **per computer** in localStorage `kamai_feature_switches` (one licence = one
+  computer), read through `useFeatureSwitches()` (re-renders on `feature_switches_changed`).
+- With an owner PIN set, the Features tab asks for it (`FeaturesTab` → `OwnerPinPrompt`);
+  otherwise staff could switch profit privacy off.
+- 🔊 / 🔇 (`SoundToggleButton`, top bar, `kamai_sound_muted`): `playBeepSound`,
+  `playSupermarketBeep` and the soundbox voice all return early when muted.
+- Suite 9 §9c; Electron E2E checks the new-shop form, menu, "turned off" card, a switch
+  going on, and the sound button.
+
 ### 9.1 Product variants (v4.49.0) — same model as the Android app
 
 Not a per-vertical mode: any shop can use it. `lib/products/variants.ts`.
@@ -793,7 +825,7 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 424/424, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 438/438, 0 failures
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
 git push origin main
@@ -804,7 +836,7 @@ billing), also run the real app:
 
 ```bash
 npx next build                      # out/ must be current
-npm run test:electron               # scripts/electron_e2e.mjs — 30/30
+npm run test:electron               # scripts/electron_e2e.mjs — 34/34
 ```
 
 `electron_e2e.mjs` launches the actual Electron app with Playwright (`playwright-core`,
@@ -814,14 +846,16 @@ in paise, stock −1, no page errors; restart → still licensed offline, master
 asked (even for `/billing`), wrong one refused, data kept, error log empty. Since v4.68.0
 also: Add Product opens unlimited (off → 10 / 10), a customer typed on the counter row is
 saved and linked to the bill, F1 / F2 / F4 / F8 / F9 / Esc work, and Enter / F10 under
-"Sale completed" never complete the bill waiting behind it. Its data goes to a temp folder via `KAMAI_E2E_DIR` (main.js honours it only
+"Sale completed" never complete the bill waiting behind it. Since v4.69.0: a new shop's
+Add Product form (MRP only), menu without the switched-off screens, the "turned off" card,
+a switch going on in Settings → Features, and the 🔊 / 🔇 button. Its data goes to a temp folder via `KAMAI_E2E_DIR` (main.js honours it only
 when `!app.isPackaged`). The licence is **signed for this PC with the private key** in
 `%USERPROFILE%\KamaiPlus-Secrets\` (or `KAMAI_LICENCE_PRIVATE_KEY`) — nothing is
 bypassed; without the key only the no-licence checks run. The script removes
 `ELECTRON_RUN_AS_NODE` (set by VS Code terminals), which otherwise stops Electron
 launching. Failure screenshots go to `%TEMP%\kamaiplus-e2e-shots\`.
 
-### Test suite map — `scripts/e2e_simulation.ts` (424 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (438 assertions)
 
 | Suite | Covers |
 | :--- | :--- |

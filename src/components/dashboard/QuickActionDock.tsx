@@ -12,6 +12,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { tr } from '@/lib/i18n/core';
+import { useFeatureSwitches } from '@/lib/features/featureSwitches';
 
 interface QuickActionDockProps {
   onOpenRapidInward?: () => void;
@@ -22,6 +23,8 @@ export const QuickActionDock: React.FC<QuickActionDockProps> = ({
   onOpenRapidInward,
   onOpenClosingReport,
 }) => {
+  // Purchases can be switched off in Settings → Features.
+  const purchasesOn = useFeatureSwitches().purchases;
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between px-1">
@@ -73,23 +76,25 @@ export const QuickActionDock: React.FC<QuickActionDockProps> = ({
         </Link>
 
         {/* 3. Stock Inward (Bills & Restock) */}
-        <Link href="/purchases" className="group">
-          <div className="bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-2xl p-3 sm:p-3.5 flex items-center justify-between gap-2 shadow-2xs border border-blue-200/80 dark:border-blue-900/60 active:scale-[0.98] transition-all cursor-pointer">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <Boxes className="w-4 h-4" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-xs font-black text-slate-900 dark:text-slate-100 truncate flex items-center gap-1">
-                  <span>{tr('Stock Inward')}</span>
+        {purchasesOn && (
+          <Link href="/purchases" className="group">
+            <div className="bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-2xl p-3 sm:p-3.5 flex items-center justify-between gap-2 shadow-2xs border border-blue-200/80 dark:border-blue-900/60 active:scale-[0.98] transition-all cursor-pointer">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <Boxes className="w-4 h-4" />
                 </div>
-                <div className="text-[10.5px] font-medium text-slate-400 truncate">
-                  {tr('Bills & Restock')}
+                <div className="min-w-0">
+                  <div className="text-xs font-black text-slate-900 dark:text-slate-100 truncate flex items-center gap-1">
+                    <span>{tr('Stock Inward')}</span>
+                  </div>
+                  <div className="text-[10.5px] font-medium text-slate-400 truncate">
+                    {tr('Bills & Restock')}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </Link>
+          </Link>
+        )}
 
         {/* 4. Day-End Closing Summary */}
         <div 

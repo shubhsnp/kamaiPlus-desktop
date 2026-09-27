@@ -49,17 +49,19 @@ export const ProductHeaderActions: React.FC<ProductHeaderActionsProps> = ({
       </div>
 
       <div className="flex items-center gap-1.5 self-start sm:self-center shrink-0 flex-wrap">
-        {/* Bulk Inward (Excel / CSV) Button */}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleInwardClick}
-          className="text-xs font-black gap-1.5 rounded-xl border-emerald-400/60 text-slate-900 dark:text-emerald-200 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 cursor-pointer shadow-2xs"
-          title={tr('Upload a distributor bill as an Excel / CSV file')}
-        >
-          <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-          <span>{tr('Bulk Inward (Excel)')}</span>
-        </Button>
+        {/* Bulk Inward (Excel / CSV) Button — part of Purchases (hidden when that is switched off) */}
+        {(onOpenInwardSheet || onOpenRapidInward) && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleInwardClick}
+            className="text-xs font-black gap-1.5 rounded-xl border-emerald-400/60 text-slate-900 dark:text-emerald-200 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 cursor-pointer shadow-2xs"
+            title={tr('Upload a distributor bill as an Excel / CSV file')}
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span>{tr('Bulk Inward (Excel)')}</span>
+          </Button>
+        )}
 
         <Button
           size="sm"

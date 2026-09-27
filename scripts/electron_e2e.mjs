@@ -231,12 +231,42 @@ async function run() {
       const tenTen = (await page.getByPlaceholder('e.g. 50').inputValue()) === '10' && (await page.getByPlaceholder('e.g. 5', { exact: true }).inputValue()) === '10';
       check(onByDefault && tenTen, 'Add Product: Unlimited stock is on by default; switching it off fills stock 10 and low-stock alert 10');
       await page.locator('label:has(input[aria-label="Unlimited Stock (no count)"])').click();
+      // v4.69.0 — a new shop's form shows only name, category, unit, MRP, barcode, stock.
+      const extraFields = await Promise.all(['e.g. 150.00', 'e.g. 120.00', 'e.g. 3401'].map((ph) => page.getByPlaceholder(ph).count()));
+      check(extraFields.every((n) => n === 0) && (await page.getByText('GST Tax Rate (%)').count()) === 0 && (await page.getByText('Variants (Size / Colour)').count()) === 0,
+        'Add Product (new shop): Selling Price, Cost Price, HSN, GST rate and Variants are hidden; MRP is the price');
       await page.getByPlaceholder('e.g. Fortune Sunflower Oil 1L').fill('E2E Unlimited Item');
-      await page.getByPlaceholder('e.g. 150.00').fill('25');
+      await page.getByPlaceholder('e.g. 165.00').fill('25');
       await page.getByRole('button', { name: /Save Product/ }).click();
       await page.waitForTimeout(800);
       const unlimitedItem = (await readStore(page, 'products')).find((p) => p.name === 'E2E Unlimited Item');
-      check(unlimitedItem && unlimitedItem.is_unlimited_stock === true, 'The new item is saved as unlimited stock');
+      check(unlimitedItem && unlimitedItem.is_unlimited_stock === true && unlimitedItem.selling_price === 2500 && unlimitedItem.mrp === 2500 && unlimitedItem.tax_rate === 0,
+        'The new item is saved as unlimited stock and sells at its MRP (₹25 = 2500 paise, no GST)');
+
+      // v4.69.0 — Settings → Features: switched-off screens leave the menu; a direct
+      // address shows "turned off"; switching on brings the screen back.
+      step = 'feature switches';
+      const menuHas = async (href) => (await page.locator(`aside a[href="${href}"]`).count()) > 0;
+      const hiddenByDefault = !(await menuHas('/cash-register')) && !(await menuHas('/purchases')) && !(await menuHas('/suppliers')) && !(await menuHas('/gst-reports')) && (await menuHas('/billing'));
+      await page.evaluate(() => { window.location.href = '/cash-register/'; });
+      const offCard = await textVisible(page, 'is turned off', 15000);
+      check(hiddenByDefault && offCard, 'New shop: Cash Register, Purchases, Suppliers and GST are not in the menu; opening Cash Register directly says it is turned off');
+      await page.evaluate(() => { window.location.href = '/settings/?tab=features'; });
+      const cashSwitch = page.getByRole('checkbox', { name: 'Cash Register' });
+      await cashSwitch.waitFor({ state: 'attached', timeout: 15000 });
+      await page.locator('label:has(input[data-feature="cash_register"])').click();
+      await page.waitForTimeout(400);
+      check((await cashSwitch.isChecked()) && (await menuHas('/cash-register')), 'Settings → Features: switching Cash Register on puts it back in the menu at once');
+      await page.locator('label:has(input[data-feature="cash_register"])').click();
+      await page.waitForTimeout(300);
+
+      // 🔊 / 🔇 in the top bar.
+      const soundBtn = page.locator('header button[aria-pressed]').first();
+      await soundBtn.click();
+      const mutedNow = await page.evaluate(() => localStorage.getItem('kamai_sound_muted'));
+      await soundBtn.click();
+      const unmutedNow = await page.evaluate(() => localStorage.getItem('kamai_sound_muted'));
+      check(mutedNow === 'true' && unmutedNow === 'false', 'Top bar sound button mutes and unmutes the app');
 
       // v4.68.0 — customer typed on the counter row (no pop-up) is saved with the bill.
       step = 'counter customer';

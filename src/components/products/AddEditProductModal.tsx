@@ -21,6 +21,7 @@ import { Product, Category, ProductUnit } from '@/types';
 import { MASTER_UNITS } from '@/lib/constants/storeProfiles';
 import { VariantMatrixEditor, VariantRow } from '@/components/products/VariantMatrixEditor';
 import { DEFAULT_COUNTED_STOCK } from '@/lib/products/variants';
+import { showSellingPriceField, useFeatureSwitches } from '@/lib/features/featureSwitches';
 import { tr } from '@/lib/i18n/core';
 
 interface AddEditProductModalProps {
@@ -127,6 +128,14 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
   }, [isOpen]);
   const sizeColorVisible = showSizeColor || Boolean(formSize || formColor);
 
+  // Settings → Features decides which optional fields the form shows. A hidden field
+  // keeps whatever value the product already has; a new product gets it empty / 0.
+  const switches = useFeatureSwitches();
+  const showSellingPrice = showSellingPriceField(switches.product_selling_price, editingProduct);
+  const priceFieldCount = 1 + (showSellingPrice ? 1 : 0) + (switches.product_cost_price ? 1 : 0);
+  const codeFieldCount = 1 + (switches.product_hsn ? 1 : 0) + (switches.product_gst_rate ? 1 : 0);
+  const SM_COLS: Record<number, string> = { 1: 'sm:grid-cols-1', 2: 'sm:grid-cols-2', 3: 'sm:grid-cols-3' };
+
   return (
     <Modal
       isOpen={isOpen}
@@ -223,42 +232,48 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
           </div>
         </div>
 
-        {/* Pricing: Selling Price, MRP, Purchase Price */}
+        {/* Pricing: Selling Price, MRP, Purchase Price. With "Separate Selling Price"
+            off (Settings → Features) only MRP shows and the item sells at MRP. */}
         <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2.5">
           <div className="text-xs font-black text-slate-800 dark:text-slate-200">
-            {tr('Pricing & Profit Margins')}
+            {switches.product_cost_price ? tr('Pricing & Profit Margins') : tr('Price')}
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className={`grid grid-cols-1 ${SM_COLS[priceFieldCount]} gap-3`}>
+            {showSellingPrice && (
+              <Input
+                label={tr('Selling Price (₹) *')}
+                placeholder={tr('e.g. 150.00')}
+                type="number"
+                step="0.01"
+                value={formSellingPrice}
+                onChange={(e) => setFormSellingPrice(e.target.value)}
+                required
+              />
+            )}
             <Input
-              label={tr('Selling Price (₹) *')}
-              placeholder={tr('e.g. 150.00')}
-              type="number"
-              step="0.01"
-              value={formSellingPrice}
-              onChange={(e) => setFormSellingPrice(e.target.value)}
-              required
-            />
-            <Input
-              label={tr('MRP Maximum Retail (₹)')}
+              label={showSellingPrice ? tr('MRP Maximum Retail (₹)') : tr('MRP (₹) *')}
               placeholder={tr('e.g. 165.00')}
               type="number"
               step="0.01"
               value={formMrp}
               onChange={(e) => setFormMrp(e.target.value)}
+              required={!showSellingPrice}
             />
-            <Input
-              label={tr('Purchase / Cost Price (₹)')}
-              placeholder={tr('e.g. 120.00')}
-              type="number"
-              step="0.01"
-              value={formPurchasePrice}
-              onChange={(e) => setFormPurchasePrice(e.target.value)}
-            />
+            {switches.product_cost_price && (
+              <Input
+                label={tr('Purchase / Cost Price (₹)')}
+                placeholder={tr('e.g. 120.00')}
+                type="number"
+                step="0.01"
+                value={formPurchasePrice}
+                onChange={(e) => setFormPurchasePrice(e.target.value)}
+              />
+            )}
           </div>
         </div>
 
-        {/* Barcode, HSN & GST Rate */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {/* Barcode, HSN & GST Rate (HSN and GST only when switched on in Settings → Features) */}
+        <div className={`grid grid-cols-1 ${SM_COLS[codeFieldCount]} gap-3`}>
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
@@ -281,38 +296,42 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
           </div>
 
           {/* HSN / SAC: printed on GST invoices and grouped in the GSTR-1 HSN summary */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-              {tr('HSN / SAC Code')}
-            </label>
-            <Input
-              placeholder={tr('e.g. 3401')}
-              inputMode="numeric"
-              maxLength={8}
-              value={formHsn}
-              onChange={(e) => setFormHsn(e.target.value.replace(/\D/g, ''))}
-            />
-          </div>
+          {switches.product_hsn && (
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                {tr('HSN / SAC Code')}
+              </label>
+              <Input
+                placeholder={tr('e.g. 3401')}
+                inputMode="numeric"
+                maxLength={8}
+                value={formHsn}
+                onChange={(e) => setFormHsn(e.target.value.replace(/\D/g, ''))}
+              />
+            </div>
+          )}
 
-          <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-              {tr('GST Tax Rate (%)')}
-            </label>
-            <select
-              value={formTaxRate}
-              onChange={(e) => setFormTaxRate(Number(e.target.value))}
-              className="w-full h-10 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-sky-500"
-            >
-              {/* Slabs since the 22 Sep 2025 GST rate change; 12% / 28% kept for items still billed at the old rate. */}
-              <option value={0}>{tr('0% (Exempt / Nil Rated)')}</option>
-              <option value={3}>{tr('3% (Gold / Silver / Jewellery)')}</option>
-              <option value={5}>{tr('5% (Essential / Daily Use)')}</option>
-              <option value={18}>{tr('18% (Standard Rate)')}</option>
-              <option value={40}>{tr('40% (Luxury / Sin Goods)')}</option>
-              <option value={12}>{tr('12% (old slab)')}</option>
-              <option value={28}>{tr('28% (old slab)')}</option>
-            </select>
-          </div>
+          {switches.product_gst_rate && (
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                {tr('GST Tax Rate (%)')}
+              </label>
+              <select
+                value={formTaxRate}
+                onChange={(e) => setFormTaxRate(Number(e.target.value))}
+                className="w-full h-10 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-sky-500"
+              >
+                {/* Slabs since the 22 Sep 2025 GST rate change; 12% / 28% kept for items still billed at the old rate. */}
+                <option value={0}>{tr('0% (Exempt / Nil Rated)')}</option>
+                <option value={3}>{tr('3% (Gold / Silver / Jewellery)')}</option>
+                <option value={5}>{tr('5% (Essential / Daily Use)')}</option>
+                <option value={18}>{tr('18% (Standard Rate)')}</option>
+                <option value={40}>{tr('40% (Luxury / Sin Goods)')}</option>
+                <option value={12}>{tr('12% (old slab)')}</option>
+                <option value={28}>{tr('28% (old slab)')}</option>
+              </select>
+            </div>
+          )}
         </div>
 
         {/* Stock: "Unlimited" (no count) is the default for a new item, like the
@@ -375,7 +394,7 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
 
 
         {/* Optional variant attributes (size / colour) */}
-        {!sizeColorVisible && (
+        {switches.product_size_colour && !sizeColorVisible && (
           <button
             type="button"
             onClick={() => setShowSizeColor(true)}
@@ -384,7 +403,7 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
             {tr('+ Add size / colour')}
           </button>
         )}
-        {sizeColorVisible && (
+        {switches.product_size_colour && sizeColorVisible && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
               label={tr('Size / Dimensions')}
@@ -402,13 +421,13 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
         )}
 
         {/* Variants matrix: new products only (edit a variant from the Variants list) */}
-        {!editingProduct && setVariantsEnabled && setVariantRows && (
+        {switches.product_variants && !editingProduct && setVariantsEnabled && setVariantRows && (
           <VariantMatrixEditor
             enabled={variantsEnabled}
             onToggle={setVariantsEnabled}
             rows={variantRows}
             onChange={setVariantRows}
-            defaults={{ price: formSellingPrice, mrp: formMrp, stock: formStock }}
+            defaults={{ price: showSellingPrice ? formSellingPrice : formMrp, mrp: formMrp, stock: formStock }}
             unlimitedStock={formIsUnlimitedStock}
           />
         )}

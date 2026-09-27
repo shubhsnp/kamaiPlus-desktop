@@ -27,6 +27,7 @@ import { ProductTableView } from '@/components/products/ProductTableView';
 import { QuickBarcodePrintModal } from '@/components/products/QuickBarcodePrintModal';
 import { AddEditProductModal } from '@/components/products/AddEditProductModal';
 import { VariantRow } from '@/components/products/VariantMatrixEditor';
+import { showSellingPriceField, useFeatureSwitches } from '@/lib/features/featureSwitches';
 import { createProductWithVariants, DEFAULT_COUNTED_STOCK, deleteProductAndVariants, isVariantChild, isVariantParent, tracksOwnStock } from '@/lib/products/variants';
 import { tr } from '@/lib/i18n/core';
 
@@ -114,6 +115,8 @@ export default function ProductsPage() {
   const allProducts = useLiveQuery(async () => db.products.toArray()) || [];
   const categories = useLiveQuery(async () => db.categories.toArray()) || [];
   const business = useBusiness();
+  // Settings → Features: optional form fields, and Bulk Inward belongs to Purchases.
+  const switches = useFeatureSwitches();
 
   const categoryMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -238,7 +241,13 @@ export default function ProductsPage() {
     e.preventDefault();
     setFormError('');
 
-    const sellingPricePaise = parseRupeesToPaise(formSellingPrice);
+    // "Separate Selling Price" off: the form shows only MRP and the item sells at MRP.
+    const sellingShown = showSellingPriceField(switches.product_selling_price, editingProduct);
+    if (!sellingShown && !(parseRupeesToPaise(formMrp || '0') > 0)) {
+      setFormError(tr('Enter the MRP (₹).'));
+      return;
+    }
+    const sellingPricePaise = sellingShown ? parseRupeesToPaise(formSellingPrice) : parseRupeesToPaise(formMrp);
     const purchasePricePaise = formPurchasePrice ? parseRupeesToPaise(formPurchasePrice) : 0;
     const mrpPaise = formMrp ? parseRupeesToPaise(formMrp) : sellingPricePaise;
     const stockNum = parseFloat(formStock) || 0;
@@ -448,7 +457,7 @@ export default function ProductsPage() {
         totalProducts={allProducts.length}
         onOpenAddModal={handleOpenAddModal}
         onOpenExcelImporter={() => setIsExcelImporterOpen(true)}
-        onOpenInwardSheet={() => setIsPurchaseSheetOpen(true)}
+        onOpenInwardSheet={switches.purchases ? () => setIsPurchaseSheetOpen(true) : undefined}
       />
 
       {/* 2. Metrics Ribbon */}
@@ -557,7 +566,7 @@ export default function ProductsPage() {
         setFormColor={setFormColor}
         onOpenScanner={() => setIsScannerOpen(true)}
         onOpenAddCategoryModal={() => setIsAddCategoryModalOpen(true)}
-        onOpenInwardSheet={() => setIsPurchaseSheetOpen(true)}
+        onOpenInwardSheet={switches.purchases ? () => setIsPurchaseSheetOpen(true) : undefined}
         onSubmit={handleSaveProduct}
         onDeleteProduct={handleDeleteProduct}
         formError={formError}

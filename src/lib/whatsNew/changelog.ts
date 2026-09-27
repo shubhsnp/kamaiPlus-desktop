@@ -15,6 +15,14 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.69.0',
+    items: [
+      msg('Settings → Features: switch Cash Register, Purchases, Suppliers, GST reports and extra product fields on or off. Switching off only hides them — nothing is deleted.'),
+      msg('A simpler Add Product form: name, MRP, barcode and stock. Turn on Selling Price, Cost Price, HSN, GST, size / colour or variants when you need them.'),
+      msg('Sound on / off button in the top bar.'),
+    ],
+  },
+  {
     version: '4.68.0',
     items: [
       msg('Billing: type the customer\'s name and mobile right on the bill — no pop-up. Saved customers show underneath; someone new is saved when the bill is completed.'),

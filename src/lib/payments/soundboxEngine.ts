@@ -3,6 +3,8 @@
  * Replicates Paytm / PhonePe Soundbox voice announcements in Hindi, Marathi, English, and Gujarati.
  */
 
+import { isSoundMuted } from '@/lib/sound/soundSettings';
+
 export type SoundboxLanguage = 'hi-IN' | 'mr-IN' | 'en-IN' | 'gu-IN';
 
 // Hindi number words up to 999
@@ -209,7 +211,7 @@ class SoundboxService {
    * Triggers the full Soundbox Voice sequence: Chime -> Speech synthesis
    */
   public async announcePayment(amountRupees: number, storeName = 'कमाई प्लस'): Promise<void> {
-    if (this.isMuted || this.volume <= 0) return;
+    if (this.isMuted || this.volume <= 0 || isSoundMuted()) return;
 
     // 1. Play rising acoustic chime
     await this.playChime();

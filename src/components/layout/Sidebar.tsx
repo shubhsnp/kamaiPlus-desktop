@@ -27,6 +27,7 @@ import {
 import { APP_VERSION } from '@/lib/constants/version';
 import { cn } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
+import { isPathEnabled, useFeatureSwitches } from '@/lib/features/featureSwitches';
 
 interface SidebarProps {
   isCollapsed?: boolean;
@@ -39,6 +40,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const pathname = usePathname();
   const { t } = useTranslation();
+  // Screens switched off in Settings → Features are not listed.
+  const switches = useFeatureSwitches();
 
   const [internalCollapsed, setInternalCollapsed] = useState<boolean>(false);
 
@@ -121,7 +124,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { href: '/settings', label: tr('Settings'), icon: Settings, iconBg: 'bg-slate-100 text-slate-700', activeIcon: 'text-slate-300' },
       ],
     },
-  ], [t]);
+  ].map((sec) => ({ ...sec, items: sec.items.filter((item) => isPathEnabled(item.href, switches)) }))
+    .filter((sec) => sec.items.length > 0), [t, switches]);
 
   return (
     <aside 

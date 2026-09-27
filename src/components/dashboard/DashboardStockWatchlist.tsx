@@ -13,6 +13,7 @@ import {
 import { Product } from '@/types';
 import { formatINR, cn } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
+import { useFeatureSwitches } from '@/lib/features/featureSwitches';
 
 interface DashboardStockWatchlistProps {
   stockWatchlist: Product[];
@@ -29,6 +30,8 @@ export const DashboardStockWatchlist: React.FC<DashboardStockWatchlistProps> = (
   onQuickRestock,
   onOpenRapidInward,
 }) => {
+  // Purchases can be switched off in Settings → Features.
+  const purchasesOn = useFeatureSwitches().purchases;
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
   if (stockWatchlist.length === 0) return null;
@@ -66,15 +69,17 @@ export const DashboardStockWatchlist: React.FC<DashboardStockWatchlistProps> = (
         </div>
 
         <div className="flex items-center gap-1.5 flex-wrap self-start sm:self-center">
-          <Link href="/purchases">
-            <button
-              type="button"
-              className="px-2.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1 transition cursor-pointer shadow-xs active:scale-95"
-            >
-              <Boxes className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{tr('Restock Bills')}</span>
-            </button>
-          </Link>
+          {purchasesOn && (
+            <Link href="/purchases">
+              <button
+                type="button"
+                className="px-2.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1 transition cursor-pointer shadow-xs active:scale-95"
+              >
+                <Boxes className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{tr('Restock Bills')}</span>
+              </button>
+            </Link>
+          )}
 
           <Link href="/products?filter=low_stock">
             <button

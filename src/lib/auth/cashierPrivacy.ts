@@ -1,5 +1,7 @@
 'use client';
 
+import { isFeatureOn } from '@/lib/features/featureSwitches';
+
 const PIN_STORAGE_KEY = 'kamai_cashier_owner_pin';
 const PRIVACY_MODE_KEY = 'kamai_cashier_privacy_locked';
 
@@ -38,10 +40,12 @@ export function setOwnerCashierPin(newPin: string): boolean {
 }
 
 /**
- * Checks if sensitive profit & purchase prices are currently locked/hidden
+ * Checks if sensitive profit & purchase prices are currently locked/hidden.
+ * Never, when Settings → Features → "Hide profit from staff" is off.
  */
 export function isProfitHidden(): boolean {
   if (typeof window === 'undefined') return false;
+  if (!isFeatureOn('profit_privacy')) return false;
   try {
     return localStorage.getItem(PRIVACY_MODE_KEY) === 'true';
   } catch {

@@ -17,6 +17,7 @@ import {
   HardDrive
 } from 'lucide-react';
 import { tr } from '@/lib/i18n/core';
+import { isPathEnabled, useFeatureSwitches } from '@/lib/features/featureSwitches';
 
 interface QuickToolsGridProps {
   productsCount: number;
@@ -25,6 +26,8 @@ interface QuickToolsGridProps {
 export const QuickToolsGrid: React.FC<QuickToolsGridProps> = ({
   productsCount,
 }) => {
+  // Screens switched off in Settings → Features get no shortcut tile.
+  const switches = useFeatureSwitches();
   const toolSections = [
     {
       title: tr('Daily Counter & Ops'),
@@ -140,7 +143,8 @@ export const QuickToolsGrid: React.FC<QuickToolsGridProps> = ({
         },
       ],
     },
-  ];
+  ].map((sec) => ({ ...sec, tools: sec.tools.filter((tool) => isPathEnabled(tool.href, switches)) }))
+    .filter((sec) => sec.tools.length > 0);
 
   return (
     <div className="space-y-4">

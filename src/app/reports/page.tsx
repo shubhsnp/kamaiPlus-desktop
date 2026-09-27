@@ -22,6 +22,7 @@ import {
 import { saveGeneralReportPdf, savePartyStatementPdf } from '@/lib/reports/reportOutput';
 import { getDesktopApi } from '@/lib/desktop/desktopBridge';
 import { OwnerPinPrompt } from '@/components/privacy/OwnerPinPrompt';
+import { useFeatureSwitches } from '@/lib/features/featureSwitches';
 import { CategoryList, DeadStockList, ItemList, PartyList, ProfitView, profitText } from '@/components/reports/analytics/AnalyticsLists';
 import { PartyDetailModal } from '@/components/reports/analytics/PartyDetailModal';
 import { CategoryDetailModal } from '@/components/reports/analytics/CategoryDetailModal';
@@ -45,7 +46,10 @@ export default function SalesAnalyticsPage() {
   const [sort, setSort] = useState<ReportSort>('sales');
   const [tab, setTab] = useState<Tab>('parties');
   const [search, setSearch] = useState('');
-  const [unlocked, setUnlocked] = useState(false);
+  const [pinUnlocked, setUnlocked] = useState(false);
+  // Settings → Features → "Hide profit from staff" off: profit is always shown, no PIN.
+  const privacyOn = useFeatureSwitches().profit_privacy;
+  const unlocked = pinUnlocked || !privacyOn;
   const [pinOpen, setPinOpen] = useState(false);
   const [openParty, setOpenParty] = useState<PartySalesSummary | null>(null);
   const [openCategory, setOpenCategory] = useState<CategorySalesSummary | null>(null);
@@ -124,14 +128,16 @@ export default function SalesAnalyticsPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => (unlocked ? setUnlocked(false) : setPinOpen(true))}
-            className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 inline-flex items-center gap-1.5 cursor-pointer hover:bg-slate-50"
-            title={unlocked ? tr('Hide profit') : tr('Show profit (owner PIN)')}
-          >
-            {unlocked ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />} {unlocked ? tr('Hide Profit') : tr('Show Profit')}
-          </button>
+          {privacyOn && (
+            <button
+              type="button"
+              onClick={() => (unlocked ? setUnlocked(false) : setPinOpen(true))}
+              className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 inline-flex items-center gap-1.5 cursor-pointer hover:bg-slate-50"
+              title={unlocked ? tr('Hide profit') : tr('Show profit (owner PIN)')}
+            >
+              {unlocked ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />} {unlocked ? tr('Hide Profit') : tr('Show Profit')}
+            </button>
+          )}
           <button
             type="button"
             onClick={exportGeneral}

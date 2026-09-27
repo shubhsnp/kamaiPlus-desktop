@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { isSoundMuted } from '@/lib/sound/soundSettings';
 
 // Plays an authentic supermarket POS laser scanner beep (2400Hz frequency sine wave)
 export function playSupermarketBeep() {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined' || isSoundMuted()) return;
   try {
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
     if (!AudioContextClass) return;

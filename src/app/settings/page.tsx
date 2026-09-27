@@ -37,6 +37,7 @@ import { UpiBankingTab } from '@/components/settings/UpiBankingTab';
 import { InvoiceSettingsTab } from '@/components/settings/InvoiceSettingsTab';
 import { DataMaintenanceTab } from '@/components/settings/DataMaintenanceTab';
 import { HelpSupportTab } from '@/components/settings/HelpSupportTab';
+import { FeaturesTab } from '@/components/settings/FeaturesTab';
 import { msg, tr } from '@/lib/i18n/core';
 
 
@@ -153,6 +154,7 @@ export default function SettingsPage() {
       const tab = new URLSearchParams(window.location.search).get('tab');
       if (tab === 'invoice' || tab === 'invoicing') setActiveTab('invoicing');
       else if (tab === 'upi') setActiveTab('upi');
+      else if (tab === 'features') setActiveTab('features');
     } catch {}
   }, []);
 
@@ -528,6 +530,8 @@ export default function SettingsPage() {
       {activeTab === 'data' && (
         <DataMaintenanceTab business={business} />
       )}
+
+      {activeTab === 'features' && <FeaturesTab />}
 
       {activeTab === 'help' && <HelpSupportTab />}
 

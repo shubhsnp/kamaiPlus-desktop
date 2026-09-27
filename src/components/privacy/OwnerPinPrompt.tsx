@@ -13,8 +13,16 @@ import { tr } from '@/lib/i18n/core';
  * screen (Android OwnerPrivacyModal). Unlike the app-wide Cashier Privacy lock
  * it changes nothing globally — closing the screen hides the figures again.
  * With no PIN yet (or a forgotten one) the owner sets one with the master password.
+ * Also guards Settings → Features (title / description / button text passed in).
  */
-export function OwnerPinPrompt({ isOpen, onClose, onUnlocked }: { isOpen: boolean; onClose: () => void; onUnlocked: () => void }) {
+export function OwnerPinPrompt({ isOpen, onClose, onUnlocked, title, description, submitLabel }: {
+  isOpen: boolean;
+  onClose: () => void;
+  onUnlocked: () => void;
+  title?: string;
+  description?: string;
+  submitLabel?: string;
+}) {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [settingUp, setSettingUp] = useState(false);
@@ -43,7 +51,7 @@ export function OwnerPinPrompt({ isOpen, onClose, onUnlocked }: { isOpen: boolea
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={settingUp ? tr('Set your owner PIN') : tr('Owner PIN required')} description={tr('Profit and margins are hidden from staff.')} size="sm">
+    <Modal isOpen={isOpen} onClose={onClose} title={settingUp ? tr('Set your owner PIN') : title || tr('Owner PIN required')} description={description || tr('Profit and margins are hidden from staff.')} size="sm">
       {settingUp ? (
         <OwnerPinSetup
           intro={hasOwnerPin() ? tr('Reset the owner PIN with your master password.') : tr('Choose a 4-digit PIN that only you know. Staff will need it to see profit and cost prices.')}
@@ -64,7 +72,7 @@ export function OwnerPinPrompt({ isOpen, onClose, onUnlocked }: { isOpen: boolea
           />
           {error && <p className="text-xs font-bold text-rose-600">{error}</p>}
           <Button type="submit" className="w-full" disabled={pin.length !== 4}>
-            <KeyRound className="w-4 h-4" /> {tr('Show Profit')}
+            <KeyRound className="w-4 h-4" /> {submitLabel || tr('Show Profit')}
           </Button>
           <button type="button" onClick={() => setSettingUp(true)} className="w-full text-xs font-bold text-amber-700 hover:underline">
             {tr('Forgot PIN? Reset it with your master password')}

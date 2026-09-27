@@ -8,13 +8,14 @@ import {
   Sparkles,
   Palette,
   HardDrive,
-  LifeBuoy
+  LifeBuoy,
+  ToggleRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { tr } from '@/lib/i18n/core';
 
-export type SettingsTabType = 'profile' | 'upi' | 'invoicing' | 'data' | 'help';
+export type SettingsTabType = 'profile' | 'features' | 'upi' | 'invoicing' | 'data' | 'help';
 
 interface SettingsNavTabsProps {
   activeTab: SettingsTabType;
@@ -33,6 +34,12 @@ export const SettingsNavTabs: React.FC<SettingsNavTabsProps> = ({
       label: tr('Store & GST Profile'),
       shortLabel: tr('Store'),
       icon: Store,
+    },
+    {
+      id: 'features' as SettingsTabType,
+      label: tr('Features ON / OFF'),
+      shortLabel: tr('Features'),
+      icon: ToggleRight,
     },
     {
       id: 'upi' as SettingsTabType,

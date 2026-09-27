@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Lock, Unlock, Eye, EyeOff } from 'lucide-react';
 import { isProfitHidden, setProfitHidden } from '@/lib/auth/cashierPrivacy';
+import { FEATURE_SWITCHES_EVENT, useFeatureSwitches } from '@/lib/features/featureSwitches';
 import { CashierPinModal } from './CashierPinModal';
 import { formatINR } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
@@ -33,7 +34,11 @@ export function ProfitMask({
       setHidden(isProfitHidden());
     };
     window.addEventListener('privacy_mode_changed', handlePrivacyChange);
-    return () => window.removeEventListener('privacy_mode_changed', handlePrivacyChange);
+    window.addEventListener(FEATURE_SWITCHES_EVENT, handlePrivacyChange);
+    return () => {
+      window.removeEventListener('privacy_mode_changed', handlePrivacyChange);
+      window.removeEventListener(FEATURE_SWITCHES_EVENT, handlePrivacyChange);
+    };
   }, []);
 
   const displayContent = children !== undefined
@@ -72,6 +77,7 @@ export function ProfitMask({
  * Header toggle button for Cashier Privacy Lock
  */
 export function CashierPrivacyToggleButton() {
+  const privacyOn = useFeatureSwitches().profit_privacy;
   const [hidden, setHidden] = useState<boolean>(false);
   const [isPinModalOpen, setIsPinModalOpen] = useState<boolean>(false);
 
@@ -81,7 +87,11 @@ export function CashierPrivacyToggleButton() {
       setHidden(isProfitHidden());
     };
     window.addEventListener('privacy_mode_changed', handlePrivacyChange);
-    return () => window.removeEventListener('privacy_mode_changed', handlePrivacyChange);
+    window.addEventListener(FEATURE_SWITCHES_EVENT, handlePrivacyChange);
+    return () => {
+      window.removeEventListener('privacy_mode_changed', handlePrivacyChange);
+      window.removeEventListener(FEATURE_SWITCHES_EVENT, handlePrivacyChange);
+    };
   }, []);
 
   const handleToggle = () => {
@@ -93,6 +103,9 @@ export function CashierPrivacyToggleButton() {
       setProfitHidden(true);
     }
   };
+
+  // Settings → Features → "Hide profit from staff" off: no privacy button anywhere.
+  if (!privacyOn) return null;
 
   return (
     <>

@@ -37,6 +37,7 @@ import { AuthUser, getStoredUser, setStoredUser, logoutUser } from '@/lib/auth';
 import { tr } from '@/lib/i18n/core';
 import { lockApp } from '@/lib/auth/masterPassword';
 import { getIdleLockMinutes, IDLE_LOCK_OPTIONS, setIdleLockMinutes } from '@/lib/auth/idleLock';
+import { SoundToggleButton } from './SoundToggleButton';
 
 
 export const Navbar: React.FC = () => {
@@ -118,6 +119,9 @@ export const Navbar: React.FC = () => {
             <QrCode className="w-3.5 h-3.5 text-slate-700" />
             <span className="hidden sm:inline">{tr('Store QR')}</span>
           </button>
+
+          {/* Sound on / off for every beep and voice in the app */}
+          <SoundToggleButton />
 
 
 

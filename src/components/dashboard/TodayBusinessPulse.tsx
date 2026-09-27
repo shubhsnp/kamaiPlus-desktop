@@ -14,6 +14,7 @@ import {
   Receipt
 } from 'lucide-react';
 import { tr } from '@/lib/i18n/core';
+import { useFeatureSwitches } from '@/lib/features/featureSwitches';
 
 interface TodayBusinessPulseProps {
   todaysSalesTotal: number;
@@ -40,6 +41,40 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
 }) => {
   const marginBase = profitCoveredRevenue ?? todaysSalesTotal;
   const profitMarginPercent = marginBase > 0 ? Math.round((todaysGrossProfit / marginBase) * 100) : 0;
+
+  // Cash Register can be switched off in Settings → Features (then the card is not a link).
+  const cashRegisterOn = useFeatureSwitches().cash_register;
+  const cashInHandCard = (
+    <Card className="p-3 sm:p-3.5 bg-gradient-to-br from-white to-amber-50/60 dark:from-slate-900 dark:to-amber-950/20 border border-amber-200/90 dark:border-amber-800/60 hover:border-amber-400 active:scale-[0.98] transition-all rounded-2xl shadow-2xs group-hover:shadow-md h-full flex flex-col justify-between cursor-pointer">
+      <div>
+        <div className="flex items-center justify-between gap-1">
+          <div className="flex items-center gap-1.5 text-amber-800 dark:text-amber-300 font-extrabold text-[10.5px] sm:text-xs uppercase tracking-tight truncate">
+            <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+            <span className="truncate">{tr('Cash in Hand')}</span>
+          </div>
+          <span className="px-1.5 py-0.2 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 text-[9px] font-black">
+            {tr('Till / Galla')}
+          </span>
+        </div>
+
+        <div className="text-base sm:text-xl font-black text-slate-900 dark:text-slate-100 font-mono tracking-tight mt-1.5 truncate">
+          {formatINR(netCashInHand)}
+        </div>
+      </div>
+
+      <div className="pt-1.5 mt-1.5 border-t border-amber-100/80 dark:border-amber-900/40 flex items-center justify-between text-[10px] sm:text-[11px]">
+        <span className="text-slate-500 dark:text-slate-400 font-semibold truncate">
+          {tr('Cash Sales - Exp')}
+        </span>
+        {cashRegisterOn && (
+          <span className="text-amber-700 dark:text-amber-400 font-bold inline-flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform text-[10px]">
+            <span>{tr('Register')}</span>
+            <ArrowRight className="w-2.5 h-2.5" />
+          </span>
+        )}
+      </div>
+    </Card>
+  );
 
   return (
     <div className="space-y-2.5">
@@ -120,35 +155,12 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
         </div>
 
         {/* 3. Cash in Drawer (Galle me Cash) */}
-        <Link href="/cash-register" className="group block focus:outline-none">
-          <Card className="p-3 sm:p-3.5 bg-gradient-to-br from-white to-amber-50/60 dark:from-slate-900 dark:to-amber-950/20 border border-amber-200/90 dark:border-amber-800/60 hover:border-amber-400 active:scale-[0.98] transition-all rounded-2xl shadow-2xs group-hover:shadow-md h-full flex flex-col justify-between cursor-pointer">
-            <div>
-              <div className="flex items-center justify-between gap-1">
-                <div className="flex items-center gap-1.5 text-amber-800 dark:text-amber-300 font-extrabold text-[10.5px] sm:text-xs uppercase tracking-tight truncate">
-                  <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-                  <span className="truncate">{tr('Cash in Hand')}</span>
-                </div>
-                <span className="px-1.5 py-0.2 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 text-[9px] font-black">
-                  {tr('Till / Galla')}
-                </span>
-              </div>
-
-              <div className="text-base sm:text-xl font-black text-slate-900 dark:text-slate-100 font-mono tracking-tight mt-1.5 truncate">
-                {formatINR(netCashInHand)}
-              </div>
-            </div>
-
-            <div className="pt-1.5 mt-1.5 border-t border-amber-100/80 dark:border-amber-900/40 flex items-center justify-between text-[10px] sm:text-[11px]">
-              <span className="text-slate-500 dark:text-slate-400 font-semibold truncate">
-                {tr('Cash Sales - Exp')}
-              </span>
-              <span className="text-amber-700 dark:text-amber-400 font-bold inline-flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform text-[10px]">
-                <span>{tr('Register')}</span>
-                <ArrowRight className="w-2.5 h-2.5" />
-              </span>
-            </div>
-          </Card>
-        </Link>
+        {/* Opens the Cash Register only when that screen is on (Settings → Features) */}
+        {cashRegisterOn ? (
+          <Link href="/cash-register" className="group block focus:outline-none">{cashInHandCard}</Link>
+        ) : (
+          <div className="group block">{cashInHandCard}</div>
+        )}
 
         {/* 4. Total Outstanding Credit (Khata Udhar) */}
         <Link href="/khata" className="group block focus:outline-none">

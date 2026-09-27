@@ -1,0 +1,147 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { msg } from '@/lib/i18n/core';
+
+/*
+ * Feature switches (v4.69.0) — Settings → Features. Each shop turns screens and
+ * form fields on or off; turning one off only HIDES it, the data stays.
+ *
+ * This is per feature, never per trade: nothing here (or anywhere) may branch on
+ * business_type (Bible §9, Suite 9). Stored per computer in localStorage, like the
+ * other counter settings (one licence = one computer).
+ */
+
+export type FeatureId =
+  | 'profit_privacy'
+  | 'cash_register'
+  | 'purchases'
+  | 'suppliers'
+  | 'gst_reports'
+  | 'product_selling_price'
+  | 'product_cost_price'
+  | 'product_hsn'
+  | 'product_gst_rate'
+  | 'product_size_colour'
+  | 'product_variants';
+
+export type FeatureSwitches = Record<FeatureId, boolean>;
+
+export interface FeatureInfo {
+  id: FeatureId;
+  group: 'screens' | 'product_form' | 'privacy';
+  label: string;
+  description: string;
+}
+
+export const FEATURE_SWITCHES_KEY = 'kamai_feature_switches';
+export const FEATURE_SWITCHES_EVENT = 'feature_switches_changed';
+
+/** A new shop starts simple: only billing, stock and khata; profit privacy stays on. */
+export const DEFAULT_FEATURE_SWITCHES: FeatureSwitches = {
+  profit_privacy: true,
+  cash_register: false,
+  purchases: false,
+  suppliers: false,
+  gst_reports: false,
+  product_selling_price: false,
+  product_cost_price: false,
+  product_hsn: false,
+  product_gst_rate: false,
+  product_size_colour: false,
+  product_variants: false,
+};
+
+/** Order and texts of Settings → Features (msg ids, translated where shown). */
+export const FEATURES: FeatureInfo[] = [
+  { id: 'cash_register', group: 'screens', label: msg('Cash Register'), description: msg('Open / close the shift, count notes, record expenses.') },
+  { id: 'purchases', group: 'screens', label: msg('Purchase & Restock Orders'), description: msg('Stock inward from suppliers, Excel / CSV purchase bills.') },
+  { id: 'suppliers', group: 'screens', label: msg('Suppliers'), description: msg('Supplier accounts: what you owe, purchases on credit, payments.') },
+  { id: 'gst_reports', group: 'screens', label: msg('GST Reports & CA Tax Filing'), description: msg('GSTR-1, HSN summary and the files for your CA.') },
+  { id: 'product_selling_price', group: 'product_form', label: msg('Separate Selling Price'), description: msg('Off: items sell at their MRP. On: a Selling Price box next to MRP.') },
+  { id: 'product_cost_price', group: 'product_form', label: msg('Purchase / Cost Price'), description: msg('What you paid — needed for profit figures.') },
+  { id: 'product_hsn', group: 'product_form', label: msg('HSN / SAC Code'), description: msg('Printed on GST bills and used in the GSTR-1 HSN summary.') },
+  { id: 'product_gst_rate', group: 'product_form', label: msg('GST Tax Rate (%)'), description: msg('Off: new items are saved without GST.') },
+  { id: 'product_size_colour', group: 'product_form', label: msg('Size / Colour'), description: msg('Size and colour fields for clothes, shoes and similar items.') },
+  { id: 'product_variants', group: 'product_form', label: msg('Variants (Size / Colour)'), description: msg('One item in many sizes or colours, each with its own price and stock.') },
+  { id: 'profit_privacy', group: 'privacy', label: msg('Hide profit from staff (Privacy PIN)'), description: msg('"Cashier Privacy" button on every screen; profit and cost prices open only with the owner PIN.') },
+];
+
+/** Screens a switch hides (menu, dashboard tiles, direct links). */
+export const ROUTE_FEATURES: Record<string, FeatureId> = {
+  '/cash-register': 'cash_register',
+  '/purchases': 'purchases',
+  '/suppliers': 'suppliers',
+  '/gst-reports': 'gst_reports',
+};
+
+/** Stored JSON → switches. Unknown keys and non-boolean values are ignored. */
+export function parseFeatureSwitches(raw: string | null | undefined): FeatureSwitches {
+  const result: FeatureSwitches = { ...DEFAULT_FEATURE_SWITCHES };
+  if (!raw) return result;
+  try {
+    const stored = JSON.parse(raw);
+    if (stored && typeof stored === 'object') {
+      for (const id of Object.keys(DEFAULT_FEATURE_SWITCHES) as FeatureId[]) {
+        if (typeof stored[id] === 'boolean') result[id] = stored[id];
+      }
+    }
+  } catch {}
+  return result;
+}
+
+export function readFeatureSwitches(): FeatureSwitches {
+  if (typeof window === 'undefined') return { ...DEFAULT_FEATURE_SWITCHES };
+  try {
+    return parseFeatureSwitches(localStorage.getItem(FEATURE_SWITCHES_KEY));
+  } catch {
+    return { ...DEFAULT_FEATURE_SWITCHES };
+  }
+}
+
+export const isFeatureOn = (id: FeatureId): boolean => readFeatureSwitches()[id];
+
+export function setFeatureSwitch(id: FeatureId, on: boolean) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(FEATURE_SWITCHES_KEY, JSON.stringify({ ...readFeatureSwitches(), [id]: on }));
+  } catch {}
+  window.dispatchEvent(new Event(FEATURE_SWITCHES_EVENT));
+}
+
+/** The switch that hides a page ('' paths, query strings and a trailing slash allowed). */
+export function featureForPath(path: string): FeatureId | undefined {
+  const clean = (path || '').split('?')[0].replace(/\/+$/, '') || '/';
+  return ROUTE_FEATURES[clean];
+}
+
+export function isPathEnabled(path: string, switches: FeatureSwitches): boolean {
+  const id = featureForPath(path);
+  return !id || switches[id];
+}
+
+/** Live switches for a component; re-renders when Settings → Features changes them. */
+export function useFeatureSwitches(): FeatureSwitches {
+  const [switches, setSwitches] = useState<FeatureSwitches>(readFeatureSwitches);
+  useEffect(() => {
+    const refresh = () => setSwitches(readFeatureSwitches());
+    refresh();
+    window.addEventListener(FEATURE_SWITCHES_EVENT, refresh);
+    window.addEventListener('storage', refresh);
+    return () => {
+      window.removeEventListener(FEATURE_SWITCHES_EVENT, refresh);
+      window.removeEventListener('storage', refresh);
+    };
+  }, []);
+  return switches;
+}
+
+/**
+ * Add / Edit Product: with "Separate Selling Price" off the form shows only MRP and
+ * the item sells at MRP. An existing item whose selling price differs from its MRP
+ * still shows both boxes, so saving it never changes its price behind the owner's back.
+ */
+export function showSellingPriceField(switchOn: boolean, editing?: { selling_price: number; mrp?: number } | null): boolean {
+  if (switchOn) return true;
+  return Boolean(editing && editing.selling_price !== (editing.mrp || editing.selling_price));
+}
