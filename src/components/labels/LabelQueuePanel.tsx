@@ -5,6 +5,7 @@ import { Layers, Plus, Search, Trash2, Upload } from 'lucide-react';
 import { Category, Product } from '@/types';
 import { formatINR } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
+import { searchProducts } from '@/lib/search/productSearch';
 
 export interface QueueItem {
   /** Product id, or custom_… for a custom label. */
@@ -39,9 +40,8 @@ export function LabelQueuePanel({ queue, onChange, products, categories, onAdd, 
   const [allCopies, setAllCopies] = useState('1');
 
   const results = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return [];
-    return products.filter((p) => p.name.toLowerCase().includes(q) || (p.barcode || '').includes(q)).slice(0, 6);
+    if (!search.trim()) return [];
+    return searchProducts(products, search).slice(0, 6); // English or हिंदी / मराठी
   }, [products, search]);
   const byCategory = useMemo(() => {
     const m = new Map<string, number>();

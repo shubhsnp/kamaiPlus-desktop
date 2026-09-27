@@ -79,6 +79,7 @@ import { DEFAULT_LABEL_SETTINGS, LABEL_STOCKS, labelPageMm, labelsPerPage, parse
 import { buildLabelHtml } from '../src/lib/labels/labelSheet';
 import { expandCopies } from '../src/lib/labels/printLabels';
 import { looksLikeBarcode, searchEnterAction } from '../src/lib/billing/scanInput';
+import { searchProducts, soundKeys, wordSoundKey } from '../src/lib/search/productSearch';
 import {
   WALK_IN_ID,
   buildAdvancedReport,
@@ -843,7 +844,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(!/DEFAULT_PIN|Default PIN is|Default is 1234/.test(privacySrc) && /verifyMasterPassword/.test(readSource('components/privacy/OwnerPinSetup.tsx')), 'There is no default owner PIN; the owner sets / resets it with the master password');
 
   // (d) Every custom overlay closes with Esc.
-  for (const f of ['components/paytm/MerchantQRModal.tsx', 'components/billing/RapidScanMode.tsx', 'components/layout/GlobalDrawers.tsx', 'components/purchases/PurchaseInwardOptionsSheet.tsx']) {
+  for (const f of ['components/paytm/MerchantQRModal.tsx', 'components/layout/GlobalDrawers.tsx', 'components/purchases/PurchaseInwardOptionsSheet.tsx']) {
     assert(/'Escape'/.test(readSource(f)), `${f.split('/').pop()} closes with Esc`);
   }
 
@@ -1032,8 +1033,8 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(/isCreditMode && !hasCustomer/.test(saleFn) && /focusPosCustomerName\(typed\.field\)/.test(saleFn) && /focusPosCustomerName\(\);/.test(saleFn), 'Udhar with no customer (or a wrong mobile) puts the cursor in the name box instead of opening a pop-up');
 
   // (d) Shortcuts: every key on the status bar works, and none fires under a window.
-  assert(/const counterCovered = isInvoiceModalOpen \|\| Boolean\(editingCartItem\) \|\| isQuickAddModalOpen \|\| isBarcodeModalOpen \|\| isRapidScanModeOpen \|\| isHardwareModalOpen \|\| isEnlargeQrModalOpen \|\| isBillPrinterOpen;/.test(pos),
-    'Enter / F10 never complete the waiting bill while "Sale completed", item edit, camera, rapid scan, printer or QR window is open');
+  assert(/const counterCovered = isInvoiceModalOpen \|\| Boolean\(editingCartItem\) \|\| isQuickAddModalOpen \|\| isEnlargeQrModalOpen \|\| isBillPrinterOpen;/.test(pos),
+    'Enter / F10 never complete the waiting bill while "Sale completed", item edit, unknown-barcode, bill printer or QR window is open');
   assert(billingSrc.includes("e.key === 'Escape'") && billingSrc.includes("e.key === '/'") && /\{ id: 'credit', label: tr\('Credit'\), icon: BookOpen, shortcut: 'F9' \}/.test(pos), 'Esc and / work on the counter; the Credit button shows its F9 key like Cash (F4) and UPI (F8)');
 
   // (e) New products are "Unlimited stock" by default; switching it off gives 10 / 10.
@@ -1240,7 +1241,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(/searchFocused && e\.key === 'Enter' && \(!counterCovered \|\| onlySaleWindowOpen\)\) \{\s*e\.preventDefault\(\);\s*void handleSearchEnter\(\);/.test(pos)
     && /if \(isInvoiceModalOpen && action !== 'add-exact' && action !== 'unknown-code'\) return;/.test(pos),
     'Enter in the search box goes through handleSearchEnter; under "Sale completed" only a scanned code counts');
-  assert(/ignore: searchBoxHasFocus/.test(pos) && /enabled: !isBarcodeModalOpen && !isRapidScanModeOpen && !variantPick && !isBillPrinterOpen,/.test(pos)
+  assert(/ignore: searchBoxHasFocus/.test(pos) && /enabled: !variantPick && !isBillPrinterOpen,/.test(pos)
     && /if \(ignore && ignore\(\)\)/.test(listener),
     'The key-timing listener stands aside while the search box has focus, and stays on under "Sale completed" (the next scan closes it)');
   assert(/const now = e\.timeStamp > 0 \? e\.timeStamp : Date\.now\(\);/.test(listener) && /inTextBox \? maxIntervalMs : Math\.max\(maxIntervalMs, 250\)/.test(listener),
@@ -1254,6 +1255,40 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(/<BillPrinterSetup/.test(pos) && /if \(next && !printerForFormat\(ps, ps\.defaultFormat\)\) \{?\s*setIsBillPrinterOpen\(true\)/.test(pos)
     && /savePrintSettings\(next\)/.test(setup) && /a4Printer: name \} : \{ thermalPrinter: name \}/.test(setup),
     'Bill printer: set once on the counter (saved with Printer Setup); turning Enter-prints on with no printer opens the setup first');
+}
+
+// 9g. Product search in English for Hindi / Marathi names (v4.73.0), and a counter
+// without the webcam scanners and the Bluetooth "hardware manager" (desktop app).
+{
+  const names = [
+    'चीटपुट बुलेट टिकटॅक – नवरंग/वसंता', 'चीटपुट गोली – जीबुंबा', 'रॉकेट बॉम्ब – विन', 'बेबी रॉकेट – विन', 'रॉकेट कलर – रॉयल',
+    '12" सिल्व्हर ट्युब कँडल – राजकमल', 'स्ट्रेप बिजली (गोल्ड) 50 नग – वसंता', 'चीटपुट गोली (सुपर बिग) लक्ष्मी – जेम्स', 'अनार स्मॉल – विन',
+    'अटॅम बॉम्ब – शंकर', 'रॉकेट अपोलो – ए.आर.डी.', 'पुल पुल – अनिल', 'अनार चिअर्स (3 पिस) – स्टॅन्डर्ड', 'रॉकेट ज्युपिटर – अनिल',
+    'रोल कॅप्स (व्हाइट पेपर) Nett – श्रीराम', 'Maggi Noodles 70g', 'कंपनी स्पेशल',
+  ];
+  const cat = (n: string) => (n.startsWith('अनार स्मॉल') ? 'पेन्सील' : n.startsWith('पुल') ? 'चौरसा' : '');
+  const list = names.map((name, i) => ({ id: i, name, barcode: i === 15 ? '8901058000290' : '', category_name: cat(name) }));
+  const top = (q: string, category = true) => searchProducts(list, q, { category }).map((p) => p.name);
+  const has = (q: string, ...want: string[]) => want.every((w) => top(q).some((n) => n.startsWith(w)));
+  assert(has('chitput', 'चीटपुट बुलेट', 'चीटपुट गोली') && has('cheetput tictac', 'चीटपुट बुलेट टिकटॅक') && has('tictac', 'चीटपुट बुलेट टिकटॅक') && has('rocket colour', 'रॉकेट कलर')
+    && has('silver tube', '12" सिल्व्हर') && has('white paper', 'रोल कॅप्स') && has('jupiter', 'रॉकेट ज्युपिटर') && has('company', 'कंपनी') && has('laxmi', 'चीटपुट गोली (सुपर'),
+    'English letters find Hindi / Marathi names (chitput → चीटपुट, tictac → टिकटॅक, silver → सिल्व्हर, white → व्हाइट, jupiter → ज्युपिटर, company → कंपनी)');
+  assert(has('atom bomb', 'अटॅम बॉम्ब') && has('atombomb', 'अटॅम बॉम्ब') && top('rocket colour').length === 1 && top('zzqx').length === 0 && top('anar')[0].startsWith('अनार') && !top('anar').some((n) => n.startsWith('पुल')),
+    'All typed words must match, joined words work, a word starting with a vowel does not match one without (anar ≠ नर)');
+  assert(top('bijli')[0].startsWith('स्ट्रेप बिजली') && top('apollo')[0].startsWith('रॉकेट अपोलो') && top('rocket')[0].startsWith('रॉकेट') && top('chaurasa')[0].startsWith('पुल पुल'),
+    'Best match first: whole word before joined words, first word before later ones, vowels alike before unlike, then the section (chaurasa → the चौरसा section, not चिअर्स)');
+  assert(top('रॉकेट').length === 5 && top('rocket').length === 5 && top('मॅगी')[0] === 'Maggi Noodles 70g' && top('maggi')[0] === 'Maggi Noodles 70g' && top('0290')[0] === 'Maggi Noodles 70g' && top('pencil')[0] === 'अनार स्मॉल – विन' && top('pencil', false).length === 0,
+    'Typed Devanagari and English give the same items; Devanagari finds English names; barcode and section still match (section only where it was searched before)');
+  assert(wordSoundKey('सिल्वर') === wordSoundKey('silver') && wordSoundKey('फटाका') === wordSoundKey('phataka') && wordSoundKey('फटाका') === wordSoundKey('fataka') && soundKeys('Rocket 2 Sound').join(' ') === soundKeys('रॉकेट २ साऊंड').join(' '),
+    'Sound keys: सिल्वर = silver, फटाका = phataka = fataka, Devanagari digits = 0–9');
+
+  const pos = readSource('app/billing/page.tsx');
+  assert(/searchProducts\(all, debouncedSearch, \{ category: true \}\)/.test(pos) && /productSearchScore\(p, productQuery\) < 0/.test(readSource('app/products/page.tsx'))
+    && /searchProducts\(products, search\)\.slice\(0, 6\)/.test(readSource('components/labels/LabelQueuePanel.tsx')) && /productSearchScore\(p, catalogQuery\) >= 0/.test(readSource('components/invoices/EditInvoiceModal.tsx')),
+    'Billing, Products, Barcode Studio and Edit Invoice all search with productSearch (English or हिंदी / मराठी)');
+  assert(!/BarcodeScannerModal|RapidScanMode|HardwareManagerModal|isBarcodeModalOpen|isHardwareModalOpen|Scan Barcode via Camera/.test(pos)
+    && !fs.existsSync(path.join(SRC_ROOT, 'components/billing/RapidScanMode.tsx')) && !fs.existsSync(path.join(SRC_ROOT, 'components/hardware/HardwareManagerModal.tsx')),
+    'The counter has no webcam scanner, Rapid (webcam) mode or Bluetooth hardware manager — the gun types into the search box, the bill printer is set with the ⚙ button');
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.

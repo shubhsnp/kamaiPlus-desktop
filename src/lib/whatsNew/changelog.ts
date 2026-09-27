@@ -15,6 +15,13 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.73.0',
+    items: [
+      msg('Search in English letters: type "rocket", "chitput" or "silver" and Hindi / Marathi items (रॉकेट, चीटपुट, सिल्व्हर) are found — in Billing, Products, Barcode Studio and when editing a bill.'),
+      msg('Billing is simpler: the camera, Rapid and hardware buttons are gone. Scan with the barcode gun; set the bill printer with the button next to Silent.'),
+    ],
+  },
+  {
     version: '4.72.0',
     items: [
       msg("Barcode gun billing: scan and the item is in the bill. Press Enter on the empty search box to finish the bill, and the next customer's scan starts a new bill."),

@@ -30,6 +30,7 @@ import { VariantRow } from '@/components/products/VariantMatrixEditor';
 import { showSellingPriceField, useFeatureSwitches } from '@/lib/features/featureSwitches';
 import { createProductWithVariants, DEFAULT_COUNTED_STOCK, deleteProductAndVariants, isVariantChild, isVariantParent, tracksOwnStock } from '@/lib/products/variants';
 import { tr } from '@/lib/i18n/core';
+import { makeProductQuery, productSearchScore } from '@/lib/search/productSearch';
 
 const VariantsManagerModal = dynamic(
   () => import('@/components/products/VariantsManagerModal').then((m) => m.VariantsManagerModal),
@@ -140,16 +141,15 @@ export default function ProductsPage() {
 
   // Filtered Products List
   const filteredProducts = useMemo(() => {
+    const productQuery = makeProductQuery(debouncedSearch);
     return allProducts.filter((p) => {
       // 0. Variants show under their parent; they appear on their own only in a search
       if (!debouncedSearch.trim() && isVariantChild(p)) return false;
 
       // 1. Search Query
       if (debouncedSearch.trim()) {
-        const q = debouncedSearch.toLowerCase().trim();
-        const matchName = p.name.toLowerCase().includes(q);
-        const matchBarcode = p.barcode ? p.barcode.toLowerCase().includes(q) : false;
-        if (!matchName && !matchBarcode) return false;
+        // Name or barcode, typed in English or हिंदी / मराठी (lib/search/productSearch.ts).
+        if (productSearchScore(p, productQuery) < 0) return false;
       }
 
       // 2. Category Filter

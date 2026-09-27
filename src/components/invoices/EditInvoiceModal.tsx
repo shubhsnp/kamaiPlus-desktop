@@ -35,6 +35,7 @@ import {
   BookOpen
 } from 'lucide-react';
 import { tr } from '@/lib/i18n/core';
+import { makeProductQuery, productSearchScore } from '@/lib/search/productSearch';
 
 interface EditInvoiceModalProps {
   isOpen: boolean;
@@ -366,11 +367,8 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
     }
   };
 
-  const filteredCatalog = products.filter((p) => {
-    if (!productSearch.trim()) return true;
-    const q = productSearch.toLowerCase();
-    return p.name.toLowerCase().includes(q) || (p.barcode && p.barcode.includes(q));
-  });
+  const catalogQuery = makeProductQuery(productSearch); // English or हिंदी / मराठी
+  const filteredCatalog = products.filter((p) => productSearchScore(p, catalogQuery) >= 0);
 
   return (
     <Modal

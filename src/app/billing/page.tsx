@@ -33,7 +33,6 @@ import {
   CreditCard,
   Banknote,
   BookOpen,
-  Camera,
   Mic,
   Barcode,
   Globe,
@@ -44,12 +43,11 @@ import {
   ShoppingCart,
   ChevronUp,
   ChevronDown,
-  Sliders,
   Bluetooth,
   Usb,
   PauseCircle,
   PlayCircle,
-  Lock, PackageOpen
+  Lock
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -59,6 +57,7 @@ import { useHardwareBarcodeScanner } from '@/lib/hardware/barcodeScannerListener
 
 import { focusPosCustomerName, PosCustomerRow } from '@/components/billing/PosCustomerRow';
 import { searchEnterAction } from '@/lib/billing/scanInput';
+import { searchProducts } from '@/lib/search/productSearch';
 import { BillPrinterSetup } from '@/components/billing/BillPrinterSetup';
 import { buildBillCustomer, CustomerDraft, isDraftEmpty, resolveBillCustomer } from '@/lib/billing/billCustomer';
 import { Sale } from '@/types';
@@ -71,18 +70,6 @@ import { renderInvoiceHtml } from '@/lib/invoices/invoiceOutput';
 import { getPrintSettings, printerForFormat } from '@/lib/hardware/printSettings';
 
 // Lazy-load non-critical heavy modals
-const BarcodeScannerModal = dynamic(
-  () => import('@/components/barcode/BarcodeScannerModal').then((m) => m.BarcodeScannerModal),
-  { ssr: false }
-);
-const RapidScanMode = dynamic(
-  () => import('@/components/billing/RapidScanMode').then((m) => m.RapidScanMode),
-  { ssr: false }
-);
-const HardwareManagerModal = dynamic(
-  () => import('@/components/hardware/HardwareManagerModal').then((m) => m.HardwareManagerModal),
-  { ssr: false }
-);
 const InvoiceModal = dynamic(
   () => import('@/components/invoices/InvoiceModal').then((m) => m.InvoiceModal),
   { ssr: false }
@@ -261,14 +248,9 @@ export default function BillingPage() {
   const [editItemDiscount, setEditItemDiscount] = useState<string>('0');
   const [editItemDiscountType, setEditItemDiscountType] = useState<'flat' | 'percentage'>('flat');
   
-  // Hardware Modals
-  const [isHardwareModalOpen, setIsHardwareModalOpen] = useState<boolean>(false);
-
   // Modals
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [activeSaleForInvoice, setActiveSaleForInvoice] = useState<Sale | null>(null);
-  const [isBarcodeModalOpen, setIsBarcodeModalOpen] = useState(false);
-  const [isRapidScanModeOpen, setIsRapidScanModeOpen] = useState(false);
   const [isQuickAddModalOpen, setIsQuickAddModalOpen] = useState(false);
   const [scannedUnknownBarcode, setScannedUnknownBarcode] = useState<string | null>(null);
   const [quickAddPrice, setQuickAddPrice] = useState('');
@@ -369,21 +351,11 @@ export default function BillingPage() {
           prods = prods.filter(p => p.category_id === selectedCategory);
         }
 
-        // Filter by Search Query
-        if (debouncedSearch.trim()) {
-          const q = debouncedSearch.toLowerCase();
-          prods = prods.filter(
-            (p) =>
-              Boolean(
-                p.name.toLowerCase().includes(q) ||
-                (p.barcode && p.barcode.includes(q)) ||
-                (p.category_name && p.category_name.toLowerCase().includes(q))
-              )
-          );
-        }
-        
         // No limit needed now that we are using Virtualization (Phase 1)
-        const data = await prods.toArray();
+        const all = await prods.toArray();
+        // Name, barcode or category — typed in English or हिंदी / मराठी (lib/search/productSearch.ts),
+        // best matches first.
+        const data = searching ? searchProducts(all, debouncedSearch, { category: true }) : all;
         if (isMounted) {
           setProducts(data);
         }
@@ -708,7 +680,7 @@ export default function BillingPage() {
     onScan: handleBarcodeScanned,
     // Off while the variant picker is open: scanner digits would pick variants 1–9.
     // On while "Sale completed" is open: the next scan closes it and starts the next bill.
-    enabled: !isBarcodeModalOpen && !isRapidScanModeOpen && !variantPick && !isBillPrinterOpen,
+    enabled: !variantPick && !isBillPrinterOpen,
     ignore: searchBoxHasFocus,
   });
 
@@ -1191,12 +1163,12 @@ export default function BillingPage() {
     if (action === 'add-highlighted') addHighlightedResult();
   };
 
-  // A window on top of the counter (sale completed, item edit, camera, rapid scan,
-  // printer setup, big QR, unknown barcode) owns the keyboard: Enter / F10 pressed
+  // A window on top of the counter (sale completed, item edit, bill printer, big QR,
+  // unknown barcode) owns the keyboard: Enter / F10 pressed
   // there must never complete the bill waiting underneath.
-  const counterCovered = isInvoiceModalOpen || Boolean(editingCartItem) || isQuickAddModalOpen || isBarcodeModalOpen || isRapidScanModeOpen || isHardwareModalOpen || isEnlargeQrModalOpen || isBillPrinterOpen;
+  const counterCovered = isInvoiceModalOpen || Boolean(editingCartItem) || isQuickAddModalOpen || isEnlargeQrModalOpen || isBillPrinterOpen;
   // Only "Sale completed" is open: a scan typed into the search box behind it still counts.
-  const onlySaleWindowOpen = isInvoiceModalOpen && !(Boolean(editingCartItem) || isQuickAddModalOpen || isBarcodeModalOpen || isRapidScanModeOpen || isHardwareModalOpen || isEnlargeQrModalOpen || isBillPrinterOpen);
+  const onlySaleWindowOpen = isInvoiceModalOpen && !(Boolean(editingCartItem) || isQuickAddModalOpen || isEnlargeQrModalOpen || isBillPrinterOpen);
 
   // Desktop POS High-Speed Keyboard Shortcuts Handler
   useEffect(() => {
@@ -1945,40 +1917,6 @@ export default function BillingPage() {
                   <kbd className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-500 font-mono text-[10px] font-bold">F2</kbd>
                 </div>
               </div>
-
-              {/* Barcode Camera Scanner Button (Shown if BARCODE module enabled) */}
-              {(
-                <button
-                  type="button"
-                  onClick={() => setIsBarcodeModalOpen(true)}
-                  className="p-2 min-h-[38px] min-w-[38px] rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 flex items-center justify-center cursor-pointer transition-colors"
-                  title={tr('Scan Barcode via Camera')}
-                >
-                  <Camera className="w-4 h-4 text-slate-800" />
-                </button>
-              )}
-              
-              {(
-                <button
-                  type="button"
-                  onClick={() => setIsRapidScanModeOpen(true)}
-                  className="px-3 min-h-[38px] rounded-lg border border-emerald-500 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 flex items-center gap-1.5 font-bold text-xs cursor-pointer shadow-sm transition-all shadow-emerald-500/10"
-                  title={tr('Rapid Scan Mode')}
-                >
-                  <PackageOpen className="w-4 h-4" />
-                  <span>{tr('Rapid')}</span>
-                </button>
-              )}
-
-              {/* Hardware Manager Button */}
-              <button
-                type="button"
-                onClick={() => setIsHardwareModalOpen(true)}
-                className="p-2 min-h-[38px] min-w-[38px] rounded-lg border border-slate-300 bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center cursor-pointer relative transition-colors"
-                title={tr('POS Hardware (Bluetooth Printer, Laser Scanner)')}
-              >
-                <Sliders className="w-4 h-4 text-white" />
-              </button>
             </div>
 
             {/* Category Filter Tabs */}
@@ -2201,29 +2139,6 @@ export default function BillingPage() {
         setName={setQuickAddName}
         price={quickAddPrice}
         setPrice={setQuickAddPrice}
-      />
-
-      {/* Barcode Camera Scanner Modal */}
-      <BarcodeScannerModal
-        isOpen={isBarcodeModalOpen}
-        onClose={() => setIsBarcodeModalOpen(false)}
-        onScan={handleBarcodeScanned}
-      />
-
-      {/* Rapid Scan Mode Screen */}
-      <RapidScanMode
-        isOpen={isRapidScanModeOpen}
-        onClose={() => setIsRapidScanModeOpen(false)}
-        onScan={handleBarcodeScanned}
-        cart={activeTab.cart}
-      />
-
-
-
-      {/* Hardware Manager Modal */}
-      <HardwareManagerModal
-        isOpen={isHardwareModalOpen}
-        onClose={() => setIsHardwareModalOpen(false)}
       />
 
       {/* Invoice Modal for Completed Sale (Success Modal Mode with Dropdown PDF) */}

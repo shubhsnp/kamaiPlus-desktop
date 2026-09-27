@@ -441,6 +441,20 @@ async function run() {
         `Bill printer set once on the counter: Enter saves the bill and prints it straight to that printer, no window, cursor ready for the next scan (${JSON.stringify(billJob)})`);
       await page.getByRole('button', { name: /Silent: ON/ }).click(); // back off before the restart checks
       await page.waitForTimeout(300);
+
+      // v4.73.0 — English letters find the Hindi-named items; the counter has no webcam,
+      // Rapid (webcam) or Bluetooth hardware-manager buttons any more.
+      step = 'english search';
+      const anarItem = listed.find((p) => p.name.startsWith('अनार स्पेशल'));
+      const typeAndAdd = async (text) => { await posSearch.fill(text); await page.waitForTimeout(800); await posSearch.press('Enter'); await page.waitForTimeout(400); };
+      const c0 = await cartQty(chaurasa.id);
+      const a0 = await cartQty(anarItem.id);
+      await typeAndAdd('chaurasa');
+      await typeAndAdd('anar special');
+      check((await cartQty(chaurasa.id)) === c0 + 1 && (await cartQty(anarItem.id)) === a0 + 1,
+        'Typed in English, "chaurasa" and "anar special" find and add the Hindi-named items (चौरसा 8 वाला…, अनार स्पेशल…)');
+      check(!(await page.getByTitle('Scan Barcode via Camera').count()) && !(await page.getByRole('button', { name: /^Rapid$/ }).count()) && !(await page.getByTitle(/POS Hardware/).count()),
+        'The counter has no webcam scan, Rapid or hardware-manager buttons');
       expectedSales = await salesCount();
 
       step = 'errors';

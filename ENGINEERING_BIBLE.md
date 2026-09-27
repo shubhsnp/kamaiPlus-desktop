@@ -1,7 +1,7 @@
 # 📕 KamaiPlus Desktop — Engineering Bible
 
 > **Canonical context file. Read this before touching any code.**
-> Last verified against the tree at v4.72.0, 2026‑09‑27 (sections carry the version they were last touched in).
+> Last verified against the tree at v4.73.0, 2026‑09‑27 (sections carry the version they were last touched in).
 
 This file exists so that an agent starting cold does **not** have to scan 180 source
 files, and does **not** re-solve problems that were already solved. Everything here
@@ -305,7 +305,7 @@ src/components/<feature>/   Feature components, one folder per domain
 src/components/ui/          Button, Card, Input, Modal  (that is all of it)
 src/lib/<domain>/           Engines — see table below
 src/types/index.ts          All domain types. Single file.
-scripts/e2e_simulation.ts   The test suite (§11). 476 assertions.
+scripts/e2e_simulation.ts   The test suite (§11). 482 assertions.
 scripts/bump_version.ts     Version bumper (+0.1 minor)
 public/barcodes/*.json      5 shipped offline barcode dictionaries
 ```
@@ -316,6 +316,7 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 | :--- | :--- |
 | `db/index.ts` | Dexie schema, `ensureStarterBusinessIfEmpty`, `seedBusinessStarterData`, `clearAllProductData`, `restoreStarterProductCatalog` |
 | `billing/billTabs.ts` | Open POS bills (tabs) in localStorage `kamai_pos_tabs`: `makeEmptyTab`, `tabsAfterClosing`, `getInitialTabs` |
+| `search/productSearch.ts` | Product search in English or हिंदी / मराठी (v4.73.0): `searchProducts` (filter + best first), `productSearchScore`, `makeProductQuery`, `wordSoundKey` — §9.6 |
 | `billing/scanInput.ts` | Barcode gun on the counter (v4.72.0): `searchEnterAction` (what Enter in the search box does), `looksLikeBarcode` — §9.5 |
 | `billing/billCustomer.ts` | Customer typed on the POS counter row (v4.68.0): `resolveBillCustomer` (saved by mobile / only-one-by-name → existing, else new, or a refusal), `suggestCustomers`, `buildBillCustomer` — §6.1 step 0 |
 | `sales/saleMath.ts` | **All bill arithmetic.** `computeBillTotals`, `allocateBillDiscount`, `getSalePaymentBreakdown`, returns/refund math, `getLocalDayRange` |
@@ -326,7 +327,7 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 | `print/printDocument.ts` | React element → standalone HTML → Electron or iframe. No jsPDF here. |
 | `hardware/printSettings.ts` | Per-computer printer choice in localStorage |
 | `hardware/escpos.ts` | Raw ESC/POS bytecode (ASCII-safe: ₹ • — are transliterated) |
-| `hardware/bluetoothPrinter.ts` | Web Bluetooth thermal printer |
+| `hardware/bluetoothPrinter.ts` | Web Bluetooth ESC/POS printer — only the "Bluetooth" print in "Sale completed" and Barcode Studio use it; it connects on demand (the billing hardware manager that paired it was removed in v4.73.0) |
 | `hardware/barcodeScannerListener.ts` | USB/HID scanner keystroke capture when **no** text box owns the scan (key timing by `e.timeStamp`; `ignore` lets the POS search box read scans itself) — §9.5 |
 | `firebase/lazyCloud.ts` | **The only way billing touches the cloud.** §6.4 |
 | `firebase/firestoreSync.ts` | Full push/pull sync + `sanitizeForFirestore` |
@@ -855,6 +856,27 @@ normally the product search box (it has focus when Billing opens and after every
   the page was kept 92 % busy, and by the Electron E2E (§11). Playwright's `keyboard.type`
   waits for each key to be handled, so under a busy page its own gaps grow — do not use it
   to judge the timing listener.
+- **No webcam on the counter (v4.73.0).** The camera button (`BarcodeScannerModal`), "Rapid"
+  (`RapidScanMode`, also a webcam scanner) and the Bluetooth "POS Hardware" manager
+  (`HardwareManagerModal`: Web Bluetooth pairing — no `select-bluetooth-device` handler in
+  `main.js` — and roll width / cash drawer / UPI QR switches that only its Bluetooth path
+  read) were removed from Billing; the two billing-only files are deleted. The bill printer
+  is the ⚙ button (`BillPrinterSetup`). `BarcodeScannerModal` still exists on `/products`.
+
+### 9.6 Search in English letters (v4.73.0)
+
+`lib/search/productSearch.ts`. A shop's names are often Devanagari (`चीटपुट बुलेट टिकटॅक`);
+the cashier types English (`chitput`, `tictac`). Every word becomes a **sound key** — its
+consonants with similar sounds merged (ट/त/th → t, श/ष/स/sh → s, फ/f/ph → p, ग/ज/g/z → j,
+व/w → v, c → k or s, x → ks, ह / h only at the start, m before p/b → n, no doubles) plus a
+mark when it starts with a vowel (अनार ≠ नर). Vowels do not decide a match (English
+spellings never agree on them) but rank it, without the "a" sound. A query word matches
+when its key starts a name word's key or runs on into the next words (`atombomb`); all
+query words must match, any order. Order: plain text / barcode match (the old search) →
+sound match (penalty: vowels differ +4, joined words +2, not the first word +1) → the
+section (Billing only, as before). Keys are cached per name (20 000 entries).
+Used by Billing (with category), Products, Barcode Studio's item search and Edit Invoice.
+Suite 9 §9g checks real price-list names; Electron E2E types `chaurasa` / `anar special`.
 
 ### 9.1 Product variants (v4.49.0) — same model as the Android app
 
@@ -929,7 +951,7 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 476/476, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 482/482, 0 failures
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
 git push origin main
@@ -940,7 +962,7 @@ billing), also run the real app:
 
 ```bash
 npx next build                      # out/ must be current
-npm run test:electron               # scripts/electron_e2e.mjs — 41/41
+npm run test:electron               # scripts/electron_e2e.mjs — 43/43
 ```
 
 `electron_e2e.mjs` launches the actual Electron app with Playwright (`playwright-core`,
@@ -958,14 +980,16 @@ Since v4.71.0: "Print labels" after the import sends one 50 × 25 mm page per la
 test catches `kp:print` in the main process and renders PDF — no real printer). Since
 v4.72.0: gun scans typed into the search box add the items, Enter on the empty box finishes
 the bill, the next scan closes "Sale completed", and a bill printer set once on the counter
-gets the next bill silently with no window (`kp:print` caught; Silent is switched back off). Its data goes to a temp folder via `KAMAI_E2E_DIR` (main.js honours it only
+gets the next bill silently with no window (`kp:print` caught; Silent is switched back off).
+Since v4.73.0: "chaurasa" / "anar special" typed in English add the Hindi-named items, and
+the counter has no camera / Rapid / hardware buttons. Its data goes to a temp folder via `KAMAI_E2E_DIR` (main.js honours it only
 when `!app.isPackaged`). The licence is **signed for this PC with the private key** in
 `%USERPROFILE%\KamaiPlus-Secrets\` (or `KAMAI_LICENCE_PRIVATE_KEY`) — nothing is
 bypassed; without the key only the no-licence checks run. The script removes
 `ELECTRON_RUN_AS_NODE` (set by VS Code terminals), which otherwise stops Electron
 launching. Failure screenshots go to `%TEMP%\kamaiplus-e2e-shots\`.
 
-### Test suite map — `scripts/e2e_simulation.ts` (476 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (482 assertions)
 
 | Suite | Covers |
 | :--- | :--- |
