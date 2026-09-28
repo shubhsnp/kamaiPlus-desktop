@@ -884,6 +884,68 @@ async function run() {
         `Printer auto-detect: Windows printers read (${(winPrinters || []).map((p) => `${p.name}${p.offline ? ' [offline]' : ''}`).join(', ')}), remembered, the printer chosen earlier is never switched; status bar "${statusTone}" opens Printers`);
       await setPurchases(true);
 
+      // v4.79.0 — WhatsApp everywhere: kp:open-whatsapp is caught in the main process (nothing opens).
+      // A bill from Transactions: number typed, Hindi chosen, sent as 91… with the bill text;
+      // Esc on the WhatsApp window over a bill closes only the WhatsApp window; a khata reminder.
+      step = 'whatsapp';
+      await app.evaluate(({ ipcMain }) => {
+        globalThis.__waJobs = [];
+        ipcMain.removeHandler('kp:open-whatsapp');
+        ipcMain.handle('kp:open-whatsapp', async (_e, req) => {
+          globalThis.__waJobs.push(req);
+          return { ok: true, via: 'web', copied: false };
+        });
+      });
+      const waJobs = () => app.evaluate(() => globalThis.__waJobs);
+      await page.evaluate(() => { window.location.href = '/transactions/'; });
+      await page.locator('[data-whatsapp="bill"]').first().waitFor({ timeout: 15000 });
+      await page.locator('[data-whatsapp="bill"]').first().click();
+      const composer = page.locator('[data-whatsapp-composer]');
+      await composer.waitFor({ timeout: 10000 });
+      await page.locator('[data-wa-text]').waitFor({ timeout: 10000 });
+      await page.locator('[data-wa-phone]').fill('98220 12345');
+      await page.locator('[data-wa-chip="hi"]').click();
+      await page.waitForTimeout(300);
+      const hindiText = await page.locator('[data-wa-text]').inputValue();
+      await page.locator('[data-wa-chip="en"]').click();
+      await page.waitForTimeout(300);
+      await page.locator('[data-wa-send]').click();
+      await page.locator('[data-wa-result]').waitFor({ timeout: 10000 });
+      const waBillJob = (await waJobs())[0] || {};
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(300);
+      check(waBillJob.phone === '919822012345' && /\*(INVOICE|ESTIMATE) #/.test(waBillJob.text || '') && /💰 \*Total: ₹/.test(waBillJob.text || '') && /बिल #|एस्टिमेट #/.test(hindiText) && !(await composer.isVisible().catch(() => false)),
+        `Transactions → WhatsApp: the bill goes to 91 98220 12345 with its items and total (Hindi on one click): "${(waBillJob.text || '').split('\n')[0]}"`);
+
+      // Over an open bill: Esc closes the WhatsApp window, the bill stays.
+      await page.locator('[data-whatsapp="bill"]').first().evaluate((el) => el.parentElement?.closest('.group')?.click());
+      await page.locator('[role="dialog"]').first().waitFor({ timeout: 10000 });
+      await page.locator('[role="dialog"] [data-whatsapp="bill"]').first().click();
+      await composer.waitFor({ timeout: 10000 });
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(400);
+      const waBillStillOpen = await page.locator('[role="dialog"]').first().isVisible().catch(() => false);
+      const waComposerGone = !(await composer.isVisible().catch(() => false));
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(300);
+      check(waBillStillOpen && waComposerGone, 'Esc on the WhatsApp window over a bill closes only the WhatsApp window');
+
+      // Khata: the customer's reminder / message opens with their name.
+      await page.evaluate(() => { window.location.href = '/khata/'; });
+      await page.waitForTimeout(1500);
+      await page.locator('[data-khata-customer]').first().click();
+      const khataWa = page.locator('[data-whatsapp="khata"]:visible').first();
+      await khataWa.waitFor({ timeout: 10000 });
+      await khataWa.click();
+      await composer.waitFor({ timeout: 10000 });
+      await page.locator('[data-wa-text]').waitFor({ timeout: 10000 });
+      const khataText = await page.locator('[data-wa-text]').inputValue();
+      const khataName = await page.locator('[data-whatsapp-composer] label span').first().innerText();
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(300);
+      check(/^Dear .+,|^नमस्ते .+ जी,|^नमस्कार .+,/.test(khataText) && /To/.test(khataName),
+        `Khata → WhatsApp: the customer's message opens ready ("${khataText.split('\n')[0]}")`);
+
       step = 'errors';
       check(pageErrors.length === 0, `No uncaught page errors during the flow${pageErrors.length ? `: ${pageErrors.slice(0, 3).join(' | ')}` : ''}`);
     } catch (err) {

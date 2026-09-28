@@ -13,6 +13,7 @@ import { Sidebar } from './Sidebar';
 import { DesktopStatusBar } from './DesktopStatusBar';
 import { GlobalDrawers } from './GlobalDrawers';
 import { PrinterWatcher } from '@/components/printers/PrinterWatcher';
+import { WhatsAppHost } from '@/components/whatsapp/WhatsAppHost';
 import { BusinessProvider } from './BusinessProvider';
 import { UpdateReadyBanner } from './UpdateReadyBanner';
 import { FeatureGate } from '@/components/features/FeatureGate';
@@ -257,6 +258,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       </div>
       <DesktopStatusBar />
       <PrinterWatcher />
+      <WhatsAppHost />
       <GlobalDrawers />
       <UpdateReadyBanner />
       <AutoBackupScheduler />

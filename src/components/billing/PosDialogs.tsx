@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { formatINR } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
+import { WhatsAppButton } from '@/components/whatsapp/WhatsAppButton';
 
 /*
  * Small presentational dialogs of the POS screen, moved out of
@@ -76,9 +77,12 @@ export interface FullscreenUpiQrModalProps {
   businessName?: string;
   upiId?: string;
   qrDataUrl: string | null;
+  /** The bill's customer — the payment link can go to them on WhatsApp (v4.79.0). */
+  customerName?: string;
+  customerPhone?: string;
 }
 
-export function FullscreenUpiQrModal({ isOpen, onClose, amountPaise, businessName, upiId, qrDataUrl }: FullscreenUpiQrModalProps) {
+export function FullscreenUpiQrModal({ isOpen, onClose, amountPaise, businessName, upiId, qrDataUrl, customerName, customerPhone }: FullscreenUpiQrModalProps) {
   return (
     <Modal
       isOpen={isOpen}
@@ -98,6 +102,15 @@ export function FullscreenUpiQrModal({ isOpen, onClose, amountPaise, businessNam
             {tr('Paying to:')} <b className="text-slate-900">{businessName}</b>{upiId ? ` (${upiId})` : ''}
           </p>
         </div>
+
+        {/* Customer not at the counter: send a tap-to-pay link with this amount (Android parity) */}
+        {upiId && amountPaise > 0 && (
+          <WhatsAppButton
+            variant="block"
+            label={tr('Send payment link on WhatsApp')}
+            request={{ kind: 'payment', amountPaise, customerName: customerName || undefined, phone: customerPhone || undefined }}
+          />
+        )}
 
         {qrDataUrl && (
           <div className="p-3 bg-white rounded-2xl border-2 border-slate-900 shadow-lg">

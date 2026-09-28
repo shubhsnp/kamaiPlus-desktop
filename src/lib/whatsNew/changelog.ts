@@ -15,6 +15,14 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.79.0',
+    items: [
+      msg('WhatsApp from every screen, like the Android app: a bill, an udhar reminder (friendly or formal), a khata slip, a payment link, a restock order to your supplier, the day summary to the owner and GST figures to your CA.'),
+      msg('Messages in English, हिंदी or मराठी, and you can edit them before sending. When money is due they carry a "Pay by UPI" link — the customer taps it and pays the exact amount.'),
+      msg('WhatsApp Desktop opens straight away when it is installed (else WhatsApp Web). A bill can also save its PDF to drag into the chat. Settings → Invoice & Bill Rules → WhatsApp messages.'),
+    ],
+  },
+  {
     version: '4.78.0',
     items: [
       msg('F1 opens a new bill from any screen (instead of Shift+B), Ctrl+L locks the screen, and the bar at the bottom shows the keys that work on each page.'),

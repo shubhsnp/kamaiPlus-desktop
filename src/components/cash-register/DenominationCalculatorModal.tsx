@@ -6,7 +6,11 @@ import { Button } from '@/components/ui/Button';
 import { formatINR, cn } from '@/lib/utils';
 import { Calculator, CheckCircle2, AlertTriangle, Copy, RotateCcw, Printer, Check } from 'lucide-react';
 import { getDesktopApi } from '@/lib/desktop/desktopBridge';
-import { tr } from '@/lib/i18n/core';
+import { msg, tr } from '@/lib/i18n/core';
+import { useBusiness } from '@/components/layout/BusinessProvider';
+import { WhatsAppButton } from '@/components/whatsapp/WhatsAppButton';
+import { cashTallyMessage } from '@/lib/whatsapp/businessMessages';
+import { messageShop } from '@/lib/whatsapp/whatsappDrafts';
 
 interface DenominationCalculatorModalProps {
   isOpen: boolean;
@@ -29,6 +33,7 @@ export const DenominationCalculatorModal: React.FC<DenominationCalculatorModalPr
   onConfirmCloseShift,
   isSubmitting = false,
 }) => {
+  const business = useBusiness();
   const noteDenominations = [500, 200, 100, 50, 20, 10, 5, 2, 1];
   const [copied, setCopied] = useState(false);
 
@@ -356,6 +361,13 @@ export const DenominationCalculatorModal: React.FC<DenominationCalculatorModalPr
               <Printer className="w-3.5 h-3.5" />
               <span>{tr('Print Slip')}</span>
             </Button>
+            <WhatsAppButton
+              className="h-8"
+              request={() => ({
+                kind: 'text', title: msg('Cash count on WhatsApp'), remember: 'owner',
+                message: cashTallyMessage({ shop: messageShop(business), counts: noteDenominations.map((value) => ({ value, count: denominations[value] || 0 })), countedPaise: totalCalculatedCashPaise, expectedPaise: expectedDrawerCashPaise }),
+              })}
+            />
           </div>
 
           <div className="flex items-center gap-2">

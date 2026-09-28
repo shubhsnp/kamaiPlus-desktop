@@ -15,6 +15,7 @@ import { Product, Supplier } from '@/types';
 import { formatINR } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { tr } from '@/lib/i18n/core';
+import { RestockOrderButton } from '@/components/whatsapp/RestockOrderButton';
 
 interface ReorderAlertsListProps {
   lowStockProducts: Product[];
@@ -31,6 +32,12 @@ export const ReorderAlertsList: React.FC<ReorderAlertsListProps> = ({
 }) => {
   return (
     <div className="space-y-3">
+      {/* v4.79.0: one WhatsApp order for all of them (Android "WhatsApp Restock Order") */}
+      {lowStockProducts.length > 0 && (
+        <div className="flex justify-end">
+          <RestockOrderButton products={lowStockProducts} label={tr('Order all on WhatsApp ({count})', { count: lowStockProducts.length })} />
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {lowStockProducts.map((p) => {
           const isZeroStock = p.current_stock <= 0;
@@ -79,6 +86,7 @@ export const ReorderAlertsList: React.FC<ReorderAlertsListProps> = ({
                   <Plus className="w-3.5 h-3.5" />
                   <span>{tr('+10 Stock')}</span>
                 </button>
+                <RestockOrderButton products={lowStockProducts} preselect={[p.id]} label={tr('Order')} />
               </div>
             </div>
           );

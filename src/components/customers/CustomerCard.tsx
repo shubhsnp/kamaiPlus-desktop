@@ -17,6 +17,7 @@ import { formatINR, cn } from '@/lib/utils';
 
 import { Button } from '@/components/ui/Button';
 import { tr } from '@/lib/i18n/core';
+import { WhatsAppButton } from '@/components/whatsapp/WhatsAppButton';
 
 interface CustomerCardProps {
   customer: Customer;
@@ -143,6 +144,8 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5">
+          {/* v4.79.0: WhatsApp the customer — a reminder when udhar is due, else a greeting */}
+          {customer.phone && <WhatsAppButton request={{ kind: 'customer', customerId: customer.id }} />}
 
           <Link href={`/khata?search=${encodeURIComponent(customer.phone || customer.name)}`}>
             <Button 

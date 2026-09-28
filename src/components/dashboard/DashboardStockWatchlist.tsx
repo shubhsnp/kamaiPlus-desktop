@@ -14,6 +14,7 @@ import { Product } from '@/types';
 import { formatINR, cn } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
 import { useFeatureSwitches } from '@/lib/features/featureSwitches';
+import { RestockOrderButton } from '@/components/whatsapp/RestockOrderButton';
 
 interface DashboardStockWatchlistProps {
   stockWatchlist: Product[];
@@ -69,6 +70,8 @@ export const DashboardStockWatchlist: React.FC<DashboardStockWatchlistProps> = (
         </div>
 
         <div className="flex items-center gap-1.5 flex-wrap self-start sm:self-center">
+          {/* v4.79.0: order these from the supplier on WhatsApp */}
+          <RestockOrderButton products={stockWatchlist} />
           {purchasesOn && (
             <Link href="/purchases">
               <button

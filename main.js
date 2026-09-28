@@ -1,5 +1,5 @@
 require('v8-compile-cache');
-const { app, BrowserWindow, dialog, ipcMain, net, protocol, shell } = require('electron');
+const { app, BrowserWindow, clipboard, dialog, ipcMain, net, protocol, shell } = require('electron');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -9,6 +9,7 @@ const { initAutoUpdate } = require('./updater');
 const backup = require('./backup');
 const errorlog = require('./errorlog');
 const printers = require('./printers');
+const whatsapp = require('./whatsapp');
 
 // Main-process failures are logged instead of vanishing (errorlog.js).
 process.on('uncaughtException', (err) => {
@@ -385,6 +386,9 @@ ipcMain.handle('kp:get-printers', async () => {
 
 // Driver, port and offline state from Windows (printers.js) — printer auto-detect (v4.78.0).
 ipcMain.handle('kp:printer-status', async () => printers.getPrinterStatus());
+
+// WhatsApp Desktop when installed, else wa.me in the browser (whatsapp.js) — v4.79.0.
+ipcMain.handle('kp:open-whatsapp', async (_event, request) => whatsapp.openWhatsApp({ shell, app, clipboard }, request));
 
 function insideDocuments(target) {
   const full = path.normalize(String(target || ''));

@@ -14,6 +14,8 @@ import type { GSTPeriodPreset } from '@/lib/gst/gstr1Json';
 import { cn } from '@/lib/utils';
 import { CashierPrivacyToggleButton } from '@/components/privacy/ProfitMask';
 import { tr } from '@/lib/i18n/core';
+import { WhatsAppButton } from '@/components/whatsapp/WhatsAppButton';
+import type { WhatsAppRequest } from '@/lib/whatsapp/openWhatsApp';
 
 const dayLabel = (d: Date) => d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
@@ -28,6 +30,8 @@ interface GstHeaderActionsProps {
   onExportTally: () => void;
   onExportJson: () => void;
   onOpenTallyGuide: () => void;
+  /** The period's GST figures for the CA on WhatsApp (v4.79.0). */
+  caRequest?: () => WhatsAppRequest;
 }
 
 export const GstHeaderActions: React.FC<GstHeaderActionsProps> = ({
@@ -40,6 +44,7 @@ export const GstHeaderActions: React.FC<GstHeaderActionsProps> = ({
   onExportTally,
   onExportJson,
   onOpenTallyGuide,
+  caRequest,
 }) => {
   const presets: { id: GSTPeriodPreset; label: string }[] = [
     { id: 'this_month', label: tr('⚡ This Month') },
@@ -74,6 +79,7 @@ export const GstHeaderActions: React.FC<GstHeaderActionsProps> = ({
 
         {/* Export Buttons */}
         <div className="flex items-center gap-1.5 self-start sm:self-center shrink-0 flex-wrap">
+          {caRequest && <WhatsAppButton request={caRequest} label={tr('Send to CA')} title={tr('Send these GST figures to your CA on WhatsApp')} className="h-8 rounded-xl" />}
           <Button
             variant="outline"
             size="sm"

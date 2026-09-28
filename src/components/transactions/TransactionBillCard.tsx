@@ -16,6 +16,7 @@ import {
 import { Sale } from '@/types';
 import { formatINR, cn } from '@/lib/utils';
 import { paymentMethodLabel, tr } from '@/lib/i18n/core';
+import { WhatsAppButton } from '@/components/whatsapp/WhatsAppButton';
 
 interface TransactionBillCardProps {
   sale: Sale;
@@ -144,6 +145,9 @@ export const TransactionBillCard: React.FC<TransactionBillCardProps> = ({
               <span>{tr('Convert to Bill')}</span>
             </button>
           )}
+
+          {/* WhatsApp the bill to the customer (v4.79.0) */}
+          <WhatsAppButton variant="icon" request={{ kind: 'bill', sale }} title={tr('Send bill on WhatsApp')} className="p-1.5" />
 
           {/* 1. Edit Invoice */}
           <button

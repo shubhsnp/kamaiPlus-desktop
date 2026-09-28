@@ -22,7 +22,9 @@ import { GstMetricsRibbon } from '@/components/gst/GstMetricsRibbon';
 import { GstNavTabs, GstTabType } from '@/components/gst/GstNavTabs';
 import { GstHsnSummaryTable } from '@/components/gst/GstHsnSummaryTable';
 import { ProfitMask } from '@/components/privacy/ProfitMask';
-import { tr } from '@/lib/i18n/core';
+import { msg, tr } from '@/lib/i18n/core';
+import { gstForCaMessage } from '@/lib/whatsapp/businessMessages';
+import { messageShop } from '@/lib/whatsapp/whatsappDrafts';
 
 /** One line per problem the GST portal would reject, for the confirm dialog before download. */
 function describeIssue(issue: Gstr1JsonIssue): string {
@@ -148,6 +150,21 @@ export default function GSTReportsPage() {
         onExportTally={handleExportTallyXML}
         onExportJson={handleExportJSON}
         onOpenTallyGuide={() => setIsTallyGuideOpen(true)}
+        caRequest={() => ({
+          kind: 'text',
+          title: msg('GST figures to the CA on WhatsApp'),
+          remember: 'ca',
+          recipientName: tr('Your CA'),
+          message: gstForCaMessage(messageShop(business), {
+            periodLabel: `${dateRange.start.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} – ${dateRange.end.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`,
+            gstin: business?.gstin,
+            invoices: gstr1Data.total_invoices_count,
+            taxablePaise: gstr1Data.total_taxable_value,
+            cgstPaise: gstr1Data.total_cgst,
+            sgstPaise: gstr1Data.total_sgst,
+            igstPaise: gstr1Data.total_igst,
+          }),
+        })}
       />
 
       {/* 2. Metrics Ribbon */}

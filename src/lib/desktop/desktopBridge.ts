@@ -72,6 +72,8 @@ export interface KamaiDesktopApi {
   getPrinters(): Promise<DesktopPrinter[]>;
   /** null when Windows could not say (not Windows, PowerShell failed). */
   getPrinterStatus?(): Promise<DesktopPrinterStatus[] | null>;
+  /** WhatsApp Desktop if installed, else wa.me; a too-long text is copied instead (v4.79.0). */
+  openWhatsApp?(request: { phone: string; text: string }): Promise<{ ok: boolean; via: 'app' | 'web'; copied: boolean; error?: string }>;
   openPath(path: string): Promise<DesktopResult>;
   showItemInFolder(path: string): Promise<DesktopResult>;
   getAppInfo(): Promise<{ version: string; documentsDir: string }>;

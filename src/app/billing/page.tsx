@@ -726,7 +726,11 @@ export default function BillingPage() {
   const focusProductSearch = () => window.setTimeout(() => searchInputRef.current?.focus(), 0);
   // The search box reads a whole scanned code on Enter itself (handleSearchEnter), so the
   // key-timing listener stands aside while it has focus.
-  const searchBoxHasFocus = React.useCallback(() => document.activeElement === searchInputRef.current, []);
+  // The search box reads scans itself; the WhatsApp window (v4.79.0) is for typing a number / message.
+  const searchBoxHasFocus = React.useCallback(
+    () => document.activeElement === searchInputRef.current || Boolean(document.querySelector('[data-whatsapp-composer]')),
+    []
+  );
 
   useHardwareBarcodeScanner({
     onScan: handleBarcodeScanned,
@@ -2216,6 +2220,8 @@ export default function BillingPage() {
         businessName={business?.name}
         upiId={business?.upi_id}
         qrDataUrl={posQrDataUrl}
+        customerName={selectedCustomer?.name || customerDraft.name}
+        customerPhone={selectedCustomer?.phone || customerDraft.phone}
       />
 
       {/* Floating In-App Toast Notification */}

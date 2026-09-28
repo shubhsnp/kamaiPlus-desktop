@@ -44,6 +44,7 @@ import { EditLedgerEntryModal } from '@/components/khata/EditLedgerEntryModal';
 import { QuickAddKhataCustomerModal } from '@/components/khata/QuickAddKhataCustomerModal';
 import { generateBulkMonthEndStatementPDF } from '@/lib/reports/bulkMonthEndStatement';
 import { tr } from '@/lib/i18n/core';
+import { WhatsAppButton } from '@/components/whatsapp/WhatsAppButton';
 
 const InvoiceModal = dynamic(
   () => import('@/components/invoices/InvoiceModal').then((m) => m.InvoiceModal),
@@ -625,6 +626,7 @@ function KhataContent() {
                 <button
                   key={c.id}
                   type="button"
+                  data-khata-customer={c.id}
                   onClick={() => {
                     setSelectedCustomerId(c.id);
                     setIsMobileDetailOpen(true);
@@ -745,6 +747,7 @@ function KhataContent() {
                         <span>{tr('Call')}</span>
                       </a>
                     )}
+                    <WhatsAppButton request={{ kind: 'khata', customerId: selectedCustomer.id }} label={(selectedCustomer.current_balance || 0) > 0 ? tr('Remind') : tr('WhatsApp')} />
 
                   </div>
                 </div>
@@ -766,6 +769,12 @@ function KhataContent() {
                               {tr('360° Profile')}
                             </span>
                           </Link>
+                          {/* v4.79.0: udhar reminder (friendly / formal, pay link) like the Android khata */}
+                          <WhatsAppButton
+                            request={{ kind: 'khata', customerId: selectedCustomer.id }}
+                            label={(selectedCustomer.current_balance || 0) > 0 ? tr('Udhar reminder') : tr('WhatsApp')}
+                            className="hidden lg:inline-flex"
+                          />
                         </div>
 
                         <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex-wrap">

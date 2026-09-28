@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('kamaiDesktop', {
   print: (opts) => ipcRenderer.invoke('kp:print', opts),
   getPrinters: () => ipcRenderer.invoke('kp:get-printers'),
   getPrinterStatus: () => ipcRenderer.invoke('kp:printer-status'),
+  openWhatsApp: (request) => ipcRenderer.invoke('kp:open-whatsapp', request),
   openPath: (target) => ipcRenderer.invoke('kp:open-path', target),
   showItemInFolder: (target) => ipcRenderer.invoke('kp:show-in-folder', target),
   getAppInfo: () => ipcRenderer.invoke('kp:app-info'),

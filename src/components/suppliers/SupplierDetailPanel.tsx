@@ -2,12 +2,14 @@
 
 import React from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ArrowDownRight, ArrowUpRight, Edit3, MessageCircle, Phone, Trash2, Truck, FileText } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, Edit3, Phone, Trash2, Truck, FileText } from 'lucide-react';
 import { db } from '@/lib/db';
 import { Supplier, LedgerTransaction } from '@/types';
 import { formatINR } from '@/lib/utils';
 import { ProfitMask } from '@/components/privacy/ProfitMask';
 import { msg, paymentMethodLabel, tr } from '@/lib/i18n/core';
+import { WhatsAppButton } from '@/components/whatsapp/WhatsAppButton';
+import { toWhatsAppNumber } from '@/lib/whatsapp/whatsappLinks';
 
 interface SupplierDetailPanelProps {
   supplier: Supplier;
@@ -42,7 +44,6 @@ export function SupplierDetailPanel({ supplier, onPurchase, onPayment, onEdit, o
   const bills = useLiveQuery(() => db.purchase_bills.where('supplier_id').equals(supplier.id).reverse().sortBy('created_at'), [supplier.id]) || [];
 
   const bal = balanceLabel(supplier.current_balance || 0);
-  const waPhone = (supplier.phone || '').replace(/\D/g, '').slice(-10);
 
   return (
     <div className="bg-white border border-slate-200 rounded-2xl shadow-2xs flex flex-col min-h-0 h-full">
@@ -69,15 +70,9 @@ export function SupplierDetailPanel({ supplier, onPurchase, onPayment, onEdit, o
           <button type="button" onClick={onPayment} className="h-9 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer">
             <ArrowDownRight className="w-3.5 h-3.5" /> {tr('Record Payment')}
           </button>
-          {waPhone.length === 10 && (
-            <a
-              href={`https://wa.me/91${waPhone}`}
-              target="_blank"
-              rel="noreferrer"
-              className="h-9 px-3 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-800 font-bold text-xs flex items-center gap-1.5"
-            >
-              <MessageCircle className="w-3.5 h-3.5 text-emerald-600" /> WhatsApp
-            </a>
+          {/* v4.79.0: the WhatsApp window (message with the balance, WhatsApp Desktop when installed) */}
+          {toWhatsAppNumber(supplier.phone) && (
+            <WhatsAppButton request={{ kind: 'supplier', supplierId: supplier.id }} className="h-9 px-3 text-xs" />
           )}
           <button type="button" onClick={onEdit} className="h-9 px-3 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-800 font-bold text-xs flex items-center gap-1.5 cursor-pointer">
             <Edit3 className="w-3.5 h-3.5" /> {tr('Edit')}

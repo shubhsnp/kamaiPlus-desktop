@@ -1,7 +1,7 @@
 # 📕 KamaiPlus Desktop — Engineering Bible
 
 > **Canonical context file. Read this before touching any code.**
-> Last verified against the tree at v4.78.0, 2026‑09‑28 (sections carry the version they were last touched in).
+> Last verified against the tree at v4.79.0, 2026‑09‑28 (sections carry the version they were last touched in).
 
 This file exists so that an agent starting cold does **not** have to scan 180 source
 files, and does **not** re-solve problems that were already solved. Everything here
@@ -107,6 +107,7 @@ Defined in `main.js` (`ipcMain.handle`), exposed in `preload.js`, typed in
 | `kp:print` | `print({html, paper, deviceName, silent, pageSizeMm})` | Sends to OS printer; thermal page height is measured from the DOM; `paper: 'label'` (v4.71.0) prints at `pageSizeMm` (10–300 mm, one label-roll row per page) |
 | `kp:get-printers` | `getPrinters()` | Installed printer list |
 | `kp:printer-status` | `getPrinterStatus()` | v4.78.0: Windows `Get-Printer` via `printers.js` → `{name, driver, port, status, offline}[]` (null if Windows cannot say); cached 5 s, ~1 s per real call. Feeds printer auto-detect (§9.10) |
+| `kp:open-whatsapp` | `openWhatsApp({phone, text})` | v4.79.0: `whatsapp.js` — WhatsApp Desktop (`whatsapp://send`) if installed, else `wa.me` in the browser; text over the Windows link limit → clipboard + empty chat → `{ok, via: 'app'\|'web', copied}` (§9.11) |
 | `kp:open-path` | `openPath(target)` | Opens a saved file — **only inside `Documents/KamaiPlus`** |
 | `kp:show-in-folder` | `showItemInFolder(target)` | Same path restriction |
 | `kp:app-info` | `getAppInfo()` | `{version, documentsDir}` |
@@ -307,6 +308,7 @@ licence.js                  Licence check + one-time activation (main process, �
 updater.js                  Auto-update from kamaiplus-desktop.web.app (main process, §2.2)
 backup.js                   Daily automatic backup files (main process, §2.3)
 printers.js                 Windows printer facts via Get-Printer (main process, §9.10) — must stay in build.files
+whatsapp.js                 Opens WhatsApp Desktop / wa.me (main process, §9.11) — must stay in build.files
 scripts/prepare_release.js  dist/ → release/ for the update site (§2.2)
 next.config.js              output:'export', images.unoptimized, TS errors NOT ignored
 src/app/<route>/page.tsx    20 routes (§4)
@@ -317,7 +319,7 @@ src/components/<feature>/   Feature components, one folder per domain
 src/components/ui/          Button, Card, Input, Modal  (that is all of it)
 src/lib/<domain>/           Engines — see table below
 src/types/index.ts          All domain types. Single file.
-scripts/e2e_simulation.ts   The test suite (§11). 569 assertions.
+scripts/e2e_simulation.ts   The test suite (§11). 583 assertions.
 scripts/bump_version.ts     Version bumper (+0.1 minor)
 public/barcodes/*.json      5 shipped offline barcode dictionaries
 ```
@@ -340,6 +342,7 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 | `hardware/printSettings.ts` | Per-computer printer choice in localStorage |
 | `hardware/printerDetect.ts` | Printer auto-detect rules: virtual / kind / 58-80 mm / `reviewPrinters` / `printerLine` (§9.10) |
 | `hardware/printerWatch.ts` | Printers seen now (`publishPrinters`, `usePrinterFacts`), `openPrintersWindow`, the silent-print key + event (§9.10) |
+| `whatsapp/` | WhatsApp (§9.11): `whatsappLinks.ts` (number, wa.me, UPI pay link), `customerMessages.ts` / `businessMessages.ts` / `whatsappText.ts` (messages, en / hi / mr), `whatsappSettings.ts`, `whatsappDrafts.ts` (request → window), `openWhatsApp.ts` (open + `openWhatsAppComposer`) |
 | `dashboard/homeTiles.ts` | Home Quick Actions list, GST stand-in, Profit vs Average Bill (§9.10) |
 | `hardware/escpos.ts` | Raw ESC/POS bytecode (ASCII-safe: ₹ • — are transliterated) |
 | `hardware/bluetoothPrinter.ts` | Web Bluetooth ESC/POS printer — only the "Bluetooth" print in "Sale completed" and Barcode Studio use it; it connects on demand (the billing hardware manager that paired it was removed in v4.73.0) |
@@ -420,7 +423,7 @@ them readable — assume they touch everything:
 | **`cash_expenses`** | `app/cash-register/page.tsx` (delete,put)<br>`components/sales/SalesReturnModal.tsx` (put)<br>`lib/suppliers/supplierLedger.ts` (put — cash supplier payments, category `supplier_payout`) |
 | **`cash_registers`** | `app/cash-register/page.tsx` (put,update) |
 | **`categories`** | `app/products/page.tsx` (put)<br>`lib/products/categories.ts` (put — `findOrCreateCategory`, the "+ New" of `components/products/CategoryPicker.tsx`, v4.78.0)<br>`components/settings/DataMaintenanceTab.tsx` (clear)<br>`lib/constants/defaultProducts.ts` (put)<br>`lib/import/catalogImportDb.ts` (bulkPut — sections of an imported price list) |
-| **`customers`** | `app/billing/page.tsx` (put,update)<br>`app/customers/page.tsx` (delete,put)<br>`app/khata/page.tsx` (put,update)<br>`app/transactions/page.tsx` (update)<br>`components/invoices/EditInvoiceModal.tsx` (update)<br>`components/khata/SettleInvoicesModal.tsx` (update)<br>`components/sales/SalesReturnModal.tsx` (update) |
+| **`customers`** | `app/billing/page.tsx` (put,update)<br>`components/whatsapp/WhatsAppComposer.tsx` (update — a WhatsApp number typed for a customer who had none, v4.79.0)<br>`app/customers/page.tsx` (delete,put)<br>`app/khata/page.tsx` (put,update)<br>`app/transactions/page.tsx` (update)<br>`components/invoices/EditInvoiceModal.tsx` (update)<br>`components/khata/SettleInvoicesModal.tsx` (update)<br>`components/sales/SalesReturnModal.tsx` (update) |
 | **`inventory_movements`** | `lib/import/catalogImportDb.ts` (bulkPut — opening stock, only when the sheet has a stock column)<br>`app/billing/page.tsx` (put)<br>`app/inventory/page.tsx` (put)<br>`app/products/page.tsx` (put)<br>`app/purchases/page.tsx` (put — in one transaction with the stock)<br>`app/transactions/page.tsx` (put)<br>`components/dashboard/DashboardHome.tsx` (put)<br>`components/invoices/EditInvoiceModal.tsx` (put)<br>`lib/inward/stockEntryDb.ts` (bulkPut — "New stock + labels", §9.8)<br>`lib/purchases/billInwardDb.ts` (bulkPut — supplier bill, §9.8)<br>`components/sales/SalesReturnModal.tsx` (put) |
 | **`ledger_transactions`** | `app/billing/page.tsx` (put)<br>`app/customers/page.tsx` (put)<br>`app/khata/page.tsx` (delete,put,update)<br>`app/transactions/page.tsx` (put)<br>`components/invoices/EditInvoiceModal.tsx` (put)<br>`components/khata/SettleInvoicesModal.tsx` (put)<br>`components/sales/SalesReturnModal.tsx` (put)<br>`lib/suppliers/supplierLedger.ts` (put, modify — `party_type: 'supplier'` rows) |
 | **`marketing_templates`** | _only the four shared modules above_ |
@@ -604,6 +607,7 @@ src/app/layout.tsx          (server component — metadata, viewport, fonts)
             │                                (switched-off screen → "turned off" card, §9.2)
             ├── <DesktopStatusBar>        online/printer/clock/version; the page's keys; "Bill rules" / "Help" links (v4.78.0)
             ├── <PrinterWatcher>          printer auto-detect + the Printers window (v4.78.0, §9.10)
+            ├── <WhatsAppHost>            the WhatsApp window, opened from any screen (v4.79.0, §9.11)
             └── <GlobalDrawers>           right-edge "Transactions" pull-tab (recent bills; was "History" before v4.78.0);
                                           drag it up / down (`DraggablePullTab`, `lib/ui/drawerTab.ts`), ↑ / ↓, right-click = middle
                                           (hidden on /billing)
@@ -650,6 +654,7 @@ There is no global state library. Modules talk through window events:
 | `kamai_settings_tab` | `openSettingsTab` (`lib/ui/settingsLinks.ts`, status bar) → Settings switches tab in place (v4.78.0) |
 | `kamai_printers_seen` | `PrinterWatcher` (`publishPrinters`) → `usePrinterFacts()` in the status bar (v4.78.0) |
 | `kamai_open_printers` | `openPrintersWindow()` (Home tile, status bar) → `PrinterWatcher` opens the Printers window (v4.78.0) |
+| `kamai_open_whatsapp` | `openWhatsAppComposer(request)` (every WhatsApp button) → `<WhatsAppHost>` (v4.79.0, §9.11) |
 | `kamai_silent_print_changed` | `saveSilentPrint` (Printers window) → Billing's "print straight away" state (v4.78.0) |
 
 ### localStorage keys (complete, verified)
@@ -667,6 +672,7 @@ There is no global state library. Modules talk through window events:
 `kamai_fast_inward_draft` (scanned Fast barcode inward rows) · `kamai_customers_view_mode` (Customers grid / list) ·
 `kamai_drawer_tab_y` (where the Transactions pull-tab was dragged, a share of the window height) ·
 `kamai_known_printers` (printers already seen — a new one is asked about once, §9.10) ·
+`kamai_whatsapp_settings` (customer message language, pay link, last line, owner / CA numbers, §9.11) ·
 `kamai_feature_switches` · `kamai_sound_muted` · `vyapar_language`
 
 sessionStorage (emptied when the app closes): `kamai_unlocked` · `kamai_return_to`.
@@ -1082,6 +1088,51 @@ the Home tile and the status bar via `openPrintersWindow()`; rendered by `Printe
   tried with a physical USB printer unplugged.
 - Suite 9 §9j(m), §9j(n); Electron E2E "home tiles".
 
+### 9.11 WhatsApp everywhere (v4.79.0) — the Android app's wa.me flows, on the desktop
+
+**One window, asked for from anywhere.** A button calls `openWhatsAppComposer(request)`
+(`lib/whatsapp/openWhatsApp.ts`, event `kamai_open_whatsapp`); `<WhatsAppHost>` in the shell
+lazy-loads `components/whatsapp/WhatsAppComposer.tsx`, which resolves the request
+(`resolveWhatsAppDraft`, `lib/whatsapp/whatsappDrafts.ts`) and shows: the number (checked by
+`toWhatsAppNumber` — 91 + a 10-digit mobile, or +country), reminder tone (Friendly / Formal),
+language chips English / हिंदी / मराठी (customer messages only — words in `whatsappText.ts`),
+the message in an editable box (chips rebuild it; "Back to the standard message"), "Also save the
+bill PDF and open its folder" (bills), message settings, **Copy message** and **Open WhatsApp**
+(Ctrl+Enter). It sits at `z-[60]` above any other window and its Esc (capture +
+`stopImmediatePropagation`) closes only itself. A customer without a number gets the typed one
+saved (`db.customers.update`, box ticked by default).
+
+**Opening** — `kp:open-whatsapp` → `whatsapp.js` (main): WhatsApp Desktop installed
+(`app.getApplicationNameForProtocol('whatsapp://')`) → `whatsapp://send?phone=&text=`, else
+`https://wa.me/…` in the browser. Windows cannot open links over ~2081 characters
+(`shell.openExternal`), so above 2000 the text goes to the clipboard and the chat opens empty —
+the window says "paste with Ctrl+V" first. (Hindi / Marathi text is ~9× longer once encoded: a
+Marathi bill with more than ~6 items takes this path.) A plain browser opens wa.me in a tab.
+
+**Messages** — `customerMessages.ts`: `billMessage` (items with qty + unit, max 25 lines,
+discount, total, how it was paid, returned, **balance due + "Pay by UPI" link for exactly that**,
+UPI ID, sign-off), `khataReminderMessage` (friendly / formal, pay link for the balance; nothing due
+→ "settled", negative → advance), `customerGreetingMessage`, `ledgerSlipMessage`,
+`paymentRequestMessage`. `businessMessages.ts` (English): `restockOrderMessage`,
+`supplierMessage`, `gstForCaMessage`, `cashTallyMessage`, `suggestedOrderQty`. The Day Summary
+keeps its own text (`DayEndClosingReportModal`).
+- **Pay link** (`upiPayLink`) = the Android pay page `https://kamaiplus-pay.web.app/?u=<upi://pay…>&s=<shop>&a=<rupees>`
+  (Android repo `pay_redirect/`) — WhatsApp does not make `upi://` tappable.
+- **Settings** (per computer, `kamai_whatsapp_settings`, `WhatsAppSettingsCard` in Settings →
+  Invoice & Bill Rules, also inside the window): customer language ('' = the app's), pay link on
+  (default), the last line, attach PDF, owner number (default: the shop number) and CA number —
+  typed numbers for owner / CA reports are remembered.
+
+**Where** (Android parity): bill window (`InvoiceModal`, so Sale completed + every bill view),
+Transactions rows, Khata header (udhar reminder) + every khata entry ("Slip"), Customers card +
+list, Suppliers panel, Billing's big UPI QR (payment link to the bill's customer), Day Summary
+(to the owner), cash count (`DenominationCalculatorModal`), GST page ("Send to CA"), low stock
+(`RestockOrderButton` → `RestockOrderModal`: tick items, quantities, saved or typed supplier) on
+Home and Inventory. Not ported: Android's Growth campaigns (Pro, templates) and PDF attached by
+the Android share sheet — wa.me carries text only, so the desktop saves the PDF and opens its
+folder to drag it in. Suite 9 §9j(o); Electron E2E "whatsapp" (the IPC is caught in the main
+process — nothing opens).
+
 ### 9.1 Product variants (v4.49.0) — same model as the Android app
 
 Not a per-vertical mode: any shop can use it. `lib/products/variants.ts`.
@@ -1158,7 +1209,7 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 569/569, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 583/583, 0 failures
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
 git push origin main
@@ -1169,7 +1220,7 @@ billing), also run the real app:
 
 ```bash
 npx next build                      # out/ must be current
-npm run test:electron               # scripts/electron_e2e.mjs — 67/67
+npm run test:electron               # scripts/electron_e2e.mjs — 70/70
 ```
 
 `electron_e2e.mjs` launches the actual Electron app with Playwright (`playwright-core`,
@@ -1198,6 +1249,8 @@ Since v4.78.0: Fast barcode inward (gun scans, same code +1, a scan into a name 
 offline list), F1 from Products opens a fresh bill (not with a form open), backup restore both ways
 + a damaged file, the Transactions tab dragged and remembered, Home tiles with Purchases / GST off
 (no gaps), the Printers window from Home and the status bar, and printer auto-detect reading Windows.
+Since v4.79.0: WhatsApp (`kp:open-whatsapp` caught in the main process) — a bill from Transactions
+to a typed number (Hindi on one click), Esc over a bill closes only the WhatsApp window, a khata message.
 Its data goes to a temp folder via `KAMAI_E2E_DIR` (main.js honours it only
 when `!app.isPackaged`). The licence is **signed for this PC with the private key** in
 `%USERPROFILE%\KamaiPlus-Secrets\` (or `KAMAI_LICENCE_PRIVATE_KEY`) — nothing is
@@ -1205,7 +1258,7 @@ bypassed; without the key only the no-licence checks run. The script removes
 `ELECTRON_RUN_AS_NODE` (set by VS Code terminals), which otherwise stops Electron
 launching. Failure screenshots go to `%TEMP%\kamaiplus-e2e-shots\`.
 
-### Test suite map — `scripts/e2e_simulation.ts` (569 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (583 assertions)
 
 | Suite | Covers |
 | :--- | :--- |

@@ -15,6 +15,7 @@ import {
   Tag
 } from 'lucide-react';
 import { paymentMethodLabel, tr } from '@/lib/i18n/core';
+import { WhatsAppButton } from '@/components/whatsapp/WhatsAppButton';
 
 interface CustomerLedgerTimelineTabProps {
   transactions: LedgerTransaction[];
@@ -172,8 +173,9 @@ export const CustomerLedgerTimelineTab: React.FC<CustomerLedgerTimelineTabProps>
                     </div>
                   </div>
 
-                  {/* Quick Edit & Delete Actions */}
+                  {/* Quick Slip (WhatsApp, v4.79.0), Edit & Delete Actions */}
                   <div className="flex items-center gap-2 mt-0 sm:mt-2">
+                    <WhatsAppButton request={{ kind: 'slip', entry: tx }} label={tr('Slip')} title={tr('Send this entry as a slip on WhatsApp')} />
                     <button
                       type="button"
                       onClick={() => onEditEntry(tx)}

@@ -18,7 +18,8 @@ import { Business, Sale, CashExpense, LedgerTransaction } from '@/types';
 import { formatINR } from '@/lib/utils';
 import { generateDailyClosingPDF } from '@/lib/reports/dailyClosingPdf';
 import { localDateKey, summarizeDay } from '@/lib/reports/cashDrawer';
-import { tr } from '@/lib/i18n/core';
+import { msg, tr } from '@/lib/i18n/core';
+import { WhatsAppButton } from '@/components/whatsapp/WhatsAppButton';
 
 interface DayEndClosingReportModalProps {
   isOpen: boolean;
@@ -232,6 +233,13 @@ export const DayEndClosingReportModal: React.FC<DayEndClosingReportModalProps> =
           )}
         </div>
 
+
+        {/* v4.79.0: the summary straight to the owner's WhatsApp (the number is remembered) */}
+        <WhatsAppButton
+          variant="block"
+          label={tr("Send to owner's WhatsApp")}
+          request={() => ({ kind: 'text', title: msg('Day summary on WhatsApp'), message: constructWhatsAppMessage(), recipientName: business?.owner_name, remember: 'owner' })}
+        />
 
         {/* 2 Action Buttons: Copy, PDF */}
         <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-200 dark:border-slate-800">

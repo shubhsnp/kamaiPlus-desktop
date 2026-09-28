@@ -7,6 +7,7 @@ import { Customer } from '@/types';
 import { cn, formatINR } from '@/lib/utils';
 import { balanceKind, shortDate } from '@/lib/customers/customerDirectory';
 import { msg, tr } from '@/lib/i18n/core';
+import { WhatsAppButton } from '@/components/whatsapp/WhatsAppButton';
 
 const TYPE_LABEL: Record<string, string> = { new: msg('New'), regular: msg('Regular'), inactive: msg('Inactive'), credit: msg('Credit') };
 
@@ -60,6 +61,7 @@ export function CustomerTableView({ customers, onEditCustomer }: { customers: Cu
                 <td className="px-3 py-2 text-slate-600 dark:text-slate-400 whitespace-nowrap">{shortDate(c.last_visit_date) || '—'}</td>
                 <td className="px-3 py-2">
                   <div className="flex items-center justify-end gap-1">
+                    {c.phone && <WhatsAppButton variant="icon" request={{ kind: 'customer', customerId: c.id }} />}
                     <Link href={`/khata?search=${encodeURIComponent(c.phone || c.name)}`} className="inline-flex items-center gap-1 h-7 px-2 rounded-lg border border-amber-300 bg-amber-50 text-amber-900 font-bold text-[11px] hover:bg-amber-100" title={tr('Khata')}>
                       <BookOpen className="w-3 h-3" /> {tr('Khata')}
                     </Link>

@@ -30,6 +30,7 @@ import { bluetoothPrinter } from '@/lib/hardware/bluetoothPrinter';
 import { getSalePaymentBreakdown, isEstimate } from '@/lib/sales/saleMath';
 import { EditInvoiceModal } from '@/components/invoices/EditInvoiceModal';
 import { InvoicePreview } from '@/components/invoices/InvoicePreview';
+import { WhatsAppButton } from '@/components/whatsapp/WhatsAppButton';
 import { msg, tr } from '@/lib/i18n/core';
 
 export type InvoiceFormat = PaperFormat;
@@ -278,6 +279,9 @@ export function InvoiceModal({
               </Link>
             )}
           </div>
+
+          {/* v4.79.0: the bill as a WhatsApp message (+ pay link for what is due), like the Android app. */}
+          <WhatsAppButton variant="block" request={{ kind: 'bill', sale }} label={tr('Send bill on WhatsApp')} />
 
           <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
             {format !== 'a4' && (

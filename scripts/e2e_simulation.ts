@@ -91,6 +91,10 @@ import { parseTabY, shareFromCenter, tabCenterPx } from '../src/lib/ui/drawerTab
 import { billStats, GST_STAND_IN_HREF, quickActionsFor, showProfitCard } from '../src/lib/dashboard/homeTiles';
 import { isVirtualPrinter, parseKnownPrinters, printerKind, printerLine, reviewPrinters, thermalFormat } from '../src/lib/hardware/printerDetect';
 import { SILENT_PRINT_KEY } from '../src/lib/hardware/printerWatch';
+import { toWhatsAppNumber, upiPayLink, whatsAppWebUrl } from '../src/lib/whatsapp/whatsappLinks';
+import { billMessage, khataReminderMessage, ledgerSlipMessage, MAX_BILL_LINES, paymentRequestMessage } from '../src/lib/whatsapp/customerMessages';
+import { cashTallyMessage, gstForCaMessage, restockOrderMessage, suggestedOrderQty } from '../src/lib/whatsapp/businessMessages';
+import { parseWhatsAppSettings } from '../src/lib/whatsapp/whatsappSettings';
 import { categoryKey, findCategoryByName } from '../src/lib/products/categories';
 import { allowsFractionalQty, dozenFromPieces, formatCartQty, lineAmountPaise, piecesInDozen, roundQty } from '../src/lib/billing/unitQuantity';
 import { getQuantityConfigForUnit } from '../src/components/billing/posQuantityConfig';
@@ -1848,6 +1852,95 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     && /onClick=\{openPrintersWindow\}/.test(readSource('components/layout/DesktopStatusBar.tsx'))
     && /addEventListener\(SILENT_PRINT_EVENT/.test(readSource('app/billing/page.tsx')),
     'kp:printer-status is wired (main, preload, packaged); the watcher runs in the app shell; the status bar opens Printers; Billing follows the switch');
+}
+
+// (o) WhatsApp everywhere (v4.79.0) — the Android app's wa.me messages on the desktop: one window
+// (number check, editable message, English / हिंदी / मराठी, reminder tone), WhatsApp Desktop when
+// installed else wa.me, a tap-to-pay UPI link through the shop-owned pay page, and a copy fallback
+// for links Windows cannot open.
+{
+  assert(toWhatsAppNumber('98220 12345') === '919822012345' && toWhatsAppNumber('+91 98220-12345') === '919822012345' && toWhatsAppNumber('09822012345') === '919822012345'
+    && toWhatsAppNumber('919822012345') === '919822012345' && toWhatsAppNumber('+44 7911 123456') === '447911123456'
+    && toWhatsAppNumber('12345') === null && toWhatsAppNumber('5822012345') === null && toWhatsAppNumber('') === null,
+    'WhatsApp number: 91 + a 10-digit Indian mobile (0 / +91 / spaces dropped), +country kept, anything else refused (like Android formatWhatsAppPhone)');
+  assert(whatsAppWebUrl('919822012345', 'a b') === 'https://wa.me/919822012345?text=a%20b' && whatsAppWebUrl(null, 'x') === 'https://wa.me/?text=x' && whatsAppWebUrl('919822012345', '') === 'https://wa.me/919822012345',
+    'wa.me link: with a number opens that chat, without one WhatsApp asks for the chat');
+  const pay = upiPayLink({ upiId: 'shop@okaxis', payeeName: 'Sai Kirana', amountPaise: 2600, note: 'Bill INV-1' });
+  const payU = new URL(pay).searchParams.get('u') || '';
+  assert(pay.startsWith('https://kamaiplus-pay.web.app/?') && new URL(pay).searchParams.get('a') === '26.00' && new URL(pay).searchParams.get('s') === 'Sai Kirana'
+    && payU === 'upi://pay?pa=shop@okaxis&pn=Sai%20Kirana&am=26.00&cu=INR&tn=Bill%20INV-1' && upiPayLink({ upiId: '', payeeName: 'x' }) === '',
+    'Pay link = the Android pay page (u = upi://pay… with amount, s = shop, a = rupees) — WhatsApp does not link upi:// itself');
+
+  const shop = { name: 'Sai Kirana', phone: '9876543210', upiId: 'shop@okaxis' };
+  const sale: any = { invoice_number: 'INV-0042', created_at: '2026-09-28T13:05:00.000Z', customer_name: 'Ramesh', status: 'completed', payment_method: 'split',
+    payment_split: { cash_amount: 5000, upi_amount: 2000, card_amount: 0, credit_amount: 2600 }, amount_received: 7000, balance_due: 2600, balance_due_at_sale: 2600, change_returned: 0,
+    items: [{ product_name: 'Parle-G 80g', quantity: 2, unit: 'piece', total_amount: 2000 }, { product_name: 'Sugar', quantity: 1.5, unit: 'kg', total_amount: 6600 }], discount_total: 1000, grand_total: 9600 };
+  const bill = billMessage(sale, shop, { lang: 'en', payLink: true });
+  assert(/^🧾 \*INVOICE #INV-0042\*/.test(bill) && bill.includes('• 2 × Parle-G 80g = ₹20.00') && bill.includes('• 1.5 kg × Sugar = ₹66.00') && bill.includes('Discount: -₹10.00')
+    && bill.includes('💰 *Total: ₹96.00*') && bill.includes('💳 Paid: Cash ₹50.00 • UPI ₹20.00') && bill.includes('🔴 *Balance due: ₹26.00*')
+    && bill.includes('👉 Pay by UPI: https://kamaiplus-pay.web.app/?') && bill.includes('am%3D26.00') && bill.includes('📌 UPI ID: shop@okaxis') && /— Sai Kirana • 9876543210$/.test(bill),
+    'Bill message: items with quantity + unit, discount, total, how it was paid, what is still due with a pay link for exactly that, UPI ID, shop sign-off');
+  const paid = billMessage({ ...sale, payment_method: 'cash', payment_split: undefined, amount_received: 9600, balance_due: 0, balance_due_at_sale: 0 }, shop, { lang: 'en', payLink: true });
+  const est = billMessage({ ...sale, invoice_number: 'EST-7', status: 'draft' }, shop, { lang: 'en', payLink: true });
+  const many = billMessage({ ...sale, items: Array.from({ length: MAX_BILL_LINES + 5 }, (_, i) => ({ product_name: `Item ${i}`, quantity: 1, unit: 'piece', total_amount: 100 })) }, shop, { lang: 'en', payLink: false });
+  assert(!paid.includes('Balance due') && !paid.includes('Pay by UPI') && paid.includes('📌 UPI ID') && /\*ESTIMATE #EST-7\*/.test(est) && !est.includes('Balance due') && !est.includes('💳')
+    && many.includes('…and 5 more items') && !many.includes('Item 29') && !many.includes('Pay by UPI'),
+    'Paid bill: no due / pay link; estimate: no payment or due lines; a long bill is cut to 25 lines ("…and N more"); pay link can be switched off');
+  const mr = billMessage(sale, shop, { lang: 'mr', payLink: true, signOff: 'पुन्हा या!' });
+  const hiFormal = khataReminderMessage({ name: 'Ramesh', balancePaise: 125000 }, shop, { lang: 'hi', payLink: true }, 'formal');
+  const enFriendly = khataReminderMessage({ name: 'Ramesh', balancePaise: 125000 }, shop, { lang: 'en', payLink: false }, 'friendly');
+  assert(mr.includes('🧾 *बिल #INV-0042*') && mr.includes('💰 *एकूण: ₹96.00*') && mr.includes('💳 भरणा: रोख ₹50.00') && mr.includes('पुन्हा या!') && !mr.includes('Thank you')
+    && /^नमस्ते Ramesh जी,/.test(hiFormal) && hiFormal.includes('₹1,250.00 बकाया') && hiFormal.includes('am%3D1250.00')
+    && enFriendly.includes('Your balance at Sai Kirana is ₹1,250.00.') && !enFriendly.includes('Pay by UPI') && enFriendly.includes('📌 UPI ID')
+    && khataReminderMessage({ name: 'R', balancePaise: 0 }, shop, { lang: 'en', payLink: true }, 'friendly').includes('fully settled')
+    && khataReminderMessage({ name: 'R', balancePaise: -5000 }, shop, { lang: 'en', payLink: true }, 'friendly').includes('advance of ₹50.00'),
+    'Customer messages in English / हिंदी / मराठी; reminder friendly or formal with a pay link for the balance; nothing due = "settled" / advance; the shop\'s own last line');
+  const slip = ledgerSlipMessage({ transaction_type: 'CREDIT_SALE', amount: 30000, balance_after: 80000, notes: 'Rice', created_at: '2026-09-28T10:00:00Z' } as any, 'Ramesh', shop, { lang: 'en', payLink: true });
+  assert(slip.includes('🔴 Credit given (udhar): ₹300.00') && slip.includes('📝 Note: Rice') && slip.includes('💰 *Balance: ₹800.00*') && slip.includes('am%3D800.00')
+    && paymentRequestMessage('Ramesh', 45000, shop, { lang: 'en', payLink: false }).includes('Pay by UPI'),
+    'Khata slip: what happened, the note, the balance after it (+ pay link); a payment request always carries its pay link');
+  const order = restockOrderMessage({ shop, supplierName: 'Gupta Traders', items: [{ name: 'Parle-G', qty: 48, unit: 'piece', stock: 2 }, { name: 'Sugar', qty: 25, unit: 'kg', stock: -3 }, { name: 'Skip', qty: 0, unit: 'piece' }] });
+  const ca = gstForCaMessage(shop, { periodLabel: 'Sep 2026', gstin: '27ABCDE1234F1Z5', invoices: 12, taxablePaise: 1000000, cgstPaise: 90000, sgstPaise: 90000, igstPaise: 0 });
+  const tally = cashTallyMessage({ shop, counts: [{ value: 500, count: 2 }, { value: 10, count: 0 }], countedPaise: 100000, expectedPaise: 105000 });
+  assert(order.includes('Dear Gupta Traders,') && order.includes('1. *Parle-G* — 48 pcs (in stock: 2)') && order.includes('2. *Sugar* — 25 kg (in stock: 0)') && !order.includes('Skip') && order.includes('*2 items*')
+    && ca.includes('*Sep 2026*') && ca.includes('27ABCDE1234F1Z5') && ca.includes('Taxable value: ₹10,000.00') && ca.includes('*Total GST: ₹1,800.00*') && !ca.includes('IGST')
+    && tally.includes('• ₹500 × 2 = ₹1,000') && !tally.includes('₹10 ×') && tally.includes('Short: ₹50.00')
+    && suggestedOrderQty({ current_stock: 2, min_stock_level: 10 } as any) === 18 && suggestedOrderQty({ current_stock: 50, min_stock_level: 5 } as any) === 1,
+    'Business messages: restock order (qty + unit, stock never below 0, zero lines left out), GST figures for the CA, cash count with shortage; order qty back to twice the alert level');
+  assert(parseWhatsAppSettings(null).payLink === true && parseWhatsAppSettings('{"lang":"xx","payLink":false,"signOff":7}').lang === '' && parseWhatsAppSettings('{"payLink":false}').payLink === false
+    && parseWhatsAppSettings('bad').attachPdf === false, 'WhatsApp settings: pay link on by default, bad saved values fall back');
+
+  const { whatsAppUrls } = require('../whatsapp.js');
+  const u1 = whatsAppUrls('919822012345', 'hi there');
+  const u2 = whatsAppUrls('', 'x');
+  const u3 = whatsAppUrls('91982', 'y'.repeat(3000));
+  assert(u1.app === 'whatsapp://send?phone=919822012345&text=hi%20there' && u1.web === 'https://wa.me/919822012345?text=hi%20there' && !u1.tooLong
+    && u2.app === 'whatsapp://send?text=x' && u2.web === 'https://wa.me/?text=x' && u3.number === '' && u3.tooLong && u3.webBase === 'https://wa.me/',
+    'Main side: whatsapp://send for WhatsApp Desktop, wa.me otherwise; a bad number is dropped (WhatsApp asks for the chat); over the Windows link limit → copy + open the chat');
+  const mainJs = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+  const waJs = fs.readFileSync(path.join(__dirname, '..', 'whatsapp.js'), 'utf8');
+  assert(/ipcMain\.handle\('kp:open-whatsapp'/.test(mainJs) && /openWhatsApp: \(request\) => ipcRenderer\.invoke\('kp:open-whatsapp', request\)/.test(fs.readFileSync(path.join(__dirname, '..', 'preload.js'), 'utf8'))
+    && (pkgJson.build?.files || []).includes('whatsapp.js') && /getApplicationNameForProtocol\('whatsapp:\/\/'\)/.test(waJs) && /clipboard\.writeText\(text\)/.test(waJs)
+    && /<WhatsAppHost \/>/.test(readSource('components/layout/AppShell.tsx')),
+    'kp:open-whatsapp wired (main, preload, packaged); WhatsApp Desktop detected by its protocol; the window lives in the app shell');
+  const comp = readSource('components/whatsapp/WhatsAppComposer.tsx');
+  assert(/addEventListener\('keydown', onKey, true\)/.test(comp) && /stopImmediatePropagation\(\)/.test(comp) && /z-\[60\]/.test(comp) && /aria-modal="true"/.test(comp)
+    && /await import\('@\/lib\/invoices\/invoiceOutput'\)/.test(comp) && !/from '@\/lib\/invoices\/invoiceOutput'/.test(comp),
+    'WhatsApp window sits above other windows, Esc closes only it, F1 / Ctrl+H stay off, the PDF engine loads only when a PDF is asked for');
+  const places: [string, RegExp][] = [
+    ['components/invoices/InvoiceModal.tsx', /kind: 'bill'/], ['components/transactions/TransactionBillCard.tsx', /kind: 'bill'/],
+    ['app/khata/page.tsx', /kind: 'khata'/], ['components/khata/CustomerLedgerTimelineTab.tsx', /kind: 'slip'/],
+    ['components/customers/CustomerCard.tsx', /kind: 'customer'/], ['components/customers/CustomerTableView.tsx', /kind: 'customer'/],
+    ['components/suppliers/SupplierDetailPanel.tsx', /kind: 'supplier'/], ['components/billing/PosDialogs.tsx', /kind: 'payment'/],
+    ['components/reports/DayEndClosingReportModal.tsx', /remember: 'owner'/], ['components/cash-register/DenominationCalculatorModal.tsx', /cashTallyMessage\(/],
+    ['app/gst-reports/page.tsx', /remember: 'ca'/], ['components/dashboard/DashboardStockWatchlist.tsx', /<RestockOrderButton/], ['components/inventory/ReorderAlertsList.tsx', /<RestockOrderButton/],
+    ['components/settings/InvoiceSettingsTab.tsx', /<WhatsAppSettingsCard \/>/],
+  ];
+  const missing = places.filter(([rel, re]) => !re.test(readSource(rel))).map(([rel]) => rel);
+  assert(missing.length === 0 && !/wa\.me/.test(readSource('components/suppliers/SupplierDetailPanel.tsx')),
+    `WhatsApp is on every screen the Android app has it (missing: ${missing.join(', ') || 'none'}); no hand-made wa.me links left`);
+  assert(/document\.activeElement === searchInputRef\.current \|\| Boolean\(document\.querySelector\('\[data-whatsapp-composer\]'\)\)/.test(readSource('app/billing/page.tsx')),
+    'On Billing the barcode listener stands aside while the WhatsApp window is open (a typed number is not a scan)');
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.

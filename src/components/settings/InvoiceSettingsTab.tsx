@@ -13,6 +13,7 @@ import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { PrintSettingsCard } from '@/components/settings/PrintSettingsCard';
 import { LabelPrinterCard } from '@/components/settings/LabelPrinterCard';
+import { WhatsAppSettingsCard } from '@/components/settings/WhatsAppSettingsCard';
 
 import { formatInvoiceNumber } from '@/lib/invoices/invoiceNumberService';
 import { tr } from '@/lib/i18n/core';
@@ -207,6 +208,8 @@ export const InvoiceSettingsTab: React.FC<InvoiceSettingsTabProps> = ({
       <PrintSettingsCard />
 
       <LabelPrinterCard />
+
+      <WhatsAppSettingsCard />
     </div>
   );
 };
