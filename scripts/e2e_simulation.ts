@@ -91,6 +91,7 @@ import { categoryKey, findCategoryByName } from '../src/lib/products/categories'
 import { allowsFractionalQty, dozenFromPieces, formatCartQty, lineAmountPaise, piecesInDozen, roundQty } from '../src/lib/billing/unitQuantity';
 import { getQuantityConfigForUnit } from '../src/components/billing/posQuantityConfig';
 import { scanIntoRows, splitTrailingCode } from '../src/lib/inward/fastInward';
+import { customerListHtmlBody, customerSheetRows, sortCustomers } from '../src/lib/customers/customerDirectory';
 import { searchProducts, soundKeys, wordSoundKey } from '../src/lib/search/productSearch';
 import {
   WALK_IN_ID,
@@ -1621,6 +1622,27 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(/scanIntoRows\(rowsRef\.current, clean,/.test(modal) && /qtyOptional: true/.test(modal) && /source: 'Fast barcode inward'/.test(modal) && /FAST_INWARD_DRAFT_KEY/.test(modal)
     && /onOpenFastInward=\{\(\) => setIsFastInwardOpen\(true\)\}/.test(readSource('app/products/page.tsx')) && /<FastBarcodeInwardModal/.test(readSource('app/purchases/page.tsx')),
     'Every scan starts from the latest rows (quick scans are never lost); scanned rows survive as a draft; Products and Purchases open it');
+}
+
+// (i) Customer Directory: grid or list (remembered), four sort orders, and the list as shown
+// exported to Excel (xlsx loaded only then) and to a PDF in Documents/KamaiPlus/Reports.
+{
+  const C = (name: string, extra: Record<string, unknown> = {}) => ({ id: name, name, phone: '', current_balance: 0, total_spent: 0, total_visits: 0, customer_type: 'regular', ...extra } as unknown as import('../src/types').Customer);
+  const list = [C('Zoya', { current_balance: 5000, total_spent: 900, last_visit_date: '2026-09-01T10:00:00Z' }), C('amit', { current_balance: -2000, total_spent: 50000, last_visit_date: '2026-09-27T10:00:00Z' }), C('Bina', { total_spent: 12000 })];
+  const names = (s: 'due' | 'name' | 'spent' | 'recent') => sortCustomers(list, s).map((c) => c.name).join(',');
+  assert(names('due') === 'Zoya,Bina,amit' && names('name') === 'amit,Bina,Zoya' && names('spent') === 'amit,Bina,Zoya' && names('recent') === 'amit,Zoya,Bina' && list[0].name === 'Zoya',
+    'Customers sort by most udhar, name A–Z (any case), most bought or latest visit — without changing the saved order');
+  const sheet = customerSheetRows(list);
+  assert(sheet.length === 4 && sheet[0][0] === 'Name' && sheet[1][6] === 50 && sheet[1][7] === 'Udhar' && sheet[2][6] === -20 && sheet[2][7] === 'Advance' && sheet[2][10] === '27-09-2026' && sheet[3][7] === 'Settled',
+    'Excel: one row per customer, balance in ₹ (+ udhar / − advance) with its kind, dates as dd-mm-yyyy');
+  const html = customerListHtmlBody([C('<b>Ram</b>', { current_balance: 5000 }), C('Sita', { current_balance: -2000 })], { shopName: 'My Shop', view: 'All customers', printedOn: 'now' });
+  assert(html.includes('&lt;b&gt;Ram&lt;/b&gt;') && /Customers: <b>2<\/b>/.test(html) && /Udhar to collect: <b>₹50\.00<\/b>/.test(html) && /Advance held: <b>₹20\.00<\/b>/.test(html) && /₹50\.00 Dr/.test(html) && /₹20\.00 Cr/.test(html),
+    'PDF list: names are escaped, totals of udhar to collect and advance held, Dr / Cr per customer');
+  const page = readSource('app/customers/page.tsx');
+  const controls = readSource('components/customers/CustomerListControls.tsx');
+  assert(/sortCustomers\(filteredCustomers, sort\)/.test(page) && /<CustomerTableView/.test(page) && /localStorage\.setItem\(CUSTOMER_VIEW_KEY, v\)/.test(page) && /customers=\{shownCustomers\}/.test(page)
+    && /await import\('xlsx'\)/.test(controls) && !/from 'xlsx'/.test(controls) && /await import\('@\/lib\/print\/printDocument'\)/.test(controls) && /'Reports'\)/.test(controls),
+    'Customers page: grid / list remembered, the shown list is what gets exported, xlsx and the PDF printer load only when used');
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.

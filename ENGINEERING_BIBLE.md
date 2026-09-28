@@ -352,6 +352,7 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 | `barcode/storeBarcodes.ts` | The shop's own saved barcodes, EAN-13 `200…` (§9.3): `nextStoreBarcodes`, `ensureProductBarcode`, `ensureProductBarcodes` (bulk) |
 | `barcode/barcodeGenerator.ts` | Bar codes as SVG (§9.4): `barcodeSymbol` (EAN-13 for valid EAN-13, else Code-128 B / C), `barcodeSVG`, `code128Modules`, `ean13Modules` |
 | `labels/` | Barcode labels (§9.4): `labelSettings.ts` (stocks, per-computer setup, `saveLabelHandoff` / `readLabelHandoff`), `labelSheet.ts` (`buildLabelHtml` — preview = print), `printLabels.ts`, `labelExtras.ts` (cost code, size / colour — v4.77.0) |
+| `customers/customerDirectory.ts` | Customer Directory (v4.78.0): `sortCustomers`, `customerSheetRows` (Excel), `customerListHtmlBody` (PDF, English) |
 | `products/categories.ts` | `findOrCreateCategory` / `findCategoryByName` — a typed category name picks the saved one (any case), else saves it (v4.78.0) |
 | `inward/` | Goods coming in (§9.8): `stockEntry.ts` (pure — `stockAfterInward`, `labelCopiesFor`, `lowStockAlertFor`, `inwardMovement`, `planStockEntry`), `stockEntryDb.ts` (`applyStockEntry`), `stockEntryDraft.ts` (typed rows kept per computer), `fastInward.ts` (`scanIntoRows`, `splitTrailingCode` — Fast barcode inward, v4.78.0) |
 | `barcode/weighedBarcode.ts` | Loose-pack codes `29 IIIII QQQQQ C` (§9.8): `makeWeighedBarcode`, `parseWeighedBarcode`, `weighedQuantity`, `formatPackAmount` |
@@ -371,7 +372,7 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 | `/purchases` | Supplier inward (manual + Excel/CSV bill); manual inward can put the value on a saved supplier's account; both offer "Print N labels" (§9.8) | yes |
 | `/suppliers` | Supplier accounts (v4.48.0): what you owe, purchases on credit, payments — `lib/suppliers/supplierLedger.ts` | yes |
 | `/khata` | Udhar ledger | yes |
-| `/customers` | CRM | yes |
+| `/customers` | CRM — grid / list, 4 sort orders, the shown list to Excel / PDF (v4.78.0, `lib/customers/customerDirectory.ts`) | yes |
 | `/transactions` | Sales history, returns | yes |
 | `/cash-register` | Shift open/close, denomination tally, expenses | yes |
 | `/reports` | Sales analytics | yes |
@@ -638,7 +639,7 @@ There is no global state library. Modules talk through window events:
 `kamai_pwa_banner_dismissed` · `kamai_cashier_owner_pin` · `kamai_cashier_privacy_locked` ·
 `kamai_print_settings` (bill printers) · `kamai_label_settings` · `kamai_last_import_ids` ·
 `kamai_label_handoff` (Purchases → Barcode Studio labels) · `kamai_stock_entry_draft` (typed "New stock" rows) ·
-`kamai_fast_inward_draft` (scanned Fast barcode inward rows) ·
+`kamai_fast_inward_draft` (scanned Fast barcode inward rows) · `kamai_customers_view_mode` (Customers grid / list) ·
 `kamai_feature_switches` · `kamai_sound_muted` · `vyapar_language`
 
 sessionStorage (emptied when the app closes): `kamai_unlocked` · `kamai_return_to`.

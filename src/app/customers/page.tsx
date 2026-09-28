@@ -1,7 +1,7 @@
 'use client';
 import { showConfirm } from '@/lib/ui/dialogs';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useBusiness } from '@/components/layout/BusinessProvider';
@@ -15,7 +15,13 @@ import { CustomerMetricsRibbon } from '@/components/customers/CustomerMetricsRib
 import { CustomerFilterToolbar, CustomerCategoryFilter } from '@/components/customers/CustomerFilterToolbar';
 import { CustomerCard } from '@/components/customers/CustomerCard';
 import { AddEditCustomerModal } from '@/components/customers/AddEditCustomerModal';
+import { CustomerTableView } from '@/components/customers/CustomerTableView';
+import { CustomerListControls } from '@/components/customers/CustomerListControls';
+import { CUSTOMER_VIEW_KEY, CustomerSort, CustomerView, sortCustomers } from '@/lib/customers/customerDirectory';
 import { tr } from '@/lib/i18n/core';
+
+// Printed on the PDF list, which stays English like every saved document.
+const FILTER_LABEL: Record<CustomerCategoryFilter, string> = { all: 'All customers', credit: 'Udhar due', vip: 'VIP', regular: 'Regular' };
 
 export default function CustomersPage() {
   const { t } = useTranslation();
@@ -25,6 +31,20 @@ export default function CustomersPage() {
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
 
   const [custToast, setCustToast] = useState<{ message: string; type?: 'success' | 'info' | 'error' } | null>(null);
+  // Grid or list — remembered on this computer (v4.78.0); the list order is chosen here too.
+  const [view, setView] = useState<CustomerView>('grid');
+  const [sort, setSort] = useState<CustomerSort>('due');
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(CUSTOMER_VIEW_KEY) === 'list') setView('list');
+    } catch {}
+  }, []);
+  const changeView = (v: CustomerView) => {
+    setView(v);
+    try {
+      localStorage.setItem(CUSTOMER_VIEW_KEY, v);
+    } catch {}
+  };
 
   const business = useBusiness();
 
@@ -60,7 +80,8 @@ export default function CustomersPage() {
     if (selectedFilter === 'regular' && c.customer_type !== 'regular') return false;
 
     return true;
-  }).sort((a, b) => (b.current_balance || 0) - (a.current_balance || 0));
+  });
+  const shownCustomers = sortCustomers(filteredCustomers, sort);
 
   const totalCreditDue = rawCustomers.reduce((acc, c) => acc + (c.current_balance > 0 ? c.current_balance : 0), 0);
   const totalVIPCount = rawCustomers.filter((c) => c.customer_type === 'vip').length;
@@ -188,9 +209,30 @@ export default function CustomersPage() {
         vipCustomersCount={totalVIPCount}
       />
 
-      {/* 4. Customer Directory Grid Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        {filteredCustomers.map((c) => (
+      {/* 4. View (grid / list), order and export of exactly this list */}
+      <CustomerListControls
+        customers={shownCustomers}
+        view={view}
+        onViewChange={changeView}
+        sort={sort}
+        onSortChange={setSort}
+        shopName={business?.name || ''}
+        filterLabel={`${FILTER_LABEL[selectedFilter]}${searchQuery.trim() ? ` • "${searchQuery.trim()}"` : ''}`}
+      />
+
+      {view === 'list' && shownCustomers.length > 0 && (
+        <CustomerTableView
+          customers={shownCustomers}
+          onEditCustomer={(cust) => {
+            setEditingCustomer(cust);
+            setIsModalOpen(true);
+          }}
+        />
+      )}
+
+      {/* 5. Customer Directory Grid Cards */}
+      <div className={view === 'list' && shownCustomers.length > 0 ? 'hidden' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3'}>
+        {view === 'grid' && shownCustomers.map((c) => (
           <CustomerCard
             key={c.id}
             customer={c}
