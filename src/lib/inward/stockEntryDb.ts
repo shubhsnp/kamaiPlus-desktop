@@ -2,6 +2,7 @@ import { db } from '@/lib/db';
 import { InventoryMovement, Product } from '@/types';
 import { barcodesInUse, nextStoreBarcodes } from '@/lib/barcode/storeBarcodes';
 import { productLabelExtras } from '@/lib/labels/labelExtras';
+import { DEFAULT_COUNTED_STOCK } from '@/lib/products/variants';
 import { inwardMovement, labelCopiesFor, lowStockAlertFor, StockEntryPlan, stockAfterInward } from './stockEntry';
 
 export interface StockEntryContext {
@@ -10,6 +11,10 @@ export interface StockEntryContext {
   taxInclusive: boolean;
   /** Category for the new items. */
   category: { id: string; name: string };
+  /** All categories — a row's own category is looked up here (Fast barcode inward). */
+  categories?: { id: string; name: string }[];
+  /** Where the goods were entered — written in the stock history (default Barcode Studio). */
+  source?: 'Barcode Studio' | 'Fast barcode inward';
 }
 
 /** One item's labels after saving — the print list takes these as they are. */
@@ -65,16 +70,23 @@ export async function applyStockEntry(plan: StockEntryPlan, ctx: StockEntryConte
     const moves: InventoryMovement[] = [];
     const labels: ReceivedLabel[] = [];
     let startedCounting = 0;
+    let created = 0;
+    let restocked = 0;
+    const source = ctx.source || 'Barcode Studio';
+    const categoryFor = (id?: string) => (id && ctx.categories?.find((c) => c.id === id)) || ctx.category;
 
     plan.lines.forEach((line, i) => {
       if (line.kind === 'new') {
+        // No quantity (fast inward) = not counted: "Unlimited", like an item added without stock.
+        const counted = line.qty > 0;
+        const cat = categoryFor(line.categoryId);
         const product: Product = {
           id: `prod_lbl_${stamp}_${i}`,
           business_id: ctx.businessId,
           name: line.name,
           barcode: wanted[i] || codes[codeIndex++],
-          category_id: ctx.category.id,
-          category_name: ctx.category.name,
+          category_id: cat.id,
+          category_name: cat.name,
           unit: line.unit,
           selling_price: line.pricePaise,
           mrp: line.mrpPaise,
@@ -82,9 +94,9 @@ export async function applyStockEntry(plan: StockEntryPlan, ctx: StockEntryConte
           tax_rate: line.gstRate ?? 0,
           is_tax_inclusive: ctx.taxInclusive,
           hsn_code: line.hsn || undefined,
-          is_unlimited_stock: false,
+          is_unlimited_stock: !counted,
           current_stock: line.qty,
-          min_stock_level: lowStockAlertFor(line.qty),
+          min_stock_level: counted ? lowStockAlertFor(line.qty) : DEFAULT_COUNTED_STOCK,
           is_favorite: false,
           is_active: true,
           created_at: now,
@@ -92,10 +104,11 @@ export async function applyStockEntry(plan: StockEntryPlan, ctx: StockEntryConte
           sync_status: 'pending',
         };
         products.push(product);
-        moves.push(inwardMovement({
+        created++;
+        if (counted) moves.push(inwardMovement({
           id: `mov_lbl_${stamp}_${i}`, businessId: ctx.businessId, product, qty: line.qty,
           stock: { previous: 0, next: line.qty, startsCounting: false },
-          reason: 'New item received (Barcode Studio)', referenceId: batchId, now,
+          reason: `New item received (${source})`, referenceId: batchId, now,
         }));
         labels.push({ id: product.id, name: product.name, barcode: product.barcode!, pricePaise: product.selling_price, mrpPaise: product.mrp, ...productLabelExtras(product), copies: labelCopiesFor(product.unit, line.qty), stock: line.qty });
         return;
@@ -103,24 +116,29 @@ export async function applyStockEntry(plan: StockEntryPlan, ctx: StockEntryConte
 
       const fresh = freshById.get(line.product.id);
       if (!fresh) return; // deleted while the rows were being typed
-      const stock = stockAfterInward(fresh, line.qty);
+      // No quantity (fast inward) = the stock is left as it is; only the details change.
+      const received = line.qty > 0;
+      const stock = received ? stockAfterInward(fresh, line.qty) : { previous: fresh.current_stock, next: fresh.current_stock, startsCounting: false };
       if (stock.startsCounting) startedCounting++;
+      const cat = line.categoryId ? categoryFor(line.categoryId) : null;
       const next: Product = {
         ...fresh,
         barcode: fresh.barcode?.trim() || codes[codeIndex++],
         current_stock: stock.next,
-        is_unlimited_stock: false,
+        is_unlimited_stock: received ? false : fresh.is_unlimited_stock,
         selling_price: line.pricePaise ?? fresh.selling_price,
         mrp: line.mrpPaise ?? fresh.mrp,
         purchase_price: line.costPaise ?? fresh.purchase_price,
+        ...(cat ? { category_id: cat.id, category_name: cat.name } : {}),
         min_stock_level: stock.startsCounting && !(fresh.min_stock_level > 0) ? lowStockAlertFor(line.qty) : fresh.min_stock_level,
         is_active: true,
         updated_at: now,
       };
       products.push(next);
-      moves.push(inwardMovement({
+      restocked++;
+      if (received) moves.push(inwardMovement({
         id: `mov_lbl_${stamp}_${i}`, businessId: ctx.businessId, product: next, qty: line.qty, stock,
-        reason: 'Stock received (Barcode Studio)', referenceId: batchId, now,
+        reason: `Stock received (${source})`, referenceId: batchId, now,
       }));
       labels.push({ id: next.id, name: next.name, barcode: next.barcode!, pricePaise: next.selling_price, mrpPaise: next.mrp, ...productLabelExtras(next), copies: labelCopiesFor(next.unit, line.qty), stock: stock.next });
     });
@@ -129,10 +147,11 @@ export async function applyStockEntry(plan: StockEntryPlan, ctx: StockEntryConte
     if (moves.length) await db.inventory_movements.bulkPut(moves);
 
     return {
-      created: plan.lines.filter((l) => l.kind === 'new').length,
-      restocked: labels.length - plan.lines.filter((l) => l.kind === 'new').length,
+      created,
+      restocked,
       startedCounting,
-      labels,
+      // Rows without a quantity get no labels.
+      labels: labels.filter((l) => l.copies > 0),
     };
   });
 }

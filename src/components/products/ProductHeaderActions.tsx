@@ -4,7 +4,8 @@ import React from 'react';
 import { 
   Package, 
   Plus,
-  FileSpreadsheet
+  FileSpreadsheet,
+  ScanLine
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { CashierPrivacyToggleButton } from '@/components/privacy/ProfitMask';
@@ -14,6 +15,8 @@ interface ProductHeaderActionsProps {
   totalProducts: number;
   businessType?: string;
   onOpenAddModal: () => void;
+  /** Fast barcode inward — scan item after item (v4.78.0). */
+  onOpenFastInward?: () => void;
   onOpenExcelImporter?: () => void;
   onOpenInwardSheet?: () => void;
   onOpenRapidInward?: () => void;
@@ -23,6 +26,7 @@ export const ProductHeaderActions: React.FC<ProductHeaderActionsProps> = ({
   totalProducts,
   businessType,
   onOpenAddModal,
+  onOpenFastInward,
   onOpenExcelImporter,
   onOpenInwardSheet,
   onOpenRapidInward,
@@ -60,6 +64,20 @@ export const ProductHeaderActions: React.FC<ProductHeaderActionsProps> = ({
           >
             <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
             <span>{tr('Bulk Inward (Excel)')}</span>
+          </Button>
+        )}
+
+        {onOpenFastInward && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onOpenFastInward}
+            className="text-xs font-black gap-1.5 rounded-xl border-emerald-400/60 bg-white hover:bg-emerald-50 cursor-pointer shadow-2xs"
+            title={tr('Scan item after item with the barcode gun — each scan is added at once')}
+            data-open-fast-inward
+          >
+            <ScanLine className="w-3.5 h-3.5 text-emerald-600" />
+            <span>{tr('Fast barcode inward')}</span>
           </Button>
         )}
 

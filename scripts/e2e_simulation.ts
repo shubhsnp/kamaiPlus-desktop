@@ -90,6 +90,7 @@ import { settingsTabFromQuery } from '../src/lib/ui/settingsLinks';
 import { categoryKey, findCategoryByName } from '../src/lib/products/categories';
 import { allowsFractionalQty, dozenFromPieces, formatCartQty, lineAmountPaise, piecesInDozen, roundQty } from '../src/lib/billing/unitQuantity';
 import { getQuantityConfigForUnit } from '../src/components/billing/posQuantityConfig';
+import { scanIntoRows, splitTrailingCode } from '../src/lib/inward/fastInward';
 import { searchProducts, soundKeys, wordSoundKey } from '../src/lib/search/productSearch';
 import {
   WALK_IN_ID,
@@ -1465,7 +1466,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     'Barcode Studio: no print-only label with a code nobody knows; "New stock + labels" (?new=1) and Purchases\' labels (?from=inward) open there');
   const entryModal = readSource('components/labels/StockEntryModal.tsx');
   const entryDb = readSource('lib/inward/stockEntryDb.ts');
-  assert(/await applyStockEntry\(plan,/.test(entryModal) && /db\.transaction\('rw', db\.products, db\.inventory_movements,/.test(entryDb) && /is_unlimited_stock: false,\s*current_stock: line\.qty/.test(entryDb) && /nextStoreBarcodes\(used, needCodes\)/.test(entryDb),
+  assert(/await applyStockEntry\(plan,/.test(entryModal) && /db\.transaction\('rw', db\.products, db\.inventory_movements,/.test(entryDb) && /const counted = line\.qty > 0;/.test(entryDb) && /is_unlimited_stock: !counted,\s*current_stock: line\.qty/.test(entryDb) && /nextStoreBarcodes\(used, needCodes\)/.test(entryDb),
     'Typed items are saved in one transaction with counted stock (= quantity) and their own barcode before any label prints');
   const inwardDb = readSource('lib/purchases/billInwardDb.ts');
   const purchasesCode = ['components/purchases/BillScanReviewModal.tsx', 'components/purchases/BillLineRow.tsx', 'components/purchases/PurchaseInwardOptionsSheet.tsx', 'lib/purchases/billInwardDb.ts', 'lib/purchases/billSheet.ts'].map(readSource).join('\n');
@@ -1583,6 +1584,43 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(/const qty = roundQty\(parseFloat\(editItemQty\)\);/.test(pos) && /!Number\.isInteger\(qty\) && !allowsFractionalQty\(editingCartItem\.unit, product\?\.allow_decimal\)/.test(pos)
     && /formatCartQty\(item\.quantity\)\}<\/span>/.test(pos) && /setEditItemQty\(String\(dozenFromPieces\(n\)\)\)/.test(edit) && /lineAmountPaise\(qtyNow, ratePaise\)/.test(edit),
     'Saving a line refuses a split piece, keeps 6 decimals; the window turns pieces into dozen and shows the amount');
+}
+
+// (h) Fast barcode inward (like the Android app): every scan is a row at once, the same code
+// again adds 1, a saved item's code restocks it, the offline list fills name / price; quantity
+// and category are optional (no quantity = a new item is "Unlimited", a saved one keeps its stock).
+{
+  const P = (id: string, name: string, extra: Partial<Product> = {}) => ({ id, name, unit: 'piece', selling_price: 1000, mrp: 1000, purchase_price: 0, current_stock: 4, min_stock_level: 5, is_active: true, category_id: 'c1', ...extra } as Product);
+  const saved = P('p1', 'Parle-G 80g', { barcode: '8901719101037' });
+  const cats = [{ id: 'c1', name: 'General' }, { id: 'c2', name: 'Snacks & Biscuits' }];
+  const opt = { separateSellingPrice: false, categories: cats };
+  let r = scanIntoRows([], '8901719101037', [saved], null, 'k1', opt);
+  assert(r.outcome === 'saved' && r.rows[0].productId === 'p1' && r.rows[0].qty === '1' && r.rows[0].categoryId === 'c1', 'Scanning a saved item\'s code adds a row that restocks it');
+  r = scanIntoRows(r.rows, '8906000000001', [saved], { name: 'Good Day 100g', category: 'snacks & biscuits', mrp: 30, selling_price: 28, unit: 'pack' }, 'k2', opt);
+  const known = r.rows[0];
+  assert(r.outcome === 'known' && known.name === 'Good Day 100g' && known.price === '30' && known.unit === 'packet' && known.categoryId === 'c2' && known.barcode === '8906000000001',
+    'A code in the offline barcode list fills name, MRP, unit and the shop\'s matching category');
+  r = scanIntoRows(r.rows, '8901719101037', [saved], null, 'k3', opt);
+  assert(r.outcome === 'more' && r.rows[0].key === 'k1' && r.rows[0].qty === '2' && r.rows.length === 2, 'The same code again adds 1 to its row and brings it to the top (5 packets = 5 scans)');
+  r = scanIntoRows(r.rows, '2000000009999', [saved], null, 'k4', opt);
+  assert(r.outcome === 'unknown' && r.rows[0].name === '' && r.rows[0].barcode === '2000000009999' && r.rows.length === 3, 'An unknown code adds a row waiting for its name and price');
+  assert(splitTrailingCode('Parle-G 80g8901719101037', looksLikeBarcode)?.code === '8901719101037' && splitTrailingCode('Parle-G 80g8901719101037', looksLikeBarcode)?.before === 'Parle-G 80g'
+    && splitTrailingCode('8901719101037', looksLikeBarcode)?.before === '' && splitTrailingCode('Rocket 10 Shot', looksLikeBarcode) === null,
+    'A gun scan that lands in a name box is split off and handled as a scan (the name typed before is kept)');
+  const rows = [{ ...emptyEntryRow('a'), name: 'Loose Item', price: '50' }, { ...emptyEntryRow('b'), productId: 'p1' }, { ...emptyEntryRow('c'), name: 'Counted', price: '20', qty: '3', categoryId: 'c2' }];
+  const fast = planStockEntry(rows, [saved], { separateSellingPrice: false, qtyOptional: true });
+  const strict = planStockEntry(rows, [saved], { separateSellingPrice: false });
+  const a = fast.lines.find((l) => l.key === 'a');
+  const c = fast.lines.find((l) => l.key === 'c');
+  assert(Object.keys(fast.errors).length === 0 && a?.qty === 0 && fast.lines.find((l) => l.key === 'b')?.qty === 0 && c?.kind === 'new' && c.categoryId === 'c2' && fast.labels === 3 && strict.errors.a === 'Enter the quantity received',
+    'Fast inward: quantity may be left blank (no labels for it), a row keeps its own category; "New stock + labels" still needs a quantity');
+  const entryDb = readSource('lib/inward/stockEntryDb.ts');
+  const modal = readSource('components/inward/FastBarcodeInwardModal.tsx');
+  assert(/is_unlimited_stock: received \? false : fresh\.is_unlimited_stock/.test(entryDb) && /if \(received\) moves\.push/.test(entryDb) && /if \(counted\) moves\.push/.test(entryDb) && /labels\.filter\(\(l\) => l\.copies > 0\)/.test(entryDb),
+    'Saving: no quantity = a new item "Unlimited", a saved item\'s stock untouched, no stock movement and no labels for it');
+  assert(/scanIntoRows\(rowsRef\.current, clean,/.test(modal) && /qtyOptional: true/.test(modal) && /source: 'Fast barcode inward'/.test(modal) && /FAST_INWARD_DRAFT_KEY/.test(modal)
+    && /onOpenFastInward=\{\(\) => setIsFastInwardOpen\(true\)\}/.test(readSource('app/products/page.tsx')) && /<FastBarcodeInwardModal/.test(readSource('app/purchases/page.tsx')),
+    'Every scan starts from the latest rows (quick scans are never lost); scanned rows survive as a draft; Products and Purchases open it');
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.

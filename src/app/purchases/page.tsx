@@ -33,6 +33,7 @@ import { CashierPrivacyToggleButton, ProfitMask } from '@/components/privacy/Pro
 import { tr } from '@/lib/i18n/core';
 import { inwardMovement, labelCopiesFor, stockAfterInward } from '@/lib/inward/stockEntry';
 import { InwardLabelOffer, InwardLabels } from '@/components/purchases/InwardLabelOffer';
+import { FastBarcodeInwardModal } from '@/components/inward/FastBarcodeInwardModal';
 
 export default function PurchasesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -47,6 +48,7 @@ export default function PurchasesPage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   // After a manual inward: offer the labels for what came in (one per piece).
   const [labelOffer, setLabelOffer] = useState<InwardLabels | null>(null);
+  const [fastInwardOpen, setFastInwardOpen] = useState(false);
 
   // A variant parent holds no stock of its own — restock its sizes / colours instead.
   const products = (useLiveQuery(async () => db.products.toArray()) || []).filter((p) => !isVariantParent(p));
@@ -159,6 +161,7 @@ export default function PurchasesPage() {
       )}
 
       {labelOffer && <InwardLabelOffer offer={labelOffer} onDismiss={() => setLabelOffer(null)} />}
+      {fastInwardOpen && <FastBarcodeInwardModal onClose={() => setFastInwardOpen(false)} />}
 
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
@@ -183,6 +186,11 @@ export default function PurchasesPage() {
               showToast(tr('🎉 Bill inward complete! {updated} items restocked, {created} new products created.', { updated: updated, created: created }));
             }}
           />
+
+          <Button onClick={() => setFastInwardOpen(true)} variant="outline" size="md" className="text-xs font-bold gap-1.5 cursor-pointer" data-purchases-fast-inward>
+            <Barcode className="w-4 h-4 text-emerald-600" />
+            <span>{tr('Fast barcode inward')}</span>
+          </Button>
 
           <Link
             href="/barcode-generator?new=1"

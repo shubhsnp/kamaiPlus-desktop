@@ -8,6 +8,8 @@ import { StockEntryRow } from './stockEntry';
  */
 
 const DRAFT_KEY = 'kamai_stock_entry_draft';
+/** Fast barcode inward keeps its scanned rows under its own key (v4.78.0). */
+export const FAST_INWARD_DRAFT_KEY = 'kamai_fast_inward_draft';
 const UNITS = new Set<string>(MASTER_UNITS.map((u) => u.id));
 const text = (v: unknown, max = 200) => (typeof v === 'string' ? v.slice(0, max) : '');
 
@@ -34,6 +36,7 @@ export function parseStockEntryDraft(raw: string | null | undefined): StockEntry
       gst: text(r.gst, 5),
       hsn: text(r.hsn, 8),
       barcode: text(r.barcode, 40),
+      categoryId: typeof r.categoryId === 'string' && r.categoryId ? r.categoryId.slice(0, 80) : undefined,
     }));
     return rows.length ? { rows, categoryId: text(d.categoryId, 80) } : null;
   } catch {
@@ -41,26 +44,26 @@ export function parseStockEntryDraft(raw: string | null | undefined): StockEntry
   }
 }
 
-export function readStockEntryDraft(): StockEntryDraft | null {
+export function readStockEntryDraft(key = DRAFT_KEY): StockEntryDraft | null {
   if (typeof window === 'undefined') return null;
   try {
-    return parseStockEntryDraft(localStorage.getItem(DRAFT_KEY));
+    return parseStockEntryDraft(localStorage.getItem(key));
   } catch {
     return null;
   }
 }
 
-export function saveStockEntryDraft(draft: StockEntryDraft) {
+export function saveStockEntryDraft(draft: StockEntryDraft, key = DRAFT_KEY) {
   try {
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    localStorage.setItem(key, JSON.stringify(draft));
   } catch {}
 }
 
-export function clearStockEntryDraft() {
+export function clearStockEntryDraft(key = DRAFT_KEY) {
   try {
-    localStorage.removeItem(DRAFT_KEY);
+    localStorage.removeItem(key);
   } catch {}
 }
 
 /** Rows waiting in the draft (Barcode Studio shows "continue" when there are some). */
-export const stockEntryDraftCount = (): number => readStockEntryDraft()?.rows.length || 0;
+export const stockEntryDraftCount = (key = DRAFT_KEY): number => readStockEntryDraft(key)?.rows.length || 0;

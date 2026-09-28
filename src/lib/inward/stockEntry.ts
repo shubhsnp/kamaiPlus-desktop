@@ -91,11 +91,18 @@ export interface StockEntryRow {
   hsn: string;
   /** A code scanned from the packet for a new item; '' = the shop's own code is given. */
   barcode: string;
+  /** This row's own category (Fast barcode inward, v4.78.0); none = the batch's category. */
+  categoryId?: string;
 }
 
 export interface StockEntryOptions {
   /** Settings → Features → "Separate Selling Price". */
   separateSellingPrice: boolean;
+  /**
+   * Fast barcode inward (v4.78.0): a row may leave the quantity blank — a new item is then
+   * saved "Unlimited" (not counted) and a saved item's stock is left as it is.
+   */
+  qtyOptional?: boolean;
 }
 
 export interface PlannedNewItem {
@@ -110,6 +117,7 @@ export interface PlannedNewItem {
   gstRate: number | null;
   hsn: string;
   barcode: string;
+  categoryId?: string;
 }
 
 export interface PlannedRestock {
@@ -121,6 +129,8 @@ export interface PlannedRestock {
   pricePaise: number | null;
   mrpPaise: number | null;
   costPaise: number | null;
+  /** A category picked for the saved item (undefined = keep its own). */
+  categoryId?: string;
 }
 
 export type PlannedLine = PlannedNewItem | PlannedRestock;
@@ -178,8 +188,9 @@ export function planStockEntry(rows: StockEntryRow[], products: Product[], opts:
     if (!product && parentNames.has(normName(r.name))) { fail(msg('This item has sizes / colours — type the size too, e.g. "Shirt (M)"')); continue; }
 
     const unit = product ? product.unit : r.unit;
-    const qty = parseAmount(r.qty);
-    if (qty === null || !(qty > 0)) { fail(msg('Enter the quantity received')); continue; }
+    // Blank quantity (fast inward only) = 0: nothing counted, nothing added.
+    const qty = opts.qtyOptional && !r.qty.trim() ? 0 : parseAmount(r.qty);
+    if (qty === null || !(qty > 0 || (opts.qtyOptional && qty === 0 && !r.qty.trim()))) { fail(msg('Enter the quantity received')); continue; }
     if (qty > 100000) { fail(msg('Quantity is too large')); continue; }
     if (!isMeasuredUnit(unit) && !product?.allow_decimal && !Number.isInteger(qty)) { fail(msg('Whole numbers only for this unit')); continue; }
 
@@ -203,14 +214,14 @@ export function planStockEntry(rows: StockEntryRow[], products: Product[], opts:
         mrpPaise = mrp;
       }
       if (mrpPaise !== null && mrpPaise < (pricePaise ?? product.selling_price)) { fail(msg('MRP cannot be less than the price')); continue; }
-      line = { kind: 'restock', key: r.key, product, qty, pricePaise, mrpPaise, costPaise: cost };
+      line = { kind: 'restock', key: r.key, product, qty, pricePaise, mrpPaise, costPaise: cost, categoryId: r.categoryId && r.categoryId !== product.category_id ? r.categoryId : undefined };
     } else {
       if (price === null) { fail(opts.separateSellingPrice ? msg('Enter the selling price') : msg('Enter the MRP')); continue; }
       const mrpPaise = mrp ?? price;
       if (mrpPaise < price) { fail(msg('MRP cannot be less than the price')); continue; }
       line = {
         kind: 'new', key: r.key, name: r.name.trim(), unit, qty, pricePaise: price, mrpPaise, costPaise: cost,
-        gstRate: gst, hsn: r.hsn.replace(/\D/g, '').slice(0, 8), barcode: r.barcode.trim(),
+        gstRate: gst, hsn: r.hsn.replace(/\D/g, '').slice(0, 8), barcode: r.barcode.trim(), categoryId: r.categoryId || undefined,
       };
     }
 

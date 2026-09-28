@@ -353,7 +353,7 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 | `barcode/barcodeGenerator.ts` | Bar codes as SVG (§9.4): `barcodeSymbol` (EAN-13 for valid EAN-13, else Code-128 B / C), `barcodeSVG`, `code128Modules`, `ean13Modules` |
 | `labels/` | Barcode labels (§9.4): `labelSettings.ts` (stocks, per-computer setup, `saveLabelHandoff` / `readLabelHandoff`), `labelSheet.ts` (`buildLabelHtml` — preview = print), `printLabels.ts`, `labelExtras.ts` (cost code, size / colour — v4.77.0) |
 | `products/categories.ts` | `findOrCreateCategory` / `findCategoryByName` — a typed category name picks the saved one (any case), else saves it (v4.78.0) |
-| `inward/` | Goods coming in (§9.8): `stockEntry.ts` (pure — `stockAfterInward`, `labelCopiesFor`, `lowStockAlertFor`, `inwardMovement`, `planStockEntry`), `stockEntryDb.ts` (`applyStockEntry`), `stockEntryDraft.ts` (typed rows kept per computer) |
+| `inward/` | Goods coming in (§9.8): `stockEntry.ts` (pure — `stockAfterInward`, `labelCopiesFor`, `lowStockAlertFor`, `inwardMovement`, `planStockEntry`), `stockEntryDb.ts` (`applyStockEntry`), `stockEntryDraft.ts` (typed rows kept per computer), `fastInward.ts` (`scanIntoRows`, `splitTrailingCode` — Fast barcode inward, v4.78.0) |
 | `barcode/weighedBarcode.ts` | Loose-pack codes `29 IIIII QQQQQ C` (§9.8): `makeWeighedBarcode`, `parseWeighedBarcode`, `weighedQuantity`, `formatPackAmount` |
 
 ---
@@ -638,6 +638,7 @@ There is no global state library. Modules talk through window events:
 `kamai_pwa_banner_dismissed` · `kamai_cashier_owner_pin` · `kamai_cashier_privacy_locked` ·
 `kamai_print_settings` (bill printers) · `kamai_label_settings` · `kamai_last_import_ids` ·
 `kamai_label_handoff` (Purchases → Barcode Studio labels) · `kamai_stock_entry_draft` (typed "New stock" rows) ·
+`kamai_fast_inward_draft` (scanned Fast barcode inward rows) ·
 `kamai_feature_switches` · `kamai_sound_muted` · `vyapar_language`
 
 sessionStorage (emptied when the app closes): `kamai_unlocked` · `kamai_return_to`.
@@ -983,6 +984,18 @@ come in now ends with labels that scan, and uses one rule (`lib/inward/stockEntr
   + quantity (thousandths of kg / L / m, or whole g / ml) + check digit. Items with a
   maker's barcode cannot get pack labels (the shop's own code is needed). Stock is cut by
   weight when the pack is sold (§9.5), not when it is packed.
+- **Fast barcode inward (v4.78.0)** — `components/inward/FastBarcodeInwardModal.tsx` (+ `FastInwardRow`),
+  a button on Products and Purchases; the Android app's rapid inward for a USB gun. The
+  cursor lives in the scan box; `scanIntoRows`: the same code again → that row +1 (moved to
+  the top), a saved item's code → a restock row, the offline dictionary → name / MRP / unit /
+  the shop's matching category, else a row marked "Name + price needed". Each row: name,
+  price, [MRP] [cost], category, qty. **Quantity and category are optional**
+  (`planStockEntry(…, { qtyOptional: true })`): no quantity = a new item is "Unlimited", a saved
+  item's stock is left as it is (no movement, no labels). Every scan starts from `rowsRef`
+  (the latest rows) — quick scans each wait for the dictionary, and stale state lost them. A
+  scan fired into a name box is split off (`splitTrailingCode`, trailing 8+ digits). Saved by
+  `applyStockEntry` (`source: 'Fast barcode inward'`, per-row `categoryId`), draft under
+  `kamai_fast_inward_draft`; "Save & print labels" hands the labels to Barcode Studio.
 - Suite 9 §9i; Electron E2E types 4 rows (new, exact name, gun scan, kg), prints 29 labels,
   scans the new label into a bill, prints 250 g packs and scans them (0.5 kg), and runs
   Manual Inward + an Excel bill with a missing selling price through to their labels.

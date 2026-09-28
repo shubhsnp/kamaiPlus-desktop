@@ -665,6 +665,45 @@ async function run() {
         'After the bill, "Print labels" opens Barcode Studio with 12 + 6 + 4 = 22 labels');
       expectedSales = await salesCount();
 
+      // v4.78.0 — Fast barcode inward (Products): the gun scans a saved item twice and an
+      // unknown code; name / price typed for the new one with no quantity; a scan that lands
+      // in a name box still counts as a scan; saved in one go.
+      step = 'fast barcode inward';
+      await page.evaluate(() => { window.location.href = '/products/'; });
+      await page.locator('[data-open-fast-inward]').click();
+      await page.locator('[data-fast-scan]').waitFor({ timeout: 15000 });
+      const gunFast = async (c) => { await page.keyboard.type(c, { delay: 3 }); await page.keyboard.press('Enter'); await page.waitForTimeout(700); };
+      const rocketBefore = (await byName('E2E Rocket 10 Shot')).current_stock;
+      await page.waitForTimeout(300);
+      await gunFast(rocket.barcode);
+      await gunFast(rocket.barcode);
+      await gunFast('4006381333931');
+      const scanFocused = await page.evaluate(() => document.activeElement?.hasAttribute('data-fast-scan'));
+      const penRow = page.locator('[data-fast-row]').first();
+      const penStatus = await penRow.locator('[data-fast-status]').innerText();
+      await penRow.locator('[data-fast-name]').fill('E2E Imported Pen');
+      await penRow.locator('[data-fast-price]').fill('45');
+      await penRow.locator('[data-fast-qty]').fill('');
+      // The gun fires while the cursor is in the pen's name box.
+      await penRow.locator('[data-fast-name]').click();
+      await page.keyboard.press('End');
+      await gunFast(rocket.barcode);
+      const topName = await page.locator('[data-fast-row]').first().locator('[data-fast-name]').inputValue();
+      const topQty = await page.locator('[data-fast-row]').first().locator('[data-fast-qty]').inputValue();
+      const fastSummary = await page.locator('[data-fast-summary]').innerText();
+      check(scanFocused && /name \+ price needed/i.test(penStatus) && topName === 'E2E Rocket 10 Shot' && topQty === '3' && /1 new • 1 restocked • 3 labels/.test(fastSummary),
+        `Fast inward: each scan adds a row with the cursor back in the scan box, the same code again adds 1 (×3, the last one fired into a name box), an unknown code asks for name + price — "${fastSummary.trim()}"`);
+      await page.locator('[data-fast-save]').click();
+      await page.locator('[data-fast-done]').waitFor({ timeout: 15000 });
+      const pen = await byName('E2E Imported Pen');
+      const rocketAfter = await byName('E2E Rocket 10 Shot');
+      const fastMoves = (await readStore(page, 'inventory_movements')).filter((m) => m.product_id === rocket.id && /Fast barcode inward/.test(m.reason || ''));
+      check(rocketAfter.current_stock === rocketBefore + 3 && fastMoves.length === 1 && fastMoves[0].quantity === 3
+        && pen && pen.barcode === '4006381333931' && pen.selling_price === 4500 && pen.is_unlimited_stock === true && !(await page.evaluate(() => localStorage.getItem('kamai_fast_inward_draft'))),
+        `Saved in one go: Rocket ${rocketBefore} → ${rocketAfter.current_stock} (one "Fast barcode inward" movement), the pen saved with its own maker's barcode, ₹45, not counted (no quantity typed)`);
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(300);
+
       step = 'errors';
       check(pageErrors.length === 0, `No uncaught page errors during the flow${pageErrors.length ? `: ${pageErrors.slice(0, 3).join(' | ')}` : ''}`);
     } catch (err) {

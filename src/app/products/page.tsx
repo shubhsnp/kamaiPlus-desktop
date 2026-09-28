@@ -25,6 +25,7 @@ import { ProductFilterToolbar } from '@/components/products/ProductFilterToolbar
 import { ProductCard } from '@/components/products/ProductCard';
 import { ProductTableView } from '@/components/products/ProductTableView';
 import { QuickBarcodePrintModal } from '@/components/products/QuickBarcodePrintModal';
+import { FastBarcodeInwardModal } from '@/components/inward/FastBarcodeInwardModal';
 import { AddEditProductModal } from '@/components/products/AddEditProductModal';
 import { VariantRow } from '@/components/products/VariantMatrixEditor';
 import { showSellingPriceField, useFeatureSwitches } from '@/lib/features/featureSwitches';
@@ -65,6 +66,7 @@ export default function ProductsPage() {
   // Desktop Switcher: Dense Excel Table vs Cards Grid (default 'table')
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [isBarcodePrintOpen, setIsBarcodePrintOpen] = useState(false);
+  const [isFastInwardOpen, setIsFastInwardOpen] = useState(false);
   const [barcodePrintProduct, setBarcodePrintProduct] = useState<Product | null>(null);
   // "Save & print label": copies for the 1-click label window (a new counted item: its stock).
   const [barcodePrintCopies, setBarcodePrintCopies] = useState<number | undefined>(undefined);
@@ -462,6 +464,7 @@ export default function ProductsPage() {
       <ProductHeaderActions
         totalProducts={allProducts.length}
         onOpenAddModal={handleOpenAddModal}
+        onOpenFastInward={() => setIsFastInwardOpen(true)}
         onOpenExcelImporter={() => setIsExcelImporterOpen(true)}
         onOpenInwardSheet={switches.purchases ? () => setIsPurchaseSheetOpen(true) : undefined}
       />
@@ -646,6 +649,8 @@ export default function ProductsPage() {
           handleOpenAddModal();
         }}
       />
+
+      {isFastInwardOpen && <FastBarcodeInwardModal onClose={() => setIsFastInwardOpen(false)} />}
 
       {/* 1-Click Barcode Print Modal */}
       <QuickBarcodePrintModal
