@@ -1521,6 +1521,18 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     'The history drawer is called "Transactions" and shows no extra "Recent Sales" title; its close button sits in the list header');
 }
 
+// (d) Settings: UPI QR accounts and bank details are part of Store Profile (no separate tab);
+// their unsaved changes still stop a tab switch, and old ?tab=upi links land there.
+{
+  const nav = readSource('components/settings/SettingsNavTabs.tsx');
+  const page = readSource('app/settings/page.tsx');
+  const profileAt = page.indexOf("{activeTab === 'profile' && (\n        <StoreProfileTab");
+  const upiAt = page.indexOf('<UpiBankingTab');
+  assert(!/id: 'upi'/.test(nav) && profileAt > 0 && upiAt > profileAt && page.lastIndexOf("{activeTab === 'profile' && (", upiAt) > profileAt && !/activeTab === 'upi'/.test(page)
+    && /tabOfChange\(c\.category\) === activeTab/.test(page) && settingsTabFromQuery('upi') === 'profile',
+    'Settings → Store Profile holds the UPI QR accounts and bank details; their unsaved changes still stop a tab switch; ?tab=upi opens Store Profile');
+}
+
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.
 const PRO_OR_AI = /useProSubscription|requirePro|UpgradeModal|ProFeatureBadge|subscriptionService|razorpay|generativelanguage\.googleapis|gemini/i;
 const proOrAiOffenders = ALL_SOURCE.filter((f) => PRO_OR_AI.test(fs.readFileSync(f, 'utf8')));

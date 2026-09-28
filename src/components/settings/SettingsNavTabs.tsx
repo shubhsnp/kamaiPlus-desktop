@@ -3,7 +3,6 @@
 import React from 'react';
 import { 
   Store, 
-  QrCode, 
   Receipt, 
   Sparkles,
   Palette,
@@ -15,7 +14,8 @@ import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { tr } from '@/lib/i18n/core';
 
-export type SettingsTabType = 'profile' | 'features' | 'upi' | 'invoicing' | 'data' | 'help';
+// UPI QR & bank details live in the Store Profile tab since v4.78.0 (no separate tab).
+export type SettingsTabType = 'profile' | 'features' | 'invoicing' | 'data' | 'help';
 
 interface SettingsNavTabsProps {
   activeTab: SettingsTabType;
@@ -40,12 +40,6 @@ export const SettingsNavTabs: React.FC<SettingsNavTabsProps> = ({
       label: tr('Features ON / OFF'),
       shortLabel: tr('Features'),
       icon: ToggleRight,
-    },
-    {
-      id: 'upi' as SettingsTabType,
-      label: tr('UPI QR & Banking'),
-      shortLabel: tr('UPI / QR'),
-      icon: QrCode,
     },
     {
       id: 'invoicing' as SettingsTabType,

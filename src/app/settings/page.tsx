@@ -149,11 +149,14 @@ export default function SettingsPage() {
     applyInitial();
   }, [applyInitial]);
 
-  // Deep link: /settings?tab=invoice opens that tab (lib/ui/settingsLinks.ts).
+  // Deep link: /settings?tab=invoice opens that tab (lib/ui/settingsLinks.ts); ?tab=upi
+  // opens Store Profile at its UPI / bank section.
   useEffect(() => {
     try {
-      const tab = settingsTabFromQuery(new URLSearchParams(window.location.search).get('tab'));
+      const query = new URLSearchParams(window.location.search).get('tab');
+      const tab = settingsTabFromQuery(query);
       if (tab) setActiveTab(tab);
+      if (query === 'upi') window.setTimeout(() => document.getElementById('settings-upi-banking')?.scrollIntoView({ block: 'start' }), 300);
     } catch {}
   }, []);
 
@@ -295,11 +298,13 @@ export default function SettingsPage() {
     return changes;
   }, [business, initial, name, ownerName, phone, address, gstin, invoicePrefix, gstPricingMode, tagline, email, pincode, bankName, bankAccountNo, bankIfsc, bankAccountName, nextInvoiceNumber, terms, footerMessage, logoUrl, upiList]);
 
-  const changedCategories = useMemo(() => Array.from(new Set(changedFields.map((c) => c.category))), [changedFields]);
+  // UPI & bank changes keep their own group in the review, but belong to the Store Profile tab.
+  const tabOfChange = (category: string) => (category === 'upi' ? 'profile' : category);
+  const changedCategories = useMemo(() => Array.from(new Set(changedFields.map((c) => tabOfChange(c.category)))), [changedFields]);
 
   const handleTabChangeAttempt = (newTab: SettingsTabType) => {
     if (newTab === activeTab) return;
-    const currentTabHasChanges = changedFields.some((c) => c.category === activeTab);
+    const currentTabHasChanges = changedFields.some((c) => tabOfChange(c.category) === activeTab);
     if (currentTabHasChanges) {
       setPendingTab(newTab);
       setIsUnsavedTabModalOpen(true);
@@ -498,7 +503,9 @@ export default function SettingsPage() {
         />
       )}
 
-      {activeTab === 'upi' && (
+      {/* UPI QR accounts & bank details are part of the store profile (v4.78.0). */}
+      {activeTab === 'profile' && (
+        <div id="settings-upi-banking" className="scroll-mt-4">
         <UpiBankingTab
           upiList={upiList}
           newUpiLabel={newUpiLabel}
@@ -521,6 +528,7 @@ export default function SettingsPage() {
           bankIfsc={bankIfsc}
           setBankIfsc={setBankIfsc}
         />
+        </div>
       )}
 
       {activeTab === 'invoicing' && (

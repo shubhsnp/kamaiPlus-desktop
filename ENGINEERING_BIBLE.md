@@ -378,7 +378,7 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 | `/barcode-generator` | Label studio; "New stock + labels" (`?new=1`), loose packs, labels handed over from Purchases (`?from=inward`) — §9.4, §9.8 | yes |
 | `/invoice-designer` | Invoice theme editor | yes |
 | `/cloud-backup` | Backup / restore / Tally + CA export | yes |
-| `/settings` | Store profile, print, UPI, data maintenance | yes |
+| `/settings` | Store profile (with UPI QR accounts + bank details since v4.78.0), features, invoice & bill rules, data maintenance, help | yes |
 | `/auth` | Login | **standalone** |
 | `/onboarding` | First-run store creation | **standalone** |
 | `/invoice` | Public customer invoice link | **standalone** |

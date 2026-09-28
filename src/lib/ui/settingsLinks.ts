@@ -5,7 +5,7 @@
  * the page's own switch still asks about unsaved changes first.
  */
 
-export type SettingsTabId = 'profile' | 'features' | 'upi' | 'invoicing' | 'data' | 'help';
+export type SettingsTabId = 'profile' | 'features' | 'invoicing' | 'data' | 'help';
 
 export const SETTINGS_TAB_EVENT = 'kamai_settings_tab';
 
@@ -13,7 +13,8 @@ const QUERY_TABS: Record<string, SettingsTabId> = {
   profile: 'profile',
   store: 'profile',
   features: 'features',
-  upi: 'upi',
+  // UPI QR & bank details are part of Store Profile since v4.78.0.
+  upi: 'profile',
   invoice: 'invoicing',
   invoicing: 'invoicing',
   data: 'data',
