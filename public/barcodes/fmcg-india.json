@@ -16,7 +16,7 @@
   { "barcode": "8901063156016", "name": "Britannia Little Hearts 75g", "category": "Snacks & Biscuits", "mrp": 20, "selling_price": 20, "unit": "pack", "tax_rate": 18, "hsn": "1905" },
   { "barcode": "8901030001017", "name": "Oreo Original Vanilla Creme Biscuit 50g", "category": "Snacks & Biscuits", "mrp": 10, "selling_price": 10, "unit": "pack", "tax_rate": 18, "hsn": "1905" },
   { "barcode": "8901030001024", "name": "Oreo Original Vanilla Creme 120g", "category": "Snacks & Biscuits", "mrp": 35, "selling_price": 33, "unit": "pack", "tax_rate": 18, "hsn": "1905" },
-  { "barcode": "8901725112010", "name": "Sunfeast Dark Fantasy Choco Fills 75g", "category": "Snacks & Biscuits", "mrp": 40, "selling_price": 38, "unit: "pack", "tax_rate": 18, "hsn": "1905" },
+  { "barcode": "8901725112010", "name": "Sunfeast Dark Fantasy Choco Fills 75g", "category": "Snacks & Biscuits", "mrp": 40, "selling_price": 38, "unit": "pack", "tax_rate": 18, "hsn": "1905" },
   { "barcode": "8901058852398", "name": "Nestle Maggi 2-Minute Masala Noodles 70g", "category": "Instant Food", "mrp": 14, "selling_price": 14, "unit": "pack", "tax_rate": 18, "hsn": "1902" },
   { "barcode": "8901058852404", "name": "Nestle Maggi 2-Minute Noodles 140g (2-Pack)", "category": "Instant Food", "mrp": 28, "selling_price": 28, "unit": "pack", "tax_rate": 18, "hsn": "1902" },
   { "barcode": "8901058852411", "name": "Nestle Maggi Masala Noodles 280g (4-Pack)", "category": "Instant Food", "mrp": 56, "selling_price": 54, "unit": "pack", "tax_rate": 18, "hsn": "1902" },

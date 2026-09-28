@@ -693,6 +693,14 @@ async function run() {
       const fastSummary = await page.locator('[data-fast-summary]').innerText();
       check(scanFocused && /name \+ price needed/i.test(penStatus) && topName === 'E2E Rocket 10 Shot' && topQty === '3' && /1 new • 1 restocked • 3 labels/.test(fastSummary),
         `Fast inward: each scan adds a row with the cursor back in the scan box, the same code again adds 1 (×3, the last one fired into a name box), an unknown code asks for name + price — "${fastSummary.trim()}"`);
+      // A code in the offline barcode list (fmcg-india.json — it did not load before v4.78.0).
+      await page.locator('[data-fast-scan]').click();
+      await gunFast('8901719101037');
+      const parleRow = page.locator('[data-fast-row]').first();
+      const parleName = await parleRow.locator('[data-fast-name]').inputValue();
+      const parlePrice = await parleRow.locator('[data-fast-price]').inputValue();
+      check(parleName === 'Parle-G Glucose Biscuit 80g' && parlePrice === '10',
+        `A scanned packet in the offline barcode list fills its name and MRP ("${parleName}", ₹${parlePrice})`);
       await page.locator('[data-fast-save]').click();
       await page.locator('[data-fast-done]').waitFor({ timeout: 15000 });
       const pen = await byName('E2E Imported Pen');

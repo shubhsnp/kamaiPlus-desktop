@@ -753,6 +753,9 @@ Removed and forbidden:
   `patient_name` / strips-vs-tablets mode — deleted from types, POS and invoices.
 - Per-trade barcode dictionaries → merged into `barcodeDictionary.ts` (one lookup over
   all 5 JSON files in `public/barcodes/`, first match wins, general retail first).
+  **Until v4.78.0 `fmcg-india.json` had a missing quote** (`"unit: "pack"`), so its 77 items
+  (Parle-G, Maggi…) never loaded and the loader said nothing; it now warns, and Suite 9 §9j(k)
+  parses every file. Electron E2E scans Parle-G in Fast barcode inward.
 - Per-trade seed catalogues → one `DEFAULT_STARTER_PRODUCTS`.
 
 `business_type` **still exists as a column** on `businesses` (it is a Dexie index;

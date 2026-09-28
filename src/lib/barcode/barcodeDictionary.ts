@@ -35,7 +35,9 @@ async function fetchDictionary(url: string): Promise<BarcodeDictionaryItem[]> {
   try {
     const res = await fetch(url, { cache: 'force-cache', headers: { Accept: 'application/json' } });
     return res.ok ? await res.json() : [];
-  } catch {
+  } catch (err) {
+    // A broken file used to vanish without a word (fmcg-india.json did until v4.78.0).
+    console.warn('Barcode dictionary could not be read:', url, err);
     return [];
   }
 }

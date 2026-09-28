@@ -11,6 +11,9 @@ import { msg } from '@/lib/i18n/core';
 
 export type GlobalAction = 'home' | 'lock' | 'billing';
 
+/** "/billing/" and "/billing" are the same page (a reload keeps the trailing slash). */
+export const pagePath = (pathname: string) => (pathname || '/').replace(/\/+$/, '') || '/';
+
 interface KeyLike {
   key: string;
   ctrlKey: boolean;
@@ -20,7 +23,8 @@ interface KeyLike {
 }
 
 /** The shortcut a key press means on this page (null = none). `typing` = focus in a text box. */
-export function globalShortcutFor(e: KeyLike, pathname: string, typing: boolean): GlobalAction | null {
+export function globalShortcutFor(e: KeyLike, rawPath: string, typing: boolean): GlobalAction | null {
+  const pathname = pagePath(rawPath);
   const key = (e.key || '').toLowerCase();
   const ctrl = e.ctrlKey || Boolean(e.metaKey);
   if (ctrl && !e.shiftKey && !e.altKey) {
@@ -33,7 +37,8 @@ export function globalShortcutFor(e: KeyLike, pathname: string, typing: boolean)
 }
 
 /** Status-bar hints for the global keys on this page ([key, msg id]). */
-export function globalShortcutHints(pathname: string): [string, string][] {
+export function globalShortcutHints(rawPath: string): [string, string][] {
+  const pathname = pagePath(rawPath);
   const hints: [string, string][] = [];
   if (pathname === '/') hints.push(['Shift+B', msg('Billing')]);
   else hints.push(['Ctrl+H', msg('Home')]);

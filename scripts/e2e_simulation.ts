@@ -1511,7 +1511,8 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   };
   const pages = ['/', '/billing', '/products', '/barcode-generator', '/settings'];
   const dead = pages.flatMap((pg) => globalShortcutHints(pg).filter(([key]) => !globalShortcutFor(asEvent(key), pg, false)).map(([key]) => `${pg} ${key}`));
-  assert(dead.length === 0 && globalShortcutHints('/').map(([key]) => key).join() === 'Shift+B,Ctrl+L' && globalShortcutHints('/products').map(([key]) => key).join() === 'Ctrl+H,Ctrl+L',
+  assert(dead.length === 0 && globalShortcutHints('/').map(([key]) => key).join() === 'Shift+B,Ctrl+L' && globalShortcutHints('/products').map(([key]) => key).join() === 'Ctrl+H,Ctrl+L'
+    && globalShortcutHints('/products/').join() === globalShortcutHints('/products').join() && /pagePath\(pathname\) === '\/billing'/.test(readSource('components/layout/DesktopStatusBar.tsx')),
     `Status bar: Home shows Shift+B Billing, other pages Ctrl+H Home, all show Ctrl+L Lock — every advertised key works${dead.length ? ` (dead: ${dead.join(', ')})` : ''}`);
   const bar = readSource('components/layout/DesktopStatusBar.tsx');
   const settingsPage = readSource('app/settings/page.tsx');
@@ -1526,7 +1527,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
 {
   const drawers = readSource('components/layout/GlobalDrawers.tsx');
   const recent = readSource('components/dashboard/DashboardRecentSales.tsx');
-  assert(/tr\('Transactions'\)/.test(drawers) && !/Recent Sales|'HISTORY'/.test(drawers) && /onClose=\{\(\) => setIsHistoryOpen\(false\)\}/.test(drawers) && /\{onClose && \(/.test(recent),
+  assert(/tr\('Transactions'\)/.test(drawers) && !/Recent Sales|'HISTORY'/.test(drawers) && /onClose=\{\(\) => setIsHistoryOpen\(false\)\}/.test(drawers) && /\{onClose && \(/.test(recent) && /\{!onClose && \(/.test(recent) && /!onClose && setIsCollapsed/.test(recent),
     'The history drawer is called "Transactions" and shows no extra "Recent Sales" title; its close button sits in the list header');
 }
 
@@ -1715,6 +1716,24 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   const doc = generateGSTR1Report(sales, cust, shop, 'Sep 2026');
   assert(doc.doc_cancelled_count === 1 && doc.total_invoices_count === 5 && doc.doc_from_num === 'INV-1' && /generateGSTR1Report\(periodSales \|\| \[\]/.test(readSource('app/gst-reports/page.tsx')),
     'GSTR-1 documents issued: every tax invoice counted, cancelled ones shown (net issued = total − cancelled); estimates are not documents');
+}
+
+// (k) Every shipped offline barcode list is valid JSON with a code and a name per item — one
+// missing quote in fmcg-india.json silently dropped all 77 FMCG items (Parle-G, Maggi…) until v4.78.0.
+{
+  const dir = path.join(__dirname, '..', 'public', 'barcodes');
+  const listed = Array.from(readSource('lib/barcode/barcodeDictionary.ts').matchAll(/'\/barcodes\/([\w-]+\.json)'/g)).map((m) => m[1]);
+  const broken = listed.filter((f) => {
+    try {
+      const items = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+      return !Array.isArray(items) || items.length === 0 || items.some((i: { barcode?: unknown; name?: unknown }) => typeof i?.barcode !== 'string' || !i.barcode || !i.name);
+    } catch {
+      return true;
+    }
+  });
+  const fmcg = JSON.parse(fs.readFileSync(path.join(dir, 'fmcg-india.json'), 'utf8')) as { barcode: string }[];
+  assert(listed.length === 5 && broken.length === 0 && fmcg.some((i) => i.barcode === '8901719101037'),
+    `Every offline barcode list loads (broken: ${broken.join(', ') || 'none'}) — a scanned Parle-G fills its name and price`);
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.

@@ -10,7 +10,7 @@ import { getDesktopApi } from '@/lib/desktop/desktopBridge';
 import { getPrintSettings, printerForFormat } from '@/lib/hardware/printSettings';
 import { msg, tr } from '@/lib/i18n/core';
 import { openWhatsNew } from '@/components/whatsNew/WhatsNewModal';
-import { globalShortcutHints } from '@/lib/ui/globalShortcuts';
+import { globalShortcutHints, pagePath } from '@/lib/ui/globalShortcuts';
 import { openSettingsTab } from '@/lib/ui/settingsLinks';
 
 // Keep in step with the keydown handler in app/billing/page.tsx. The bar used to
@@ -29,7 +29,7 @@ const MENU_SHORTCUT: [string, string] = ['Ctrl+B', msg('Show / hide menu')];
 /** The keys that work on this page: the counter's own keys on Billing, then the app-wide ones. */
 function shortcutsFor(pathname: string): { key: string; label: string; wide?: boolean }[] {
   const global = globalShortcutHints(pathname).map(([key, label]) => ({ key, label }));
-  if (pathname === '/billing') return [...BILLING_SHORTCUTS.map(([key, label]) => ({ key, label })), ...global.map((g) => ({ ...g, wide: true }))];
+  if (pagePath(pathname) === '/billing') return [...BILLING_SHORTCUTS.map(([key, label]) => ({ key, label })), ...global.map((g) => ({ ...g, wide: true }))];
   return [...global, { key: MENU_SHORTCUT[0], label: MENU_SHORTCUT[1] }];
 }
 

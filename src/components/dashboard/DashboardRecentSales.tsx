@@ -78,9 +78,9 @@ export const DashboardRecentSales: React.FC<DashboardRecentSalesProps> = ({
     <div className="flex flex-col h-full bg-white dark:bg-slate-900">
       {/* Top Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-4 pb-3 border-b border-slate-100 dark:border-slate-800">
-        <div 
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className="flex items-center gap-2.5 cursor-pointer select-none flex-1"
+        <div
+          onClick={() => !onClose && setIsCollapsed(!isCollapsed)}
+          className={`flex items-center gap-2.5 select-none flex-1 ${onClose ? '' : 'cursor-pointer'}`}
         >
           <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 flex items-center justify-center shrink-0">
             <Receipt className="w-4 h-4 text-slate-700 dark:text-slate-300" />
@@ -91,7 +91,7 @@ export const DashboardRecentSales: React.FC<DashboardRecentSalesProps> = ({
               <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-slate-100">
                 {tr('Recent Transactions')}
               </h3>
-              <span className="text-[10px] px-2 py-0.2 rounded-full font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+              <span className="text-[10px] px-2 py-0.2 rounded-full font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 whitespace-nowrap">
                 {displayedSales.length} {tr('bills')}
               </span>
             </div>
@@ -113,13 +113,16 @@ export const DashboardRecentSales: React.FC<DashboardRecentSalesProps> = ({
             </button>
           </Link>
 
-          <button
-            type="button"
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 transition cursor-pointer"
-          >
-            {isCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
-          </button>
+          {/* Collapsing makes sense on the dashboard; the drawer has its close button instead. */}
+          {!onClose && (
+            <button
+              type="button"
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 transition cursor-pointer"
+            >
+              {isCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+            </button>
+          )}
           {onClose && (
             <button type="button" onClick={onClose} className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition cursor-pointer" aria-label={tr('Close')} data-drawer-close>
               <X className="w-4 h-4" />
