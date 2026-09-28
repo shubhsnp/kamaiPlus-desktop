@@ -85,6 +85,7 @@ import { billLineProblem, guessBillColumns, readBillSheet } from '../src/lib/pur
 import { matchExtractedItemsWithProducts, normalizeName } from '../src/lib/purchases/matchProductByName';
 import { encodeCostCode, isValidCostCodeWord, productLabelDetail, productLabelExtras } from '../src/lib/labels/labelExtras';
 import { formatPackAmount, makeWeighedBarcode, parseWeighedBarcode, weighedQuantity } from '../src/lib/barcode/weighedBarcode';
+import { globalShortcutFor, globalShortcutHints } from '../src/lib/ui/globalShortcuts';
 import { searchProducts, soundKeys, wordSoundKey } from '../src/lib/search/productSearch';
 import {
   WALK_IN_ID,
@@ -1474,6 +1475,21 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   const unknownAt = pos.indexOf('setScannedUnknownBarcode(clean)');
   assert(exactAt > 0 && exactAt < packAt && packAt < unknownAt && /addToCart\(packItem, packQty\)/.test(pos) && /Math\.round\(\(existing\.quantity \+ allowedQty\) \* 1000\) \/ 1000/.test(pos),
     'The counter tries the exact barcode first, then a loose-pack code (adds its weight), and only then asks about an unknown code; loose quantities add up cleanly');
+}
+
+// 9j. Small changes (v4.78.0).
+// (a) Global keys: Ctrl+H Home and Ctrl+L Lock from any page, even with the cursor in a
+// box (the POS search box always has it); Shift+B Billing only on Home and never while typing.
+{
+  const k = (key: string, mods: Partial<{ ctrlKey: boolean; shiftKey: boolean; altKey: boolean }> = {}) => ({ key, ctrlKey: false, shiftKey: false, altKey: false, ...mods });
+  assert(globalShortcutFor(k('l', { ctrlKey: true }), '/billing', true) === 'lock' && globalShortcutFor(k('L', { ctrlKey: true }), '/products', false) === 'lock'
+    && globalShortcutFor(k('h', { ctrlKey: true }), '/billing', true) === 'home' && globalShortcutFor(k('h', { ctrlKey: true }), '/', false) === null
+    && globalShortcutFor(k('B', { shiftKey: true }), '/', false) === 'billing' && globalShortcutFor(k('B', { shiftKey: true }), '/', true) === null && globalShortcutFor(k('B', { shiftKey: true }), '/products', false) === null
+    && globalShortcutFor(k('l', { ctrlKey: true, shiftKey: true }), '/', false) === null && globalShortcutFor(k('l'), '/', false) === null,
+    'Global keys: Ctrl+L locks and Ctrl+H goes Home from any page (also while typing); Shift+B opens Billing only from Home, never while typing');
+  const shell = readSource('components/layout/AppShell.tsx');
+  assert(/globalShortcutFor\(e, pathname, typing\)/.test(shell) && /action === 'lock'\) lockApp\(pathname\)/.test(shell) && /if \(!isClient \|\| !currentUser \|\| locked\) return;/.test(shell),
+    'AppShell runs the global keys from one shared list, and only when the shop is open (not on the password screen)');
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.

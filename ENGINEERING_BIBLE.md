@@ -598,12 +598,15 @@ firing on every navigation. Do not reintroduce one.
 Components outside the provider (`/auth`, `/onboarding`, `/invoice`, `/pay`) must query
 the DB directly — `useBusiness()` returns `undefined` there.
 
-### Global Keyboard Shortcuts (v4.76.0)
+### Global Keyboard Shortcuts (v4.76.0, v4.78.0)
 
-Managed globally in `AppShell.tsx`:
-- `Ctrl + H`: Navigate to Home Screen (`/`) from anywhere.
-- `Shift + B`: Navigate to Billing Page (`/billing`) — active ONLY when on the Home Screen (`/`).
-- Inputs & Textareas: Shortcuts are swallowed/ignored when typing in an input field.
+One list in `lib/ui/globalShortcuts.ts` (`globalShortcutFor` — run by `AppShell.tsx` while the
+shop is open; `globalShortcutHints` — shown by the status bar, so it never advertises a dead key):
+- `Ctrl + H`: Home (`/`) from any page — **also while typing** (the POS search box always has
+  the cursor; Ctrl keys type no text).
+- `Ctrl + L` (v4.78.0): lock the screen (`lockApp(pathname)`, like Navbar → Lock now) — also
+  while typing. After the master password the app returns to that page.
+- `Shift + B`: Billing (`/billing`) — ONLY on Home (`/`) and never while typing (it types "B").
 
 ### Cross-component messaging (window CustomEvents)
 
