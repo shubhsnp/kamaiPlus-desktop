@@ -106,6 +106,7 @@ Defined in `main.js` (`ipcMain.handle`), exposed in `preload.js`, typed in
 | `kp:print-to-pdf` | `printToPdf({html, fileName, folder})` | Vector A4 PDF → `Documents/KamaiPlus/{Invoices\|Reports\|Statements}` |
 | `kp:print` | `print({html, paper, deviceName, silent, pageSizeMm})` | Sends to OS printer; thermal page height is measured from the DOM; `paper: 'label'` (v4.71.0) prints at `pageSizeMm` (10–300 mm, one label-roll row per page) |
 | `kp:get-printers` | `getPrinters()` | Installed printer list |
+| `kp:printer-status` | `getPrinterStatus()` | v4.78.0: Windows `Get-Printer` via `printers.js` → `{name, driver, port, status, offline}[]` (null if Windows cannot say); cached 5 s, ~1 s per real call. Feeds printer auto-detect (§9.10) |
 | `kp:open-path` | `openPath(target)` | Opens a saved file — **only inside `Documents/KamaiPlus`** |
 | `kp:show-in-folder` | `showItemInFolder(target)` | Same path restriction |
 | `kp:app-info` | `getAppInfo()` | `{version, documentsDir}` |
@@ -305,6 +306,7 @@ main.js / preload.js        Electron shell + IPC bridge
 licence.js                  Licence check + one-time activation (main process, §2.1)
 updater.js                  Auto-update from kamaiplus-desktop.web.app (main process, §2.2)
 backup.js                   Daily automatic backup files (main process, §2.3)
+printers.js                 Windows printer facts via Get-Printer (main process, §9.10) — must stay in build.files
 scripts/prepare_release.js  dist/ → release/ for the update site (§2.2)
 next.config.js              output:'export', images.unoptimized, TS errors NOT ignored
 src/app/<route>/page.tsx    20 routes (§4)
@@ -336,6 +338,9 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 | `invoices/pdfGenerator.ts` | jsPDF + html2canvas raster fallback. **Lazy-import only.** |
 | `print/printDocument.ts` | React element → standalone HTML → Electron or iframe. No jsPDF here. |
 | `hardware/printSettings.ts` | Per-computer printer choice in localStorage |
+| `hardware/printerDetect.ts` | Printer auto-detect rules: virtual / kind / 58-80 mm / `reviewPrinters` / `printerLine` (§9.10) |
+| `hardware/printerWatch.ts` | Printers seen now (`publishPrinters`, `usePrinterFacts`), `openPrintersWindow`, the silent-print key + event (§9.10) |
+| `dashboard/homeTiles.ts` | Home Quick Actions list, GST stand-in, Profit vs Average Bill (§9.10) |
 | `hardware/escpos.ts` | Raw ESC/POS bytecode (ASCII-safe: ₹ • — are transliterated) |
 | `hardware/bluetoothPrinter.ts` | Web Bluetooth ESC/POS printer — only the "Bluetooth" print in "Sale completed" and Barcode Studio use it; it connects on demand (the billing hardware manager that paired it was removed in v4.73.0) |
 | `hardware/barcodeScannerListener.ts` | USB/HID scanner keystroke capture when **no** text box owns the scan (key timing by `e.timeStamp`; `ignore` lets the POS search box read scans itself) — §9.5 |
@@ -598,6 +603,7 @@ src/app/layout.tsx          (server component — metadata, viewport, fonts)
             ├── <main><FeatureGate>{children}</FeatureGate></main>   ◄── the route renders here
             │                                (switched-off screen → "turned off" card, §9.2)
             ├── <DesktopStatusBar>        online/printer/clock/version; the page's keys; "Bill rules" / "Help" links (v4.78.0)
+            ├── <PrinterWatcher>          printer auto-detect + the Printers window (v4.78.0, §9.10)
             └── <GlobalDrawers>           right-edge "Transactions" pull-tab (recent bills; was "History" before v4.78.0);
                                           drag it up / down (`DraggablePullTab`, `lib/ui/drawerTab.ts`), ↑ / ↓, right-click = middle
                                           (hidden on /billing)
@@ -642,6 +648,9 @@ There is no global state library. Modules talk through window events:
 | `feature_switches_changed` | `setFeatureSwitch` → every `useFeatureSwitches()` (Sidebar, Home, form, ProfitMask…) |
 | `sound_mute_changed` | `setSoundMuted` → SoundToggleButton |
 | `kamai_settings_tab` | `openSettingsTab` (`lib/ui/settingsLinks.ts`, status bar) → Settings switches tab in place (v4.78.0) |
+| `kamai_printers_seen` | `PrinterWatcher` (`publishPrinters`) → `usePrinterFacts()` in the status bar (v4.78.0) |
+| `kamai_open_printers` | `openPrintersWindow()` (Home tile, status bar) → `PrinterWatcher` opens the Printers window (v4.78.0) |
+| `kamai_silent_print_changed` | `saveSilentPrint` (Printers window) → Billing's "print straight away" state (v4.78.0) |
 
 ### localStorage keys (complete, verified)
 
@@ -657,6 +666,7 @@ There is no global state library. Modules talk through window events:
 `kamai_label_handoff` (Purchases → Barcode Studio labels) · `kamai_stock_entry_draft` (typed "New stock" rows) ·
 `kamai_fast_inward_draft` (scanned Fast barcode inward rows) · `kamai_customers_view_mode` (Customers grid / list) ·
 `kamai_drawer_tab_y` (where the Transactions pull-tab was dragged, a share of the window height) ·
+`kamai_known_printers` (printers already seen — a new one is asked about once, §9.10) ·
 `kamai_feature_switches` · `kamai_sound_muted` · `vyapar_language`
 
 sessionStorage (emptied when the app closes): `kamai_unlocked` · `kamai_return_to`.
@@ -1034,6 +1044,43 @@ The ✏️ on a bill line (`components/billing/PosItemEditModal.tsx`, chips per 
   paise (`lineAmountPaise` = rate × qty). The window shows "qty unit × rate — Amount" live.
 - The cart shows `formatCartQty` (0.583, never 0.5833333333); bills already use `formatQty`.
 - Suite 9 §9j(g).
+
+### 9.10 Home fills itself & printer auto-detect (v4.78.0)
+
+**Home tiles** (`lib/dashboard/homeTiles.ts`, `components/dashboard/`):
+- `QuickActionDock` is built from `quickActionsFor(switches)`: New Bill (`/billing?new=1`, shows
+  the F1 key), Khata, Stock Inward — or, with Purchases off, **Fast barcode inward** (opens
+  `FastBarcodeInwardModal` right on Home), Day Summary, **Printer setup**.
+- Tiles sit in `flex flex-wrap` rows and `grow`, so a switched-off screen never leaves a gap
+  (the tools grid too; GST Reports off → "Backup & CA Exports" → `/settings?tab=data`).
+- `TodayBusinessPulse`: with no buying price anywhere (`showProfitCard` — cost field off, no
+  product `purchase_price`, no costed revenue today) the Profit card becomes **Average Bill**
+  (`billStats`: day revenue ÷ bills, plus the biggest bill) — profit would always say ₹0.
+
+**Printers window** (`components/printers/PrintersWindow.tsx`): `BillPrinterSetup` (optional
+`title` + `children`) plus the label printer (`LabelSetupPanel`) one click down. Opened from
+the Home tile and the status bar via `openPrintersWindow()`; rendered by `PrinterWatcher`.
+"Print straight away" is `kamai_silent_print` (`saveSilentPrint` fires
+`kamai_silent_print_changed`; the Billing page follows it while open).
+
+**Printer auto-detect** (`components/printers/PrinterWatcher.tsx` in `AppShell`, rules in
+`lib/hardware/printerDetect.ts`, facts from `kp:printer-status` → `printers.js` Get-Printer):
+- Every 8 s the quick Electron list; when names change (and every 60 s) the full Windows
+  look (driver, port, offline) → `publishPrinters` → `usePrinterFacts()` (status bar).
+- `isVirtualPrinter`: PDF / XPS / OneNote / Fax / file ports are never bill printers.
+  `printerKind`: label (checked first — TVS LP, TSC, Zebra…) / thermal (TVS RP, Epson TM,
+  POS-58/80…; `thermalFormat` 58 or 80 mm) / A4 (HP, Canon…) / other.
+- `reviewPrinters`: nothing chosen + exactly one real receipt printer → it becomes the bill
+  printer (bill size set to its roll); none + one office printer with A4 bills → A4 printer;
+  one label printer + none chosen → label printer. A printer already chosen is **never**
+  switched: a new printer is asked about once ("New printer found — Use for bills / Test
+  print / Not now"). Seen printers: `kamai_known_printers` (first look = nothing is "new").
+- Status bar (`printerLine`): green ready, amber check (Windows default only saves a PDF / no
+  default), red missing / offline / none; the label printer shows when one is chosen. Click →
+  Printers window.
+- Honest limit: offline detection relies on Windows' `PrinterStatus` / `WorkOffline`; not yet
+  tried with a physical USB printer unplugged.
+- Suite 9 §9j(m), §9j(n); Electron E2E "home tiles".
 
 ### 9.1 Product variants (v4.49.0) — same model as the Android app
 

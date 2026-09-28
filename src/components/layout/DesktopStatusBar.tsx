@@ -2,12 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { HardDrive, WifiOff, Printer, Clock, FileText, LifeBuoy } from 'lucide-react';
+import { HardDrive, WifiOff, Printer, Clock, FileText, LifeBuoy, Barcode } from 'lucide-react';
 import { APP_VERSION } from '@/lib/constants/version';
 import { useBusiness } from '@/components/layout/BusinessProvider';
 import { db } from '@/lib/db';
-import { getDesktopApi } from '@/lib/desktop/desktopBridge';
 import { getPrintSettings, printerForFormat } from '@/lib/hardware/printSettings';
+import { getLabelSettings, LABEL_SETTINGS_EVENT } from '@/lib/labels/labelSettings';
+import { PrinterLine, printerLine } from '@/lib/hardware/printerDetect';
+import { openPrintersWindow, usePrinterFacts } from '@/lib/hardware/printerWatch';
 import { msg, tr } from '@/lib/i18n/core';
 import { openWhatsNew } from '@/components/whatsNew/WhatsNewModal';
 import { globalShortcutHints, pagePath } from '@/lib/ui/globalShortcuts';
@@ -26,6 +28,30 @@ const BILLING_SHORTCUTS: [string, string][] = [
 ];
 const MENU_SHORTCUT: [string, string] = ['Ctrl+B', msg('Show / hide menu')];
 
+type Tone = 'ok' | 'warn' | 'bad';
+const DOT: Record<Tone, string> = { ok: 'bg-emerald-400', warn: 'bg-amber-400', bad: 'bg-rose-500' };
+const TEXT: Record<Tone, string> = { ok: 'text-emerald-400', warn: 'text-amber-400', bad: 'text-rose-400' };
+
+/** The bill printer in the status bar: green = ready, amber = check it, red = bills cannot print. */
+function billPrinterText(line: PrinterLine): { tone: Tone; label: string; title: string } {
+  switch (line.state) {
+    case 'none':
+      return { tone: 'bad', label: tr('None installed'), title: tr('No printer is installed in Windows.') };
+    case 'no-default':
+      return { tone: 'warn', label: tr('No default'), title: tr('Choose a printer in Settings → Print.') };
+    case 'missing':
+      return { tone: 'bad', label: tr('Not found: {chosen}', { chosen: line.name }), title: tr('The printer chosen in Settings ({chosen}) is not connected or was removed.', { chosen: line.name }) };
+    case 'offline':
+      return { tone: 'bad', label: tr('Offline: {name}', { name: line.name }), title: tr('The bill printer ({name}) is switched off or unplugged.', { name: line.name }) };
+    case 'ready':
+      return { tone: 'ok', label: line.name, title: tr('Bills print on {displayName}.', { displayName: line.name }) };
+    default:
+      if (line.virtual) return { tone: 'warn', label: line.name, title: tr('Bills go to {name} (Windows default), which only saves a file. Click to choose your bill printer.', { name: line.name }) };
+      if (line.offline) return { tone: 'bad', label: tr('Offline: {name}', { name: line.name }), title: tr('The bill printer ({name}) is switched off or unplugged.', { name: line.name }) };
+      return { tone: 'ok', label: line.name, title: tr('Bills print on the Windows default printer ({displayName}).', { displayName: line.name }) };
+  }
+}
+
 /** The keys that work on this page: the counter's own keys on Billing, then the app-wide ones. */
 function shortcutsFor(pathname: string): { key: string; label: string; wide?: boolean }[] {
   const global = globalShortcutHints(pathname).map(([key, label]) => ({ key, label }));
@@ -41,45 +67,25 @@ export const DesktopStatusBar: React.FC = () => {
 
   const business = useBusiness();
 
-  // Real printer status (it used to say "Ready" whatever was connected): is the
-  // printer that bills go to installed in Windows right now?
-  const [printer, setPrinter] = useState<{ ok: boolean; label: string; title: string } | null>(null);
+  // Real printer status (it used to say "Ready" whatever was connected): the printers the
+  // watcher saw in Windows (v4.78.0: offline too), against the bill and label printer chosen.
+  const printers = usePrinterFacts();
+  const [chosen, setChosen] = useState<{ bill: string; label: string }>({ bill: '', label: '' });
   useEffect(() => {
-    const api = getDesktopApi();
-    if (!api) return;
-    let alive = true;
-    const check = async () => {
+    const read = () => {
       const settings = getPrintSettings();
-      const chosen = printerForFormat(settings, settings.defaultFormat);
-      const list = await api.getPrinters().catch(() => []);
-      if (!alive) return;
-      if (list.length === 0) {
-        setPrinter({ ok: false, label: tr('None installed'), title: tr('No printer is installed in Windows.') });
-      } else if (chosen) {
-        const found = list.find((p) => p.name === chosen);
-        setPrinter(
-          found
-            ? { ok: true, label: found.displayName, title: tr('Bills print on {displayName}.', { displayName: found.displayName }) }
-            : { ok: false, label: tr('Not found: {chosen}', { chosen: chosen }), title: tr('The printer chosen in Settings ({chosen}) is not connected or was removed.', { chosen: chosen }) }
-        );
-      } else {
-        const def = list.find((p) => p.isDefault);
-        setPrinter(
-          def
-            ? { ok: true, label: def.displayName, title: tr('Bills print on the Windows default printer ({displayName}).', { displayName: def.displayName }) }
-            : { ok: false, label: tr('No default'), title: tr('Choose a printer in Settings → Print.') }
-        );
-      }
+      setChosen({ bill: printerForFormat(settings, settings.defaultFormat), label: getLabelSettings().printer });
     };
-    void check();
-    const timer = window.setInterval(check, 60000);
-    window.addEventListener('print_settings_changed', check);
+    read();
+    window.addEventListener('print_settings_changed', read);
+    window.addEventListener(LABEL_SETTINGS_EVENT, read);
     return () => {
-      alive = false;
-      window.clearInterval(timer);
-      window.removeEventListener('print_settings_changed', check);
+      window.removeEventListener('print_settings_changed', read);
+      window.removeEventListener(LABEL_SETTINGS_EVENT, read);
     };
   }, []);
+  const printer = printers ? billPrinterText(printerLine(chosen.bill, printers)) : null;
+  const labelLine = printers && chosen.label ? printerLine(chosen.label, printers) : null;
 
   useEffect(() => {
     setIsOnline(navigator.onLine);
@@ -174,11 +180,19 @@ export const DesktopStatusBar: React.FC = () => {
 
         {printer && (
           <>
-            <div className="flex items-center gap-1.5 text-slate-300" title={printer.title}>
+            <button type="button" onClick={openPrintersWindow} className="flex items-center gap-1.5 text-slate-300 hover:text-amber-400 cursor-pointer" title={printer.title} data-status-printer={printer.tone}>
               <Printer className="w-3 h-3 text-slate-400" />
               <span className="hidden sm:inline">{tr('Printer:')}</span>
-              <span className={`font-mono truncate max-w-[180px] ${printer.ok ? 'text-emerald-400' : 'text-amber-400'}`}>{printer.label}</span>
-            </div>
+              <span className={`w-1.5 h-1.5 rounded-full ${DOT[printer.tone]}`} />
+              <span className={`font-mono truncate max-w-[180px] ${TEXT[printer.tone]}`}>{printer.label}</span>
+            </button>
+            {labelLine && (
+              <button type="button" onClick={openPrintersWindow} className="hidden xl:flex items-center gap-1.5 text-slate-300 hover:text-amber-400 cursor-pointer" title={tr('Barcode label printer')} data-status-label-printer={labelLine.state}>
+                <Barcode className="w-3 h-3 text-slate-400" />
+                <span className={`w-1.5 h-1.5 rounded-full ${DOT[labelLine.state === 'ready' ? 'ok' : 'bad']}`} />
+                <span className={`font-mono truncate max-w-[140px] ${TEXT[labelLine.state === 'ready' ? 'ok' : 'bad']}`}>{'name' in labelLine ? labelLine.name : ''}</span>
+              </button>
+            )}
             <span className="text-slate-700">|</span>
           </>
         )}

@@ -11,7 +11,8 @@ import {
   Wallet, 
   ArrowRight, 
   CircleDollarSign,
-  Receipt
+  Receipt,
+  ShoppingBasket
 } from 'lucide-react';
 import { tr } from '@/lib/i18n/core';
 import { useFeatureSwitches } from '@/lib/features/featureSwitches';
@@ -27,6 +28,10 @@ interface TodayBusinessPulseProps {
   netCashInHand: number;
   totalOutstandingCredit: number;
   customersWithCreditCount: number;
+  /** false when no item has a buying price: the Profit card becomes "Average Bill" (v4.78.0). */
+  showProfit?: boolean;
+  averageBillPaise?: number;
+  biggestBillPaise?: number;
 }
 
 export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
@@ -38,6 +43,9 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
   netCashInHand,
   totalOutstandingCredit,
   customersWithCreditCount,
+  showProfit = true,
+  averageBillPaise = 0,
+  biggestBillPaise = 0,
 }) => {
   const marginBase = profitCoveredRevenue ?? todaysSalesTotal;
   const profitMarginPercent = marginBase > 0 ? Math.round((todaysGrossProfit / marginBase) * 100) : 0;
@@ -122,7 +130,8 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
           </Card>
         </Link>
 
-        {/* 2. Today's Profit (With Privacy Mask) */}
+        {/* 2. Today's Profit (With Privacy Mask) — or, with no buying prices anywhere, the average bill */}
+        {showProfit ? (
         <div className="group block focus:outline-none">
           <Card className="p-3 sm:p-3.5 bg-gradient-to-br from-white to-blue-50/60 dark:from-slate-900 dark:to-blue-950/20 border border-blue-200/90 dark:border-blue-800/60 hover:border-blue-400 active:scale-[0.98] transition-all rounded-2xl shadow-2xs group-hover:shadow-md h-full flex flex-col justify-between">
             <div>
@@ -153,6 +162,37 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
             </div>
           </Card>
         </div>
+        ) : (
+        <Link href="/reports" className="group block focus:outline-none" data-pulse-average-bill>
+          <Card className="p-3 sm:p-3.5 bg-gradient-to-br from-white to-blue-50/60 dark:from-slate-900 dark:to-blue-950/20 border border-blue-200/90 dark:border-blue-800/60 hover:border-blue-400 active:scale-[0.98] transition-all rounded-2xl shadow-2xs group-hover:shadow-md h-full flex flex-col justify-between cursor-pointer">
+            <div>
+              <div className="flex items-center justify-between gap-1">
+                <div className="flex items-center gap-1.5 text-blue-800 dark:text-blue-300 font-extrabold text-[10.5px] sm:text-xs uppercase tracking-tight truncate">
+                  <ShoppingBasket className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                  <span className="truncate">{tr('Average Bill')}</span>
+                </div>
+                <span className="px-1.5 py-0.2 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-900 dark:text-blue-200 text-[9px] font-black">
+                  {tr('Per customer')}
+                </span>
+              </div>
+
+              <div className="text-base sm:text-xl font-black text-slate-900 dark:text-slate-100 font-mono tracking-tight mt-1.5 truncate">
+                {formatINR(averageBillPaise)}
+              </div>
+            </div>
+
+            <div className="pt-1.5 mt-1.5 border-t border-blue-100/80 dark:border-blue-900/40 flex items-center justify-between gap-1 text-[10px] sm:text-[11px]">
+              <span className="text-slate-500 dark:text-slate-400 font-semibold truncate" title={tr('Add buying prices to your items to see profit here.')}>
+                {tr('Biggest bill')}: <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{formatINR(biggestBillPaise)}</span>
+              </span>
+              <span className="text-blue-700 dark:text-blue-400 font-bold inline-flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform text-[10px]">
+                <span>{tr('Reports')}</span>
+                <ArrowRight className="w-2.5 h-2.5" />
+              </span>
+            </div>
+          </Card>
+        </Link>
+        )}
 
         {/* 3. Cash in Drawer (Galle me Cash) */}
         {/* Opens the Cash Register only when that screen is on (Settings → Features) */}

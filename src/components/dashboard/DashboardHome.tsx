@@ -13,9 +13,16 @@ import { AdvancedAnalyticsBanner } from '@/components/dashboard/AdvancedAnalytic
 import { getLocalDayRange, getSaleNetTotal, isRevenueSale } from '@/lib/sales/saleMath';
 import { computeDrawerSummary } from '@/lib/reports/cashDrawer';
 import { buildAdvancedReport, isProfitPartial } from '@/lib/reports/advancedReports';
+import { useFeatureSwitches } from '@/lib/features/featureSwitches';
+import { billStats, showProfitCard } from '@/lib/dashboard/homeTiles';
+import { openPrintersWindow } from '@/lib/hardware/printerWatch';
 
 const DayEndClosingReportModal = dynamic(
   () => import('@/components/reports/DayEndClosingReportModal').then((m) => m.DayEndClosingReportModal),
+  { ssr: false }
+);
+const FastBarcodeInwardModal = dynamic(
+  () => import('@/components/inward/FastBarcodeInwardModal').then((m) => m.FastBarcodeInwardModal),
   { ssr: false }
 );
 
@@ -34,6 +41,8 @@ export default function DashboardHome() {
   const [selectedSaleForInvoice, setSelectedSaleForInvoice] = useState<Sale | null>(null);
   const [isClosingReportOpen, setIsClosingReportOpen] = useState<boolean>(false);
   const [restockToast, setRestockToast] = useState<string | null>(null);
+  const [isFastInwardOpen, setIsFastInwardOpen] = useState(false);
+  const switches = useFeatureSwitches();
 
   const business = useBusiness();
 
@@ -59,12 +68,12 @@ export default function DashboardHome() {
 
   // Revenue bills only: estimates and fully returned bills are not sales; partial returns count net.
   const todaysRevenueSales = useMemo(() => todaysSales.filter(isRevenueSale), [todaysSales]);
-  const todaysSalesTotal = useMemo(() => {
-    return todaysRevenueSales.reduce(
-      (acc, s) => acc + getSaleNetTotal(s, todaysReturns.filter((r) => r.original_sale_id === s.id)),
-      0
-    );
-  }, [todaysRevenueSales, todaysReturns]);
+  const todaysBillTotals = useMemo(
+    () => todaysRevenueSales.map((s) => getSaleNetTotal(s, todaysReturns.filter((r) => r.original_sale_id === s.id))),
+    [todaysRevenueSales, todaysReturns]
+  );
+  const todaysSalesTotal = useMemo(() => todaysBillTotals.reduce((acc, n) => acc + n, 0), [todaysBillTotals]);
+  const todaysBillStats = useMemo(() => billStats(todaysBillTotals), [todaysBillTotals]);
 
   // Cash in hand: cash kept from sales (no change, split cash included) + khata cash − cash expenses & refunds
   const netCashInHand = useMemo(() => {
@@ -78,6 +87,12 @@ export default function DashboardHome() {
     [todaysSales, todaysReturns, products]
   );
   const todaysGrossProfit = todaysProfit.totalProfitPaise;
+  // No buying prices anywhere (cost field off, none imported): profit would always be ₹0.
+  const showProfit = showProfitCard({
+    costPriceOn: switches.product_cost_price,
+    anyProductHasCost: products.some((p) => Number(p.purchase_price) > 0),
+    costedRevenuePaise: todaysProfit.costedRevenuePaise,
+  });
 
   // ── Batched query 3: Khata debtors + Recent sales in ONE subscription ──
   const dashLists = useLiveQuery(async () => {
@@ -178,11 +193,16 @@ export default function DashboardHome() {
         netCashInHand={netCashInHand}
         totalOutstandingCredit={totalOutstandingCredit}
         customersWithCreditCount={customersWithCredit.length}
+        showProfit={showProfit}
+        averageBillPaise={todaysBillStats.averagePaise}
+        biggestBillPaise={todaysBillStats.biggestPaise}
       />
 
-      {/* 2. 1-TAP QUICK ACTION DOCK (POS, Khata, Inward, Closing) */}
+      {/* 2. 1-TAP QUICK ACTION DOCK (POS, Khata, Inward, Closing, Printers) */}
       <QuickActionDock
         onOpenClosingReport={() => setIsClosingReportOpen(true)}
+        onOpenFastInward={() => setIsFastInwardOpen(true)}
+        onOpenPrinters={openPrintersWindow}
       />
 
       {/* 3. ADVANCED ANALYTICS BANNER (Android Home parity) */}
@@ -211,6 +231,7 @@ export default function DashboardHome() {
           ledger={todaysLedger}
         />
       )}
+      {isFastInwardOpen && <FastBarcodeInwardModal onClose={() => setIsFastInwardOpen(false)} />}
     </div>
   );
 }

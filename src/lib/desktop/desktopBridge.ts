@@ -12,6 +12,15 @@ export interface DesktopPrinter {
   isDefault: boolean;
 }
 
+/** A printer as Windows reports it (Get-Printer): driver, port, offline — v4.78.0. */
+export interface DesktopPrinterStatus {
+  name: string;
+  driver: string;
+  port: string;
+  status: string;
+  offline: boolean;
+}
+
 export interface DesktopResult {
   ok: boolean;
   path?: string;
@@ -61,6 +70,8 @@ export interface KamaiDesktopApi {
   /** paper 'label' (v4.71.0): a barcode-label page of pageSizeMm (one roll row). */
   print(opts: { html: string; paper: PaperFormat | 'label'; pageSizeMm?: { width: number; height: number }; deviceName?: string; silent?: boolean }): Promise<DesktopResult>;
   getPrinters(): Promise<DesktopPrinter[]>;
+  /** null when Windows could not say (not Windows, PowerShell failed). */
+  getPrinterStatus?(): Promise<DesktopPrinterStatus[] | null>;
   openPath(path: string): Promise<DesktopResult>;
   showItemInFolder(path: string): Promise<DesktopResult>;
   getAppInfo(): Promise<{ version: string; documentsDir: string }>;

@@ -24,6 +24,10 @@ interface BillPrinterSetupProps {
   /** "Enter prints the bill straight away" — the counter's silent-print switch. */
   autoPrint: boolean;
   onAutoPrintChange: (on: boolean) => void;
+  /** Window title (Home calls it "Printers"); default "Bill printer". */
+  title?: string;
+  /** Extra section above the buttons — Home adds the label printer here. */
+  children?: React.ReactNode;
 }
 
 /**
@@ -31,7 +35,7 @@ interface BillPrinterSetupProps {
  * straight away", test print. Saved on this computer (same settings as Settings →
  * Invoice & Bill Rules → Printer Setup), so it is set once.
  */
-export function BillPrinterSetup({ onClose, business, autoPrint, onAutoPrintChange }: BillPrinterSetupProps) {
+export function BillPrinterSetup({ onClose, business, autoPrint, onAutoPrintChange, title, children }: BillPrinterSetupProps) {
   const [settings, setSettings] = useState<PrintSettings>(getPrintSettings);
   const [printers, setPrinters] = useState<DesktopPrinter[]>([]);
   const [loading, setLoading] = useState(false);
@@ -69,7 +73,7 @@ export function BillPrinterSetup({ onClose, business, autoPrint, onAutoPrintChan
   };
 
   return (
-    <Modal isOpen onClose={onClose} title={tr('Bill printer')} description={tr('Set once — saved on this computer.')} size="md">
+    <Modal isOpen onClose={onClose} title={title || tr('Bill printer')} description={tr('Set once — saved on this computer.')} size="md">
       <div className="space-y-4 text-xs">
         <div>
           <p className="font-bold text-slate-700 mb-1.5">{tr('Bill size')}</p>
@@ -116,6 +120,8 @@ export function BillPrinterSetup({ onClose, business, autoPrint, onAutoPrintChan
             <span className="block text-emerald-800">{tr('No "Sale completed" window: Enter / F10 saves the bill, prints it on this printer and the next customer can be scanned.')}</span>
           </span>
         </label>
+
+        {children}
 
         <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
           <button type="button" onClick={testPrint} className="inline-flex items-center gap-1.5 px-3 h-9 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold cursor-pointer" data-bill-test>

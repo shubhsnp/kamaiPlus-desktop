@@ -88,6 +88,9 @@ import { formatPackAmount, makeWeighedBarcode, parseWeighedBarcode, weighedQuant
 import { globalShortcutFor, globalShortcutHints } from '../src/lib/ui/globalShortcuts';
 import { settingsTabFromQuery } from '../src/lib/ui/settingsLinks';
 import { parseTabY, shareFromCenter, tabCenterPx } from '../src/lib/ui/drawerTab';
+import { billStats, GST_STAND_IN_HREF, quickActionsFor, showProfitCard } from '../src/lib/dashboard/homeTiles';
+import { isVirtualPrinter, parseKnownPrinters, printerKind, printerLine, reviewPrinters, thermalFormat } from '../src/lib/hardware/printerDetect';
+import { SILENT_PRINT_KEY } from '../src/lib/hardware/printerWatch';
 import { categoryKey, findCategoryByName } from '../src/lib/products/categories';
 import { allowsFractionalQty, dozenFromPieces, formatCartQty, lineAmountPaise, piecesInDozen, roundQty } from '../src/lib/billing/unitQuantity';
 import { getQuantityConfigForUnit } from '../src/components/billing/posQuantityConfig';
@@ -746,7 +749,8 @@ assert(!/db\.|indexedDB|clear\(\)/.test(readSource('lib/auth/masterPassword.ts')
 
 // 8m. No status that claims something the app does not do.
 const statusSrc = readSource('components/layout/DesktopStatusBar.tsx');
-assert(!/>Ready<\/span>/.test(statusSrc) && /getPrinters\(\)/.test(statusSrc), 'Status bar printer state comes from the installed Windows printers, not a fixed "Ready"');
+// v4.78.0: the printer watcher (app shell) looks at Windows; the status bar shows what it saw.
+assert(!/>Ready<\/span>/.test(statusSrc) && /usePrinterFacts\(\)/.test(statusSrc) && /printerLine\(/.test(statusSrc) && /api\.getPrinters\(\)/.test(readSource('components/printers/PrinterWatcher.tsx')), 'Status bar printer state comes from the installed Windows printers, not a fixed "Ready"');
 assert(!/Multi-Counter Sync|Real-time cloud sync/.test(readSource('app/cloud-backup/page.tsx')), 'Backup page does not advertise cloud sync the app does not have');
 
 // 8n. Errors on a shop's computer are recorded, not lost.
@@ -1761,6 +1765,89 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   const tab = readSource('components/layout/DraggablePullTab.tsx');
   assert(/if \(!d\.moved\) return onOpen\(\);/.test(tab) && /Math\.abs\(dy\) < DRAG_THRESHOLD_PX/.test(tab) && /localStorage\.setItem\(DRAWER_TAB_KEY/.test(tab) && /<DraggablePullTab/.test(readSource('components/layout/GlobalDrawers.tsx')),
     'A press without movement opens the drawer; a drag moves the tab and is remembered');
+}
+
+// (m) Home fills itself: a screen switched off in Settings → Features is swapped for a tile
+// that does its job (Purchases → Fast barcode inward, GST → Backup & CA exports), tiles grow
+// to fill the row, Printer setup opens on Home, and "Today's Profit" becomes "Average Bill"
+// when no item has a buying price (it would always say ₹0).
+{
+  const ids = (purchases: boolean) => quickActionsFor({ purchases }).map((a) => a.id).join(',');
+  assert(ids(true) === 'new_bill,khata,stock_inward,day_summary,printers' && ids(false) === 'new_bill,khata,fast_inward,day_summary,printers'
+    && quickActionsFor({ purchases: false }).find((a) => a.id === 'fast_inward')?.action === 'fast_inward'
+    && quickActionsFor({ purchases: true })[0].href === '/billing?new=1',
+    'Quick Actions: Purchases off swaps Stock Inward for Fast barcode inward (opens on Home); New Bill opens a fresh bill; Printer setup is always there');
+  assert(!showProfitCard({ costPriceOn: false, anyProductHasCost: false, costedRevenuePaise: 0 })
+    && showProfitCard({ costPriceOn: true, anyProductHasCost: false }) && showProfitCard({ costPriceOn: false, anyProductHasCost: true })
+    && showProfitCard({ costPriceOn: false, anyProductHasCost: false, costedRevenuePaise: 500 }),
+    'Profit card shows only when buying prices exist somewhere; otherwise Average Bill takes its place');
+  const st = billStats([10000, 25050, 5000]);
+  assert(st.averagePaise === 13350 && st.biggestPaise === 25050 && billStats([]).averagePaise === 0 && billStats([]).biggestPaise === 0,
+    'Average Bill = day revenue / bills (whole paise); Biggest bill = the largest; no bills = ₹0');
+  const dock = readSource('components/dashboard/QuickActionDock.tsx');
+  const tools = readSource('components/dashboard/QuickToolsGrid.tsx');
+  const home = readSource('components/dashboard/DashboardHome.tsx');
+  assert(/quickActionsFor\(useFeatureSwitches\(\)\)/.test(dock) && /flex flex-wrap/.test(dock) && !/grid-cols-4/.test(dock)
+    && /flex flex-wrap/.test(tools) && /grow basis-40/.test(tools) && /switches\.gst_reports \? \[\] :/.test(tools) && GST_STAND_IN_HREF === '/settings?tab=data',
+    'Home tiles re-flow (no fixed 4-column grid), so a hidden screen leaves no gap; GST off → Backup & CA exports');
+  const printersWin = readSource('components/printers/PrintersWindow.tsx');
+  assert(/onOpenPrinters=\{openPrintersWindow\}/.test(home) && /<FastBarcodeInwardModal onClose/.test(home) && /showProfit=\{showProfit\}/.test(home)
+    && SILENT_PRINT_KEY === 'kamai_silent_print' && /onAutoPrintChange=\{saveSilentPrint\}/.test(printersWin) && /'kamai_silent_print'/.test(readSource('app/billing/page.tsx'))
+    && /<LabelSetupPanel/.test(printersWin) && /\{children\}/.test(readSource('components/billing/BillPrinterSetup.tsx')),
+    'Printer setup on Home: bill printer + label printer, and "print straight away" is the same switch the counter uses');
+}
+
+// (n) Printer auto-detect: PDF / XPS / OneNote / Fax "printers" are never bill printers; the kind
+// (receipt / label / A4) comes from name + driver; with nothing chosen and no doubt, the printer is
+// picked on its own; a printer already chosen is never switched — a new one is asked about once.
+{
+  const tvs = { name: 'TVS RP 3160 Gold', driver: 'TVS RP 3160 Gold' };
+  const pos58 = { name: 'POS-58', driver: 'POS-58' };
+  const tsc = { name: 'TSC TTP-244 Pro', driver: 'TSC TTP-244 Pro' };
+  const hp = { name: 'HP LaserJet P1108', driver: 'HP LaserJet Professional P1100' };
+  const pdf = { name: 'Microsoft Print to PDF', driver: 'Microsoft Print To PDF', port: 'PORTPROMPT:' };
+  const adobe = { name: 'Adobe PDF', driver: 'Adobe PDF Converter', port: 'Documents\\*.pdf' };
+  assert(isVirtualPrinter(pdf) && isVirtualPrinter(adobe) && isVirtualPrinter({ name: 'OneNote (Desktop)' }) && isVirtualPrinter({ name: 'Fax' })
+    && isVirtualPrinter({ name: 'Microsoft XPS Document Writer' }) && !isVirtualPrinter(tvs) && !isVirtualPrinter(hp) && !isVirtualPrinter(tsc),
+    'Printer detect: file-only "printers" (PDF, XPS, OneNote, Fax) are left out');
+  assert(printerKind(tvs) === 'thermal' && printerKind({ name: 'EPSON TM-T82 Receipt' }) === 'thermal' && printerKind(pos58) === 'thermal'
+    && printerKind(tsc) === 'label' && printerKind({ name: 'TVS LP 46 NEO' }) === 'label' && printerKind({ name: 'ZDesigner ZD220-203dpi', driver: 'Zebra ZD220' }) === 'label'
+    && printerKind(hp) === 'a4' && printerKind({ name: 'Canon LBP2900' }) === 'a4' && printerKind({ name: 'Generic / Text Only' }) === 'other'
+    && thermalFormat(pos58) === 'thermal-58' && thermalFormat(tvs) === 'thermal-80',
+    'Printer kind from name / driver: receipt (58 or 80 mm), label (checked first: TVS LP is a label printer), A4');
+  const none = { defaultFormat: 'a4' as const, a4Printer: '', thermalPrinter: '' };
+  const r0 = reviewPrinters({ known: null, printers: [pdf, adobe], bill: none, labelPrinter: '' });
+  const r1 = reviewPrinters({ known: null, printers: [pdf, adobe, tvs], bill: none, labelPrinter: '' });
+  assert(!r0.bill && !r0.label && r0.fresh.length === 0 && r1.bill?.name === tvs.name && r1.bill.format === 'thermal-80' && r1.fresh.length === 0 && r1.known.length === 3,
+    'First look on a PC: only PDF printers → nothing picked or asked; one receipt printer already installed → it becomes the 80 mm bill printer');
+  const r2 = reviewPrinters({ known: [pdf.name, adobe.name], printers: [pdf, adobe, pos58, tsc], bill: none, labelPrinter: '' });
+  assert(r2.bill?.name === 'POS-58' && r2.bill.format === 'thermal-58' && r2.label === tsc.name && r2.fresh.length === 0,
+    'Plugged in later with nothing chosen: the receipt printer takes the bills (58 mm), the label printer the labels — no questions');
+  const chosen = { defaultFormat: 'thermal-80' as const, a4Printer: '', thermalPrinter: tvs.name };
+  const r3 = reviewPrinters({ known: [pdf.name, tvs.name], printers: [pdf, tvs, hp], bill: chosen, labelPrinter: '' });
+  const r4 = reviewPrinters({ known: r3.known, printers: [pdf, tvs, hp], bill: chosen, labelPrinter: '' });
+  const r5 = reviewPrinters({ known: [], printers: [tvs, pos58], bill: none, labelPrinter: '' });
+  assert(!r3.bill && r3.fresh.map((p) => p.name).join() === hp.name && r4.fresh.length === 0 && !r5.bill && r5.fresh.length === 2,
+    'A chosen bill printer is never switched: a new printer is asked about once (then remembered); two receipt printers = no guess, both asked');
+  const r6 = reviewPrinters({ known: [pdf.name], printers: [pdf, hp], bill: none, labelPrinter: '' });
+  assert(r6.bill?.name === hp.name && r6.bill.format === 'a4', 'Only an office printer and A4 bills: it becomes the A4 bill printer (not the PDF default)');
+  const def = printerLine('', [{ ...pdf, isDefault: true }, tvs]);
+  assert(printerLine('', []).state === 'none' && printerLine('X', [tvs]).state === 'missing' && printerLine(tvs.name, [{ ...tvs, offline: true }]).state === 'offline'
+    && printerLine(tvs.name, [tvs]).state === 'ready' && def.state === 'default' && def.virtual === true
+    && parseKnownPrinters(null) === null && parseKnownPrinters('bad') === null && parseKnownPrinters('["A",1]')?.join() === 'A',
+    'Status bar: none / missing / offline / ready, and a Windows default that only saves a PDF is flagged');
+  const { parsePrinterJson } = require('../printers.js');
+  const one = parsePrinterJson('{"Name":"TVS RP 3160 Gold","DriverName":"TVS RP 3160 Gold","PortName":"USB001","Status":"Offline","WorkOffline":false}');
+  const many = parsePrinterJson('[{"Name":"A","Status":"Normal","WorkOffline":null},{"Name":"B","Status":"Normal","WorkOffline":true}]');
+  assert(one.length === 1 && one[0].offline === true && one[0].port === 'USB001' && many.length === 2 && !many[0].offline && many[1].offline && parsePrinterJson('').length === 0,
+    'Main side: Get-Printer JSON (one printer = an object) → name, driver, port, offline');
+  const main = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+  const preload = fs.readFileSync(path.join(__dirname, '..', 'preload.js'), 'utf8');
+  assert(/ipcMain\.handle\('kp:printer-status'/.test(main) && /getPrinterStatus: \(\) => ipcRenderer\.invoke\('kp:printer-status'\)/.test(preload)
+    && (pkgJson.build?.files || []).includes('printers.js') && /<PrinterWatcher \/>/.test(readSource('components/layout/AppShell.tsx'))
+    && /onClick=\{openPrintersWindow\}/.test(readSource('components/layout/DesktopStatusBar.tsx'))
+    && /addEventListener\(SILENT_PRINT_EVENT/.test(readSource('app/billing/page.tsx')),
+    'kp:printer-status is wired (main, preload, packaged); the watcher runs in the app shell; the status bar opens Printers; Billing follows the switch');
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.

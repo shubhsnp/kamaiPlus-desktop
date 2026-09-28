@@ -61,6 +61,7 @@ import { parseWeighedBarcode, weighedQuantity } from '@/lib/barcode/weighedBarco
 import { allowsFractionalQty, formatCartQty, roundQty } from '@/lib/billing/unitQuantity';
 import { searchProducts } from '@/lib/search/productSearch';
 import { BillPrinterSetup } from '@/components/billing/BillPrinterSetup';
+import { SILENT_PRINT_EVENT, SILENT_PRINT_KEY } from '@/lib/hardware/printerWatch';
 import { buildBillCustomer, CustomerDraft, isDraftEmpty, resolveBillCustomer } from '@/lib/billing/billCustomer';
 import { Sale } from '@/types';
 
@@ -123,6 +124,12 @@ export default function BillingPage() {
     showBillingToast(next ? tr('⚡ Silent Print: Active (Direct Thermal)') : tr('Silent Print: Off (Preview Dialog)'), 'info');
   };
   const [isBillPrinterOpen, setIsBillPrinterOpen] = useState(false);
+  // The Printers window (status bar / Home) can flip "print straight away" while Billing is open.
+  useEffect(() => {
+    const onSilentPrint = () => setSilentPrint(localStorage.getItem(SILENT_PRINT_KEY) === 'true');
+    window.addEventListener(SILENT_PRINT_EVENT, onSilentPrint);
+    return () => window.removeEventListener(SILENT_PRINT_EVENT, onSilentPrint);
+  }, []);
 
   // Multi-Bill Tabs State
   const [tabs, setTabs] = useState<BillTab[]>(() => getInitialTabs().tabs);

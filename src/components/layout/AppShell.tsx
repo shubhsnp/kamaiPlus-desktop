@@ -12,6 +12,7 @@ import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
 import { DesktopStatusBar } from './DesktopStatusBar';
 import { GlobalDrawers } from './GlobalDrawers';
+import { PrinterWatcher } from '@/components/printers/PrinterWatcher';
 import { BusinessProvider } from './BusinessProvider';
 import { UpdateReadyBanner } from './UpdateReadyBanner';
 import { FeatureGate } from '@/components/features/FeatureGate';
@@ -255,6 +256,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         </main>
       </div>
       <DesktopStatusBar />
+      <PrinterWatcher />
       <GlobalDrawers />
       <UpdateReadyBanner />
       <AutoBackupScheduler />

@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('kamaiDesktop', {
   printToPdf: (opts) => ipcRenderer.invoke('kp:print-to-pdf', opts),
   print: (opts) => ipcRenderer.invoke('kp:print', opts),
   getPrinters: () => ipcRenderer.invoke('kp:get-printers'),
+  getPrinterStatus: () => ipcRenderer.invoke('kp:printer-status'),
   openPath: (target) => ipcRenderer.invoke('kp:open-path', target),
   showItemInFolder: (target) => ipcRenderer.invoke('kp:show-in-folder', target),
   getAppInfo: () => ipcRenderer.invoke('kp:app-info'),

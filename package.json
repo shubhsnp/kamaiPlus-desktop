@@ -75,6 +75,7 @@
       "updater.js",
       "backup.js",
       "errorlog.js",
+    "printers.js",
       "preload.js",
       "out/**/*"
     ],

@@ -8,6 +8,7 @@ const licence = require('./licence');
 const { initAutoUpdate } = require('./updater');
 const backup = require('./backup');
 const errorlog = require('./errorlog');
+const printers = require('./printers');
 
 // Main-process failures are logged instead of vanishing (errorlog.js).
 process.on('uncaughtException', (err) => {
@@ -381,6 +382,9 @@ ipcMain.handle('kp:get-printers', async () => {
     return [];
   }
 });
+
+// Driver, port and offline state from Windows (printers.js) — printer auto-detect (v4.78.0).
+ipcMain.handle('kp:printer-status', async () => printers.getPrinterStatus());
 
 function insideDocuments(target) {
   const full = path.normalize(String(target || ''));

@@ -726,10 +726,10 @@ async function run() {
       await page.waitForURL(/\/billing/, { timeout: 10000 });
       await posSearch.waitFor({ timeout: 10000 });
       await page.waitForTimeout(600);
-      const freshCart = await page.getByText(/CART ITEMS \(0\)/).first().isVisible().catch(() => false);
+      const freshCart = await page.getByText(/cart items \(0\)/i).first().isVisible().catch(() => false);
       const busyTabsAfter = (await tabsNow()).filter((t) => t.cart.length > 0).length;
       check(stayedWithForm && freshCart && busyTabsAfter === busyTabsBefore && !/new=1/.test(page.url()),
-        `F1 opens Billing on a fresh bill from Products (bills with items kept: ${busyTabsAfter}); with the Add Product form open it does nothing`);
+        `F1 opens Billing on a fresh bill from Products (bills with items kept: ${busyTabsAfter}); with the Add Product form open it does nothing${stayedWithForm && freshCart ? '' : ` [form kept: ${stayedWithForm}, empty cart: ${freshCart}]`}`);
 
       // v4.78.0 — Backup & restore: a backup file of the shop, then changes after it; "Add missing
       // records only" keeps those changes (nothing overwritten); "Clean Replace" brings the backup
@@ -806,14 +806,83 @@ async function run() {
       await page.waitForTimeout(400);
       const boxAfter = await pullTab.boundingBox();
       const savedY = Number(await page.evaluate(() => localStorage.getItem('kamai_drawer_tab_y')));
-      const drawerOpenAfterDrag = await page.locator('[data-drawer-close]').first().isVisible().catch(() => false);
+      // The drawer is always in the page, slid off to the right when closed: "open" = on screen.
+      const drawerOnScreen = () => page.evaluate(() => {
+        const b = document.querySelector('[data-drawer-close]');
+        return Boolean(b) && b.getBoundingClientRect().left < window.innerWidth - 10;
+      });
+      const drawerOpenAfterDrag = await drawerOnScreen();
       await pullTab.click();
       await page.waitForTimeout(600);
-      const drawerOpened = await page.locator('[data-drawer-close]').first().isVisible().catch(() => false);
+      const drawerOpened = await drawerOnScreen();
       await page.keyboard.press('Escape');
       await page.waitForTimeout(400);
       check(boxAfter.y < boxBefore.y - 150 && savedY > 0 && savedY < 0.5 && !drawerOpenAfterDrag && drawerOpened,
-        `Transactions tab dragged up ${Math.round(boxBefore.y - boxAfter.y)} px and remembered (${savedY}); the drag did not open it, a click does`);
+        `Transactions tab dragged up ${Math.round(boxBefore.y - boxAfter.y)} px and remembered (${savedY}); the drag did not open it, a click does${!drawerOpenAfterDrag && drawerOpened ? '' : ` [open after drag: ${drawerOpenAfterDrag}, open after click: ${drawerOpened}]`}`);
+
+      // v4.78.0 — Home fills itself: Purchases off → Fast barcode inward tile (opens on Home), GST off →
+      // Backup & CA exports, every row of tiles full; Printer setup opens the bill + label printer.
+      step = 'home tiles';
+      const setPurchases = (on) => page.evaluate((v) => {
+        const cur = JSON.parse(localStorage.getItem('kamai_feature_switches') || '{}');
+        localStorage.setItem('kamai_feature_switches', JSON.stringify({ ...cur, purchases: v }));
+      }, on);
+      await setPurchases(false);
+      await page.evaluate(() => { window.location.href = '/'; });
+      await page.locator('[data-home-action="printers"]').waitFor({ timeout: 15000 });
+      await page.waitForTimeout(500);
+      const homeIds = await page.locator('[data-home-action]').evaluateAll((els) => els.map((e) => e.getAttribute('data-home-action')).join(','));
+      const gstStandIn = await page.locator('[data-home-tool="/settings?tab=data"]').isVisible().catch(() => false);
+      // Every row of every tile group reaches the right edge: no empty slot anywhere.
+      const rowsFull = await page.evaluate(() => {
+        const groups = [document.querySelector('[data-home-action]')?.parentElement, ...Array.from(document.querySelectorAll('[data-home-tool]')).map((t) => t.parentElement)];
+        return Array.from(new Set(groups.filter(Boolean))).every((g) => {
+          const right = g.getBoundingClientRect().right;
+          const rows = new Map();
+          for (const c of Array.from(g.children)) {
+            const r = c.getBoundingClientRect();
+            const key = Math.round(r.top);
+            rows.set(key, Math.max(rows.get(key) || 0, r.right));
+          }
+          return Array.from(rows.values()).every((edge) => Math.abs(edge - right) < 2);
+        });
+      });
+      await page.locator('[data-home-action="fast_inward"]').click();
+      const fastOnHome = await page.locator('[data-fast-scan]').waitFor({ timeout: 10000 }).then(() => true).catch(() => false);
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(400);
+      check(homeIds === 'new_bill,khata,fast_inward,day_summary,printers' && gstStandIn && rowsFull && fastOnHome && /\/$/.test(new URL(page.url()).pathname),
+        `Home with Purchases / GST off: tiles "${homeIds}", Backup & CA exports in GST's place, every row full; Fast barcode inward opens right on Home`);
+      await page.locator('[data-home-action="printers"]').click();
+      await page.locator('[data-bill-printer]').waitFor({ timeout: 10000 });
+      const printersTitle = await page.locator('[role="dialog"]').first().innerText();
+      await page.locator('[data-home-label-printer]').click();
+      const labelPanel = await page.locator('[data-label-printer]').first().isVisible().catch(() => false);
+      await page.locator('[data-bill-autoprint]').check();
+      const silentOn = await page.evaluate(() => localStorage.getItem('kamai_silent_print'));
+      await page.locator('[data-bill-autoprint]').uncheck();
+      const silentOff = await page.evaluate(() => localStorage.getItem('kamai_silent_print'));
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(400);
+      check(/Printers/.test(printersTitle) && labelPanel && silentOn === 'true' && silentOff === 'false',
+        'Printer setup from Home: bill printer, the label printer one click down, and "print straight away" is the counter\'s own switch');
+      // v4.78.0 — printer auto-detect: Windows' printers (driver, port, offline) reach the app, seen
+      // printers are remembered, PDF "printers" are never picked, and the status bar opens Printers.
+      const winPrinters = await page.evaluate(() => window.kamaiDesktop.getPrinterStatus());
+      await page.waitForTimeout(1500);
+      const knownPrinters = await page.evaluate(() => JSON.parse(localStorage.getItem('kamai_known_printers') || 'null'));
+      const printSettingsNow = await page.evaluate(() => JSON.parse(localStorage.getItem('kamai_print_settings') || '{}'));
+      const onlyVirtual = Array.isArray(winPrinters) && winPrinters.every((p) => /pdf|xps|onenote|fax/i.test(`${p.name} ${p.driver} ${p.port}`));
+      const statusTone = await page.locator('[data-status-printer]').getAttribute('data-status-printer').catch(() => null);
+      await page.locator('[data-status-printer]').click();
+      const printersFromBar = await page.locator('[data-bill-printer]').waitFor({ timeout: 10000 }).then(() => true).catch(() => false);
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(400);
+      check(Array.isArray(winPrinters) && winPrinters.every((p) => typeof p.name === 'string' && typeof p.offline === 'boolean' && typeof p.port === 'string')
+        && Array.isArray(knownPrinters) && winPrinters.every((p) => knownPrinters.includes(p.name))
+        && (!onlyVirtual || ((printSettingsNow.thermalPrinter || '') === (savedPs.thermalPrinter || '') && !printSettingsNow.a4Printer)) && Boolean(statusTone) && printersFromBar,
+        `Printer auto-detect: Windows printers read (${(winPrinters || []).map((p) => `${p.name}${p.offline ? ' [offline]' : ''}`).join(', ')}), remembered, the printer chosen earlier is never switched; status bar "${statusTone}" opens Printers`);
+      await setPurchases(true);
 
       step = 'errors';
       check(pageErrors.length === 0, `No uncaught page errors during the flow${pageErrors.length ? `: ${pageErrors.slice(0, 3).join(' | ')}` : ''}`);
