@@ -48,3 +48,4 @@ repomix-output.*
 
 # Auto-update files published to kamaiplus-desktop.web.app (scripts/prepare_release.js)
 /release/
+*.xlsx

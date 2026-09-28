@@ -40,6 +40,7 @@
   "{count} labels sent to the printer.": "{count} लेबल प्रिंटर को भेजे गए।",
   "{count} recorded.": "{count} दर्ज।",
   "{count} rows": "{count} पंक्तियाँ",
+  "{count} visits": "{count} बार आए",
   "{created} new items, {updated} updated, {unchanged} unchanged, {skipped} skipped.": "{created} नए सामान, {updated} बदले, {unchanged} वैसे ही, {skipped} छोड़े गए।",
   "{current_stock} Left": "{current_stock} बचे",
   "{fieldLabel} is required.": "{fieldLabel} ज़रूरी है।",

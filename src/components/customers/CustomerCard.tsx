@@ -139,7 +139,7 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
       {/* Bottom Actions: WhatsApp & Khata Link */}
       <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
         <div className="text-[10.5px] text-slate-400 font-medium">
-          {customer.total_visits ? `${customer.total_visits} visits` : tr('New customer')}
+          {customer.total_visits ? tr('{count} visits', { count: customer.total_visits }) : tr('New customer')}
         </div>
 
         <div className="flex items-center gap-1.5">

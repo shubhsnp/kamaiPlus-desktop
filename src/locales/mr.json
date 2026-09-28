@@ -40,6 +40,7 @@
   "{count} labels sent to the printer.": "{count} लेबल प्रिंटरला पाठवले.",
   "{count} recorded.": "{count} नोंदल्या.",
   "{count} rows": "{count} ओळी",
+  "{count} visits": "{count} वेळा भेट",
   "{created} new items, {updated} updated, {unchanged} unchanged, {skipped} skipped.": "{created} नवीन माल, {updated} बदलले, {unchanged} तसेच, {skipped} सोडले.",
   "{current_stock} Left": "{current_stock} शिल्लक",
   "{fieldLabel} is required.": "{fieldLabel} आवश्यक आहे.",
