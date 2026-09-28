@@ -1,6 +1,6 @@
 {
   "name": "kamai-plus-desktop",
-  "version": "4.77.0",
+  "version": "4.78.0",
   "private": true,
   "description": "KamaiPlus Desktop Application",
   "scripts": {
@@ -75,7 +75,7 @@
       "updater.js",
       "backup.js",
       "errorlog.js",
-    "printers.js",
+      "printers.js",
       "preload.js",
       "out/**/*"
     ],

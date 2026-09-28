@@ -15,6 +15,18 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.78.0',
+    items: [
+      msg('F1 opens a new bill from any screen (instead of Shift+B), Ctrl+L locks the screen, and the bar at the bottom shows the keys that work on each page.'),
+      msg('Printers found on their own: install a receipt or label printer and, if it is the only one, KamaiPlus picks it and tells you. The bottom bar shows if the bill printer is ready, off or missing — click it to change.'),
+      msg('Home arranges itself: a screen you switched off is replaced by a useful tile, with no empty gaps. New "Printer setup" tile, and "Average Bill" when your items have no buying price.'),
+      msg('Fast barcode inward: scan item after item with the gun to bring stock in — quantity and category are optional. Add Product can "Generate" a barcode, "Save & print label" and make a new category right there.'),
+      msg('Billing: the pencil on an item takes parts — ½ box, ¾ dozen, 7 pieces of a dozen, 1.25 kg — and shows the amount.'),
+      msg('Customers in a grid or a list, sorted your way, and exported to Excel or PDF. UPI QR and bank details moved to Settings → Store Profile. The side drawer is now "Transactions" and can be dragged up or down.'),
+      msg('Safer backup: before a full restore today\'s data is saved, a damaged file is refused and "Add missing records only" never overwrites. CA Excel and Tally exports for any period with correct GST. Packets like Parle-G and Maggi are found when scanned.'),
+    ],
+  },
+  {
     version: '4.77.0',
     items: [
       msg('Barcode Studio → "New stock + labels": type the name, price and quantity of what came in. Each item is saved with its stock and its own barcode, and one label per piece prints — ready to scan at the counter.'),

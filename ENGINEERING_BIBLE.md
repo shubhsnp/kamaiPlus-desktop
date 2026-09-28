@@ -1,7 +1,7 @@
 # 📕 KamaiPlus Desktop — Engineering Bible
 
 > **Canonical context file. Read this before touching any code.**
-> Last verified against the tree at v4.77.0, 2026‑09‑28 (sections carry the version they were last touched in).
+> Last verified against the tree at v4.78.0, 2026‑09‑28 (sections carry the version they were last touched in).
 
 This file exists so that an agent starting cold does **not** have to scan 180 source
 files, and does **not** re-solve problems that were already solved. Everything here
@@ -317,7 +317,7 @@ src/components/<feature>/   Feature components, one folder per domain
 src/components/ui/          Button, Card, Input, Modal  (that is all of it)
 src/lib/<domain>/           Engines — see table below
 src/types/index.ts          All domain types. Single file.
-scripts/e2e_simulation.ts   The test suite (§11). 517 assertions.
+scripts/e2e_simulation.ts   The test suite (§11). 569 assertions.
 scripts/bump_version.ts     Version bumper (+0.1 minor)
 public/barcodes/*.json      5 shipped offline barcode dictionaries
 ```
@@ -1158,7 +1158,7 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 517/517, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 569/569, 0 failures
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
 git push origin main
@@ -1169,7 +1169,7 @@ billing), also run the real app:
 
 ```bash
 npx next build                      # out/ must be current
-npm run test:electron               # scripts/electron_e2e.mjs — 56/56
+npm run test:electron               # scripts/electron_e2e.mjs — 67/67
 ```
 
 `electron_e2e.mjs` launches the actual Electron app with Playwright (`playwright-core`,
@@ -1194,6 +1194,10 @@ the counter has no camera / Rapid / hardware buttons. Since v4.74.0: with a prin
 failed print shows the red bar and "Print again" prints it. Since v4.77.0: "New stock + labels" (4 rows typed / scanned →
 items with stock and barcodes, 29 labels printed, the new label scanned into a bill), 250 g loose
 packs scanned as 0.5 kg, Manual Inward and a supplier Excel bill through to "Print labels" (§9.8).
+Since v4.78.0: Fast barcode inward (gun scans, same code +1, a scan into a name box, Parle-G from the
+offline list), F1 from Products opens a fresh bill (not with a form open), backup restore both ways
++ a damaged file, the Transactions tab dragged and remembered, Home tiles with Purchases / GST off
+(no gaps), the Printers window from Home and the status bar, and printer auto-detect reading Windows.
 Its data goes to a temp folder via `KAMAI_E2E_DIR` (main.js honours it only
 when `!app.isPackaged`). The licence is **signed for this PC with the private key** in
 `%USERPROFILE%\KamaiPlus-Secrets\` (or `KAMAI_LICENCE_PRIVATE_KEY`) — nothing is
@@ -1201,7 +1205,7 @@ bypassed; without the key only the no-licence checks run. The script removes
 `ELECTRON_RUN_AS_NODE` (set by VS Code terminals), which otherwise stops Electron
 launching. Failure screenshots go to `%TEMP%\kamaiplus-e2e-shots\`.
 
-### Test suite map — `scripts/e2e_simulation.ts` (517 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (569 assertions)
 
 | Suite | Covers |
 | :--- | :--- |
