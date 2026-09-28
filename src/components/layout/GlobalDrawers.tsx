@@ -14,6 +14,8 @@ const InvoiceModal = dynamic(
 );
 import { Sale } from '@/types';
 import { tr } from '@/lib/i18n/core';
+import { pagePath } from '@/lib/ui/globalShortcuts';
+import { DraggablePullTab } from './DraggablePullTab';
 
 export const GlobalDrawers: React.FC = () => {
   const pathname = usePathname();
@@ -42,29 +44,25 @@ export const GlobalDrawers: React.FC = () => {
   }, [isHistoryOpen]) || [];
 
   // Don't show these drawers on the Billing POS page itself
-  if (pathname === '/billing') {
+  if (pagePath(pathname) === '/billing') {
     return null;
   }
 
   return (
     <>
-      {/* PULL TAB ON THE RIGHT EDGE: TRANSACTIONS (recent bills) */}
-      <div className="fixed right-0 top-1/2 -translate-y-1/2 z-40 flex flex-col gap-3">
-        {/* TRANSACTIONS TAB */}
-        <div 
-          onClick={() => setIsHistoryOpen(true)}
-          data-transactions-tab
-          className="bg-slate-900 dark:bg-slate-800 text-white p-2 py-5 rounded-l-2xl shadow-[-4px_0_15px_rgba(0,0,0,0.1)] cursor-pointer hover:-translate-x-1 transition-transform flex items-center justify-center group"
-          title={tr('Transactions')}
-        >
-          <div className="flex flex-col items-center gap-2">
-            <History className="w-4 h-4 text-cyan-400" />
-            <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }} className="text-[10px] font-black tracking-widest uppercase mt-1 group-hover:text-cyan-400 transition-colors">
-              {tr('Transactions')}
-            </span>
-          </div>
+      {/* PULL TAB ON THE RIGHT EDGE: TRANSACTIONS (recent bills) — drag it up / down (v4.78.0) */}
+      <DraggablePullTab
+        onOpen={() => setIsHistoryOpen(true)}
+        title={tr('Transactions — drag up or down to move it (right-click: back to the middle)')}
+        className="bg-slate-900 dark:bg-slate-800 text-white p-2 py-5 rounded-l-2xl shadow-[-4px_0_15px_rgba(0,0,0,0.1)] hover:-translate-x-1 transition-transform flex items-center justify-center group"
+      >
+        <div className="flex flex-col items-center gap-2 pointer-events-none">
+          <History className="w-4 h-4 text-cyan-400" />
+          <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }} className="text-[10px] font-black tracking-widest uppercase mt-1 group-hover:text-cyan-400 transition-colors">
+            {tr('Transactions')}
+          </span>
         </div>
-      </div>
+      </DraggablePullTab>
 
       {/* --- HISTORY DRAWER --- */}
       {isHistoryOpen && (

@@ -87,6 +87,7 @@ import { encodeCostCode, isValidCostCodeWord, productLabelDetail, productLabelEx
 import { formatPackAmount, makeWeighedBarcode, parseWeighedBarcode, weighedQuantity } from '../src/lib/barcode/weighedBarcode';
 import { globalShortcutFor, globalShortcutHints } from '../src/lib/ui/globalShortcuts';
 import { settingsTabFromQuery } from '../src/lib/ui/settingsLinks';
+import { parseTabY, shareFromCenter, tabCenterPx } from '../src/lib/ui/drawerTab';
 import { categoryKey, findCategoryByName } from '../src/lib/products/categories';
 import { allowsFractionalQty, dozenFromPieces, formatCartQty, lineAmountPaise, piecesInDozen, roundQty } from '../src/lib/billing/unitQuantity';
 import { getQuantityConfigForUnit } from '../src/components/billing/posQuantityConfig';
@@ -1748,6 +1749,18 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   const fmcg = JSON.parse(fs.readFileSync(path.join(dir, 'fmcg-india.json'), 'utf8')) as { barcode: string }[];
   assert(listed.length === 5 && broken.length === 0 && fmcg.some((i) => i.barcode === '8901719101037'),
     `Every offline barcode list loads (broken: ${broken.join(', ') || 'none'}) — a scanned Parle-G fills its name and price`);
+}
+
+// (l) The Transactions pull-tab can be dragged up / down and stays there on this computer; it
+// never covers the top bar or the status bar; a plain click still opens the drawer.
+{
+  assert(parseTabY(null) === 0.5 && parseTabY('0.2') === 0.2 && parseTabY('7') === 0.5 && parseTabY('abc') === 0.5 && parseTabY('') === 0.5
+    && tabCenterPx(0.5, 900, 120) === 450 && tabCenterPx(0, 900, 120) === 136 && tabCenterPx(1, 900, 120) === 808
+    && shareFromCenter(90, 900, 120) === Math.round((136 / 900) * 1000) / 1000 && shareFromCenter(450, 900, 120) === 0.5,
+    'Pull-tab place: a share of the window height, kept below the top bar and above the status bar; a broken saved value means the middle');
+  const tab = readSource('components/layout/DraggablePullTab.tsx');
+  assert(/if \(!d\.moved\) return onOpen\(\);/.test(tab) && /Math\.abs\(dy\) < DRAG_THRESHOLD_PX/.test(tab) && /localStorage\.setItem\(DRAWER_TAB_KEY/.test(tab) && /<DraggablePullTab/.test(readSource('components/layout/GlobalDrawers.tsx')),
+    'A press without movement opens the drawer; a drag moves the tab and is remembered');
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.

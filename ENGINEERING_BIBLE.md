@@ -598,7 +598,8 @@ src/app/layout.tsx          (server component — metadata, viewport, fonts)
             ├── <main><FeatureGate>{children}</FeatureGate></main>   ◄── the route renders here
             │                                (switched-off screen → "turned off" card, §9.2)
             ├── <DesktopStatusBar>        online/printer/clock/version; the page's keys; "Bill rules" / "Help" links (v4.78.0)
-            └── <GlobalDrawers>           right-edge "Transactions" pull-tab (recent bills; was "History" before v4.78.0)
+            └── <GlobalDrawers>           right-edge "Transactions" pull-tab (recent bills; was "History" before v4.78.0);
+                                          drag it up / down (`DraggablePullTab`, `lib/ui/drawerTab.ts`), ↑ / ↓, right-click = middle
                                           (hidden on /billing)
 ```
 
@@ -655,6 +656,7 @@ There is no global state library. Modules talk through window events:
 `kamai_print_settings` (bill printers) · `kamai_label_settings` · `kamai_last_import_ids` ·
 `kamai_label_handoff` (Purchases → Barcode Studio labels) · `kamai_stock_entry_draft` (typed "New stock" rows) ·
 `kamai_fast_inward_draft` (scanned Fast barcode inward rows) · `kamai_customers_view_mode` (Customers grid / list) ·
+`kamai_drawer_tab_y` (where the Transactions pull-tab was dragged, a share of the window height) ·
 `kamai_feature_switches` · `kamai_sound_muted` · `vyapar_language`
 
 sessionStorage (emptied when the app closes): `kamai_unlocked` · `kamai_return_to`.

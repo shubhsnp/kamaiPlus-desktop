@@ -791,6 +791,30 @@ async function run() {
       check(/damaged/i.test(alertText) && !(await page.locator('[data-restore-modal]').count()) && (await readStore(page, 'products')).length === snap.products.length,
         'A damaged backup file is refused before anything is touched');
 
+      // v4.78.0 — the Transactions pull-tab: dragged up it stays up (saved), a click still opens it.
+      step = 'drawer drag';
+      await page.evaluate(() => { window.location.href = '/customers/'; });
+      const pullTab = page.locator('[data-transactions-tab]');
+      await pullTab.waitFor({ timeout: 15000 });
+      await page.waitForTimeout(500);
+      const boxBefore = await pullTab.boundingBox();
+      await page.mouse.move(boxBefore.x + boxBefore.width / 2, boxBefore.y + boxBefore.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(boxBefore.x + boxBefore.width / 2, boxBefore.y + boxBefore.height / 2 - 60, { steps: 5 });
+      await page.mouse.move(boxBefore.x + boxBefore.width / 2, boxBefore.y + boxBefore.height / 2 - 180, { steps: 5 });
+      await page.mouse.up();
+      await page.waitForTimeout(400);
+      const boxAfter = await pullTab.boundingBox();
+      const savedY = Number(await page.evaluate(() => localStorage.getItem('kamai_drawer_tab_y')));
+      const drawerOpenAfterDrag = await page.locator('[data-drawer-close]').first().isVisible().catch(() => false);
+      await pullTab.click();
+      await page.waitForTimeout(600);
+      const drawerOpened = await page.locator('[data-drawer-close]').first().isVisible().catch(() => false);
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(400);
+      check(boxAfter.y < boxBefore.y - 150 && savedY > 0 && savedY < 0.5 && !drawerOpenAfterDrag && drawerOpened,
+        `Transactions tab dragged up ${Math.round(boxBefore.y - boxAfter.y)} px and remembered (${savedY}); the drag did not open it, a click does`);
+
       step = 'errors';
       check(pageErrors.length === 0, `No uncaught page errors during the flow${pageErrors.length ? `: ${pageErrors.slice(0, 3).join(' | ')}` : ''}`);
     } catch (err) {
