@@ -162,6 +162,39 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     }
   }, [pathname, currentUser, locked, isClient, router]);
 
+  // --- 3. GLOBAL KEYBOARD SHORTCUTS ---
+  useEffect(() => {
+    if (!isClient) return;
+
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Avoid triggering shortcuts while user is typing in inputs or textareas
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target as HTMLElement).isContentEditable
+      ) {
+        return;
+      }
+
+      // Ctrl + H -> Navigate to Home '/' from anywhere
+      if (e.ctrlKey && e.key.toLowerCase() === 'h') {
+        e.preventDefault();
+        router.push('/');
+        return;
+      }
+
+      // Shift + B -> Navigate to Billing '/billing' only when on Home '/'
+      if (e.shiftKey && e.key.toLowerCase() === 'b' && pathname === '/') {
+        e.preventDefault();
+        router.push('/billing');
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [isClient, router, pathname]);
+
   if (!isClient) {
     return <main className="min-h-screen bg-slate-50" />;
   }
