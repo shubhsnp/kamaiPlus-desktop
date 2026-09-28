@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Barcode, Bluetooth, CheckCircle2, ChevronDown, ChevronUp, Printer, Settings2, XCircle } from 'lucide-react';
+import { Barcode, Bluetooth, CheckCircle2, ChevronDown, ChevronUp, PackagePlus, Printer, Settings2, XCircle } from 'lucide-react';
 import { db } from '@/lib/db';
 import { useBusiness } from '@/components/layout/BusinessProvider';
 import { Product } from '@/types';
@@ -12,12 +12,16 @@ import { Button } from '@/components/ui/Button';
 import { bluetoothPrinter } from '@/lib/hardware/bluetoothPrinter';
 import { EscPosEncoder } from '@/lib/hardware/escpos';
 import { ensureProductBarcodes } from '@/lib/barcode/storeBarcodes';
-import { getLabelSettings, getLastImportIds, LABEL_SETTINGS_EVENT, LabelSettings } from '@/lib/labels/labelSettings';
+import { productLabelExtras } from '@/lib/labels/labelExtras';
+import { clearLabelHandoff, getLabelSettings, getLastImportIds, LABEL_SETTINGS_EVENT, LabelSettings, readLabelHandoff } from '@/lib/labels/labelSettings';
 import { expandCopies, printLabels } from '@/lib/labels/printLabels';
 import { LabelSetupPanel } from '@/components/labels/LabelSetupPanel';
 import { LabelPreview } from '@/components/labels/LabelPreview';
 import { LabelQueuePanel, QueueItem } from '@/components/labels/LabelQueuePanel';
-import { CustomLabelModal } from '@/components/labels/CustomLabelModal';
+import { StockEntryModal } from '@/components/labels/StockEntryModal';
+import { LoosePackModal } from '@/components/labels/LoosePackModal';
+import { StockEntryResult } from '@/lib/inward/stockEntryDb';
+import { stockEntryDraftCount } from '@/lib/inward/stockEntryDraft';
 import { tr } from '@/lib/i18n/core';
 
 /**
@@ -25,6 +29,8 @@ import { tr } from '@/lib/i18n/core';
  * import), set copies, print on this computer's label printer. Every catalogue item
  * gets a saved barcode before its label prints, so each label scans at the counter.
  * Label size / printer live in LabelSetupPanel (also in Settings → Invoice & Bill Rules).
+ * "New stock + labels" (v4.77.0): type what came in — saved as items with stock and a
+ * barcode, one label per piece (?new=1 opens it; ?from=inward brings Purchases' labels).
  */
 export default function BarcodeGeneratorPage() {
   const business = useBusiness();
@@ -37,7 +43,9 @@ export default function BarcodeGeneratorPage() {
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
-  const [customOpen, setCustomOpen] = useState(false);
+  const [entryOpen, setEntryOpen] = useState(false);
+  const [looseOpen, setLooseOpen] = useState(false);
+  const [draftRows, setDraftRows] = useState(0);
   const [setupOpen, setSetupOpen] = useState(() => !getLabelSettings().printer);
   const [lastImportIds, setLastImportIds] = useState<string[]>([]);
 
@@ -45,11 +53,13 @@ export default function BarcodeGeneratorPage() {
     const refresh = () => setSettings(getLabelSettings());
     window.addEventListener(LABEL_SETTINGS_EVENT, refresh);
     setLastImportIds(getLastImportIds());
+    setDraftRows(stockEntryDraftCount());
+    if (new URLSearchParams(window.location.search).get('new') === '1') setEntryOpen(true);
     return () => window.removeEventListener(LABEL_SETTINGS_EVENT, refresh);
   }, []);
 
-  /** Adds items with their saved barcodes (items without one get a store code now). */
-  const addProducts = async (list: Product[]) => {
+  /** Adds items with their saved barcodes (items without one get a store code now); copies per item if given. */
+  const addProducts = async (list: Product[], copiesById?: Map<string, number>) => {
     if (list.length === 0) return;
     setBusy(true);
     try {
@@ -58,9 +68,10 @@ export default function BarcodeGeneratorPage() {
         const byId = new Map(prev.map((q) => [q.id, q]));
         for (const p of list) {
           const had = byId.get(p.id);
+          const copies = copiesById?.get(p.id) || settings.copies;
           byId.set(p.id, had
-            ? { ...had, copies: had.copies + settings.copies }
-            : { id: p.id, name: p.name, barcode: codes.get(p.id) || '', pricePaise: p.selling_price, mrpPaise: p.mrp, copies: settings.copies, stock: p.is_unlimited_stock ? null : p.current_stock });
+            ? { ...had, copies: Math.min(999, had.copies + copies) }
+            : { id: p.id, name: p.name, barcode: codes.get(p.id) || '', pricePaise: p.selling_price, mrpPaise: p.mrp, ...productLabelExtras(p), copies, stock: p.is_unlimited_stock ? null : p.current_stock });
         }
         return Array.from(byId.values());
       });
@@ -84,6 +95,48 @@ export default function BarcodeGeneratorPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastImport.length, autoLoaded]);
+
+  // Opened from "Print labels" after stock came in (Purchases): those items, one label per piece.
+  const [inwardLoaded, setInwardLoaded] = useState(false);
+  useEffect(() => {
+    if (inwardLoaded || products.length === 0) return;
+    if (new URLSearchParams(window.location.search).get('from') !== 'inward') return;
+    setInwardLoaded(true);
+    const handoff = readLabelHandoff();
+    const copies = new Map(handoff.map((h) => [h.id, h.copies]));
+    const list = products.filter((p) => copies.has(p.id));
+    if (list.length) void addProducts(list, copies).then(clearLabelHandoff);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [products.length, inwardLoaded]);
+
+  // "New stock + labels" saved: its labels join the print list (and print at once if asked).
+  const handleStockSaved = async (res: StockEntryResult, printNow: boolean) => {
+    setEntryOpen(false);
+    setDraftRows(0);
+    setQueue((prev) => {
+      const byId = new Map(prev.map((q) => [q.id, q]));
+      for (const l of res.labels) {
+        const had = byId.get(l.id);
+        byId.set(l.id, had ? { ...had, ...l, copies: Math.min(999, had.copies + l.copies) } : { ...l });
+      }
+      return Array.from(byId.values());
+    });
+    const saved = tr('Saved: {created} new items, {restocked} restocked.', { created: res.created, restocked: res.restocked });
+    const count = res.labels.reduce((n, l) => n + l.copies, 0);
+    if (!printNow || count === 0) {
+      setNotice({ ok: true, text: `${saved} ${tr('{count} labels are in the print list.', { count })}` });
+      return;
+    }
+    setBusy(true);
+    try {
+      const out = await printLabels(expandCopies(res.labels), settings, shopName);
+      setNotice(out.ok
+        ? { ok: true, text: `${saved} ${tr('{count} labels sent to the printer.', { count })}` }
+        : { ok: false, text: `${saved} ${tr('Could not print: {error}', { error: out.error || '' })}` });
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const labels = useMemo(() => expandCopies(queue), [queue]);
 
@@ -157,6 +210,17 @@ export default function BarcodeGeneratorPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         <div className="lg:col-span-5 space-y-3.5">
+          <div className="p-3 sm:p-3.5 rounded-xl border border-emerald-300 bg-emerald-50 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-black text-emerald-900">{tr('New stock arrived?')}</p>
+              <p className="text-[11px] text-emerald-800">{tr('Type name, price and quantity — items are saved with their stock and barcode, one label per piece.')}</p>
+            </div>
+            <Button size="sm" onClick={() => setEntryOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs gap-1 shrink-0" data-new-stock>
+              <PackagePlus className="w-3.5 h-3.5" />
+              {draftRows > 0 ? tr('Continue ({count} rows)', { count: draftRows }) : tr('New stock + labels')}
+            </Button>
+          </div>
+
           <Card className="p-3 sm:p-3.5 bg-white border border-slate-200 shadow-2xs">
             <button type="button" onClick={() => setSetupOpen(!setupOpen)} className="w-full flex items-center justify-between cursor-pointer">
               <span className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
@@ -179,7 +243,7 @@ export default function BarcodeGeneratorPage() {
               onAdd={(list) => void addProducts(list)}
               lastImportCount={lastImport.length}
               onAddLastImport={() => void addProducts(lastImport)}
-              onCustom={() => setCustomOpen(true)}
+              onLoosePack={() => setLooseOpen(true)}
               busy={busy}
             />
           </Card>
@@ -198,7 +262,30 @@ export default function BarcodeGeneratorPage() {
         </div>
       </div>
 
-      {customOpen && <CustomLabelModal defaultCopies={settings.copies} onClose={() => setCustomOpen(false)} onAdd={(item) => setQueue((q) => [...q, item])} />}
+      {looseOpen && (
+        <LoosePackModal
+          products={products}
+          onClose={() => setLooseOpen(false)}
+          onAdd={(items) => {
+            setLooseOpen(false);
+            setQueue((prev) => {
+              const byId = new Map(prev.map((q) => [q.id, q]));
+              for (const it of items) {
+                const had = byId.get(it.id);
+                byId.set(it.id, had ? { ...had, copies: Math.min(999, had.copies + it.copies) } : it);
+              }
+              return Array.from(byId.values());
+            });
+          }}
+        />
+      )}
+      {entryOpen && (
+        <StockEntryModal
+          categories={categories}
+          onClose={() => { setEntryOpen(false); setDraftRows(stockEntryDraftCount()); }}
+          onSaved={(res, printNow) => void handleStockSaved(res, printNow)}
+        />
+      )}
     </div>
   );
 }

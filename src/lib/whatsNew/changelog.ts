@@ -15,6 +15,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.77.0',
+    items: [
+      msg('Barcode Studio → "New stock + labels": type the name, price and quantity of what came in. Each item is saved with its stock and its own barcode, and one label per piece prints — ready to scan at the counter.'),
+      msg('Loose packs: weigh out 250 g, 500 g… of a loose item and print labels whose barcode carries the weight. One scan adds that pack to the bill at the right price.'),
+      msg('Purchases: after Manual Inward or a supplier\'s Excel bill, "Print labels" gives one label per piece received. Bills with Hindi / Marathi headings and prices like ₹1,250 are read correctly.'),
+      msg('Labels can also show the size / colour and a secret cost code (label setup → On the label).'),
+      msg('Fixed: the Excel bill on the Purchases page did not open. A new item from a bill no longer gets a made-up price — you type its selling price.'),
+    ],
+  },
+  {
     version: '4.74.0',
     items: [
       msg('Faster in busy hours: the next bill is ready the moment you press Enter — the counter no longer waits for the printer.'),

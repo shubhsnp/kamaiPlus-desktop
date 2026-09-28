@@ -1,21 +1,24 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { Layers, Plus, Search, Trash2, Upload } from 'lucide-react';
+import { Layers, Plus, Scale, Search, Trash2, Upload } from 'lucide-react';
 import { Category, Product } from '@/types';
 import { formatINR } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
 import { searchProducts } from '@/lib/search/productSearch';
 
 export interface QueueItem {
-  /** Product id, or custom_… for a custom label. */
+  /** Product id (every label belongs to a saved item, so it scans at the counter). */
   id: string;
   name: string;
   barcode: string;
   pricePaise: number;
   mrpPaise?: number;
+  /** For the cost code / size-colour lines (labelExtras.ts). */
+  costPaise?: number;
+  detail?: string;
   copies: number;
-  /** Counted stock (null = unlimited / custom). */
+  /** Counted stock (null = unlimited). */
   stock: number | null;
 }
 
@@ -27,14 +30,15 @@ interface LabelQueuePanelProps {
   onAdd: (products: Product[]) => void;
   lastImportCount: number;
   onAddLastImport: () => void;
-  onCustom: () => void;
+  /** Opens "Loose pack labels" (weighed packs). */
+  onLoosePack: () => void;
   busy: boolean;
 }
 
 const btn = 'inline-flex items-center gap-1 px-2.5 h-8 rounded-lg border text-[11px] font-bold cursor-pointer disabled:opacity-50';
 
 /** Which items get labels and how many of each — one by one, a whole category, all, or the last Excel import. */
-export function LabelQueuePanel({ queue, onChange, products, categories, onAdd, lastImportCount, onAddLastImport, onCustom, busy }: LabelQueuePanelProps) {
+export function LabelQueuePanel({ queue, onChange, products, categories, onAdd, lastImportCount, onAddLastImport, onLoosePack, busy }: LabelQueuePanelProps) {
   const [search, setSearch] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [allCopies, setAllCopies] = useState('1');
@@ -92,8 +96,8 @@ export function LabelQueuePanel({ queue, onChange, products, categories, onAdd, 
             <Upload className="w-3.5 h-3.5" /> {tr('Last Excel import ({count})', { count: lastImportCount })}
           </button>
         )}
-        <button type="button" onClick={onCustom} className={`${btn} border-slate-300 bg-white hover:bg-slate-50`}>
-          <Plus className="w-3.5 h-3.5" /> {tr('Custom label')}
+        <button type="button" onClick={onLoosePack} className={`${btn} border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100`} title={tr('Packs weighed out of a loose item — the bar code carries the weight')} data-queue-loose>
+          <Scale className="w-3.5 h-3.5" /> {tr('Loose packs (by weight)')}
         </button>
       </div>
       <div className="flex gap-1.5">

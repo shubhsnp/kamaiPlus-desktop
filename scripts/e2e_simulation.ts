@@ -79,6 +79,12 @@ import { DEFAULT_LABEL_SETTINGS, LABEL_STOCKS, labelPageMm, labelsPerPage, parse
 import { buildLabelHtml } from '../src/lib/labels/labelSheet';
 import { expandCopies } from '../src/lib/labels/printLabels';
 import { looksLikeBarcode, searchEnterAction } from '../src/lib/billing/scanInput';
+import { emptyEntryRow, labelCopiesFor, lowStockAlertFor, planStockEntry, stockAfterInward, StockEntryRow } from '../src/lib/inward/stockEntry';
+import { parseStockEntryDraft } from '../src/lib/inward/stockEntryDraft';
+import { billLineProblem, guessBillColumns, readBillSheet } from '../src/lib/purchases/billSheet';
+import { matchExtractedItemsWithProducts, normalizeName } from '../src/lib/purchases/matchProductByName';
+import { encodeCostCode, isValidCostCodeWord, productLabelDetail, productLabelExtras } from '../src/lib/labels/labelExtras';
+import { formatPackAmount, makeWeighedBarcode, parseWeighedBarcode, weighedQuantity } from '../src/lib/barcode/weighedBarcode';
 import { searchProducts, soundKeys, wordSoundKey } from '../src/lib/search/productSearch';
 import {
   WALK_IN_ID,
@@ -1328,6 +1334,146 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   const beep = readSource('lib/voice/speechParser.ts');
   assert((beep.match(/new Ctor\(\)/g) || []).length === 1 && /beepContext\.state === 'closed'/.test(beep) && !/new AudioContext\(\)/.test(beep),
     'Every beep uses one shared sound context (one per scan was never closed)');
+}
+
+// 9i. Label-first stock (v4.77.0): "New stock + labels" saves every typed item with its
+// stock and its own barcode (the old "Custom label" printed codes the counter never knew);
+// Purchases' Excel bill reads real bills (Hindi headings, ₹1,250, no "Discount" as qty),
+// never makes up a selling price, and every inward offers its labels; label extras (cost
+// code, size / colour) and loose packs whose bar code carries the weight.
+{
+  const prod = (id: string, name: string, extra: Partial<Product> = {}) => ({ id, name, unit: 'piece', selling_price: 10000, mrp: 10000, purchase_price: 0, current_stock: 0, min_stock_level: 5, is_active: true, ...extra } as Product);
+
+  // (a) One rule for goods coming in.
+  assert(labelCopiesFor('piece', 20) === 20 && labelCopiesFor('box', 3) === 3 && labelCopiesFor('kg', 2.5) === 1 && labelCopiesFor('piece', 1500) === 999 && labelCopiesFor('piece', 0) === 0,
+    'Labels for what came in: one per piece / box, one per lot sold by weight, at most 999');
+  const counted = stockAfterInward({ current_stock: 12, is_unlimited_stock: false }, 20);
+  const unlimited = stockAfterInward({ current_stock: 7, is_unlimited_stock: true }, 20);
+  assert(counted.previous === 12 && counted.next === 32 && !counted.startsCounting && unlimited.previous === 0 && unlimited.next === 20 && unlimited.startsCounting
+    && stockAfterInward({ current_stock: 0.1, is_unlimited_stock: false }, 0.2).next === 0.3,
+    'Stock in: a counted item adds the quantity; an "Unlimited" item starts counting from what came in (its old number is not added to)');
+  assert(lowStockAlertFor(50) === 10 && lowStockAlertFor(20) === 4 && lowStockAlertFor(3) === 1 && lowStockAlertFor(1000) === 10, 'A new counted item alerts at about a fifth of what came in (1 to 10)');
+
+  // (b) "New stock + labels" rows → new items / restocks / problems (never a second copy of a saved item).
+  const A = prod('pA', 'अनार स्पेशल', { barcode: '2000000000015', current_stock: 12, selling_price: 59000, mrp: 59000 });
+  const B = prod('pB', 'Chakri Deluxe', { barcode: '2000000000022', is_unlimited_stock: true });
+  const P = prod('pP', 'Cotton Shirt', { has_variants: true });
+  const PM = prod('pPM', 'Cotton Shirt (M)', { parent_id: 'pP', variant_label: 'M' });
+  const K = prod('pK', 'Kaju', { unit: 'kg', barcode: '2000000000039', selling_price: 90000, mrp: 90000 });
+  const row = (key: string, r: Partial<StockEntryRow>): StockEntryRow => ({ ...emptyEntryRow(key), ...r });
+  const rows = [
+    row('r1', { name: 'Rocket 10 Shot', price: '120', qty: '20' }),
+    row('r2', { name: 'अनार  स्पेशल', qty: '10' }),
+    row('r3', { barcode: '2000000000022', qty: '15', price: '₹1,250' }),
+    row('r4', {}),
+    row('r5', { name: 'Bijli Bomb', price: '40' }),
+    row('r6', { name: 'Flower Pot', qty: '5' }),
+    row('r7', { name: 'rocket 10 shot', price: '120', qty: '2' }),
+    row('r8', { name: 'Cotton Shirt', price: '499', qty: '3' }),
+    row('r9', { name: 'Sparkler', price: '30', qty: '2.5' }),
+    row('r10', { productId: 'pK', qty: '2.5' }),
+    row('r11', { productId: 'pPM', qty: '4' }),
+  ];
+  const plan = planStockEntry(rows, [A, B, P, PM, K], { separateSellingPrice: false });
+  const line = (key: string) => plan.lines.find((l) => l.key === key);
+  const r1 = line('r1');
+  const r2 = line('r2');
+  const r3 = line('r3');
+  assert(r1?.kind === 'new' && r1.pricePaise === 12000 && r1.mrpPaise === 12000 && r1.qty === 20 && r1.barcode === '',
+    'A new item: the typed MRP is its price (Separate Selling Price off), 20 pieces, its own code comes later');
+  assert(r2?.kind === 'restock' && r2.product.id === 'pA' && r2.pricePaise === null && r3?.kind === 'restock' && r3.product.id === 'pB' && r3.pricePaise === 125000,
+    'A typed name that is already saved (extra spaces too) restocks it with its price kept; a scanned saved code restocks that item, "₹1,250" is read as ₹1250');
+  assert(plan.errors.r5 === 'Enter the quantity received' && plan.errors.r6 === 'Enter the MRP' && /Same item twice/.test(plan.errors.r7 || '') && /sizes \/ colours/.test(plan.errors.r8 || '') && /Whole numbers/.test(plan.errors.r9 || '') && !('r4' in plan.errors),
+    'Problems are shown per row (no quantity, no price, the same item twice, a parent with sizes, 2.5 pieces); a blank row is ignored');
+  assert(line('r10')?.kind === 'restock' && plan.created === 1 && plan.restocked === 4 && plan.labels === 20 + 10 + 15 + 1 + 4,
+    'Loose items take decimals (2.5 kg = one label); a size of a shirt restocks like any item; the label count is one per piece');
+  const sep = planStockEntry([row('s1', { name: 'Lamp', price: '100', mrp: '120', qty: '1' }), row('s2', { name: 'Diya', price: '100', mrp: '90', qty: '1' }), row('s3', { productId: 'pA', price: '600', qty: '1' })], [A], { separateSellingPrice: true });
+  const s1 = sep.lines.find((l) => l.key === 's1');
+  const s3 = sep.lines.find((l) => l.key === 's3');
+  assert(s1?.kind === 'new' && s1.pricePaise === 10000 && s1.mrpPaise === 12000 && /MRP cannot be less/.test(sep.errors.s2 || '') && s3?.kind === 'restock' && s3.pricePaise === 60000 && s3.mrpPaise === 60000,
+    'Separate Selling Price on: price + MRP, an MRP below the price is refused, a new price for a saved item lifts its MRP with it');
+  const draft = parseStockEntryDraft(JSON.stringify({ rows: [{ key: 'k1', name: 'Rocket', qty: '5', unit: 'bogus', price: 7 }], categoryId: 'cat_1' }));
+  assert(draft?.rows[0].unit === 'piece' && draft.rows[0].price === '' && draft.rows[0].qty === '5' && draft.categoryId === 'cat_1' && parseStockEntryDraft('{bad') === null && parseStockEntryDraft(JSON.stringify({ rows: [] })) === null,
+    'Typed rows survive as a draft; a broken or foreign draft is dropped safely');
+
+  // (c) Supplier bill in Excel: real headings, real money, total rows left out.
+  const cols = (h: string[]) => {
+    const c = guessBillColumns(h) as unknown as Record<string, number>;
+    return Object.keys(c).filter((k) => c[k] >= 0).map((k) => `${k}=${h[c[k]]}`).join(',');
+  };
+  assert(cols(['Sr', 'Item Name', 'Qty', 'Rate', 'Discount', 'Amount']) === 'name=Item Name,qty=Qty,cost=Rate'
+    && cols(['Item', 'Unit Price', 'Qty', 'MRP', 'Sale Price']) === 'name=Item,qty=Qty,cost=Unit Price,selling=Sale Price,mrp=MRP'
+    && cols(['माल', 'नग', 'दर', 'रक्कम']) === 'name=माल,qty=नग,cost=दर'
+    && cols(['Item Code', 'Description', 'Qty', 'Net Rate', 'Total Amount']) === 'name=Description,qty=Qty,cost=Net Rate,barcode=Item Code',
+    'Bill columns: "Rate" is what the shop pays, "Discount" is not the quantity, "Sale Price" is found next to "Unit Price", Hindi headings work');
+  const bill = readBillSheet([['Balaji Traders — Bill 55'], ['Item', 'Qty', 'Rate', 'MRP', 'Barcode', 'Discount', 'Amount'], ['Parle-G 80g', '24', '₹8.50', '10', '8901719101037', '2', '204'], ['अनार स्पेशल', '10', '1,250', '', 'A102', '', ''], ['', '', '', '', '', '', ''], ['Total', '', '', '', '', '', '1454']]);
+  const [pg, an] = bill.items;
+  assert(bill.items.length === 2 && bill.skipped === 1 && pg.quantity === 24 && pg.unit_price === 850 && pg.selling_price === 1000 && pg.barcode === '8901719101037' && an.unit_price === 125000 && an.selling_price === undefined && an.barcode === undefined,
+    'Bill rows: title row skipped, ₹8.50 / 1,250 read, MRP becomes the selling price, the Total row is left out, a supplier code "A102" is not a barcode');
+  assert(billLineProblem(an) === 'Enter the selling price for this new item' && billLineProblem(pg) === '' && billLineProblem({ ...an, matched_product_id: 'pA', is_new_product: false }) === '' && billLineProblem({ ...pg, quantity: 0 }) === 'Enter the quantity',
+    'A new item from a bill needs its selling price typed (never "cost + 25 %"); a saved item keeps its own');
+  const matched = matchExtractedItemsWithProducts([{ ...an }, { ...an, raw_name: 'चक्री' }, { ...pg, raw_name: 'Glucose biscuit' }, { ...an, raw_name: 'Cotton Shirt' }],
+    [prod('p1', 'फुलझड़ी'), A, prod('p3', 'Parle Glucose', { barcode: '8901719101037' }), P]);
+  assert(matched[0].matched_product_id === 'pA' && matched[1].is_new_product && !matched[1].matched_product_id && matched[2].matched_product_id === 'p3' && matched[3].is_new_product,
+    'Bill lines match saved items by Hindi name (before, every Hindi name matched the first Hindi item), by barcode, and never a size / colour parent');
+  assert(normalizeName('अनार स्पेशल – विन') === 'अनार स्पेशल विन' && normalizeName('ગુજરાતી નામ') === 'ગુજરાતી નામ', 'Name matching keeps Devanagari and other Indian scripts with their vowel signs');
+
+  // (d) Label extras: cost code and size / colour.
+  assert(isValidCostCodeWord('BLACKHORSE') && !isValidCostCodeWord('BLACKHORSS') && !isValidCostCodeWord('SHOP') && encodeCostCode(24500, 'BLACKHORSE') === 'LCK' && encodeCostCode(100000, 'blackhorse') === 'BEEE' && encodeCostCode(24500, 'SHOP') === '' && encodeCostCode(0, 'BLACKHORSE') === '',
+    'Cost code: 10 different letters for 1…9, 0 (₹245 → "LCK"); a bad word or no cost prints nothing');
+  assert(productLabelDetail({ size: 'M', color: 'Red' }) === 'M / Red' && productLabelDetail({ parent_id: 'p', variant_label: 'XL' }) === 'XL' && productLabelDetail({}) === '' && productLabelExtras({ purchase_price: 0 }).costPaise === undefined,
+    'Size / colour line: from the item, or the variant\'s label');
+  const extrasOn = { ...DEFAULT_LABEL_SETTINGS.content, costCode: true, detail: true };
+  const withExtras = buildLabelHtml([{ name: 'Shirt', barcode: '2000000000015', pricePaise: 49900, costPaise: 24500, detail: 'M / Red' }], LABEL_STOCKS[0], extrasOn, { costCodeWord: 'BLACKHORSE' });
+  const badWord = buildLabelHtml([{ name: 'Shirt', barcode: '2000000000015', pricePaise: 49900, costPaise: 24500 }], LABEL_STOCKS[0], extrasOn, { costCodeWord: 'SHOP' });
+  const plain = buildLabelHtml([{ name: 'Shirt', barcode: '2000000000015', pricePaise: 49900, costPaise: 24500, detail: 'M / Red' }], LABEL_STOCKS[0], DEFAULT_LABEL_SETTINGS.content, { costCodeWord: 'BLACKHORSE' });
+  assert(withExtras.includes('<span class="cc">LCK</span>') && withExtras.includes('<div class="detail">M / Red</div>') && !badWord.includes('class="cc"') && !plain.includes('class="cc"') && !plain.includes('class="detail"'),
+    'The label prints the cost code and size / colour only when switched on (and never with a bad code word)');
+  const oldSaved = parseLabelSettings(JSON.stringify({ stockId: 'roll_38x25', content: { shopName: false } }));
+  assert(oldSaved.content.costCode === false && oldSaved.content.detail === false && oldSaved.costCodeWord === '' && !oldSaved.content.shopName && parseLabelSettings(JSON.stringify({ costCodeWord: 'black-horse!' })).costCodeWord === 'BLACKHORSE',
+    'A label setup saved before v4.77.0 keeps working (extras off); the code word is stored as capital letters only');
+
+  // (e) Loose packs: the bar code carries the item and the weight; the counter decodes it.
+  const pack = makeWeighedBarcode('2000000000039', 'kg', 0.25) || '';
+  const back = parseWeighedBarcode(pack);
+  assert(pack === '2900003002507' && isValidEan13(pack) && back?.itemBarcode === '2000000000039' && back.amount === 250 && weighedQuantity('kg', back.amount) === 0.25 && weighedQuantity('gram', 250) === 250 && weighedQuantity('piece', 250) === null,
+    'Loose pack code: 29 + item number + weight + check digit; 0.25 kg of item 3 → 2900003002507, read back as 0.25 kg');
+  const store100000 = '200000100000' + ean13CheckDigit('200000100000');
+  assert(isValidEan13(store100000) && makeWeighedBarcode('8901719101037', 'kg', 1) === null && makeWeighedBarcode(store100000, 'kg', 1) === null && makeWeighedBarcode('2000000000039', 'kg', 100) === null && makeWeighedBarcode('2000000000039', 'piece', 1) === null
+    && parseWeighedBarcode('2900003002506') === null && parseWeighedBarcode('2000000000039') === null && parseWeighedBarcode('8901719101037') === null,
+    'No pack code for a maker\'s barcode, a store number above 99999, 100 kg or a piece item; a wrong check digit or an ordinary code is never read as a pack');
+  assert(formatPackAmount('kg', 0.25) === '250 g' && formatPackAmount('kg', 1.5) === '1.5 kg' && formatPackAmount('gram', 1000) === '1 kg' && formatPackAmount('litre', 0.5) === '500 ml' && formatPackAmount('meter', 0.5) === '50 cm',
+    'Pack names read like the shop says them (250 g, 1.5 kg, 500 ml)');
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const ZXingPack = require('../node_modules/html5-qrcode/third_party/zxing-js.umd.js');
+  const packSymbol = barcodeSymbol(pack);
+  const packBits = new ZXingPack.BitArray(packSymbol.modules.length);
+  packSymbol.modules.forEach((b: boolean, i: number) => b && packBits.set(i));
+  let packRead = '';
+  try { packRead = new ZXingPack.EAN13Reader().decodeRow(0, packBits, new Map()).getText(); } catch { packRead = ''; }
+  assert(packSymbol.format === 'EAN-13' && packRead === pack, 'A loose-pack label prints as EAN-13 and decodes with ZXing');
+
+  // (f) Wiring.
+  const studio = readSource('app/barcode-generator/page.tsx');
+  const pos = readSource('app/billing/page.tsx');
+  assert(!fs.existsSync(path.join(SRC_ROOT, 'components/labels/CustomLabelModal.tsx')) && !/custom_\$\{|KP\$\{Date\.now/.test(studio + readSource('components/labels/LabelQueuePanel.tsx')) && /<StockEntryModal/.test(studio) && /get\('new'\) === '1'/.test(studio) && /get\('from'\) !== 'inward'/.test(studio) && /readLabelHandoff\(\)/.test(studio),
+    'Barcode Studio: no print-only label with a code nobody knows; "New stock + labels" (?new=1) and Purchases\' labels (?from=inward) open there');
+  const entryModal = readSource('components/labels/StockEntryModal.tsx');
+  const entryDb = readSource('lib/inward/stockEntryDb.ts');
+  assert(/await applyStockEntry\(plan,/.test(entryModal) && /db\.transaction\('rw', db\.products, db\.inventory_movements,/.test(entryDb) && /is_unlimited_stock: false,\s*current_stock: line\.qty/.test(entryDb) && /nextStoreBarcodes\(used, needCodes\)/.test(entryDb),
+    'Typed items are saved in one transaction with counted stock (= quantity) and their own barcode before any label prints');
+  const inwardDb = readSource('lib/purchases/billInwardDb.ts');
+  const purchasesCode = ['components/purchases/BillScanReviewModal.tsx', 'components/purchases/BillLineRow.tsx', 'components/purchases/PurchaseInwardOptionsSheet.tsx', 'lib/purchases/billInwardDb.ts', 'lib/purchases/billSheet.ts'].map(readSource).join('\n');
+  assert(/db\.transaction\('rw', \[db\.products, db\.categories, db\.inventory_movements, db\.purchase_bills\]/.test(inwardDb) && !/\* 1\.25/.test(purchasesCode) && /readBillSheet\(grid\)/.test(readSource('components/purchases/PurchaseInwardOptionsSheet.tsx')) && /await applyBillInward\(/.test(readSource('components/purchases/BillScanReviewModal.tsx')),
+    'A supplier bill is saved in one transaction (no half-added stock) and no selling price is made up from the cost');
+  const purchasesPage = readSource('app/purchases/page.tsx');
+  assert(/db\.transaction\('rw', db\.products, db\.inventory_movements/.test(purchasesPage) && /stockAfterInward\(fresh, qtyNum\)/.test(purchasesPage) && /<InwardLabelOffer/.test(purchasesPage) && /href="\/barcode-generator\?new=1"/.test(purchasesPage) && /saveLabelHandoff\(done\.labels\)/.test(readSource('components/purchases/BillScanReviewModal.tsx')),
+    'Manual inward starts counting an uncounted item, and every inward (manual or bill) offers "Print N labels"');
+  const exactAt = pos.indexOf("await db.products.where('barcode').equals(clean).first()");
+  const packAt = pos.indexOf('parseWeighedBarcode(clean)');
+  const unknownAt = pos.indexOf('setScannedUnknownBarcode(clean)');
+  assert(exactAt > 0 && exactAt < packAt && packAt < unknownAt && /addToCart\(packItem, packQty\)/.test(pos) && /Math\.round\(\(existing\.quantity \+ allowedQty\) \* 1000\) \/ 1000/.test(pos),
+    'The counter tries the exact barcode first, then a loose-pack code (adds its weight), and only then asks about an unknown code; loose quantities add up cleanly');
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.

@@ -1,12 +1,17 @@
 import { Product, PurchaseBillLineItem } from '@/types';
 
+// Letters and digits in English and the Indian scripts (U+0900–U+0DFF: Devanagari … Sinhala).
+const NOT_NAME_CHAR = new RegExp(`[^a-z0-9${String.fromCharCode(0x0900)}-${String.fromCharCode(0x0dff)}\\s]`, 'gi');
+
 /**
- * Normalizes text for clean fuzzy token comparison
+ * Normalizes text for clean fuzzy token comparison. Indian scripts (Devanagari and the
+ * other Indic blocks, with their vowel signs) are kept — `\w` alone turned every Hindi
+ * name into "" and matched it to the first Hindi-named product (fixed v4.77.0).
  */
-function normalizeName(text: string): string {
+export function normalizeName(text: string): string {
   return (text || '')
     .toLowerCase()
-    .replace(/[^\w\s]/gi, ' ')
+    .replace(NOT_NAME_CHAR, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -46,13 +51,24 @@ export function matchExtractedItemsWithProducts(
   extractedItems: PurchaseBillLineItem[],
   existingProducts: Product[]
 ): PurchaseBillLineItem[] {
+  // A variant parent holds no stock of its own — its sizes / colours are matched instead.
+  const candidates = existingProducts.filter((p) => !p.has_variants);
   return extractedItems.map((item) => {
     let bestMatch: Product | null = null;
     let highestScore = 0;
+    const itemName = normalizeName(item.raw_name);
+    const itemCode = (item.barcode || '').trim();
 
-    for (const product of existingProducts) {
-      // 1. Direct name match
-      if (normalizeName(product.name) === normalizeName(item.raw_name)) {
+    // 0. The bill's barcode finds the saved item even when the supplier names it differently.
+    const byCode = itemCode ? candidates.find((p) => p.barcode?.trim() === itemCode) : undefined;
+    if (byCode) {
+      bestMatch = byCode;
+      highestScore = 1.0;
+    }
+
+    for (const product of byCode ? [] : candidates) {
+      // 1. Direct name match (an empty name never matches)
+      if (itemName && normalizeName(product.name) === itemName) {
         bestMatch = product;
         highestScore = 1.0;
         break;

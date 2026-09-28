@@ -424,6 +424,10 @@ export interface PurchaseBillLineItem {
   unit_price: number;               // in paise
   total_price: number;              // in paise
   selling_price?: number;           // in paise (recommended or user entered)
+  mrp?: number;                     // in paise, from the bill's MRP column
+  barcode?: string;                 // EAN / UPC from the bill (finds the saved item; kept on a new one)
+  tax_rate?: number;                // GST % from the bill (new items)
+  hsn_code?: string;                // HSN from the bill (new items)
   confidence: 'high' | 'medium' | 'low';
 }
 

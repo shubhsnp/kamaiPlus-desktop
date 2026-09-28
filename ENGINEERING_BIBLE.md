@@ -1,7 +1,7 @@
 # 📕 KamaiPlus Desktop — Engineering Bible
 
 > **Canonical context file. Read this before touching any code.**
-> Last verified against the tree at v4.73.0, 2026‑09‑27 (sections carry the version they were last touched in).
+> Last verified against the tree at v4.77.0, 2026‑09‑28 (sections carry the version they were last touched in).
 
 This file exists so that an agent starting cold does **not** have to scan 180 source
 files, and does **not** re-solve problems that were already solved. Everything here
@@ -305,7 +305,7 @@ src/components/<feature>/   Feature components, one folder per domain
 src/components/ui/          Button, Card, Input, Modal  (that is all of it)
 src/lib/<domain>/           Engines — see table below
 src/types/index.ts          All domain types. Single file.
-scripts/e2e_simulation.ts   The test suite (§11). 490 assertions.
+scripts/e2e_simulation.ts   The test suite (§11). 517 assertions.
 scripts/bump_version.ts     Version bumper (+0.1 minor)
 public/barcodes/*.json      5 shipped offline barcode dictionaries
 ```
@@ -338,7 +338,9 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 | `gst/gstr1Generator.ts` | GSTR-1 + HSN summary for the screen and the CSV |
 | `gst/gstr1Json.ts` | **GSTR-1 JSON for the GST portal / offline tool** (`buildGstr1Json`) and the GST page periods (`gstPeriodRange`, Indian FY) — see §10 #25 |
 | `tally/` | Tally Prime XML + CA sales-register CSV export |
-| `purchases/matchProductByName.ts` | Matches Excel/CSV bill lines to existing products (bulk inward) |
+| `purchases/matchProductByName.ts` | Matches Excel/CSV bill lines to existing products: bill barcode first, then name (`normalizeName` keeps Indian scripts — v4.77.0), never a variant parent |
+| `purchases/billSheet.ts` | Supplier bill Excel / CSV → lines, pure (§9.8): `guessBillColumns`, `readBillSheet`, `billLineProblem` |
+| `purchases/billInwardDb.ts` | `applyBillInward` — a whole supplier bill in one transaction (§9.8) |
 | `barcode/barcodeDictionary.ts` | Merged offline barcode lookup (§9) |
 | `i18n/core.ts` | `tr()` / `msg()` / `paymentMethodLabel` / `expenseCategoryLabel`; lazy-loads `src/locales/hi.json` / `mr.json` (§7.1) |
 | `i18n/index.tsx` | `I18nProvider` + `useTranslation()` (language state, remount on change) |
@@ -349,7 +351,9 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 | `import/catalogImportDb.ts` | `applyImportPlan` — categories, new items, price updates, store barcodes in one Dexie transaction (§9.3) |
 | `barcode/storeBarcodes.ts` | The shop's own saved barcodes, EAN-13 `200…` (§9.3): `nextStoreBarcodes`, `ensureProductBarcode`, `ensureProductBarcodes` (bulk) |
 | `barcode/barcodeGenerator.ts` | Bar codes as SVG (§9.4): `barcodeSymbol` (EAN-13 for valid EAN-13, else Code-128 B / C), `barcodeSVG`, `code128Modules`, `ean13Modules` |
-| `labels/` | Barcode labels (§9.4): `labelSettings.ts` (stocks, per-computer setup), `labelSheet.ts` (`buildLabelHtml` — preview = print), `printLabels.ts` |
+| `labels/` | Barcode labels (§9.4): `labelSettings.ts` (stocks, per-computer setup, `saveLabelHandoff` / `readLabelHandoff`), `labelSheet.ts` (`buildLabelHtml` — preview = print), `printLabels.ts`, `labelExtras.ts` (cost code, size / colour — v4.77.0) |
+| `inward/` | Goods coming in (§9.8): `stockEntry.ts` (pure — `stockAfterInward`, `labelCopiesFor`, `lowStockAlertFor`, `inwardMovement`, `planStockEntry`), `stockEntryDb.ts` (`applyStockEntry`), `stockEntryDraft.ts` (typed rows kept per computer) |
+| `barcode/weighedBarcode.ts` | Loose-pack codes `29 IIIII QQQQQ C` (§9.8): `makeWeighedBarcode`, `parseWeighedBarcode`, `weighedQuantity`, `formatPackAmount` |
 
 ---
 
@@ -363,7 +367,7 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 | `/billing` | **POS counter.** The most important screen in the app. | yes |
 | `/products` | Catalog master | yes |
 | `/inventory` | Stock, reorder alerts, movements | yes |
-| `/purchases` | Supplier inward (manual + Excel/CSV bill); manual inward can put the value on a saved supplier's account | yes |
+| `/purchases` | Supplier inward (manual + Excel/CSV bill); manual inward can put the value on a saved supplier's account; both offer "Print N labels" (§9.8) | yes |
 | `/suppliers` | Supplier accounts (v4.48.0): what you owe, purchases on credit, payments — `lib/suppliers/supplierLedger.ts` | yes |
 | `/khata` | Udhar ledger | yes |
 | `/customers` | CRM | yes |
@@ -371,7 +375,7 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 | `/cash-register` | Shift open/close, denomination tally, expenses | yes |
 | `/reports` | Sales analytics | yes |
 | `/gst-reports` | GSTR-1 / HSN | yes |
-| `/barcode-generator` | Label studio | yes |
+| `/barcode-generator` | Label studio; "New stock + labels" (`?new=1`), loose packs, labels handed over from Purchases (`?from=inward`) — §9.4, §9.8 | yes |
 | `/invoice-designer` | Invoice theme editor | yes |
 | `/cloud-backup` | Backup / restore / Tally + CA export | yes |
 | `/settings` | Store profile, print, UPI, data maintenance | yes |
@@ -400,11 +404,11 @@ them readable — assume they touch everything:
 | **`cash_registers`** | `app/cash-register/page.tsx` (put,update) |
 | **`categories`** | `app/products/page.tsx` (put)<br>`components/settings/DataMaintenanceTab.tsx` (clear)<br>`lib/constants/defaultProducts.ts` (put)<br>`lib/import/catalogImportDb.ts` (bulkPut — sections of an imported price list) |
 | **`customers`** | `app/billing/page.tsx` (put,update)<br>`app/customers/page.tsx` (delete,put)<br>`app/khata/page.tsx` (put,update)<br>`app/transactions/page.tsx` (update)<br>`components/invoices/EditInvoiceModal.tsx` (update)<br>`components/khata/SettleInvoicesModal.tsx` (update)<br>`components/sales/SalesReturnModal.tsx` (update) |
-| **`inventory_movements`** | `lib/import/catalogImportDb.ts` (bulkPut — opening stock, only when the sheet has a stock column)<br>`app/billing/page.tsx` (put)<br>`app/inventory/page.tsx` (put)<br>`app/products/page.tsx` (put)<br>`app/purchases/page.tsx` (put)<br>`app/transactions/page.tsx` (put)<br>`components/dashboard/DashboardHome.tsx` (put)<br>`components/invoices/EditInvoiceModal.tsx` (put)<br>`components/purchases/BillScanReviewModal.tsx` (put)<br>`components/sales/SalesReturnModal.tsx` (put) |
+| **`inventory_movements`** | `lib/import/catalogImportDb.ts` (bulkPut — opening stock, only when the sheet has a stock column)<br>`app/billing/page.tsx` (put)<br>`app/inventory/page.tsx` (put)<br>`app/products/page.tsx` (put)<br>`app/purchases/page.tsx` (put — in one transaction with the stock)<br>`app/transactions/page.tsx` (put)<br>`components/dashboard/DashboardHome.tsx` (put)<br>`components/invoices/EditInvoiceModal.tsx` (put)<br>`lib/inward/stockEntryDb.ts` (bulkPut — "New stock + labels", §9.8)<br>`lib/purchases/billInwardDb.ts` (bulkPut — supplier bill, §9.8)<br>`components/sales/SalesReturnModal.tsx` (put) |
 | **`ledger_transactions`** | `app/billing/page.tsx` (put)<br>`app/customers/page.tsx` (put)<br>`app/khata/page.tsx` (delete,put,update)<br>`app/transactions/page.tsx` (put)<br>`components/invoices/EditInvoiceModal.tsx` (put)<br>`components/khata/SettleInvoicesModal.tsx` (put)<br>`components/sales/SalesReturnModal.tsx` (put)<br>`lib/suppliers/supplierLedger.ts` (put, modify — `party_type: 'supplier'` rows) |
 | **`marketing_templates`** | _only the four shared modules above_ |
-| **`products`** | `app/billing/page.tsx` (put)<br>`app/inventory/page.tsx` (update)<br>`app/products/page.tsx` (delete,put,update)<br>`app/purchases/page.tsx` (update)<br>`app/transactions/page.tsx` (put)<br>`components/dashboard/DashboardHome.tsx` (update)<br>`lib/import/catalogImportDb.ts` (bulkPut — Excel import, new + updated items)<br>`lib/barcode/storeBarcodes.ts` (update, bulkPut — a saved barcode for items that get a label)<br>`components/invoices/EditInvoiceModal.tsx` (update)<br>`components/purchases/BillScanReviewModal.tsx` (put,update)<br>`components/sales/SalesReturnModal.tsx` (update)<br>`lib/constants/defaultProducts.ts` (bulkPut)<br>`lib/products/variants.ts` (put, bulkPut, update, delete — parent + variants in one transaction, §9.1) |
-| **`purchase_bills`** | `components/purchases/BillScanReviewModal.tsx` (put) |
+| **`products`** | `app/billing/page.tsx` (put)<br>`app/inventory/page.tsx` (update)<br>`app/products/page.tsx` (delete,put,update)<br>`app/purchases/page.tsx` (update)<br>`app/transactions/page.tsx` (put)<br>`components/dashboard/DashboardHome.tsx` (update)<br>`lib/import/catalogImportDb.ts` (bulkPut — Excel import, new + updated items)<br>`lib/barcode/storeBarcodes.ts` (update, bulkPut — a saved barcode for items that get a label)<br>`components/invoices/EditInvoiceModal.tsx` (update)<br>`lib/inward/stockEntryDb.ts` (bulkPut — "New stock + labels": new items + restocks, §9.8)<br>`lib/purchases/billInwardDb.ts` (bulkPut — supplier bill, §9.8)<br>`components/sales/SalesReturnModal.tsx` (update)<br>`lib/constants/defaultProducts.ts` (bulkPut)<br>`lib/products/variants.ts` (put, bulkPut, update, delete — parent + variants in one transaction, §9.1) |
+| **`purchase_bills`** | `lib/purchases/billInwardDb.ts` (put — with the bill's stock, one transaction) |
 | **`sales`** | `app/billing/page.tsx` (put)<br>`app/transactions/page.tsx` (clear,put)<br>`components/invoices/EditInvoiceModal.tsx` (put)<br>`components/khata/SettleInvoicesModal.tsx` (put)<br>`components/sales/SalesReturnModal.tsx` (update) |
 | **`sales_returns`** | `app/transactions/page.tsx` (clear)<br>`components/sales/SalesReturnModal.tsx` (put) |
 | **`suppliers`** | `lib/suppliers/supplierLedger.ts` (put, update, delete) — the only writer; every balance change is one Dexie transaction with its ledger row |
@@ -628,6 +632,7 @@ There is no global state library. Modules talk through window events:
 `kamai_last_backup_type` · `kamai_last_restore_time` · `kamai_app_installed` ·
 `kamai_pwa_banner_dismissed` · `kamai_cashier_owner_pin` · `kamai_cashier_privacy_locked` ·
 `kamai_print_settings` (bill printers) · `kamai_label_settings` · `kamai_last_import_ids` ·
+`kamai_label_handoff` (Purchases → Barcode Studio labels) · `kamai_stock_entry_draft` (typed "New stock" rows) ·
 `kamai_feature_switches` · `kamai_sound_muted` · `vyapar_language`
 
 sessionStorage (emptied when the app closes): `kamai_unlocked` · `kamai_return_to`.
@@ -813,7 +818,8 @@ with the reason) → import.
   label stock (rolls 50×25, 38×25, 38×25 2-across, 50×25 2-across, 40×30, 50×30, 75×50,
   100×50; A4 sheets of 24 / 40 / 65; or a custom roll: width, height, 1–5 across, gap),
   label printer ('' = print dialog), print without dialog, what the label shows (shop,
-  name, price, MRP when higher, digits, date, QR instead of bars), default copies.
+  name, price, MRP when higher, digits, date, QR instead of bars; since v4.77.0 size /
+  colour and a cost code in the shop's 10-letter word — `labelExtras.ts`), default copies.
   Edited in `LabelSetupPanel` — Settings → Invoice & Bill Rules (`LabelPrinterCard`),
   Barcode Studio and the 1-click label share it, with a **Test print**.
 - **One HTML for preview and print** (`buildLabelHtml`): sizes in mm; a roll is one row of
@@ -821,11 +827,14 @@ with the reason) → import.
   page. Names render in Nirmala UI (Devanagari). The preview is that HTML in a sandboxed
   iframe (`LabelPreview`). Printing: `printLabels` → `printHtml(…, 'label', {pageSizeMm})`
   → `kp:print` (Electron) or the iframe dialog (browser).
-- **Barcode Studio** (`app/barcode-generator`, < 250 lines + `components/labels/`): add one
+- **Barcode Studio** (`app/barcode-generator`, < 300 lines + `components/labels/`): add one
   item, a whole category, all items, or the **last Excel import** (`kamai_last_import_ids`,
   new + re-priced items; the import's done screen links to `?from=import`); copies for
   all or "= stock". Every catalogue item gets a saved barcode before it is listed
   (`ensureProductBarcodes`). Bluetooth ESC/POS stays as a secondary button (ASCII only).
+  Since v4.77.0 also **"New stock + labels"** and **loose packs** (§9.8). The old "Custom
+  label" (`CustomLabelModal`, a `KP…` code saved nowhere — "unknown barcode" at the
+  counter) is gone: every label now belongs to a saved item.
 - **Bar codes** (`barcodeGenerator.ts`): valid EAN-13 → EAN-13 (all store codes), digits of
   even length → Code-128 C, anything else → Code-128 B. **Verified with ZXing** (the
   decoder in `html5-qrcode/third_party`): every check value, 300 store codes and real
@@ -847,6 +856,9 @@ normally the product search box (it has focus when Billing opens and after every
   has (`looksLikeBarcode`: 6+ digits, or 6+ capitals/digits/dashes with 4+ digits) →
   "Add Scanned Barcode" with the whole code · words → the highlighted result (old
   behaviour). The code is cleared from the box and the cursor goes back to it.
+- **Loose-pack codes (v4.77.0)** — `handleBarcodeScanned`: the exact barcode first; if no item
+  has it, `parseWeighedBarcode` → the item by its store code → `addToCart(item, weight)`;
+  only then "Add Scanned Barcode". Cart merges keep 3 decimals (0.25 + 0.5 = 0.75).
 - **The key-timing listener** (`useHardwareBarcodeScanner`) stands aside while the search
   box has focus (`ignore: searchBoxHasFocus`) and catches scans when nothing else does
   (e.g. under "Sale completed", where focus is on the page). It times keys by the event's
@@ -916,6 +928,55 @@ dropping everything scanned meanwhile; `updateActiveTab` also used the render's
 - Suite 9 §9h; Electron E2E: a 1.5 s printer — counter clear in < 1 s and a scan 0.3 s after
   Enter lands in the next bill; `{ok:false}` → red bar, "Print again" prints and it goes.
 
+### 9.8 Label-first stock & inward labels (v4.77.0)
+
+The shop's flow is *goods arrive → label → stick → scan at the counter*. Every way goods
+come in now ends with labels that scan, and uses one rule (`lib/inward/stockEntry.ts`):
+
+- **`stockAfterInward`** — a counted item adds the quantity; an "Unlimited stock" item
+  **starts counting** from what came in (previous 0, its stale number is not added to).
+  Used by "New stock + labels", Manual Inward and the Excel bill. Before, Manual Inward
+  added to an unlimited item's number while it stayed unlimited (nothing changed).
+- **`labelCopiesFor`** — one label per piece / box / packet, one per lot for kg / gram /
+  litre / ml / metre / foot / sqft, at most 999. **`lowStockAlertFor`** — a new counted
+  item alerts at about a fifth of what came in (1–10).
+- **"New stock + labels"** (Barcode Studio, `?new=1`, also a button on Purchases):
+  `components/labels/StockEntryModal.tsx` + `StockEntryRowView.tsx`. A grid: item, price
+  (MRP when "Separate Selling Price" is off), [MRP] [cost] [GST] [HSN] per the feature
+  switches, qty, unit. Enter walks the row, the last box opens the next row, Ctrl+Enter =
+  Save & print. Typing shows saved items (`searchProducts`); a gun scan into the name box
+  links a saved code (→ qty) or keeps a new code with name / price from the offline
+  dictionary. `planStockEntry` (pure): picked / scanned / **exact name** → restock (never a
+  second copy), else new; per-row problems (no qty / price, same item twice, a parent with
+  sizes, decimals for pieces, MRP < price). `applyStockEntry` writes products + PURCHASE
+  movements in **one transaction**; new items get counted stock = qty, the chosen
+  category, the shop's GST mode and a barcode (the scanned one if free, else `200…`).
+  Labels go to the print list (and print at once). Rows are a draft
+  (`kamai_stock_entry_draft`) until saved.
+- **Purchases.** Manual Inward: stock + movement in one transaction, then "Print N labels"
+  (`InwardLabelOffer`). Excel bill: `readBillSheet` reads headings like the price-list
+  import (Hindi / Marathi, whole words — "Discount" is not the qty, "Unit Price" is not the
+  unit), `₹1,250`, a title row, and leaves out Total rows; "Rate" / "Price" is the cost,
+  a "Selling / Sale" column or MRP the selling price. A new item **must get a selling
+  price typed** (`billLineProblem`) — the old `cost × 1.25` guess is gone. A bill barcode is
+  kept only if it is a real EAN / UPC (8–14 digits). `applyBillInward` saves the whole bill
+  in one transaction (before: line by line, an error half-way left half the stock); the
+  same item on two lines adds up. The done screen (`BillInwardDone`) offers "Print N
+  labels". Labels reach the Studio via `saveLabelHandoff` → `?from=inward`.
+- **The Excel bill never opened from Purchases (before v4.77.0).** `InwardBillButton` mounts
+  `PurchaseInwardOptionsSheet` only while open; the sheet called `onClose()` after reading
+  the file, which unmounted the review with it. The sheet now hides behind the review and
+  closes with it (Products mounts it always, so it worked there).
+- **Loose packs** (`components/labels/LoosePackModal.tsx`, `lib/barcode/weighedBarcode.ts`):
+  an item sold by kg / gram / litre / ml / metre, pack sizes in g / ml / cm, price = rate
+  × weight. Code = GS1 variable-measure EAN-13 `29` + the item's store-code number (≤ 99999)
+  + quantity (thousandths of kg / L / m, or whole g / ml) + check digit. Items with a
+  maker's barcode cannot get pack labels (the shop's own code is needed). Stock is cut by
+  weight when the pack is sold (§9.5), not when it is packed.
+- Suite 9 §9i; Electron E2E types 4 rows (new, exact name, gun scan, kg), prints 29 labels,
+  scans the new label into a bill, prints 250 g packs and scans them (0.5 kg), and runs
+  Manual Inward + an Excel bill with a missing selling price through to their labels.
+
 ### 9.1 Product variants (v4.49.0) — same model as the Android app
 
 Not a per-vertical mode: any shop can use it. `lib/products/variants.ts`.
@@ -981,6 +1042,7 @@ Each was a real bug that cost real time. The test suite guards most of them.
 | 28 | **About 1 barcode label in 3 could not be scanned (before v4.71.0).** Code-128 took the check character's pattern from `Object.keys()` of a character map; JS lists the digit keys first, so check values 0–25 got the wrong pattern and 95–102 had none. ZXing rejected 127 of 400 sample labels. Labels also printed through `window.print()` at A4 even on 50 × 25 rolls. | Patterns looked up by value from the standard 0–106 table; EAN-13 for store codes; Code-128 C for even digits. Labels print at their own mm page size through `kp:print` (`paper: 'label'`). Suite 9 §9e decodes every check value with ZXing. |
 | 21 | **Wiring & calculation audit (v4.59.0).** (a) A double Enter / click on Complete Sale could save the cart twice (two bills, stock cut twice, same invoice number). (b) Cash typed in cash mode stayed in the tab and turned a later UPI / card / credit bill into a part payment. (c) Short cash with no customer saved an udhar nobody owed. (d) An overpaid split counted the excess as drawer cash. (e) +/− or re-scanning reset a rate the cashier had edited to the catalogue price. (f) Settings → "Default GST Calculation" did nothing: every product was saved tax-inclusive. (g) Excel import stamped HSN `1905` on every product without one. (h) Changing a balance in customer details wrote no ledger entry. | (a) `completingSaleRef` guard. (b)(c) `typedCashPaise` is read only in cash mode; short cash needs a customer. (d) excess must fit in the cash part and is recorded as `change_returned`. (e) existing lines keep `unit_price`. (f) new / imported products take the shop mode, edited ones keep theirs; cart lines store the resolved mode so POS tax and `saleMath` agree. (g) no HSN = none. (h) the change goes to the ledger on top of the fresh balance. Suite 9 §8u; Electron E2E double-clicks Complete Sale. |
 | 29 | **Barcode gun on the counter (before v4.72.0).** The scan stayed in the focused search box and was also caught by the key-timing listener, which timed keys by when its code ran — a busy screen (the "Sale completed" preview being drawn) looked like slow typing and cut the code short ("unknown barcode" with half the code). Enter on an empty box added the first product instead of finishing the bill; scans were ignored under "Sale completed". Silent print ignored a `{ok:false}` answer (bill looked printed); an older toast's timer hid newer toasts. | §9.5: the search box reads the whole code on Enter (`searchEnterAction`), the listener stands aside while it has focus and uses `e.timeStamp`; a scan closes "Sale completed"; `if (!printed.ok) throw` → toast + window; one `toastTimerRef`. Bill printer set once on the counter. Suite 9 §9f; Electron E2E scans, Enter-finishes, scan-under-window and silent print. |
+| 31 | **Labels and inward that did not hold up (before v4.77.0).** Barcode Studio's "Custom label" printed a `KP…` code saved on no item ("unknown barcode" at the counter). Purchases → Excel bill: the review never opened (unmounted with the sheet); every Hindi name normalised to "" and matched the first Hindi item; headings were matched by substring ("Discount" → qty, "Unit Price" → unit); `₹1,250` read as 0; a missing selling price became cost × 1.25; lines were written one by one (half a bill on an error; the same item on two lines lost the first); new items ignored the shop's GST mode and got no barcode. Manual Inward into an "Unlimited" item changed nothing. | §9.8: "New stock + labels" saves typed items with stock and a barcode; `readBillSheet` + `billLineProblem` + `applyBillInward` (one transaction); `normalizeName` keeps Indian scripts; `stockAfterInward` starts counting. Suite 9 §9i; Electron E2E. |
 | 30 | **The next customer's scan vanished in busy hours (before v4.74.0).** `completeSale` awaited the silent print before closing the bill, so the counter stood still for the printer; scans made meanwhile went into the bill being closed and were dropped by `tabsAfterClosing`; a failed print opened "Sale completed" over the next customer. Every beep created an `AudioContext` that was never closed. | §9.7: close first with `tabsAfterSale` (extras move to the next bill) + `activeTabIdRef`; `BillPrintQueue` prints in the background, failures wait in a red bar; one shared beep context. Suite 9 §9h; Electron E2E slow-printer + failed-print checks. |
 ---
 
@@ -990,7 +1052,7 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 490/490, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 517/517, 0 failures
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
 git push origin main
@@ -1001,7 +1063,7 @@ billing), also run the real app:
 
 ```bash
 npx next build                      # out/ must be current
-npm run test:electron               # scripts/electron_e2e.mjs — 45/45
+npm run test:electron               # scripts/electron_e2e.mjs — 56/56
 ```
 
 `electron_e2e.mjs` launches the actual Electron app with Playwright (`playwright-core`,
@@ -1023,14 +1085,17 @@ gets the next bill silently with no window (`kp:print` caught; Silent is switche
 Since v4.73.0: "chaurasa" / "anar special" typed in English add the Hindi-named items, and
 the counter has no camera / Rapid / hardware buttons. Since v4.74.0: with a printer taking
 1.5 s the counter is clear in < 1 s and a scan made meanwhile lands in the next bill; a
-failed print shows the red bar and "Print again" prints it. Its data goes to a temp folder via `KAMAI_E2E_DIR` (main.js honours it only
+failed print shows the red bar and "Print again" prints it. Since v4.77.0: "New stock + labels" (4 rows typed / scanned →
+items with stock and barcodes, 29 labels printed, the new label scanned into a bill), 250 g loose
+packs scanned as 0.5 kg, Manual Inward and a supplier Excel bill through to "Print labels" (§9.8).
+Its data goes to a temp folder via `KAMAI_E2E_DIR` (main.js honours it only
 when `!app.isPackaged`). The licence is **signed for this PC with the private key** in
 `%USERPROFILE%\KamaiPlus-Secrets\` (or `KAMAI_LICENCE_PRIVATE_KEY`) — nothing is
 bypassed; without the key only the no-licence checks run. The script removes
 `ELECTRON_RUN_AS_NODE` (set by VS Code terminals), which otherwise stops Electron
 launching. Failure screenshots go to `%TEMP%\kamaiplus-e2e-shots\`.
 
-### Test suite map — `scripts/e2e_simulation.ts` (490 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (517 assertions)
 
 | Suite | Covers |
 | :--- | :--- |

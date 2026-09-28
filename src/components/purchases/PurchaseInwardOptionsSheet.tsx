@@ -12,6 +12,7 @@ import {
 import * as XLSX from 'xlsx';
 import { Product, PurchaseBillLineItem } from '@/types';
 import { matchExtractedItemsWithProducts } from '@/lib/purchases/matchProductByName';
+import { readBillSheet } from '@/lib/purchases/billSheet';
 import { BillScanReviewModal } from './BillScanReviewModal';
 import { tr } from '@/lib/i18n/core';
 
@@ -72,52 +73,14 @@ export function PurchaseInwardOptionsSheet({
       const workbook = XLSX.read(buffer, { type: 'buffer' });
       const firstSheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[firstSheetName];
-      const rawRows = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet, { defval: '' });
-
-      if (rawRows.length === 0) {
-        showAlert(tr('The uploaded spreadsheet contains no data rows.'));
+      // Headings recognised like the price-list import (lib/purchases/billSheet.ts).
+      const grid = XLSX.utils.sheet_to_json<unknown[]>(worksheet, { header: 1, defval: '', blankrows: false });
+      const sheet = readBillSheet(grid);
+      if (sheet.error) {
+        showAlert(tr(sheet.error));
         return;
       }
-
-      const items: PurchaseBillLineItem[] = [];
-      for (const row of rawRows) {
-        const findVal = (possibleKeys: string[]) => {
-          for (const key of Object.keys(row)) {
-            const cleanKey = key.trim().toLowerCase();
-            if (possibleKeys.some((pk) => cleanKey.includes(pk.toLowerCase()))) {
-              return row[key];
-            }
-          }
-          return undefined;
-        };
-
-        const rawName = String(findVal(['item name', 'name', 'product', 'description', 'title', 'item']) || '').trim();
-        if (!rawName) continue;
-
-        const qty = Number(findVal(['quantity', 'qty', 'units', 'count', 'stock']) || 1);
-        const rawCost = Number(findVal(['purchase price', 'cost price', 'rate', 'cost', 'buy price', 'pp']) || 0);
-        const rawSell = Number(findVal(['selling price', 'mrp', 'price', 'sale price', 'sp']) || (rawCost > 0 ? rawCost * 1.25 : 0));
-        const rawUnit = String(findVal(['unit', 'uom', 'pack']) || 'piece').trim().toLowerCase();
-
-        const costPaise = Math.round(rawCost * 100);
-        const sellPaise = Math.round(rawSell * 100);
-
-        items.push({
-          raw_name: rawName,
-          is_new_product: true,
-          quantity: isNaN(qty) || qty <= 0 ? 1 : qty,
-          unit: rawUnit || 'piece',
-          unit_price: costPaise,
-          total_price: costPaise * (isNaN(qty) || qty <= 0 ? 1 : qty),
-          selling_price: sellPaise || Math.round(costPaise * 1.25),
-          confidence: 'high',
-        });
-      }
-
-      if (items.length === 0) {
-        showAlert(tr('Could not find item names in the file. Please check column headers.'));
-        return;
-      }
+      const items = sheet.items;
 
       const enrichedItems = matchExtractedItemsWithProducts(items, existingProducts);
       const totalAmountPaise = enrichedItems.reduce((sum, i) => sum + i.total_price, 0);
@@ -131,7 +94,9 @@ export function PurchaseInwardOptionsSheet({
         ai_model_used: 'csv-direct-parser',
         raw_ai_response: JSON.stringify({ source: 'csv_upload', count: items.length }),
       });
-      onClose();
+      // The sheet hides behind the review and closes with it. Calling onClose() here
+      // unmounted the review too where the sheet is mounted only while open (Purchases →
+      // "Inward Bill" never showed the review before v4.77.0).
     } catch (err: any) {
       console.error('CSV parse error:', err);
       showAlert(tr('Failed to read CSV/Excel file. Please check format.'));
@@ -153,7 +118,7 @@ export function PurchaseInwardOptionsSheet({
       />
 
       {/* Backdrop */}
-      {isOpen && (
+      {isOpen && !reviewData && (
         <div 
           className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200"
           onClick={onClose}
@@ -270,9 +235,13 @@ export function PurchaseInwardOptionsSheet({
       {reviewData && (
         <BillScanReviewModal
           isOpen={!!reviewData}
-          onClose={() => setReviewData(null)}
+          onClose={() => {
+            setReviewData(null);
+            onClose();
+          }}
           onSuccess={(billId, updatedCount, createdCount) => {
             setReviewData(null);
+            onClose();
             if (onScanSuccess) {
               onScanSuccess(billId, updatedCount, createdCount);
             }

@@ -489,6 +489,182 @@ async function run() {
         'The counter has no webcam scan, Rapid or hardware-manager buttons');
       expectedSales = await salesCount();
 
+      // v4.77.0 — label-first stock: type name / price / qty in Barcode Studio → items saved
+      // with counted stock and their own barcode, labels print (caught in the main process),
+      // the label scans into a bill; loose packs carry their weight; Manual Inward and a
+      // supplier's Excel bill both offer their labels.
+      step = 'label-first stock';
+      const labelDir = path.join(dataDir, 'label-first');
+      fs.mkdirSync(labelDir, { recursive: true });
+      await app.evaluate(({ ipcMain }, dir) => {
+        const fsm = process.mainModule.require('fs');
+        const pathm = process.mainModule.require('path');
+        globalThis.__lfJobs = [];
+        ipcMain.removeHandler('kp:print');
+        ipcMain.handle('kp:print', async (_e, opts) => {
+          const file = pathm.join(dir, `lf${globalThis.__lfJobs.length}.html`);
+          fsm.writeFileSync(file, opts.html, 'utf8');
+          globalThis.__lfJobs.push({ paper: opts.paper, pageSizeMm: opts.pageSizeMm, pages: (opts.html.match(/<div class="page">/g) || []).length, file });
+          return { ok: true };
+        });
+      }, labelDir);
+      const byName = async (name) => (await readStore(page, 'products')).find((p) => p.name === name);
+      await page.evaluate(() => { window.location.href = '/barcode-generator/?new=1'; });
+      await page.locator('[data-entry-list]').waitFor({ timeout: 20000 });
+      const focusedIs = (attr) => page.evaluate((a) => document.activeElement?.hasAttribute(a), attr);
+      const typeEnter = async (text) => { if (text) await page.keyboard.type(text, { delay: 5 }); await page.keyboard.press('Enter'); await page.waitForTimeout(150); };
+      // Row 1: a new item — name, MRP, quantity; Enter walks the row and opens the next one.
+      await page.waitForTimeout(300);
+      const startsInName = await focusedIs('data-entry-name');
+      await typeEnter('E2E Rocket 10 Shot');
+      const thenPrice = await focusedIs('data-entry-price');
+      await typeEnter('120');
+      await typeEnter('20');
+      const nextRow = await focusedIs('data-entry-name');
+      // Row 2: the exact name of a saved (uncounted) item restocks it — price kept.
+      await typeEnter(anarItem.name);
+      await typeEnter('');
+      await typeEnter('5');
+      // Row 3: the gun scans a saved item's barcode into the name box → restock, cursor on qty.
+      await page.keyboard.type(chaurasa.barcode, { delay: 3 });
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(500);
+      const scanToQty = await focusedIs('data-entry-qty');
+      await typeEnter('3');
+      // Row 4: a loose item sold by kg.
+      await typeEnter('E2E Kaju');
+      await typeEnter('900');
+      await page.locator('[data-entry-row]').nth(3).locator('[data-entry-unit]').selectOption('kg');
+      await page.locator('[data-entry-row]').nth(3).locator('[data-entry-qty]').fill('2.5');
+      await page.waitForTimeout(300);
+      const summary = await page.locator('[data-entry-summary]').innerText();
+      check(startsInName && thenPrice && nextRow && scanToQty && /2 new • 2 restocked • 29 labels/.test(summary),
+        `New stock + labels: Enter walks name → MRP → qty → next row, a scanned saved code jumps to qty; summary "${summary.trim()}"`);
+      await page.locator('[data-entry-save-print]').click();
+      await page.locator('[data-print-notice]').waitFor({ timeout: 20000 });
+      const rocket = await byName('E2E Rocket 10 Shot');
+      const kaju = await byName('E2E Kaju');
+      const anarNow = await byName(anarItem.name);
+      const chaurasaNow = await byName(chaurasa.name);
+      const general = (await readStore(page, 'categories')).find((c) => c.name === 'General');
+      const rocketMoves = (await readStore(page, 'inventory_movements')).filter((m) => m.product_id === rocket?.id);
+      check(rocket && rocket.selling_price === 12000 && rocket.mrp === 12000 && rocket.is_unlimited_stock === false && rocket.current_stock === 20 && validEan(rocket.barcode) && rocket.category_id === general?.id
+        && rocketMoves.length === 1 && rocketMoves[0].movement_type === 'PURCHASE' && rocketMoves[0].quantity === 20,
+        `A typed item is saved in the catalogue: ₹120, 20 counted, its own barcode ${rocket?.barcode}, "General", one PURCHASE movement`);
+      check(anarNow.is_unlimited_stock === false && anarNow.current_stock === 5 && anarNow.selling_price === anarItem.selling_price && chaurasaNow.current_stock === 3 && chaurasaNow.is_unlimited_stock === false
+        && kaju && kaju.unit === 'kg' && kaju.current_stock === 2.5 && (await readStore(page, 'products')).filter((p) => p.name === anarItem.name).length === 1,
+        'Saved items typed or scanned are restocked (no copies), uncounted ones start counting; a kg item keeps 2.5');
+      const lfJob = (await app.evaluate(() => globalThis.__lfJobs))[0];
+      const lfHtml = lfJob ? fs.readFileSync(lfJob.file, 'utf8') : '';
+      check(lfJob && lfJob.paper === 'label' && lfJob.pages === 29 && lfHtml.includes(rocket.barcode) && lfHtml.includes(chaurasa.barcode) && !(await page.evaluate(() => localStorage.getItem('kamai_stock_entry_draft'))),
+        `"Save & print" sends 29 labels (20 + 5 + 3 + 1 for the kg lot) with the saved barcodes to the label printer; the draft is cleared (${lfJob ? lfJob.pages : 0} pages)`);
+
+      // The label scans at the counter: the gun reads the new item into a bill.
+      step = 'label scans into a bill';
+      await page.locator('aside a[href="/billing"]').first().click();
+      await page.waitForURL(/\/billing/, { waitUntil: 'commit', timeout: 10000 });
+      await posSearch.waitFor({ timeout: 10000 });
+      await posSearch.click();
+      await gun(rocket.barcode);
+      const rocketInCart = await cartQty(rocket.id);
+      const s0 = await salesCount();
+      await posSearch.click();
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(1500);
+      const rocketSold = (await readStore(page, 'sales')).find((s) => s.items.some((i) => i.product_id === rocket.id));
+      check(rocketInCart === 1 && (await salesCount()) === s0 + 1 && rocketSold && (await byName('E2E Rocket 10 Shot')).current_stock === 19,
+        'Its label scans at the counter: the gun adds the new item, the bill is saved and its stock goes 20 → 19');
+
+      // Loose packs: 2 labels of 250 g Kaju; each scan adds 0.25 kg at the kg rate.
+      step = 'loose packs';
+      await page.evaluate(() => { window.location.href = '/barcode-generator/'; });
+      await page.locator('[data-queue-loose]').click();
+      await page.locator('[data-loose-search]').fill('E2E Kaju');
+      await page.locator('[data-loose-item]').first().click();
+      await page.locator('[data-loose-chip="250"]').click();
+      await page.locator('[data-loose-chip="250"]').click();
+      await page.locator('[data-loose-add]').click();
+      await page.waitForTimeout(500);
+      const seq5 = String(Number(kaju.barcode.slice(3, 12))).padStart(5, '0');
+      const first12 = `29${seq5}00250`;
+      const packCode = first12 + ((10 - ([...first12].reduce((s, d, i) => s + Number(d) * (i % 2 ? 3 : 1), 0) % 10)) % 10);
+      const queueText = (await page.locator('[data-queue-list]').innerText()).replace(/\s+/g, ' ');
+      const looseCount = await page.locator('[data-queue-count]').innerText();
+      check(/E2E Kaju 250 g/.test(queueText) && queueText.includes(packCode) && /₹225\.00/.test(queueText) && /2 labels/i.test(looseCount),
+        `Loose packs: "E2E Kaju 250 g" ×2 in the print list at ₹225 (₹900/kg × 0.25) with the pack code ${packCode} — list "${queueText.slice(0, 120)}", ${looseCount}`);
+      await page.locator('aside a[href="/billing"]').first().click();
+      await page.waitForURL(/\/billing/, { waitUntil: 'commit', timeout: 10000 });
+      await posSearch.waitFor({ timeout: 10000 });
+      await posSearch.click();
+      await gun(packCode);
+      await gun(packCode);
+      const kajuLine = (await tabsNow()).flatMap((t) => t.cart).find((i) => i.product_id === kaju.id);
+      check(kajuLine && kajuLine.quantity === 0.5 && kajuLine.total_amount === 45000 && !(await page.getByText(/Add Scanned Barcode/).count()),
+        `Two 250 g pack scans add 0.5 kg of Kaju at ₹450 (qty ${kajuLine?.quantity}, ₹${(kajuLine?.total_amount || 0) / 100})`);
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(1500);
+
+      // Manual Inward (Purchases switched on) → "Print 10 labels" → Studio with those labels.
+      step = 'manual inward labels';
+      await page.evaluate(() => {
+        const cur = JSON.parse(localStorage.getItem('kamai_feature_switches') || '{}');
+        localStorage.setItem('kamai_feature_switches', JSON.stringify({ ...cur, purchases: true }));
+      });
+      await page.evaluate(() => { window.location.href = '/purchases/'; });
+      await page.getByRole('button', { name: /Manual Inward/ }).click();
+      await page.locator('form select').first().selectOption(rocket.id);
+      await page.getByPlaceholder('e.g. 50').fill('10');
+      await page.getByRole('button', { name: /Save Stock Inward/ }).click();
+      await page.locator('[data-inward-label-offer]').waitFor({ timeout: 10000 });
+      const offerText = await page.locator('[data-inward-label-offer]').innerText();
+      await page.locator('[data-inward-label-offer] button').first().click();
+      await page.waitForURL(/barcode-generator/, { timeout: 15000 });
+      await page.waitForFunction(() => /10 labels/i.test(document.querySelector('[data-queue-count]')?.textContent || ''), null, { timeout: 15000 }).catch(() => {});
+      const inwardCount = await page.locator('[data-queue-count]').innerText();
+      const rocketAfterInward = (await byName('E2E Rocket 10 Shot')).current_stock;
+      check(/Print 10 labels/.test(offerText) && /1 items • 10 labels/i.test(inwardCount) && rocketAfterInward === 29,
+        `Manual Inward of 10 → stock 19 → 29, "Print 10 labels" opens Barcode Studio with exactly those labels — offer "${offerText.replace(/\s+/g, ' ')}", ${inwardCount}, stock ${rocketAfterInward}`);
+
+      // Supplier's Excel bill: title row, "Discount" column, a Total row; a new item without a
+      // selling price is held back until one is typed; saved in one go; labels offered.
+      step = 'excel bill inward';
+      const billFile = path.join(dataDir, `bill_${Date.now()}.xlsx`);
+      const billWb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(billWb, XLSX.utils.aoa_to_sheet([
+        ['Balaji Traders — Bill 55'],
+        ['Item', 'Qty', 'Rate', 'MRP', 'Discount', 'Amount'],
+        ['E2E Rocket 10 Shot', 12, 80, '', 2, 960],
+        ['E2E Neon Fountain Gold', 6, '₹50', 75, 5, 300],
+        ['E2E Whistle Pipe', 4, 20, '', '', 80],
+        ['Total', '', '', '', '', 1340],
+      ]), 'Bill');
+      XLSX.writeFile(billWb, billFile);
+      await page.evaluate(() => { window.location.href = '/purchases/'; });
+      await page.getByRole('button', { name: /Inward Bill \(Excel/ }).click();
+      await page.locator('input[type="file"][accept*=".xlsx"]').setInputFiles(billFile);
+      await page.locator('[data-inward-row]').first().waitFor({ timeout: 15000 });
+      const rowsRead = await page.locator('[data-inward-row]').count();
+      await page.getByRole('button', { name: /Confirm & Inward Stock/ }).click();
+      await page.waitForTimeout(400);
+      const problems = await page.locator('[data-inward-problem]').allInnerTexts();
+      const billsBefore = (await readStore(page, 'purchase_bills')).length;
+      await page.locator('[data-inward-row]').nth(2).locator('[data-inward-selling]').fill('30');
+      await page.getByRole('button', { name: /Confirm & Inward Stock/ }).click();
+      await page.locator('[data-inward-done]').waitFor({ timeout: 15000 });
+      const fountain = await byName('E2E Neon Fountain Gold');
+      const whistle = await byName('E2E Whistle Pipe');
+      check(rowsRead === 3 && problems.length === 1 && /selling price/.test(problems[0]) && billsBefore === 0,
+        `Excel bill: 3 item rows read (title, Total left out); a new item without a selling price is held back, nothing saved yet (${problems.join(' | ')})`);
+      check((await byName('E2E Rocket 10 Shot')).current_stock === 41 && fountain && fountain.selling_price === 7500 && fountain.purchase_price === 5000 && fountain.current_stock === 6 && validEan(fountain.barcode)
+        && whistle && whistle.selling_price === 3000 && (await readStore(page, 'purchase_bills')).length === 1,
+        'Saved in one go: Rocket 29 → 41, Neon Fountain at its MRP ₹75 (cost ₹50, never "cost + 25 %"), Whistle Pipe at the typed ₹30, each with a barcode');
+      await page.locator('[data-inward-print-labels]').click();
+      await page.waitForURL(/barcode-generator/, { timeout: 15000 });
+      await page.waitForFunction(() => /22 labels/i.test(document.querySelector('[data-queue-count]')?.textContent || ''), null, { timeout: 15000 }).catch(() => {});
+      check(/3 items • 22 labels/i.test(await page.locator('[data-queue-count]').innerText()),
+        'After the bill, "Print labels" opens Barcode Studio with 12 + 6 + 4 = 22 labels');
+      expectedSales = await salesCount();
+
       step = 'errors';
       check(pageErrors.length === 0, `No uncaught page errors during the flow${pageErrors.length ? `: ${pageErrors.slice(0, 3).join(' | ')}` : ''}`);
     } catch (err) {

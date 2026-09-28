@@ -57,6 +57,7 @@ import { useHardwareBarcodeScanner } from '@/lib/hardware/barcodeScannerListener
 
 import { focusPosCustomerName, PosCustomerRow } from '@/components/billing/PosCustomerRow';
 import { searchEnterAction } from '@/lib/billing/scanInput';
+import { parseWeighedBarcode, weighedQuantity } from '@/lib/barcode/weighedBarcode';
 import { searchProducts } from '@/lib/search/productSearch';
 import { BillPrinterSetup } from '@/components/billing/BillPrinterSetup';
 import { buildBillCustomer, CustomerDraft, isDraftEmpty, resolveBillCustomer } from '@/lib/billing/billCustomer';
@@ -503,7 +504,8 @@ export default function BillingPage() {
       }
 
       if (existing) {
-        const newQty = existing.quantity + allowedQty;
+        // Loose packs add decimals (0.25 + 0.5 kg): keep 3 places, never 0.7500000001.
+        const newQty = Math.round((existing.quantity + allowedQty) * 1000) / 1000;
         // Keep a rate the cashier edited on this line; adding more must not reset it.
         const price = existing.unit_price;
         const lineTotal = Math.max(0, Math.round(newQty * price) - (existing.discount_amount || 0));
@@ -673,6 +675,15 @@ export default function BillingPage() {
       const product = await db.products.where('barcode').equals(clean).first();
       if (product) {
         addToCart(product, 1);
+        focusProductSearch();
+        return;
+      }
+      // A loose pack weighed in the shop: its code carries the item and the weight (v4.77.0).
+      const pack = parseWeighedBarcode(clean);
+      const packItem = pack ? await db.products.where('barcode').equals(pack.itemBarcode).first() : undefined;
+      const packQty = pack && packItem ? weighedQuantity(packItem.unit, pack.amount) : null;
+      if (packItem && packQty) {
+        addToCart(packItem, packQty);
         focusProductSearch();
         return;
       }

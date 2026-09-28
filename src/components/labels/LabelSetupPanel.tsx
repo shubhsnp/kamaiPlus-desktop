@@ -7,6 +7,7 @@ import {
   CUSTOM_STOCK_ID, getLabelSettings, LABEL_SETTINGS_EVENT, LABEL_STOCKS, LabelContent, LabelSettings, saveLabelSettings,
 } from '@/lib/labels/labelSettings';
 import { printLabels } from '@/lib/labels/printLabels';
+import { encodeCostCode, isValidCostCodeWord } from '@/lib/labels/labelExtras';
 import { msg, tr } from '@/lib/i18n/core';
 
 const CONTENT: { key: keyof LabelContent; label: string }[] = [
@@ -17,6 +18,8 @@ const CONTENT: { key: keyof LabelContent; label: string }[] = [
   { key: 'code', label: msg('Barcode digits') },
   { key: 'date', label: msg('Printing date') },
   { key: 'qr', label: msg('QR code instead of bars') },
+  { key: 'detail', label: msg('Size / colour') },
+  { key: 'costCode', label: msg('Cost code (secret)') },
 ];
 
 const field = 'w-full h-9 px-2.5 rounded-lg border border-slate-300 bg-white text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:bg-slate-50';
@@ -60,7 +63,7 @@ export function LabelSetupPanel({ shopName }: { shopName: string }) {
 
   const testPrint = async () => {
     setTestNote(tr('Printing a test label…'));
-    const res = await printLabels([{ name: tr('Test label — अनार स्पेशल'), barcode: 'TEST-1234', pricePaise: 59000, mrpPaise: 65000 }], s, shopName);
+    const res = await printLabels([{ name: tr('Test label — अनार स्पेशल'), barcode: 'TEST-1234', pricePaise: 59000, mrpPaise: 65000, costPaise: 45000, detail: 'M / Red' }], s, shopName);
     setTestNote(res.ok ? tr('Test label sent. Check the size, the text and that the barcode scans.') : tr('Could not print: {error}', { error: res.error || '' }));
   };
 
@@ -122,6 +125,26 @@ export function LabelSetupPanel({ shopName }: { shopName: string }) {
           ))}
         </div>
       </div>
+
+      {s.content.costCode && (
+        <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 space-y-1.5" data-cost-code-setup>
+          <label className="flex flex-wrap items-center gap-2">
+            <span className="font-bold text-slate-800">{tr('Code word (10 different letters = 1 2 3 4 5 6 7 8 9 0)')}</span>
+            <input
+              value={s.costCodeWord}
+              onChange={(e) => update({ costCodeWord: e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 10) })}
+              placeholder="BLACKHORSE"
+              className={`${field} w-36 font-mono tracking-widest`}
+              data-cost-code-word
+            />
+          </label>
+          <p className={isValidCostCodeWord(s.costCodeWord) ? 'text-amber-900' : 'text-rose-700 font-bold'}>
+            {isValidCostCodeWord(s.costCodeWord)
+              ? tr('A cost of ₹245 prints as "{code}". Only you know the word.', { code: encodeCostCode(24500, s.costCodeWord) })
+              : tr('Type a word with 10 different letters, e.g. BLACKHORSE. The cost code is not printed until then.')}
+          </p>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-3 pt-1">
         <label className="flex items-center gap-2">

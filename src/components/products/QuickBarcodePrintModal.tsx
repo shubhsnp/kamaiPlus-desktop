@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { ensureProductBarcode } from '@/lib/barcode/storeBarcodes';
 import { getLabelSettings, LABEL_SETTINGS_EVENT, LabelSettings, stockFor } from '@/lib/labels/labelSettings';
 import { printLabels } from '@/lib/labels/printLabels';
+import { productLabelExtras } from '@/lib/labels/labelExtras';
 import { LabelPreview } from '@/components/labels/LabelPreview';
 import { LabelSetupPanel } from '@/components/labels/LabelSetupPanel';
 import { tr } from '@/lib/i18n/core';
@@ -52,7 +53,7 @@ export const QuickBarcodePrintModal: React.FC<QuickBarcodePrintModalProps> = ({ 
   }, [isOpen, product]);
 
   const labels = useMemo(
-    () => (product && barcodeValue ? Array.from({ length: copies }, () => ({ name: product.name, barcode: barcodeValue, pricePaise: product.selling_price, mrpPaise: product.mrp })) : []),
+    () => (product && barcodeValue ? Array.from({ length: copies }, () => ({ name: product.name, barcode: barcodeValue, pricePaise: product.selling_price, mrpPaise: product.mrp, ...productLabelExtras(product) })) : []),
     [product, barcodeValue, copies]
   );
 

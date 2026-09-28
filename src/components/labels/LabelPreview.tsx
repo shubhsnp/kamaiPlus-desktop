@@ -37,8 +37,9 @@ export function LabelPreview({ labels, settings, shopName, max = 48 }: { labels:
       dateText: new Date().toLocaleDateString('en-IN'),
       previewZoom: +zoom.toFixed(2),
       qrDataUrls: qr,
+      costCodeWord: settings.costCodeWord,
     });
-  }, [shown, stock, settings.content, shopName, qr]);
+  }, [shown, stock, settings.content, settings.costCodeWord, shopName, qr]);
 
   return (
     <div className="space-y-1.5">

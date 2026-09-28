@@ -53,6 +53,10 @@ export interface LabelContent {
   date: boolean;
   /** A QR code instead of bars (for 2D / camera scanners; a laser gun reads bars only). */
   qr: boolean;
+  /** Purchase price in the shop's code word (labelExtras.ts) — v4.77.0. */
+  costCode: boolean;
+  /** Size / colour line (clothes, shoes, variants) — v4.77.0. */
+  detail: boolean;
 }
 
 export interface LabelSettings {
@@ -66,6 +70,8 @@ export interface LabelSettings {
   content: LabelContent;
   /** Copies for an item added to the print list. */
   copies: number;
+  /** 10 different letters for the digits 1…9, 0 (cost code); '' = not set. */
+  costCodeWord: string;
 }
 
 export const LABEL_SETTINGS_KEY = 'kamai_label_settings';
@@ -76,8 +82,9 @@ export const DEFAULT_LABEL_SETTINGS: LabelSettings = {
   custom: { widthMm: 50, heightMm: 25, across: 1, gapMm: 2 },
   printer: '',
   silent: true,
-  content: { shopName: true, itemName: true, price: true, mrp: true, code: true, date: false, qr: false },
+  content: { shopName: true, itemName: true, price: true, mrp: true, code: true, date: false, qr: false, costCode: false, detail: false },
   copies: 1,
+  costCodeWord: '',
 };
 
 const clampNum = (v: unknown, min: number, max: number, fallback: number) => {
@@ -110,6 +117,7 @@ export function parseLabelSettings(raw: string | null | undefined): LabelSetting
     silent: typeof s.silent === 'boolean' ? s.silent : d.silent,
     content,
     copies: Math.round(clampNum(s.copies, 1, 500, d.copies)),
+    costCodeWord: typeof s.costCodeWord === 'string' ? s.costCodeWord.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 10) : d.costCodeWord,
   };
 }
 
@@ -161,6 +169,39 @@ export function getLastImportIds(): string[] {
   } catch {
     return [];
   }
+}
+
+const HANDOFF_KEY = 'kamai_label_handoff';
+
+/** Items and label counts sent to Barcode Studio after stock came in (Purchases). */
+export interface LabelHandoffItem {
+  id: string;
+  copies: number;
+}
+
+export function saveLabelHandoff(items: LabelHandoffItem[]) {
+  try {
+    localStorage.setItem(HANDOFF_KEY, JSON.stringify(items.filter((i) => i.id && i.copies > 0)));
+  } catch {}
+}
+
+export function readLabelHandoff(): LabelHandoffItem[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const v = JSON.parse(localStorage.getItem(HANDOFF_KEY) || '[]');
+    if (!Array.isArray(v)) return [];
+    return v
+      .filter((x) => x && typeof x.id === 'string' && Number(x.copies) > 0)
+      .map((x) => ({ id: x.id, copies: Math.min(999, Math.max(1, Math.round(Number(x.copies)))) }));
+  } catch {
+    return [];
+  }
+}
+
+export function clearLabelHandoff() {
+  try {
+    localStorage.removeItem(HANDOFF_KEY);
+  } catch {}
 }
 
 /** Labels that fit on one page (a roll row, or a full A4 sheet). */

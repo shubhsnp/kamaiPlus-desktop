@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useBusiness } from '@/components/layout/BusinessProvider';
@@ -17,7 +18,8 @@ import {
   Clock,
   Sparkles,
   Layers,
-  ChevronRight
+  ChevronRight,
+  Barcode
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -29,6 +31,8 @@ import { recordSupplierEntry } from '@/lib/suppliers/supplierLedger';
 import { isVariantParent, tracksOwnStock } from '@/lib/products/variants';
 import { CashierPrivacyToggleButton, ProfitMask } from '@/components/privacy/ProfitMask';
 import { tr } from '@/lib/i18n/core';
+import { inwardMovement, labelCopiesFor, stockAfterInward } from '@/lib/inward/stockEntry';
+import { InwardLabelOffer, InwardLabels } from '@/components/purchases/InwardLabelOffer';
 
 export default function PurchasesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -41,6 +45,8 @@ export default function PurchasesPage() {
   const [onCredit, setOnCredit] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  // After a manual inward: offer the labels for what came in (one per piece).
+  const [labelOffer, setLabelOffer] = useState<InwardLabels | null>(null);
 
   // A variant parent holds no stock of its own — restock its sizes / colours instead.
   const products = (useLiveQuery(async () => db.products.toArray()) || []).filter((p) => !isVariantParent(p));
@@ -87,32 +93,30 @@ export default function PurchasesPage() {
     }
 
     const now = new Date().toISOString();
-    const previousStock = prod.current_stock;
-    const newStock = previousStock + qtyNum;
     const supplier = suppliers.find((s) => s.id === supplierId);
     const vendorName = supplier?.name || supplierName.trim();
     const movementId = `mov_pur_${Date.now()}`;
 
-    // 1. Update product stock and purchase price
-    await db.products.update(prod.id, {
-      current_stock: newStock,
-      purchase_price: costPaise,
-      updated_at: now,
-    });
-
-    // 2. Add inventory movement record
-    await db.inventory_movements.put({
-      id: movementId,
-      business_id: business?.id || 'biz_default',
-      product_id: prod.id,
-      product_name: prod.name,
-      movement_type: 'PURCHASE',
-      quantity: qtyNum,
-      previous_stock: previousStock,
-      new_stock: newStock,
-      reason: `Vendor Restock: ${vendorName || 'General Supplier'}`,
-      created_by: 'owner',
-      created_at: now,
+    // 1 + 2. Stock (an uncounted item starts counting from what came in), cost and the
+    // movement row — together, on the fresh row (lib/inward/stockEntry.ts).
+    await db.transaction('rw', db.products, db.inventory_movements, async () => {
+      const fresh = (await db.products.get(prod.id)) || prod;
+      const stock = stockAfterInward(fresh, qtyNum);
+      await db.products.update(prod.id, {
+        current_stock: stock.next,
+        is_unlimited_stock: false,
+        purchase_price: costPaise,
+        updated_at: now,
+      });
+      await db.inventory_movements.put(inwardMovement({
+        id: movementId,
+        businessId: business?.id || 'biz_default',
+        product: fresh,
+        qty: qtyNum,
+        stock,
+        reason: `Vendor Restock: ${vendorName || 'General Supplier'}`,
+        now,
+      }));
     });
 
     // 3. Bought on credit from a saved supplier: add the value to what the shop owes them.
@@ -141,6 +145,7 @@ export default function PurchasesPage() {
     setOnCredit(false);
     setModalError(null);
     showToast(tr('Stock updated for {name} (+{qtyNum} {unit}){creditNote}', { name: prod.name, qtyNum: qtyNum, unit: prod.unit, creditNote: creditNote }));
+    setLabelOffer({ name: prod.name, items: [{ id: prod.id, copies: labelCopiesFor(prod.unit, qtyNum) }] });
   };
 
   return (
@@ -152,6 +157,8 @@ export default function PurchasesPage() {
           <span>{toastMessage}</span>
         </div>
       )}
+
+      {labelOffer && <InwardLabelOffer offer={labelOffer} onDismiss={() => setLabelOffer(null)} />}
 
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
@@ -176,6 +183,17 @@ export default function PurchasesPage() {
               showToast(tr('🎉 Bill inward complete! {updated} items restocked, {created} new products created.', { updated: updated, created: created }));
             }}
           />
+
+          <Link
+            href="/barcode-generator?new=1"
+            prefetch={false}
+            className="inline-flex items-center gap-1.5 h-10 px-3 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-900 font-bold text-xs"
+            title={tr('Type name, price and quantity — items are saved with their stock and barcode, one label per piece.')}
+            data-purchases-new-stock
+          >
+            <Barcode className="w-4 h-4 text-emerald-600" />
+            <span>{tr('New items + labels')}</span>
+          </Link>
 
           <Button onClick={() => setIsModalOpen(true)} size="md" className="text-xs font-bold gap-1.5 cursor-pointer">
             <Plus className="w-4 h-4" />
@@ -308,6 +326,11 @@ export default function PurchasesPage() {
           </div>
 
           <Input label={tr('Quantity Received')} placeholder={tr('e.g. 50')} type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} required />
+          {products.find((p) => p.id === selectedProductId)?.is_unlimited_stock && (
+            <p className="text-[11px] font-semibold text-sky-800 bg-sky-50 border border-sky-200 rounded-lg px-2.5 py-1.5" data-inward-starts-counting>
+              {tr('This item is not counted now ("Unlimited stock"). After this inward its stock is counted, starting from the quantity received.')}
+            </p>
+          )}
           <Input label={tr('Purchase Cost Price (₹ per unit)')} placeholder="0.00" type="number" step="0.01" value={costPrice} onChange={(e) => setCostPrice(e.target.value)} />
           <div className="space-y-1">
             <div className="flex items-center justify-between">

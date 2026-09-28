@@ -1,6 +1,7 @@
 import { barcodeSVG } from '@/lib/barcode/barcodeGenerator';
 import { formatINR } from '@/lib/utils';
 import { LabelContent, LabelStock, labelPageMm, labelsPerPage } from './labelSettings';
+import { encodeCostCode } from './labelExtras';
 
 /*
  * One standalone HTML document for a run of barcode labels (v4.71.0). The same
@@ -14,19 +15,26 @@ export interface LabelData {
   barcode: string;
   pricePaise: number;
   mrpPaise?: number;
+  /** Purchase price — printed only as the cost code (v4.77.0). */
+  costPaise?: number;
+  /** Size / colour line (v4.77.0). */
+  detail?: string;
 }
 
 const esc = (s: string) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
 
-function labelHtml(l: LabelData, content: LabelContent, shopName: string, dateText: string, qrUrl?: string): string {
+function labelHtml(l: LabelData, content: LabelContent, shopName: string, dateText: string, qrUrl?: string, costCodeWord = ''): string {
   const parts: string[] = [];
   if (content.shopName && shopName) parts.push(`<div class="shop">${esc(shopName)}</div>`);
   if (content.itemName) parts.push(`<div class="name">${esc(l.name)}</div>`);
+  if (content.detail && l.detail) parts.push(`<div class="detail">${esc(l.detail)}</div>`);
   parts.push(qrUrl ? `<div class="bars qr"><img src="${qrUrl}" alt=""></div>` : `<div class="bars">${barcodeSVG(l.barcode, { showText: false, height: 60 })}</div>`);
   if (content.code) parts.push(`<div class="code">${esc(l.barcode)}</div>`);
   const prices: string[] = [];
   if (content.mrp && l.mrpPaise && l.mrpPaise > l.pricePaise) prices.push(`<span class="mrp">MRP ${esc(formatINR(l.mrpPaise))}</span>`);
   if (content.price) prices.push(`<span class="price">${esc(formatINR(l.pricePaise))}</span>`);
+  const cost = content.costCode ? encodeCostCode(l.costPaise, costCodeWord) : '';
+  if (cost) prices.push(`<span class="cc">${esc(cost)}</span>`);
   if (prices.length) parts.push(`<div class="prices">${prices.join('')}</div>`);
   if (content.date && dateText) parts.push(`<div class="date">${esc(dateText)}</div>`);
   return `<div class="label">${parts.join('')}</div>`;
@@ -39,6 +47,8 @@ export interface LabelHtmlOptions {
   previewZoom?: number;
   /** QR images (data URLs) by code, when content.qr is on. */
   qrDataUrls?: Record<string, string>;
+  /** The shop's cost code word, when content.costCode is on. */
+  costCodeWord?: string;
 }
 
 export function buildLabelHtml(labels: LabelData[], stock: LabelStock, content: LabelContent, opts: LabelHtmlOptions = {}): string {
@@ -53,7 +63,7 @@ export function buildLabelHtml(labels: LabelData[], stock: LabelStock, content: 
 
   const pages: string[] = [];
   for (let i = 0; i < labels.length; i += per) {
-    pages.push(`<div class="page">${labels.slice(i, i + per).map((l) => labelHtml(l, content, opts.shopName || '', opts.dateText || '', content.qr ? opts.qrDataUrls?.[l.barcode] : undefined)).join('')}</div>`);
+    pages.push(`<div class="page">${labels.slice(i, i + per).map((l) => labelHtml(l, content, opts.shopName || '', opts.dateText || '', content.qr ? opts.qrDataUrls?.[l.barcode] : undefined, opts.costCodeWord)).join('')}</div>`);
   }
 
   const zoom = opts.previewZoom || 0;
@@ -87,6 +97,8 @@ body { width: ${page.widthMm}mm; }
 .prices { display: flex; align-items: baseline; justify-content: center; gap: ${(1.5 * k).toFixed(2)}mm; line-height: 1.1; }
 .price { font-size: ${pt(9.5)}; font-weight: 900; }
 .mrp { font-size: ${pt(6)}; text-decoration: line-through; }
+.detail { font-size: ${pt(6.2)}; font-weight: 700; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.cc { font-size: ${pt(5.5)}; font-weight: 700; letter-spacing: 0.3pt; }
 .date { font-size: ${pt(5)}; line-height: 1.1; }
 ${screenCss}
 </style></head><body>${pages.join('')}</body></html>`;
