@@ -30,6 +30,7 @@ by exactly this (see §12).
 | :--- | :--- |
 | `AGENTS.md` | ✅ **Authoritative.** Hard rules. Obey it. |
 | `ENGINEERING_BIBLE.md` (this file) | ✅ **Authoritative.** Verified map. |
+| `docs/FUTURE_SCOPE.md` | ✅ **Backlog, not a map.** Planned work (FS-01…FS-27: multi-counter sync, staff logins, batch / expiry, GSTR-3B, big-file splits…) with priority and code pointers. Pick work from here; tick it off with the version. |
 | `docs/archive/SYSTEM_ARCHITECTURE.md` | ⚠️ **Partly stale.** Claims React 19 (actually 18.3.1), Next 15 (actually 16.3.1) and Supabase as the server DB (the Supabase dep was removed in v4.38.0 — nothing uses it). The *paise math* section in it is still correct. |
 | `docs/archive/HANDOVER.md`, `docs/archive/KamaiPlus_Complete_App_Documentation.md` | ⚠️ **Historical.** Snapshots of older versions. Treat as archaeology. |
 
