@@ -987,6 +987,20 @@ come in now ends with labels that scan, and uses one rule (`lib/inward/stockEntr
   scans the new label into a bill, prints 250 g packs and scans them (0.5 kg), and runs
   Manual Inward + an Excel bill with a missing selling price through to their labels.
 
+### 9.9 Parts of a unit on the counter (v4.78.0)
+
+The ✏️ on a bill line (`components/billing/PosItemEditModal.tsx`, chips per unit in
+`posQuantityConfig.ts`, rules in `lib/billing/unitQuantity.ts`):
+
+- piece / pair / set / packet — **whole numbers only** (`allowsFractionalQty`; an item with
+  `allow_decimal` may be split). Saving a split piece is refused in `handleSaveEditItem`.
+- box / bundle / custom — ¼ ½ ¾ 1 1½ 2 3 5; dozen — ¼ ½ ¾ dozen… or **"Or pieces"**
+  (7 pcs → `dozenFromPieces` = 0.583333); kg / litre / metre / gram / ml — as before.
+- Quantities keep **6 decimals** (`roundQty`), so 7/12 dozen × any rate rounds to the exact
+  paise (`lineAmountPaise` = rate × qty). The window shows "qty unit × rate — Amount" live.
+- The cart shows `formatCartQty` (0.583, never 0.5833333333); bills already use `formatQty`.
+- Suite 9 §9j(g).
+
 ### 9.1 Product variants (v4.49.0) — same model as the Android app
 
 Not a per-vertical mode: any shop can use it. `lib/products/variants.ts`.

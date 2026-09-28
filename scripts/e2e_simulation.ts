@@ -88,6 +88,8 @@ import { formatPackAmount, makeWeighedBarcode, parseWeighedBarcode, weighedQuant
 import { globalShortcutFor, globalShortcutHints } from '../src/lib/ui/globalShortcuts';
 import { settingsTabFromQuery } from '../src/lib/ui/settingsLinks';
 import { categoryKey, findCategoryByName } from '../src/lib/products/categories';
+import { allowsFractionalQty, dozenFromPieces, formatCartQty, lineAmountPaise, piecesInDozen, roundQty } from '../src/lib/billing/unitQuantity';
+import { getQuantityConfigForUnit } from '../src/components/billing/posQuantityConfig';
 import { searchProducts, soundKeys, wordSoundKey } from '../src/lib/search/productSearch';
 import {
   WALK_IN_ID,
@@ -1558,6 +1560,29 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(/data-save-action="print"/.test(form) && /\.dataset\?\.saveAction === 'print'/.test(productsPage) && /if \(printAfterSave && saved\) \{/.test(productsPage)
     && /setBarcodePrintCopies\(!editingProduct && !formIsUnlimitedStock && stockNum > 0 \? stockNum : undefined\)/.test(productsPage) && /initialCopies=\{barcodePrintCopies\}/.test(productsPage),
     'Product form: "Save & print label" is a real submit (form checks still run), then the label window opens with one label per piece of a new item');
+}
+
+// (g) ✏️ on a bill line: parts by unit — a piece / pair / set / packet only whole, a box ¼ ½ ¾,
+// a dozen also in pieces (7 pcs = 7/12), kg in grams; the amount is always rate × quantity.
+{
+  assert(!allowsFractionalQty('piece') && !allowsFractionalQty('pair') && !allowsFractionalQty('set') && !allowsFractionalQty('packet') && allowsFractionalQty('piece', true)
+    && allowsFractionalQty('box') && allowsFractionalQty('dozen') && allowsFractionalQty('kg') && allowsFractionalQty('litre') && allowsFractionalQty('bundle') && !allowsFractionalQty(undefined),
+    'Parts: a piece / pair / set / packet only in whole numbers (unless the item allows decimals); a box, bundle, dozen, kg, litre can be split');
+  assert(dozenFromPieces(7) === 0.583333 && piecesInDozen(dozenFromPieces(7)) === 7 && lineAmountPaise(dozenFromPieces(7), 6000) === 3500 && lineAmountPaise(dozenFromPieces(7), 600000) === 350000
+    && lineAmountPaise(0.5, 40000) === 20000 && lineAmountPaise(0.25, 90000) === 22500 && lineAmountPaise(dozenFromPieces(5), 999900) === 416625,
+    'Amounts follow the part: ½ box of ₹400 = ₹200, 250 g of ₹900/kg = ₹225, 7 pcs of ₹60 / ₹6,000 a dozen = ₹35 / ₹3,500 to the paise');
+  assert(formatCartQty(dozenFromPieces(7)) === '0.583' && formatCartQty(2) === '2' && formatCartQty(0.5) === '0.5' && roundQty(0.1 + 0.2) === 0.3, 'The counter shows 0.583, not 0.5833333333');
+  const box = getQuantityConfigForUnit('box');
+  const dozen = getQuantityConfigForUnit('dozen');
+  const piece = getQuantityConfigForUnit('piece');
+  assert(box.step === 'any' && box.chips.map((c) => c.val).slice(0, 3).join() === '0.25,0.5,0.75' && dozen.chips.some((c) => c.val === '0.25') && dozen.chips.some((c) => c.val === '0.75')
+    && piece.step === '1' && piece.chips.every((c) => Number.isInteger(Number(c.val))),
+    'The ✏️ window offers ¼ ½ ¾ for a box, ¼ ½ ¾ dozen, and only whole numbers for pieces');
+  const pos = readSource('app/billing/page.tsx');
+  const edit = readSource('components/billing/PosItemEditModal.tsx');
+  assert(/const qty = roundQty\(parseFloat\(editItemQty\)\);/.test(pos) && /!Number\.isInteger\(qty\) && !allowsFractionalQty\(editingCartItem\.unit, product\?\.allow_decimal\)/.test(pos)
+    && /formatCartQty\(item\.quantity\)\}<\/span>/.test(pos) && /setEditItemQty\(String\(dozenFromPieces\(n\)\)\)/.test(edit) && /lineAmountPaise\(qtyNow, ratePaise\)/.test(edit),
+    'Saving a line refuses a split piece, keeps 6 decimals; the window turns pieces into dozen and shows the amount');
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.

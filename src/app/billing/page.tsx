@@ -58,6 +58,7 @@ import { useHardwareBarcodeScanner } from '@/lib/hardware/barcodeScannerListener
 import { focusPosCustomerName, PosCustomerRow } from '@/components/billing/PosCustomerRow';
 import { searchEnterAction } from '@/lib/billing/scanInput';
 import { parseWeighedBarcode, weighedQuantity } from '@/lib/barcode/weighedBarcode';
+import { allowsFractionalQty, formatCartQty, roundQty } from '@/lib/billing/unitQuantity';
 import { searchProducts } from '@/lib/search/productSearch';
 import { BillPrinterSetup } from '@/components/billing/BillPrinterSetup';
 import { buildBillCustomer, CustomerDraft, isDraftEmpty, resolveBillCustomer } from '@/lib/billing/billCustomer';
@@ -613,7 +614,8 @@ export default function BillingPage() {
   const handleSaveEditItem = () => {
     if (!editingCartItem) return;
 
-    const qty = parseFloat(editItemQty);
+    // 6 decimals: 7 pcs of a dozen (7/12) still gives the exact paise (lib/billing/unitQuantity.ts).
+    const qty = roundQty(parseFloat(editItemQty));
     const unitPricePaise = Math.round((parseFloat(editItemPrice) || 0) * 100);
 
     if (isNaN(qty) || qty <= 0 || isNaN(unitPricePaise) || unitPricePaise < 0) {
@@ -632,6 +634,11 @@ export default function BillingPage() {
     }
 
     const product = products.find((p) => p.id === editingCartItem.product_id);
+    // A piece / pair / set / packet cannot be split; a box, dozen, kg… can (v4.78.0).
+    if (!Number.isInteger(qty) && !allowsFractionalQty(editingCartItem.unit, product?.allow_decimal)) {
+      showAlert(tr('{name} is sold in whole {unit} only — it cannot be split.', { name: editingCartItem.product_name, unit: editingCartItem.unit || 'piece' }));
+      return;
+    }
     if (product && !product.is_unlimited_stock && qty > product.current_stock) {
       showAlert(tr('Entered quantity ({qty}) exceeds available stock ({current_stock}).', { qty: qty, current_stock: product.current_stock }));
       return;
@@ -1514,7 +1521,7 @@ export default function BillingPage() {
                 </div>
 
                 <div className="text-[11px] text-slate-500 font-mono flex items-center flex-wrap gap-1.5">
-                  <span>{formatINR(item.unit_price)} × {item.quantity} {item.unit}</span>
+                  <span>{formatINR(item.unit_price)} × {formatCartQty(item.quantity)} {item.unit}</span>
                   {item.discount_amount ? (
                     <span className="text-[10px] text-emerald-700 font-bold bg-emerald-100 px-1 rounded">
                       -₹{(item.discount_amount / 100).toFixed(0)} {tr('off')}
@@ -1531,7 +1538,7 @@ export default function BillingPage() {
                 >
                   <Minus className="w-3 h-3" />
                 </button>
-                <span className="font-bold font-mono text-xs w-6 text-center text-slate-900">{item.quantity}</span>
+                <span className="font-bold font-mono text-xs min-w-6 text-center text-slate-900">{formatCartQty(item.quantity)}</span>
                 <button
                   onClick={() => updateQuantity(item.product_id, 1)}
                   className="w-6 h-6 rounded bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700 hover:bg-slate-200 cursor-pointer active:scale-95 transition-all"
