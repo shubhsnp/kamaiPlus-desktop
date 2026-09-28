@@ -594,6 +594,13 @@ firing on every navigation. Do not reintroduce one.
 Components outside the provider (`/auth`, `/onboarding`, `/invoice`, `/pay`) must query
 the DB directly — `useBusiness()` returns `undefined` there.
 
+### Global Keyboard Shortcuts (v4.76.0)
+
+Managed globally in `AppShell.tsx`:
+- `Ctrl + H`: Navigate to Home Screen (`/`) from anywhere.
+- `Shift + B`: Navigate to Billing Page (`/billing`) — active ONLY when on the Home Screen (`/`).
+- Inputs & Textareas: Shortcuts are swallowed/ignored when typing in an input field.
+
 ### Cross-component messaging (window CustomEvents)
 
 There is no global state library. Modules talk through window events:
