@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
-import { HardDrive, Wifi, WifiOff, Printer, Clock } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { HardDrive, WifiOff, Printer, Clock, FileText, LifeBuoy } from 'lucide-react';
 import { APP_VERSION } from '@/lib/constants/version';
 import { useBusiness } from '@/components/layout/BusinessProvider';
 import { db } from '@/lib/db';
@@ -10,6 +10,8 @@ import { getDesktopApi } from '@/lib/desktop/desktopBridge';
 import { getPrintSettings, printerForFormat } from '@/lib/hardware/printSettings';
 import { msg, tr } from '@/lib/i18n/core';
 import { openWhatsNew } from '@/components/whatsNew/WhatsNewModal';
+import { globalShortcutHints } from '@/lib/ui/globalShortcuts';
+import { openSettingsTab } from '@/lib/ui/settingsLinks';
 
 // Keep in step with the keydown handler in app/billing/page.tsx. The bar used to
 // advertise F1 Billing / F2 Products / F4 Register everywhere — none of which existed.
@@ -22,10 +24,18 @@ const BILLING_SHORTCUTS: [string, string][] = [
   ['F10', msg('Complete sale')],
   ['Esc', msg('Clear search')],
 ];
-const GLOBAL_SHORTCUTS: [string, string][] = [['Ctrl+B', msg('Show / hide menu')]];
+const MENU_SHORTCUT: [string, string] = ['Ctrl+B', msg('Show / hide menu')];
+
+/** The keys that work on this page: the counter's own keys on Billing, then the app-wide ones. */
+function shortcutsFor(pathname: string): { key: string; label: string; wide?: boolean }[] {
+  const global = globalShortcutHints(pathname).map(([key, label]) => ({ key, label }));
+  if (pathname === '/billing') return [...BILLING_SHORTCUTS.map(([key, label]) => ({ key, label })), ...global.map((g) => ({ ...g, wide: true }))];
+  return [...global, { key: MENU_SHORTCUT[0], label: MENU_SHORTCUT[1] }];
+}
 
 export const DesktopStatusBar: React.FC = () => {
   const pathname = usePathname();
+  const router = useRouter();
   const [isOnline, setIsOnline] = useState<boolean>(true);
   const [currentTime, setCurrentTime] = useState<string>('');
 
@@ -141,16 +151,27 @@ export const DesktopStatusBar: React.FC = () => {
 
       {/* Center: the keyboard shortcuts that actually work on this screen */}
       <div className="hidden lg:flex items-center gap-3 text-slate-400 text-[10.5px]">
-        {(pathname === '/billing' ? BILLING_SHORTCUTS : GLOBAL_SHORTCUTS).map(([key, label]) => (
-          <div key={key} className="flex items-center gap-1">
+        {shortcutsFor(pathname).map(({ key, label, wide }) => (
+          // On Billing the app-wide keys show only on wide screens (the counter keys come first).
+          <div key={key} className={`${wide ? 'hidden 2xl:flex' : 'flex'} items-center gap-1`} data-status-shortcut={key}>
             <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-mono font-bold text-[9.5px]">{key}</kbd>
             <span>{tr(label)}</span>
           </div>
         ))}
       </div>
 
-      {/* Right: Printer, Clock, Version */}
+      {/* Right: quick links, Printer, Clock, Version */}
       <div className="flex items-center gap-3">
+        <button type="button" onClick={() => openSettingsTab('invoicing', pathname, router.push)} title={tr('Invoice & Bill Rules')} className="flex items-center gap-1 text-slate-300 hover:text-amber-400 cursor-pointer" data-status-bill-rules>
+          <FileText className="w-3 h-3" />
+          <span className="hidden xl:inline">{tr('Bill rules')}</span>
+        </button>
+        <button type="button" onClick={() => openSettingsTab('help', pathname, router.push)} title={tr('Help & Support')} className="flex items-center gap-1 text-slate-300 hover:text-amber-400 cursor-pointer" data-status-help>
+          <LifeBuoy className="w-3 h-3" />
+          <span className="hidden xl:inline">{tr('Help')}</span>
+        </button>
+        <span className="text-slate-700">|</span>
+
         {printer && (
           <>
             <div className="flex items-center gap-1.5 text-slate-300" title={printer.title}>

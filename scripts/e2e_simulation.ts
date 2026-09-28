@@ -86,6 +86,7 @@ import { matchExtractedItemsWithProducts, normalizeName } from '../src/lib/purch
 import { encodeCostCode, isValidCostCodeWord, productLabelDetail, productLabelExtras } from '../src/lib/labels/labelExtras';
 import { formatPackAmount, makeWeighedBarcode, parseWeighedBarcode, weighedQuantity } from '../src/lib/barcode/weighedBarcode';
 import { globalShortcutFor, globalShortcutHints } from '../src/lib/ui/globalShortcuts';
+import { settingsTabFromQuery } from '../src/lib/ui/settingsLinks';
 import { searchProducts, soundKeys, wordSoundKey } from '../src/lib/search/productSearch';
 import {
   WALK_IN_ID,
@@ -1490,6 +1491,25 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   const shell = readSource('components/layout/AppShell.tsx');
   assert(/globalShortcutFor\(e, pathname, typing\)/.test(shell) && /action === 'lock'\) lockApp\(pathname\)/.test(shell) && /if \(!isClient \|\| !currentUser \|\| locked\) return;/.test(shell),
     'AppShell runs the global keys from one shared list, and only when the shop is open (not on the password screen)');
+}
+
+// (b) The status bar shows the keys that work on the page it is on (every one handled), and
+// quick links to Settings → Invoice & Bill Rules and Help & Support.
+{
+  const asEvent = (hint: string) => {
+    const parts = hint.split('+');
+    return { key: parts[parts.length - 1].toLowerCase(), ctrlKey: parts.includes('Ctrl'), shiftKey: parts.includes('Shift'), altKey: false };
+  };
+  const pages = ['/', '/billing', '/products', '/barcode-generator', '/settings'];
+  const dead = pages.flatMap((pg) => globalShortcutHints(pg).filter(([key]) => !globalShortcutFor(asEvent(key), pg, false)).map(([key]) => `${pg} ${key}`));
+  assert(dead.length === 0 && globalShortcutHints('/').map(([key]) => key).join() === 'Shift+B,Ctrl+L' && globalShortcutHints('/products').map(([key]) => key).join() === 'Ctrl+H,Ctrl+L',
+    `Status bar: Home shows Shift+B Billing, other pages Ctrl+H Home, all show Ctrl+L Lock — every advertised key works${dead.length ? ` (dead: ${dead.join(', ')})` : ''}`);
+  const bar = readSource('components/layout/DesktopStatusBar.tsx');
+  const settingsPage = readSource('app/settings/page.tsx');
+  assert(/globalShortcutHints\(pathname\)/.test(bar) && /openSettingsTab\('invoicing', pathname, router\.push\)/.test(bar) && /openSettingsTab\('help', pathname, router\.push\)/.test(bar)
+    && settingsTabFromQuery('invoice') === 'invoicing' && settingsTabFromQuery('HELP') === 'help' && settingsTabFromQuery('nope') === null
+    && /addEventListener\(SETTINGS_TAB_EVENT, onTab\)/.test(settingsPage) && /tabChangeRef\.current\(tab\)/.test(settingsPage),
+    'Status bar "Bill rules" / "Help" open those Settings tabs (switching in place when Settings is open, still asking about unsaved changes)');
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.

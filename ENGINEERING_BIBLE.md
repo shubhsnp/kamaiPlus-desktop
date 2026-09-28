@@ -585,7 +585,7 @@ src/app/layout.tsx          (server component — metadata, viewport, fonts)
             ├── <Sidebar>                 4 sections, Ctrl+B collapse, prefetch={false}
             ├── <main><FeatureGate>{children}</FeatureGate></main>   ◄── the route renders here
             │                                (switched-off screen → "turned off" card, §9.2)
-            ├── <DesktopStatusBar>        online/printer/clock/version
+            ├── <DesktopStatusBar>        online/printer/clock/version; the page's keys; "Bill rules" / "Help" links (v4.78.0)
             └── <GlobalDrawers>           right-edge Checkout + History pull-tabs
                                           (hidden on /billing)
 ```
@@ -623,6 +623,7 @@ There is no global state library. Modules talk through window events:
 | `auto_backup_saved` | `autoBackup.ts` → AutoBackupCard refresh |
 | `feature_switches_changed` | `setFeatureSwitch` → every `useFeatureSwitches()` (Sidebar, Home, form, ProfitMask…) |
 | `sound_mute_changed` | `setSoundMuted` → SoundToggleButton |
+| `kamai_settings_tab` | `openSettingsTab` (`lib/ui/settingsLinks.ts`, status bar) → Settings switches tab in place (v4.78.0) |
 
 ### localStorage keys (complete, verified)
 
@@ -1137,7 +1138,9 @@ Recorded so the next agent does not rediscover them. None are fixed as of v4.38.
 
 1. ~~`DesktopStatusBar` advertised shortcuts that do not exist~~ — **fixed in v4.47.0**:
    it now shows the billing keys on `/billing` and only Ctrl+B elsewhere (Suite 9 §8i
-   checks every advertised key is handled). The real bindings, POS-local in
+   checks every advertised key is handled). Since v4.78.0 also the app-wide keys of the page
+   (`globalShortcutHints`: Shift+B on Home, else Ctrl+H; Ctrl+L everywhere — on Billing only
+   on 2xl screens) — Suite 9 §9j(b). The real bindings, POS-local in
    `src/app/billing/page.tsx`:
    | Key | Actual |
    | :--- | :--- |

@@ -2,7 +2,8 @@
 
 import dynamic from 'next/dynamic';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { SETTINGS_TAB_EVENT, settingsTabFromQuery } from '@/lib/ui/settingsLinks';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useBusiness } from '@/components/layout/BusinessProvider';
@@ -148,13 +149,11 @@ export default function SettingsPage() {
     applyInitial();
   }, [applyInitial]);
 
-  // Deep link: /settings?tab=invoice opens the invoice & printer tab.
+  // Deep link: /settings?tab=invoice opens that tab (lib/ui/settingsLinks.ts).
   useEffect(() => {
     try {
-      const tab = new URLSearchParams(window.location.search).get('tab');
-      if (tab === 'invoice' || tab === 'invoicing') setActiveTab('invoicing');
-      else if (tab === 'upi') setActiveTab('upi');
-      else if (tab === 'features') setActiveTab('features');
+      const tab = settingsTabFromQuery(new URLSearchParams(window.location.search).get('tab'));
+      if (tab) setActiveTab(tab);
     } catch {}
   }, []);
 
@@ -308,6 +307,18 @@ export default function SettingsPage() {
       setActiveTab(newTab);
     }
   };
+
+  // Status bar "Bill rules" / "Help" while Settings is already open: same switch (asks about unsaved changes).
+  const tabChangeRef = useRef(handleTabChangeAttempt);
+  tabChangeRef.current = handleTabChangeAttempt;
+  useEffect(() => {
+    const onTab = (e: Event) => {
+      const tab = settingsTabFromQuery((e as CustomEvent<string>).detail);
+      if (tab) tabChangeRef.current(tab);
+    };
+    window.addEventListener(SETTINGS_TAB_EVENT, onTab);
+    return () => window.removeEventListener(SETTINGS_TAB_EVENT, onTab);
+  }, []);
 
   const handleSaveAll = async () => {
     if (!business) return;
