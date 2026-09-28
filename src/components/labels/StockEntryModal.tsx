@@ -17,6 +17,7 @@ import { clearStockEntryDraft, readStockEntryDraft, saveStockEntryDraft } from '
 import { showAlert } from '@/lib/ui/dialogs';
 import { tr } from '@/lib/i18n/core';
 import { EntryColumns, entryGridTemplate, StockEntryRowView } from './StockEntryRowView';
+import { CategoryPicker } from '@/components/products/CategoryPicker';
 
 let rowSeq = 0;
 const newKey = () => `r${Date.now().toString(36)}_${rowSeq++}`;
@@ -164,10 +165,14 @@ export function StockEntryModal({ categories, onClose, onSaved }: StockEntryModa
         <div className="flex flex-wrap items-center gap-2 justify-between">
           <label className="flex items-center gap-2">
             <span className="font-bold text-slate-700">{tr('Category for new items')}</span>
-            <select value={category.id} onChange={(e) => setCategoryId(e.target.value)} className="h-8 px-2 rounded-lg border border-slate-300 bg-white font-bold" data-entry-category>
-              {!categories.some((c) => c.id === category.id) && <option value={category.id}>{category.name}</option>}
-              {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            {/* "+ New" makes a category right here (v4.78.0). */}
+            <CategoryPicker
+              categories={categories}
+              value={categories.some((c) => c.id === category.id) ? category.id : ''}
+              emptyLabel={categories.some((c) => c.id === category.id) ? undefined : category.name}
+              onChange={setCategoryId}
+              businessId={business?.id || 'biz_default'}
+            />
           </label>
           <span className="text-[11px] text-slate-500">{tr('Enter = next box • Ctrl+Enter = Save & print')}</span>
         </div>

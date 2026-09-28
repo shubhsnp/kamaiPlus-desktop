@@ -87,6 +87,7 @@ import { encodeCostCode, isValidCostCodeWord, productLabelDetail, productLabelEx
 import { formatPackAmount, makeWeighedBarcode, parseWeighedBarcode, weighedQuantity } from '../src/lib/barcode/weighedBarcode';
 import { globalShortcutFor, globalShortcutHints } from '../src/lib/ui/globalShortcuts';
 import { settingsTabFromQuery } from '../src/lib/ui/settingsLinks';
+import { categoryKey, findCategoryByName } from '../src/lib/products/categories';
 import { searchProducts, soundKeys, wordSoundKey } from '../src/lib/search/productSearch';
 import {
   WALK_IN_ID,
@@ -1531,6 +1532,18 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(!/id: 'upi'/.test(nav) && profileAt > 0 && upiAt > profileAt && page.lastIndexOf("{activeTab === 'profile' && (", upiAt) > profileAt && !/activeTab === 'upi'/.test(page)
     && /tabOfChange\(c\.category\) === activeTab/.test(page) && settingsTabFromQuery('upi') === 'profile',
     'Settings → Store Profile holds the UPI QR accounts and bank details; their unsaved changes still stop a tab switch; ?tab=upi opens Store Profile');
+}
+
+// (e) "New stock + labels" can make a category right there; a name that exists (any case /
+// spacing) picks that category instead of adding a copy.
+{
+  const cats = [{ id: 'c1', name: 'General' }, { id: 'c2', name: 'Fancy  Items' }];
+  assert(findCategoryByName(cats, ' fancy items ')?.id === 'c2' && findCategoryByName(cats, 'Rockets') === undefined && findCategoryByName(cats, '  ') === undefined && categoryKey('  Diwali   Gift ') === 'diwali gift',
+    'A typed category name finds the saved one whatever the case or spaces');
+  const entry = readSource('components/labels/StockEntryModal.tsx');
+  const picker = readSource('components/products/CategoryPicker.tsx');
+  assert(/<CategoryPicker/.test(entry) && /await findOrCreateCategory\(name, businessId\)/.test(picker) && /onChange\(category\.id\)/.test(picker) && /db\.transaction\('rw', db\.categories/.test(readSource('lib/products/categories.ts')),
+    '"New stock + labels" has "+ New" next to the category: it saves the category and picks it');
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.
