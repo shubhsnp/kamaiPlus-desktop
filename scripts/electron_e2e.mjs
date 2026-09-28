@@ -704,6 +704,66 @@ async function run() {
       await page.keyboard.press('Escape');
       await page.waitForTimeout(300);
 
+      // v4.78.0 — Backup & restore: a backup file of the shop, then changes after it; "Add missing
+      // records only" keeps those changes (nothing overwritten); "Clean Replace" brings the backup
+      // back exactly, after saving the current data as today's automatic backup; a damaged file is refused.
+      step = 'backup restore';
+      const TABLES = ['businesses', 'categories', 'products', 'customers', 'suppliers', 'sales', 'cash_registers', 'cash_expenses', 'sales_returns', 'inventory_movements', 'ledger_transactions', 'purchase_bills', 'marketing_templates', 'audit_logs'];
+      const snap = { metadata: { version: '2.1.0', created_at: new Date().toISOString(), business_name: 'E2E Kirana Store', counts: {} } };
+      for (const t of TABLES) snap[t] = await readStore(page, t);
+      const backupFile = path.join(dataDir, 'e2e_backup.json');
+      fs.writeFileSync(backupFile, JSON.stringify(snap));
+      const rocketAtBackup = (await byName('E2E Rocket 10 Shot')).current_stock;
+      const rocketId = (await byName('E2E Rocket 10 Shot')).id;
+      await page.evaluate((pid) => new Promise((resolve, reject) => {
+        const req = indexedDB.open('VyaparSetuDB');
+        req.onerror = () => reject(req.error);
+        req.onsuccess = () => {
+          const d = req.result;
+          const tx = d.transaction(['customers', 'products'], 'readwrite');
+          tx.objectStore('customers').put({ id: 'cust_after_backup', business_id: 'x', name: 'E2E After Backup', phone: '9000000001', current_balance: 0, opening_balance: 0, loyalty_points: 0, total_spent: 0, total_visits: 0, customer_type: 'regular', created_at: new Date().toISOString() });
+          const ps = tx.objectStore('products');
+          ps.get(pid).onsuccess = (e) => { const p = e.target.result; p.current_stock = 999; ps.put(p); };
+          tx.oncomplete = () => { d.close(); resolve(true); };
+          tx.onerror = () => reject(tx.error);
+        };
+      }), rocketId);
+      const restoreWith = async (mode) => {
+        await page.evaluate(() => { window.location.href = '/cloud-backup/'; });
+        await page.locator('[data-restore-file]').waitFor({ state: 'attached', timeout: 15000 });
+        await page.locator('[data-restore-file]').setInputFiles(backupFile);
+        await page.locator('[data-restore-modal]').waitFor({ timeout: 10000 });
+        const counts = await page.locator('[data-restore-counts]').innerText();
+        await page.locator(`[data-restore-mode="${mode}"]`).check();
+        await page.locator('[data-restore-confirm]').click();
+        await page.locator('[data-restore-done]').waitFor({ timeout: 20000 });
+        const done = await page.locator('[data-restore-done]').innerText();
+        await page.waitForTimeout(3500); // the app reloads itself
+        await page.locator('[data-restore-file]').waitFor({ state: 'attached', timeout: 20000 });
+        return { counts, done };
+      };
+      const merged = await restoreWith('merge');
+      const custMerge = await readStore(page, 'customers');
+      check(custMerge.some((c) => c.name === 'E2E After Backup') && (await byName('E2E Rocket 10 Shot')).current_stock === 999 && /Nothing already here was changed/.test(merged.done) && new RegExp(`Products: ${snap.products.length}`).test(merged.counts),
+        `Restore "add missing records only": the customer added after the backup and Rocket's new stock stay (nothing overwritten) — "${merged.done.slice(0, 90)}"`);
+      const cleaned = await restoreWith('clean');
+      const custClean = await readStore(page, 'customers');
+      const backupsDir = path.join(dataDir, 'documents', 'KamaiPlus', 'Backups');
+      const safety = fs.existsSync(backupsDir) ? fs.readdirSync(backupsDir).filter((f) => f.startsWith('KamaiPlus_AutoBackup_')) : [];
+      const safetyHasAfter = safety.some((f) => fs.readFileSync(path.join(backupsDir, f), 'utf8').includes('E2E After Backup'));
+      check(!custClean.some((c) => c.name === 'E2E After Backup') && (await byName('E2E Rocket 10 Shot')).current_stock === rocketAtBackup && (await salesCount()) === expectedSales && safetyHasAfter && /Restored/.test(cleaned.done),
+        `Restore "clean replace": the shop is exactly the backup again (Rocket ${rocketAtBackup}), and today's automatic backup kept the data from just before (${safety.length} file)`);
+      const badFile = path.join(dataDir, 'e2e_bad_backup.json');
+      fs.writeFileSync(badFile, JSON.stringify({ ...snap, products: [...snap.products, { name: 'no id' }] }));
+      await page.locator('[data-restore-file]').setInputFiles(badFile);
+      const alertBox = page.locator('[role="dialog"]').last();
+      await alertBox.waitFor({ timeout: 10000 });
+      const alertText = await alertBox.innerText();
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(400);
+      check(/damaged/i.test(alertText) && !(await page.locator('[data-restore-modal]').count()) && (await readStore(page, 'products')).length === snap.products.length,
+        'A damaged backup file is refused before anything is touched');
+
       step = 'errors';
       check(pageErrors.length === 0, `No uncaught page errors during the flow${pageErrors.length ? `: ${pageErrors.slice(0, 3).join(' | ')}` : ''}`);
     } catch (err) {

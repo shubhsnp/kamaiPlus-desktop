@@ -1,211 +1,99 @@
-import { Sale, Business, Customer, Supplier, CashExpense } from '@/types';
+import { Business, Customer, Sale, SalesReturn } from '@/types';
+import { breakupSales, SaleBreakup } from './saleBreakup';
 
 export interface TallyExportOptions {
   business: Business | null | undefined;
   sales: Sale[];
-  expenses?: CashExpense[];
   customers?: Customer[];
-  suppliers?: Supplier[];
-  startDate?: string;
-  endDate?: string;
+  returns?: SalesReturn[];
+  /** Only bills inside these dates (none = all). */
+  range?: { start: Date; end: Date };
+  /** Goes into the file name, e.g. "Sep_2026". */
+  periodName?: string;
 }
 
-/**
- * Converts date ISO string into Tally XML format (YYYYMMDD)
- */
-function formatTallyDate(isoString: string): string {
+/** Ledgers the import creates (Cash already exists in every Tally company). */
+export const TALLY_LEDGERS = {
+  sales: 'Sales Account',
+  cgst: 'Output CGST',
+  sgst: 'Output SGST',
+  igst: 'Output IGST',
+  cash: 'Cash',
+  bank: 'UPI / Card Receipts',
+};
+
+/** Date as Tally wants it: YYYYMMDD (the shop's local date). */
+export function formatTallyDate(isoString: string): string {
   const d = new Date(isoString);
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${yyyy}${mm}${dd}`;
+  return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
 }
 
-/**
- * Escapes XML special characters
- */
 function escapeXml(unsafe: string = ''): string {
-  return unsafe
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
+  return String(unsafe).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 }
 
+const amt = (paise: number) => (Math.round(paise) / 100).toFixed(2);
+
+function ledgerMaster(name: string, parent: string, extra = ''): string {
+  return `        <TALLYMESSAGE xmlns:UDF="TallyUDF">\n          <LEDGER NAME="${escapeXml(name)}" ACTION="Create">\n            <NAME>${escapeXml(name)}</NAME>\n            <PARENT>${escapeXml(parent)}</PARENT>\n${extra}          </LEDGER>\n        </TALLYMESSAGE>\n`;
+}
+
+function entry(ledger: string, paise: number, debit: boolean): string {
+  // Tally: debits are negative with ISDEEMEDPOSITIVE Yes, credits positive with No.
+  return `            <ALLLEDGERENTRIES.LIST>\n              <LEDGERNAME>${escapeXml(ledger)}</LEDGERNAME>\n              <ISDEEMEDPOSITIVE>${debit ? 'Yes' : 'No'}</ISDEEMEDPOSITIVE>\n              <AMOUNT>${debit ? '-' : ''}${amt(paise)}</AMOUNT>\n            </ALLLEDGERENTRIES.LIST>\n`;
+}
+
+/** The party of a bill with udhar (a Sundry Debtor), else null. */
+const partyOf = (b: SaleBreakup) => (b.pay.credit > 0 ? b.buyerName : null);
+
 /**
- * Generates official Tally Prime standard XML format for 1-click import into Tally Prime / ERP 9
+ * Tally Prime / ERP 9 import file (v4.78.0): the ledgers it needs and one Sales voucher per
+ * bill of the period, in the accounting view — debit Cash / UPI-Card / the customer (udhar)
+ * as the bill was paid, credit Sales, CGST + SGST or IGST. Every voucher balances to the
+ * paisa. Items are listed in the narration only: stock lines need the same stock items and
+ * units in Tally, and failed to import before. Figures match the GSTR-1 file
+ * (lib/tally/saleBreakup.ts): no estimates, returns taken off.
  */
-export function generateTallyPrimeXML(options: TallyExportOptions): { xml: string; filename: string } {
-  const { business, sales, expenses = [], customers = [] } = options;
+export function generateTallyPrimeXML(options: TallyExportOptions): { xml: string; filename: string; count: number } {
+  const { business, sales, customers = [], returns = [], range, periodName = 'All' } = options;
   const companyName = business?.name || 'My Store';
+  const bills = breakupSales(sales, { shopGstin: business?.gstin || '', customers, returns }, range);
 
-  // Filter valid sales
-  const validSales = sales.filter((s) => s.status !== 'cancelled');
+  let xml = `<?xml version="1.0" encoding="utf-8"?>\n<ENVELOPE>\n  <HEADER>\n    <TALLYREQUEST>Import Data</TALLYREQUEST>\n  </HEADER>\n  <BODY>\n    <IMPORTDATA>\n      <REQUESTDESC>\n        <REPORTNAME>Vouchers</REPORTNAME>\n        <STATICVARIABLES>\n          <SVCURRENTCOMPANY>${escapeXml(companyName)}</SVCURRENTCOMPANY>\n        </STATICVARIABLES>\n      </REQUESTDESC>\n      <REQUESTDATA>\n`;
 
-  let xml = `<?xml version="1.0" encoding="utf-8"?>\n`;
-  xml += `<ENVELOPE>\n`;
-  xml += `  <HEADER>\n`;
-  xml += `    <TALLYREQUEST>Import Data</TALLYREQUEST>\n`;
-  xml += `  </HEADER>\n`;
-  xml += `  <BODY>\n`;
-  xml += `    <IMPORTDATA>\n`;
-  xml += `      <REQUESTDESC>\n`;
-  xml += `        <REPORTNAME>All Masters and Vouchers</REPORTNAME>\n`;
-  xml += `        <STATICVARIABLES>\n`;
-  xml += `          <SVCURRENTCOMPANY>${escapeXml(companyName)}</SVCURRENTCOMPANY>\n`;
-  xml += `        </STATICVARIABLES>\n`;
-  xml += `      </REQUESTDESC>\n`;
-  xml += `      <REQUESTDATA>\n`;
-
-  // 1. MASTER LEDGERS: Customers (Sundry Debtors)
-  const partyNamesSet = new Set<string>();
-  validSales.forEach((s) => {
-    if (s.customer_name && s.customer_name !== 'Cash Customer') {
-      partyNamesSet.add(s.customer_name);
-    }
+  // 1. Ledgers: sales, GST (with their duty head), UPI / card receipts, customers on udhar.
+  xml += ledgerMaster(TALLY_LEDGERS.sales, 'Sales Accounts');
+  for (const [name, head] of [[TALLY_LEDGERS.cgst, 'Central Tax'], [TALLY_LEDGERS.sgst, 'State Tax'], [TALLY_LEDGERS.igst, 'Integrated Tax']]) {
+    xml += ledgerMaster(name, 'Duties & Taxes', `            <TAXTYPE>GST</TAXTYPE>\n            <GSTDUTYHEAD>${head}</GSTDUTYHEAD>\n`);
+  }
+  xml += ledgerMaster(TALLY_LEDGERS.bank, 'Bank Accounts');
+  const parties = new Set(bills.map(partyOf).filter((p): p is string => Boolean(p)));
+  parties.forEach((party) => {
+    xml += ledgerMaster(party, 'Sundry Debtors', `            <ISBILLWISEON>Yes</ISBILLWISEON>\n`);
   });
 
-  partyNamesSet.forEach((party) => {
-    xml += `        <TALLYMESSAGE xmlns:UDF="TallyUDF">\n`;
-    xml += `          <LEDGER NAME="${escapeXml(party)}" ACTION="Create">\n`;
-    xml += `            <NAME>${escapeXml(party)}</NAME>\n`;
-    xml += `            <PARENT>Sundry Debtors</PARENT>\n`;
-    xml += `            <ISBILLWISEON>Yes</ISBILLWISEON>\n`;
-    xml += `            <AFFECTSSTOCK>No</AFFECTSSTOCK>\n`;
-    xml += `          </LEDGER>\n`;
-    xml += `        </TALLYMESSAGE>\n`;
-  });
+  // 2. One Sales voucher per bill.
+  for (const b of bills) {
+    const date = formatTallyDate(b.sale.created_at);
+    const party = partyOf(b);
+    const items = (b.sale.items || []).map((i) => `${i.product_name} x ${i.quantity}`).join(', ');
+    xml += `        <TALLYMESSAGE xmlns:UDF="TallyUDF">\n          <VOUCHER VCHTYPE="Sales" ACTION="Create" OBJVIEW="Accounting Voucher View">\n`;
+    xml += `            <DATE>${date}</DATE>\n            <EFFECTIVEDATE>${date}</EFFECTIVEDATE>\n            <VOUCHERTYPENAME>Sales</VOUCHERTYPENAME>\n`;
+    xml += `            <VOUCHERNUMBER>${escapeXml(b.sale.invoice_number)}</VOUCHERNUMBER>\n            <REFERENCE>${escapeXml(b.sale.invoice_number)}</REFERENCE>\n`;
+    xml += `            <PARTYLEDGERNAME>${escapeXml(party || (b.pay.cash >= b.pay.bank ? TALLY_LEDGERS.cash : TALLY_LEDGERS.bank))}</PARTYLEDGERNAME>\n`;
+    if (b.buyerGstin) xml += `            <PARTYGSTIN>${escapeXml(b.buyerGstin)}</PARTYGSTIN>\n`;
+    xml += `            <NARRATION>${escapeXml(`KamaiPlus bill ${b.sale.invoice_number} - ${b.buyerName}${b.returned > 0 ? ' (after returns)' : ''}: ${items}`.slice(0, 900))}</NARRATION>\n`;
+    if (b.pay.cash > 0) xml += entry(TALLY_LEDGERS.cash, b.pay.cash, true);
+    if (b.pay.bank > 0) xml += entry(TALLY_LEDGERS.bank, b.pay.bank, true);
+    if (b.pay.credit > 0 && party) xml += entry(party, b.pay.credit, true);
+    xml += entry(TALLY_LEDGERS.sales, b.taxable, false);
+    if (b.cgst > 0) xml += entry(TALLY_LEDGERS.cgst, b.cgst, false);
+    if (b.sgst > 0) xml += entry(TALLY_LEDGERS.sgst, b.sgst, false);
+    if (b.igst > 0) xml += entry(TALLY_LEDGERS.igst, b.igst, false);
+    xml += `          </VOUCHER>\n        </TALLYMESSAGE>\n`;
+  }
 
-  // 2. MASTER LEDGERS: Standard Accounts (Sales, CGST, SGST, IGST)
-  const standardLedgers = [
-    { name: 'Sales Account', parent: 'Sales Accounts' },
-    { name: 'Output CGST', parent: 'Duties &amp; Taxes' },
-    { name: 'Output SGST', parent: 'Duties &amp; Taxes' },
-    { name: 'Output IGST', parent: 'Duties &amp; Taxes' },
-    { name: 'Discount Allowed', parent: 'Direct Expenses' },
-    { name: 'Cash', parent: 'Cash-in-Hand' },
-    { name: 'Bank Accounts', parent: 'Bank Accounts' },
-  ];
-
-  standardLedgers.forEach((lg) => {
-    xml += `        <TALLYMESSAGE xmlns:UDF="TallyUDF">\n`;
-    xml += `          <LEDGER NAME="${lg.name}" ACTION="Create">\n`;
-    xml += `            <NAME>${lg.name}</NAME>\n`;
-    xml += `            <PARENT>${lg.parent}</PARENT>\n`;
-    xml += `          </LEDGER>\n`;
-    xml += `        </TALLYMESSAGE>\n`;
-  });
-
-  // 3. SALES VOUCHERS
-  validSales.forEach((sale) => {
-    const tallyDate = formatTallyDate(sale.created_at);
-    const isCash = sale.payment_method === 'cash';
-    const isUpi = sale.payment_method === 'upi';
-    const isParty = !isCash && !isUpi && sale.customer_name && sale.customer_name !== 'Cash Customer';
-
-    const partyLedger = isCash ? 'Cash' : isUpi ? 'Bank Accounts' : isParty ? sale.customer_name! : 'Cash';
-    const totalRupees = (sale.grand_total / 100).toFixed(2);
-    const subtotalRupees = (sale.subtotal / 100).toFixed(2);
-    const taxRupees = (sale.tax_total / 100).toFixed(2);
-    const halfTaxRupees = ((sale.tax_total / 2) / 100).toFixed(2);
-
-    xml += `        <TALLYMESSAGE xmlns:UDF="TallyUDF">\n`;
-    xml += `          <VOUCHER VCHTYPE="Sales" ACTION="Create" OBJVIEW="Accounting Voucher View">\n`;
-    xml += `            <DATE>${tallyDate}</DATE>\n`;
-    xml += `            <VOUCHERTYPENAME>Sales</VOUCHERTYPENAME>\n`;
-    xml += `            <VOUCHERNUMBER>${escapeXml(sale.invoice_number)}</VOUCHERNUMBER>\n`;
-    xml += `            <REFERENCE>${escapeXml(sale.invoice_number)}</REFERENCE>\n`;
-    xml += `            <PARTYLEDGERNAME>${escapeXml(partyLedger)}</PARTYLEDGERNAME>\n`;
-    xml += `            <EFFECTIVEDATE>${tallyDate}</EFFECTIVEDATE>\n`;
-    xml += `            <NARRATION>KamaiPlus POS Bill #${escapeXml(sale.invoice_number)} - ${escapeXml(sale.customer_name || 'Cash')}</NARRATION>\n`;
-
-    // Debit Party / Cash / Bank (+Total)
-    xml += `            <ALLLEDGERENTRIES.LIST>\n`;
-    xml += `              <LEDGERNAME>${escapeXml(partyLedger)}</LEDGERNAME>\n`;
-    xml += `              <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>\n`;
-    xml += `              <AMOUNT>-${totalRupees}</AMOUNT>\n`;
-    xml += `            </ALLLEDGERENTRIES.LIST>\n`;
-
-    // Credit Sales Account (-Subtotal)
-    xml += `            <ALLLEDGERENTRIES.LIST>\n`;
-    xml += `              <LEDGERNAME>Sales Account</LEDGERNAME>\n`;
-    xml += `              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>\n`;
-    xml += `              <AMOUNT>${subtotalRupees}</AMOUNT>\n`;
-    xml += `            </ALLLEDGERENTRIES.LIST>\n`;
-
-    // Credit Taxes if applicable (CGST & SGST intra-state split)
-    if (sale.tax_total > 0) {
-      xml += `            <ALLLEDGERENTRIES.LIST>\n`;
-      xml += `              <LEDGERNAME>Output CGST</LEDGERNAME>\n`;
-      xml += `              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>\n`;
-      xml += `              <AMOUNT>${halfTaxRupees}</AMOUNT>\n`;
-      xml += `            </ALLLEDGERENTRIES.LIST>\n`;
-
-      xml += `            <ALLLEDGERENTRIES.LIST>\n`;
-      xml += `              <LEDGERNAME>Output SGST</LEDGERNAME>\n`;
-      xml += `              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>\n`;
-      xml += `              <AMOUNT>${halfTaxRupees}</AMOUNT>\n`;
-      xml += `            </ALLLEDGERENTRIES.LIST>\n`;
-    }
-
-    // Inventory Entries in Voucher
-    sale.items.forEach((item) => {
-      const itemTotal = (item.total_amount / 100).toFixed(2);
-      const itemRate = (item.unit_price / 100).toFixed(2);
-      xml += `            <ALLINVENTORYENTRIES.LIST>\n`;
-      xml += `              <STOCKITEMNAME>${escapeXml(item.product_name)}</STOCKITEMNAME>\n`;
-      xml += `              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>\n`;
-      xml += `              <ACTUALQTY>${item.quantity} ${escapeXml(item.unit)}</ACTUALQTY>\n`;
-      xml += `              <BILLEDQTY>${item.quantity} ${escapeXml(item.unit)}</BILLEDQTY>\n`;
-      xml += `              <RATE>${itemRate}/${escapeXml(item.unit)}</RATE>\n`;
-      xml += `              <AMOUNT>${itemTotal}</AMOUNT>\n`;
-      xml += `            </ALLINVENTORYENTRIES.LIST>\n`;
-    });
-
-    xml += `          </VOUCHER>\n`;
-    xml += `        </TALLYMESSAGE>\n`;
-  });
-
-  // 4. EXPENSE VOUCHERS (Payment Vouchers in Tally)
-  expenses.forEach((exp) => {
-    const tallyDate = formatTallyDate(exp.created_at);
-    const expRupees = (exp.amount / 100).toFixed(2);
-    const payLedger = exp.payment_mode === 'cash' ? 'Cash' : 'Bank Accounts';
-
-    xml += `        <TALLYMESSAGE xmlns:UDF="TallyUDF">\n`;
-    xml += `          <VOUCHER VCHTYPE="Payment" ACTION="Create" OBJVIEW="Accounting Voucher View">\n`;
-    xml += `            <DATE>${tallyDate}</DATE>\n`;
-    xml += `            <VOUCHERTYPENAME>Payment</VOUCHERTYPENAME>\n`;
-    xml += `            <PARTYLEDGERNAME>${payLedger}</PARTYLEDGERNAME>\n`;
-    xml += `            <NARRATION>Expense: ${escapeXml(exp.title)} (${escapeXml(exp.category)})</NARRATION>\n`;
-
-    // Debit Expense
-    xml += `            <ALLLEDGERENTRIES.LIST>\n`;
-    xml += `              <LEDGERNAME>${escapeXml(exp.category || 'General Expense')}</LEDGERNAME>\n`;
-    xml += `              <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>\n`;
-    xml += `              <AMOUNT>-${expRupees}</AMOUNT>\n`;
-    xml += `            </ALLLEDGERENTRIES.LIST>\n`;
-
-    // Credit Cash/Bank
-    xml += `            <ALLLEDGERENTRIES.LIST>\n`;
-    xml += `              <LEDGERNAME>${payLedger}</LEDGERNAME>\n`;
-    xml += `              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>\n`;
-    xml += `              <AMOUNT>${expRupees}</AMOUNT>\n`;
-    xml += `            </ALLLEDGERENTRIES.LIST>\n`;
-
-    xml += `          </VOUCHER>\n`;
-    xml += `        </TALLYMESSAGE>\n`;
-  });
-
-  xml += `      </REQUESTDATA>\n`;
-  xml += `    </IMPORTDATA>\n`;
-  xml += `  </BODY>\n`;
-  xml += `</ENVELOPE>`;
-
-  const cleanStore = (companyName || 'Store').replace(/[^a-zA-Z0-9]/g, '_');
-  const dateStamp = new Date().toISOString().split('T')[0].replace(/-/g, '');
-  const filename = `${cleanStore}_TallyPrime_Export_${dateStamp}.xml`;
-
-  return { xml, filename };
+  xml += `      </REQUESTDATA>\n    </IMPORTDATA>\n  </BODY>\n</ENVELOPE>\n`;
+  const cleanStore = companyName.replace(/[^a-zA-Z0-9]/g, '_');
+  return { xml, filename: `${cleanStore}_TallyPrime_${periodName.replace(/[^a-zA-Z0-9]/g, '_')}.xml`, count: bills.length };
 }

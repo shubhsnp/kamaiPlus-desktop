@@ -226,7 +226,7 @@ export default function TransactionsPage() {
 
 
   // Export 1-Click Tally Prime XML
-  const handleExportTallyXML = () => {
+  const handleExportTallyXML = async () => {
     if (filteredSales.length === 0) {
       showAlert(tr('No transactions to export.'));
       return;
@@ -235,6 +235,7 @@ export default function TransactionsPage() {
       business,
       sales: filteredSales,
       customers,
+      returns: await db.sales_returns.toArray(),
     });
     const blob = new Blob([xml], { type: 'application/xml;charset=utf-8;' });
     const url = URL.createObjectURL(blob);

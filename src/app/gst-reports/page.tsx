@@ -62,10 +62,11 @@ export default function GSTReportsPage() {
   );
   const sales = useMemo(() => (periodSales || []).filter((s) => s.status !== 'cancelled'), [periodSales]);
 
-  // Generate GSTR-1 Data
+  // Generate GSTR-1 Data — from every bill of the period: it leaves out estimates and returned
+  // bills itself and needs the cancelled ones for "documents issued" (they were always 0 before v4.78.0).
   const gstr1Data: GSTR1ReportData = useMemo(() => {
-    return generateGSTR1Report(sales, customers, business || ({} as any), periodPreset);
-  }, [sales, customers, business, periodPreset]);
+    return generateGSTR1Report(periodSales || [], customers, business || ({} as any), periodPreset);
+  }, [periodSales, customers, business, periodPreset]);
 
   // B2B rows are one per invoice *and* tax rate; the count shown is distinct invoices.
   const b2bInvoiceCount = useMemo(
@@ -74,10 +75,12 @@ export default function GSTReportsPage() {
   );
 
   // Export Handlers
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
     const { csv, filename } = generateCASalesRegisterCSV({
       business,
       sales,
+      customers,
+      returns: await db.sales_returns.toArray(),
       periodName: periodPreset,
     });
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -90,11 +93,13 @@ export default function GSTReportsPage() {
     document.body.removeChild(link);
   };
 
-  const handleExportTallyXML = () => {
+  const handleExportTallyXML = async () => {
     const { xml, filename } = generateTallyPrimeXML({
       business,
       sales,
       customers,
+      returns: await db.sales_returns.toArray(),
+      periodName: periodPreset,
     });
     const blob = new Blob([xml], { type: 'application/xml;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -274,7 +279,7 @@ export default function GSTReportsPage() {
           <div className="space-y-2 text-xs font-mono">
             <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl flex items-center justify-between">
               <span className="text-slate-500">{tr('Invoice Series:')}</span>
-              <span className="font-bold text-slate-900 dark:text-slate-100">{gstr1Data.doc_from_num || tr('INV-001')} ➔ {gstr1Data.doc_to_num || tr('INV-001')}</span>
+              <span className="font-bold text-slate-900 dark:text-slate-100">{gstr1Data.doc_from_num ? `${gstr1Data.doc_from_num} ➔ ${gstr1Data.doc_to_num}` : '—'}</span>
             </div>
             <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl flex items-center justify-between">
               <span className="text-slate-500">{tr('Total Invoices Issued:')}</span>

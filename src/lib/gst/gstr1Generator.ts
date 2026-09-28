@@ -230,7 +230,10 @@ export function generateGSTR1Report(
     total_cgst: totalCgstPaise,
     total_sgst: totalSgstPaise,
     total_igst: totalIgstPaise,
-    total_invoices_count: validSales.length,
+    // Table 13 "total number": every tax invoice of the series, cancelled ones included
+    // (net issued = total − cancelled). Before v4.78.0 cancelled bills were left out here
+    // and then subtracted again.
+    total_invoices_count: sortedSales.length,
     doc_from_num: docFrom,
     doc_to_num: docTo,
     doc_cancelled_count: cancelledCount,

@@ -32,7 +32,7 @@ async function doBackup(force: boolean): Promise<AutoBackupOutcome> {
       if (info.hasTodaysBackup) return { status: 'skipped', reason: 'already-today' };
     }
     const payload = await createFullBackupPayload();
-    if (payload.businesses.length === 0) return { status: 'skipped', reason: 'empty-shop' };
+    if (!payload.businesses?.length) return { status: 'skipped', reason: 'empty-shop' };
 
     const result = await api.writeBackup({
       json: JSON.stringify(payload),

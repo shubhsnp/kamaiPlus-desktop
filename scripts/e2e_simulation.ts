@@ -92,6 +92,10 @@ import { allowsFractionalQty, dozenFromPieces, formatCartQty, lineAmountPaise, p
 import { getQuantityConfigForUnit } from '../src/components/billing/posQuantityConfig';
 import { scanIntoRows, splitTrailingCode } from '../src/lib/inward/fastInward';
 import { customerListHtmlBody, customerSheetRows, sortCustomers } from '../src/lib/customers/customerDirectory';
+import { checkBackupPayload } from '../src/lib/backup/cloudBackupService';
+import { breakupSales } from '../src/lib/tally/saleBreakup';
+import { generateCASalesRegisterCSV } from '../src/lib/tally/caExcelGenerator';
+import { generateTallyPrimeXML } from '../src/lib/tally/tallyXmlGenerator';
 import { searchProducts, soundKeys, wordSoundKey } from '../src/lib/search/productSearch';
 import {
   WALK_IN_ID,
@@ -697,7 +701,7 @@ assert(/<AutoBackupScheduler \/>/.test(readSource('components/layout/AppShell.ts
 const backupJs = fs.readFileSync(path.join(__dirname, '..', 'backup.js'), 'utf8');
 assert(/renameSync/.test(backupJs) && /startsWith\(PREFIX\)/.test(backupJs), 'Backups are written atomically and pruning only touches auto-backup files');
 const backupSvc = readSource('lib/backup/cloudBackupService.ts');
-assert(/db\.purchase_bills\.toArray\(\)/.test(backupSvc) && /Array\.isArray\(purchase_bills\) \? db\.purchase_bills\.clear\(\)/.test(backupSvc), 'Backups include purchase bills; an older backup never wipes them');
+assert(/'purchase_bills'/.test(backupSvc.slice(backupSvc.indexOf('BACKUP_TABLES = ['))) && /OPTIONAL_TABLES = new Set<BackupTable>\(\['purchase_bills'/.test(backupSvc) && /if \(list === undefined && OPTIONAL_TABLES\.has\(t\)\) continue;\s*await table\.clear\(\);/.test(backupSvc), 'Backups include purchase bills; an older backup never wipes them');
 
 // 8i. Small known issues stay fixed.
 const statusBarSrc = readSource('components/layout/DesktopStatusBar.tsx');
@@ -1643,6 +1647,74 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(/sortCustomers\(filteredCustomers, sort\)/.test(page) && /<CustomerTableView/.test(page) && /localStorage\.setItem\(CUSTOMER_VIEW_KEY, v\)/.test(page) && /customers=\{shownCustomers\}/.test(page)
     && /await import\('xlsx'\)/.test(controls) && !/from 'xlsx'/.test(controls) && /await import\('@\/lib\/print\/printDocument'\)/.test(controls) && /'Reports'\)/.test(controls),
     'Customers page: grid / list remembered, the shown list is what gets exported, xlsx and the PDF printer load only when used');
+}
+
+// (j) Data Backup & Tax Reports: a backup file is checked before anything is touched, restore
+// is all-or-nothing (merge never overwrites), today's backup is refreshed first; the CA register
+// and Tally file use the GSTR-1 figures (buyer's own GSTIN, IGST across states, no estimates,
+// returns taken off, payment split), every Tally voucher balances, and cancelled bills show in
+// "documents issued".
+{
+  // Backup file check.
+  const good = { metadata: { business_name: 'Shop', created_at: '2026-09-28T10:00:00Z' }, businesses: [{ id: 'b1', name: 'Shop' }], categories: [], products: [{ id: 'p1' }], customers: [], suppliers: [], sales: [{ id: 's1' }], cash_registers: [], cash_expenses: [], sales_returns: [], inventory_movements: [], ledger_transactions: [] };
+  const ok = checkBackupPayload(good);
+  const noId = checkBackupPayload({ ...good, products: [{ id: 'p1' }, { name: 'x' }] });
+  assert(ok.ok && ok.counts.products === 1 && ok.counts.purchase_bills === 0 && ok.shopName === 'Shop'
+    && !checkBackupPayload('nope').ok && !checkBackupPayload({ metadata: {}, products: [] }).ok && !noId.ok && /without an id/.test(noId.ok ? '' : noId.error)
+    && !checkBackupPayload({ ...good, customers: 'x' }).ok,
+    'A backup is checked first: not a backup / a table missing / a record without an id is refused; an older file without purchase bills is fine; counts come from the file');
+  const svc = readSource('lib/backup/cloudBackupService.ts');
+  const modal = readSource('components/backup/RestoreBackupModal.tsx');
+  const backupPage = readSource('app/cloud-backup/page.tsx');
+  assert(/await db\.transaction\('rw', BACKUP_TABLES\.map\(\(t\) => db\.table\(t\)\)/.test(svc) && /if \(t === 'businesses' \|\| !list\?\.length\) continue;/.test(svc) && /!have\.has\(String\(r\.id\)\)/.test(svc) && /await table\.bulkAdd\(fresh\)/.test(svc)
+    && /'marketing_templates', 'audit_logs'/.test(svc) && /feature_switches: parseFeatureSwitches/.test(svc),
+    'Restore runs in one transaction; "add missing" only adds records not here (never overwrites, keeps the shop profile); backups now carry every table and the feature / label choices');
+  assert(/mode === 'clean' && getDesktopApi\(\)\) \{\s*const safety = await runAutoBackup\(\{ force: true \}\)/.test(modal) && /checkBackupPayload\(json\)/.test(backupPage) && /window\.location\.reload\(\)/.test(backupPage),
+    'Before a clean restore today\'s automatic backup is refreshed with the current data; the file is checked on selection; the app reloads after restoring');
+
+  // Bills broken up the GSTR-1 way.
+  const line = (id: string, qty: number, total: number, rate: number, extra: Record<string, unknown> = {}) => {
+    const tax = Math.round(total - total / (1 + rate / 100));
+    return { product_id: id, product_name: id, quantity: qty, unit: 'piece', unit_price: total / qty, total_amount: total, tax_rate: rate, tax_amount: tax, is_tax_inclusive: true, discount_amount: 0, ...extra };
+  };
+  const bill = (id: string, items: ReturnType<typeof line>[], extra: Record<string, unknown> = {}) => ({
+    id, invoice_number: `INV-${id}`, status: 'completed', created_at: '2026-09-10T10:00:00Z', items, subtotal: items.reduce((n, i) => n + i.total_amount - i.tax_amount, 0), tax_total: items.reduce((n, i) => n + i.tax_amount, 0),
+    grand_total: items.reduce((n, i) => n + i.total_amount, 0), discount_total: 0, payment_method: 'cash', payment_status: 'paid', balance_due: 0, customer_name: 'Cash Customer', ...extra,
+  } as unknown as import('../src/types').Sale);
+  const shop = { name: 'My Shop', gstin: '27ABCDE1234F1Z5' } as import('../src/types').Business;
+  const cust = [{ id: 'c1', name: 'Kaveri Traders', gstin: '29AAACK1234A1Z9', phone: '9' } as unknown as import('../src/types').Customer];
+  const sales = [
+    bill('1', [line('A', 1, 11800, 18)]),
+    bill('2', [line('B', 2, 23600, 18)], { customer_id: 'c1', customer_name: 'Kaveri Traders', payment_method: 'credit', balance_due_at_sale: 23600, balance_due: 23600, payment_status: 'unpaid' }),
+    bill('3', [line('C', 1, 5000, 0)], { status: 'draft', invoice_number: 'EST-3' }),
+    bill('4', [line('D', 1, 5000, 0)], { status: 'cancelled' }),
+    bill('5', [line('E', 2, 11800, 18, { returned_quantity: 1 })], { status: 'partial_return' }),
+    bill('6', [line('F', 1, 10000, 0)], { payment_method: 'split', payment_split: { cash_amount: 4000, upi_amount: 3000, card_amount: 1000, credit_amount: 2000 }, customer_id: 'c1', customer_name: 'Kaveri Traders' }),
+  ];
+  const returns = [{ id: 'r1', original_sale_id: '5', items: [{ product_id: 'E', quantity: 1 }], refund_amount: 5900, refund_method: 'cash', created_at: '2026-09-11T10:00:00Z' } as unknown as import('../src/types').SalesReturn];
+  const parts = breakupSales(sales, { shopGstin: shop.gstin!, customers: cust, returns });
+  const by = (n: string) => parts.find((p) => p.sale.id === n);
+  assert(parts.length === 4 && !by('3') && !by('4') && by('1')?.cgst === 900 && by('1')?.sgst === 900 && by('1')?.igst === 0 && by('1')?.pay.cash === 11800
+    && by('2')?.inter === true && by('2')?.igst === 3600 && by('2')?.buyerGstin === '29AAACK1234A1Z9' && by('2')?.pay.credit === 23600 && /^29 /.test(by('2')?.placeOfSupply || '')
+    && by('5')?.total === 5900 && by('5')?.returned === 5900 && by('5')?.pay.cash === 5900
+    && by('6')?.pay.cash === 4000 && by('6')?.pay.bank === 4000 && by('6')?.pay.credit === 2000,
+    'Bills for the accountant: no estimates / cancelled bills, CGST+SGST within the state, IGST for a buyer in another state, returns taken off, payment split cash / UPI-card / udhar');
+  const ca = generateCASalesRegisterCSV({ business: shop, sales, customers: cust, returns });
+  const caLines = ca.csv.split('\r\n');
+  assert(ca.csv.charCodeAt(0) === 0xfeff && ca.count === 4 && caLines.length === 6 && caLines[2].includes('"29AAACK1234A1Z9"') && caLines[2].includes('"Inter-State"') && !ca.csv.includes('EST-3')
+    && !caLines[1].includes(shop.gstin!) && /"TOTAL"/.test(caLines[5]) && caLines[5].includes('36.00'),
+    'CA register: BOM for Excel, the buyer\'s own GSTIN (never the shop\'s), inter-state marked, no estimate, a totals row with IGST');
+  const tally = generateTallyPrimeXML({ business: shop, sales, customers: cust, returns });
+  const vouchers = tally.xml.split('<VOUCHER ').slice(1);
+  const unbalanced = vouchers.filter((v) => Math.round(Array.from(v.matchAll(/<AMOUNT>(-?[\d.]+)<\/AMOUNT>/g)).reduce((n, m) => n + Number(m[1]) * 100, 0)) !== 0);
+  assert(vouchers.length === 4 && unbalanced.length === 0 && !/ALLINVENTORYENTRIES/.test(tally.xml) && /<LEDGERNAME>Output IGST<\/LEDGERNAME>/.test(tally.xml) && /<GSTDUTYHEAD>Integrated Tax<\/GSTDUTYHEAD>/.test(tally.xml)
+    && !/LEDGER NAME="Bank Accounts"/.test(tally.xml) && !/LEDGER NAME="Cash"/.test(tally.xml) && /LEDGER NAME="Kaveri Traders"/.test(tally.xml) && !tally.xml.includes('EST-3'),
+    'Tally: one balanced Sales voucher per bill (debits = credits to the paisa), no stock lines Tally could reject, GST ledgers with their duty head, no clash with Tally\'s own "Bank Accounts" / "Cash"');
+
+  // GSTR-1 documents issued count cancelled bills (the page now passes them).
+  const doc = generateGSTR1Report(sales, cust, shop, 'Sep 2026');
+  assert(doc.doc_cancelled_count === 1 && doc.total_invoices_count === 5 && doc.doc_from_num === 'INV-1' && /generateGSTR1Report\(periodSales \|\| \[\]/.test(readSource('app/gst-reports/page.tsx')),
+    'GSTR-1 documents issued: every tax invoice counted, cancelled ones shown (net issued = total − cancelled); estimates are not documents');
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.

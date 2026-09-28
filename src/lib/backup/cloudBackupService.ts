@@ -1,244 +1,173 @@
-// Comprehensive Local Database Backup, JSON Snapshot & Restore Service for KamaiPlus
+// Local database backup (JSON snapshot) and restore for KamaiPlus.
 import { db } from '@/lib/db';
 import { tr } from '@/lib/i18n/core';
+import { FEATURE_SWITCHES_EVENT, FEATURE_SWITCHES_KEY, parseFeatureSwitches } from '@/lib/features/featureSwitches';
+import { getLabelSettings, parseLabelSettings, saveLabelSettings } from '@/lib/labels/labelSettings';
+
+/** Every table of the shop's database, in restore order. */
+export const BACKUP_TABLES = [
+  'businesses', 'categories', 'products', 'customers', 'suppliers', 'sales', 'cash_registers', 'cash_expenses',
+  'sales_returns', 'inventory_movements', 'ledger_transactions', 'purchase_bills', 'marketing_templates', 'audit_logs',
+] as const;
+export type BackupTable = (typeof BACKUP_TABLES)[number];
+
+/** Tables older backups do not carry (purchase bills before v4.46.0, the last two before v4.78.0). */
+const OPTIONAL_TABLES = new Set<BackupTable>(['purchase_bills', 'marketing_templates', 'audit_logs']);
 
 export interface BackupMetadata {
   version: string;
   created_at: string;
   business_name: string;
   business_gstin?: string;
-  counts: {
-    products: number;
-    customers: number;
-    suppliers: number;
-    sales: number;
-    cash_registers: number;
-    cash_expenses: number;
-    sales_returns: number;
-    inventory_movements: number;
-    ledger_transactions: number;
-    purchase_bills?: number;
-  };
+  counts: Partial<Record<BackupTable, number>>;
 }
 
-export interface FullBackupPayload {
-  metadata: BackupMetadata;
-  businesses: any[];
-  categories: any[];
-  products: any[];
-  customers: any[];
-  suppliers: any[];
-  sales: any[];
-  cash_registers: any[];
-  cash_expenses: any[];
-  sales_returns: any[];
-  inventory_movements: any[];
-  ledger_transactions: any[];
-  /** Supplier bills. Absent in backups made before v4.46.0. */
-  purchase_bills?: any[];
+/** Shop choices kept per computer that a new computer needs too (v4.78.0). */
+export interface BackupSettings {
+  feature_switches?: Record<string, boolean>;
+  /** Label size and what the label shows — not the printer (that belongs to the computer). */
+  label_settings?: Record<string, unknown>;
 }
 
-/**
- * Generate full database backup payload
- */
+export type FullBackupPayload = { metadata: BackupMetadata; settings?: BackupSettings } & { [K in BackupTable]?: any[] };
+
+/** The whole database as one JSON-able object. */
 export async function createFullBackupPayload(): Promise<FullBackupPayload> {
-  const [
-    businesses,
-    categories,
-    products,
-    customers,
-    suppliers,
-    sales,
-    cash_registers,
-    cash_expenses,
-    sales_returns,
-    inventory_movements,
-    ledger_transactions,
-    purchase_bills,
-  ] = await Promise.all([
-    db.businesses.toArray(),
-    db.categories.toArray(),
-    db.products.toArray(),
-    db.customers.toArray(),
-    db.suppliers.toArray(),
-    db.sales.toArray(),
-    db.cash_registers.toArray(),
-    db.cash_expenses.toArray(),
-    db.sales_returns.toArray(),
-    db.inventory_movements.toArray(),
-    db.ledger_transactions.toArray(),
-    db.purchase_bills.toArray(),
-  ]);
-
-  const biz = businesses[0];
-  const now = new Date().toISOString();
-
-  const metadata: BackupMetadata = {
-    version: '2.0.0',
-    created_at: now,
-    business_name: biz?.name || 'My Store',
-    business_gstin: biz?.gstin || undefined,
-    counts: {
-      products: products.length,
-      customers: customers.length,
-      suppliers: suppliers.length,
-      sales: sales.length,
-      cash_registers: cash_registers.length,
-      cash_expenses: cash_expenses.length,
-      sales_returns: sales_returns.length,
-      inventory_movements: inventory_movements.length,
-      ledger_transactions: ledger_transactions.length,
-      purchase_bills: purchase_bills.length,
-    },
-  };
-
-  return {
-    metadata,
-    businesses,
-    categories,
-    products,
-    customers,
-    suppliers,
-    sales,
-    cash_registers,
-    cash_expenses,
-    sales_returns,
-    inventory_movements,
-    ledger_transactions,
-    purchase_bills,
-  };
+  const rows = await Promise.all(BACKUP_TABLES.map((t) => db.table(t).toArray()));
+  const payload: FullBackupPayload = { metadata: { version: '2.1.0', created_at: new Date().toISOString(), business_name: 'My Store', counts: {} } };
+  BACKUP_TABLES.forEach((t, i) => {
+    payload[t] = rows[i];
+    payload.metadata.counts[t] = rows[i].length;
+  });
+  const biz = rows[0][0];
+  payload.metadata.business_name = biz?.name || 'My Store';
+  payload.metadata.business_gstin = biz?.gstin || undefined;
+  try {
+    const { printer: _printer, ...label } = getLabelSettings();
+    payload.settings = { feature_switches: parseFeatureSwitches(localStorage.getItem(FEATURE_SWITCHES_KEY)), label_settings: label };
+  } catch {}
+  return payload;
 }
 
-/**
- * Download backup as a timestamped JSON file
- */
+export function backupFileName(shopName: string, date = new Date()): string {
+  const safe = (shopName || 'Store').replace(/[^a-zA-Z0-9]/g, '_');
+  return `KamaiPlus_Backup_${safe}_${date.toISOString().split('T')[0]}.json`;
+}
+
+/** Download the backup as a dated JSON file (a Save dialog in the desktop app). */
 export async function downloadBackupJSON(): Promise<string> {
   const payload = await createFullBackupPayload();
-  const jsonStr = JSON.stringify(payload, null, 2);
-  const blob = new Blob([jsonStr], { type: 'application/json' });
-
-  const safeBizName = (payload.metadata.business_name || 'Store').replace(/[^a-zA-Z0-9]/g, '_');
-  const dateStr = new Date().toISOString().split('T')[0];
-  const filename = `KamaiPlus_Backup_${safeBizName}_${dateStr}.json`;
-
+  const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+  const filename = backupFileName(payload.metadata.business_name);
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;
   a.click();
-  URL.revokeObjectURL(url);
-
-  // Update local last backup timestamp
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
   try {
     localStorage.setItem('kamai_last_backup_time', new Date().toISOString());
     localStorage.setItem('kamai_last_backup_type', 'local_file');
-  } catch (e) {}
-
+  } catch {}
   return filename;
 }
 
+export type BackupCheck =
+  | { ok: true; payload: FullBackupPayload; counts: Record<BackupTable, number>; shopName: string; createdAt: string }
+  | { ok: false; error: string };
+
 /**
- * Restore database from a backup payload
+ * Is this a KamaiPlus backup that can be restored? Every table in it must be a list of
+ * records with an id (a damaged or foreign file is refused before anything is touched).
+ * Counts come from the file's own lists, not from what its header claims.
+ */
+export function checkBackupPayload(json: unknown): BackupCheck {
+  const bad = (error: string): BackupCheck => ({ ok: false, error });
+  if (!json || typeof json !== 'object' || Array.isArray(json)) return bad(tr('This is not a KamaiPlus backup file.'));
+  const data = json as Record<string, unknown>;
+  const meta = data.metadata as Record<string, unknown> | undefined;
+  if (!meta || typeof meta !== 'object' || !Array.isArray(data.products) || !Array.isArray(data.sales)) return bad(tr('This is not a KamaiPlus backup file.'));
+  const counts = {} as Record<BackupTable, number>;
+  for (const t of BACKUP_TABLES) {
+    const list = data[t];
+    if (list === undefined && OPTIONAL_TABLES.has(t)) {
+      counts[t] = 0;
+      continue;
+    }
+    if (!Array.isArray(list)) return bad(tr('The backup file is damaged ({table} missing).', { table: t }));
+    if (list.some((r) => !r || typeof r !== 'object' || typeof (r as { id?: unknown }).id !== 'string' || !(r as { id: string }).id)) {
+      return bad(tr('The backup file is damaged ({table}: a record without an id).', { table: t }));
+    }
+    counts[t] = list.length;
+  }
+  const businesses = data.businesses as { name?: string }[];
+  return {
+    ok: true,
+    payload: data as FullBackupPayload,
+    counts,
+    shopName: String(meta.business_name || businesses[0]?.name || ''),
+    createdAt: String(meta.created_at || ''),
+  };
+}
+
+/**
+ * Restore in ONE transaction — if any record fails, nothing changes (v4.78.0; before,
+ * "Clean Replace" emptied every table first and a failure left the shop with half its data).
+ *   clean — the database becomes exactly the backup (and its feature / label choices)
+ *   merge — only records the shop does not have yet are added; nothing saved here is
+ *           overwritten (before, "merge" put old balances, stock and prices back) and the
+ *           shop profile is kept
  */
 export async function restoreDatabaseFromPayload(
   payload: FullBackupPayload,
   mode: 'clean' | 'merge' = 'clean'
-): Promise<{ success: boolean; message: string }> {
-  if (!payload || !payload.metadata || !payload.products) {
-    throw new Error(tr('Invalid backup file. Missing essential database collections.'));
-  }
+): Promise<{ success: boolean; message: string; added: Partial<Record<BackupTable, number>> }> {
+  const check = checkBackupPayload(payload);
+  if (!check.ok) throw new Error(check.error);
+  const added: Partial<Record<BackupTable, number>> = {};
 
-  const {
-    businesses,
-    categories,
-    products,
-    customers,
-    suppliers,
-    sales,
-    cash_registers,
-    cash_expenses,
-    sales_returns,
-    inventory_movements,
-    ledger_transactions,
-    purchase_bills,
-  } = payload;
+  await db.transaction('rw', BACKUP_TABLES.map((t) => db.table(t)), async () => {
+    for (const t of BACKUP_TABLES) {
+      const list = payload[t];
+      const table = db.table(t);
+      if (mode === 'clean') {
+        // A table an older backup does not carry is left as it is.
+        if (list === undefined && OPTIONAL_TABLES.has(t)) continue;
+        await table.clear();
+        if (list?.length) await table.bulkPut(list);
+        added[t] = list?.length || 0;
+      } else {
+        if (t === 'businesses' || !list?.length) continue;
+        const have = new Set((await table.toCollection().primaryKeys()).map(String));
+        const fresh = list.filter((r) => !have.has(String(r.id)));
+        if (fresh.length) await table.bulkAdd(fresh);
+        added[t] = fresh.length;
+      }
+    }
+  });
 
-  if (mode === 'clean') {
-    // Clear all existing tables. Purchase bills are cleared only when the backup
-    // carries them, so restoring an older backup never wipes supplier bills.
-    await Promise.all([
-      Array.isArray(purchase_bills) ? db.purchase_bills.clear() : Promise.resolve(),
-      db.businesses.clear(),
-      db.categories.clear(),
-      db.products.clear(),
-      db.customers.clear(),
-      db.suppliers.clear(),
-      db.sales.clear(),
-      db.cash_registers.clear(),
-      db.cash_expenses.clear(),
-      db.sales_returns.clear(),
-      db.inventory_movements.clear(),
-      db.ledger_transactions.clear(),
-    ]);
-  }
-
-  // Bulk put all records
-  await Promise.all([
-    businesses?.length ? db.businesses.bulkPut(businesses) : Promise.resolve(),
-    categories?.length ? db.categories.bulkPut(categories) : Promise.resolve(),
-    products?.length ? db.products.bulkPut(products) : Promise.resolve(),
-    customers?.length ? db.customers.bulkPut(customers) : Promise.resolve(),
-    suppliers?.length ? db.suppliers.bulkPut(suppliers) : Promise.resolve(),
-    sales?.length ? db.sales.bulkPut(sales) : Promise.resolve(),
-    cash_registers?.length ? db.cash_registers.bulkPut(cash_registers) : Promise.resolve(),
-    cash_expenses?.length ? db.cash_expenses.bulkPut(cash_expenses) : Promise.resolve(),
-    sales_returns?.length ? db.sales_returns.bulkPut(sales_returns) : Promise.resolve(),
-    inventory_movements?.length ? db.inventory_movements.bulkPut(inventory_movements) : Promise.resolve(),
-    ledger_transactions?.length ? db.ledger_transactions.bulkPut(ledger_transactions) : Promise.resolve(),
-    purchase_bills?.length ? db.purchase_bills.bulkPut(purchase_bills) : Promise.resolve(),
-  ]);
-
+  if (mode === 'clean') applyBackupSettings(payload.settings);
   try {
     localStorage.setItem('kamai_last_restore_time', new Date().toISOString());
-  } catch (e) {}
+  } catch {}
 
-  return {
-    success: true,
-    message: tr('Restored {v1} products, {v2} customers, and {v3} sales successfully!', { v1: products?.length || 0, v2: customers?.length || 0, v3: sales?.length || 0 }),
-  };
+  const message = mode === 'clean'
+    ? tr('Restored {v1} products, {v2} customers, and {v3} sales successfully!', { v1: added.products || 0, v2: added.customers || 0, v3: added.sales || 0 })
+    : tr('Added {v1} products, {v2} customers and {v3} bills that were missing. Nothing already here was changed.', { v1: added.products || 0, v2: added.customers || 0, v3: added.sales || 0 });
+  return { success: true, message, added };
 }
 
-/**
- * Export timestamped JSON backup snapshot file
- */
-export async function exportDatabaseSnapshot(): Promise<{ success: boolean; filename: string }> {
-  const payload = await createFullBackupPayload();
-  const jsonStr = JSON.stringify(payload, null, 2);
-  const blob = new Blob([jsonStr], { type: 'application/json' });
-
-  const safeBizName = (payload.metadata.business_name || 'Store').replace(/[^a-zA-Z0-9]/g, '_');
-  const dateStr = new Date().toISOString().replace(/[:.]/g, '-');
-  const filename = `KamaiPlus_Snapshot_${safeBizName}_${dateStr}.json`;
-
-  // Save last backup status
+/** Feature switches and label setup from a backup (the label printer stays this computer's). */
+function applyBackupSettings(settings?: BackupSettings) {
+  if (!settings || typeof window === 'undefined') return;
   try {
-    localStorage.setItem('kamai_last_backup_time', new Date().toISOString());
-    localStorage.setItem('kamai_last_backup_type', 'local_snapshot');
-  } catch (e) {}
-
-  // Trigger browser download of JSON payload
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-
-  return {
-    success: true,
-    filename,
-  };
+    if (settings.feature_switches && typeof settings.feature_switches === 'object') {
+      localStorage.setItem(FEATURE_SWITCHES_KEY, JSON.stringify(parseFeatureSwitches(JSON.stringify(settings.feature_switches))));
+      window.dispatchEvent(new Event(FEATURE_SWITCHES_EVENT));
+    }
+    if (settings.label_settings && typeof settings.label_settings === 'object') {
+      const printer = getLabelSettings().printer;
+      saveLabelSettings({ ...parseLabelSettings(JSON.stringify(settings.label_settings)), printer });
+    }
+  } catch {}
 }
-
-// Alias for backwards compatibility
-export const uploadBackupToGoogleDrive = exportDatabaseSnapshot;
