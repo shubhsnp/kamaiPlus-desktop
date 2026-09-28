@@ -827,6 +827,11 @@ with the reason) → import.
   colour and a cost code in the shop's 10-letter word — `labelExtras.ts`), default copies.
   Edited in `LabelSetupPanel` — Settings → Invoice & Bill Rules (`LabelPrinterCard`),
   Barcode Studio and the 1-click label share it, with a **Test print**.
+- **Add / Edit Product (v4.78.0)**: `ProductBarcodeField` — "Generate" fills the next store code
+  (only while the box is empty); **"Save & print label"** is a second submit button
+  (`data-save-action="print"`) — after saving, the 1-click label window
+  (`QuickBarcodePrintModal`, `initialCopies`) opens; a new counted item starts at one label per
+  piece. Not offered for a new item with variants.
 - **One HTML for preview and print** (`buildLabelHtml`): sizes in mm; a roll is one row of
   labels per page (`@page` = across × width + gaps by height), an A4 sheet one sheet per
   page. Names render in Nirmala UI (Devanagari). The preview is that HTML in a sandboxed

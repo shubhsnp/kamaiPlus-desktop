@@ -1546,6 +1546,20 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     '"New stock + labels" has "+ New" next to the category: it saves the category and picks it');
 }
 
+// (f) Add / Edit Product: "Generate" fills the shop's next own barcode (only while the box is
+// empty — a maker's code is never replaced); "Save & print label" saves, then opens the item's
+// labels (a new counted item: one per piece).
+{
+  const field = readSource('components/products/ProductBarcodeField.tsx');
+  const form = readSource('components/products/AddEditProductModal.tsx');
+  const productsPage = readSource('app/products/page.tsx');
+  assert(/nextStoreBarcodes\(await barcodesInUse\(\), 1\)/.test(field) && /\{!value\.trim\(\) && \(/.test(field) && /<ProductBarcodeField/.test(form),
+    'Product form: "Generate" gives the next unused store barcode, shown only while the barcode box is empty');
+  assert(/data-save-action="print"/.test(form) && /\.dataset\?\.saveAction === 'print'/.test(productsPage) && /if \(printAfterSave && saved\) \{/.test(productsPage)
+    && /setBarcodePrintCopies\(!editingProduct && !formIsUnlimitedStock && stockNum > 0 \? stockNum : undefined\)/.test(productsPage) && /initialCopies=\{barcodePrintCopies\}/.test(productsPage),
+    'Product form: "Save & print label" is a real submit (form checks still run), then the label window opens with one label per piece of a new item');
+}
+
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.
 const PRO_OR_AI = /useProSubscription|requirePro|UpgradeModal|ProFeatureBadge|subscriptionService|razorpay|generativelanguage\.googleapis|gemini/i;
 const proOrAiOffenders = ALL_SOURCE.filter((f) => PRO_OR_AI.test(fs.readFileSync(f, 'utf8')));

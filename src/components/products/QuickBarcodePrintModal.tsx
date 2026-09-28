@@ -18,6 +18,8 @@ interface QuickBarcodePrintModalProps {
   onClose: () => void;
   product: Product | null;
   storeName?: string;
+  /** Copies to start with (e.g. a new item's stock); default = the label setup's copies. */
+  initialCopies?: number;
 }
 
 /**
@@ -25,7 +27,7 @@ interface QuickBarcodePrintModalProps {
  * same engine, size and printer as Barcode Studio). An item without a barcode gets
  * its own store code saved first, so the label scans back to it.
  */
-export const QuickBarcodePrintModal: React.FC<QuickBarcodePrintModalProps> = ({ isOpen, onClose, product, storeName = '' }) => {
+export const QuickBarcodePrintModal: React.FC<QuickBarcodePrintModalProps> = ({ isOpen, onClose, product, storeName = '', initialCopies }) => {
   const [settings, setSettings] = useState<LabelSettings>(getLabelSettings);
   const [copies, setCopies] = useState<number>(() => getLabelSettings().copies);
   const [showSetup, setShowSetup] = useState(false);
@@ -43,6 +45,7 @@ export const QuickBarcodePrintModal: React.FC<QuickBarcodePrintModalProps> = ({ 
     if (!isOpen || !product) return;
     let live = true;
     setError('');
+    setCopies(initialCopies && initialCopies > 0 ? Math.min(999, Math.ceil(initialCopies)) : getLabelSettings().copies);
     setBarcodeValue(product.barcode?.trim() || '');
     if (!product.barcode?.trim()) {
       ensureProductBarcode(product).then((code) => live && setBarcodeValue(code)).catch((err) => console.error('Barcode assign failed:', err));

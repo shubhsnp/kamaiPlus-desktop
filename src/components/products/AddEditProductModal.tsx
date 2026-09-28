@@ -4,7 +4,6 @@ import React from 'react';
 import { 
   Plus, 
   Edit3, 
-  Barcode, 
   Tag, 
   Sparkles, 
   Scale, 
@@ -12,7 +11,8 @@ import {
   Trash2,
   Building2,
   Boxes,
-  Infinity as InfinityIcon
+  Infinity as InfinityIcon,
+  Printer
 } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
@@ -23,6 +23,7 @@ import { VariantMatrixEditor, VariantRow } from '@/components/products/VariantMa
 import { DEFAULT_COUNTED_STOCK } from '@/lib/products/variants';
 import { showSellingPriceField, useFeatureSwitches } from '@/lib/features/featureSwitches';
 import { tr } from '@/lib/i18n/core';
+import { ProductBarcodeField } from './ProductBarcodeField';
 
 interface AddEditProductModalProps {
   isOpen: boolean;
@@ -274,26 +275,7 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
 
         {/* Barcode, HSN & GST Rate (HSN and GST only when switched on in Settings → Features) */}
         <div className={`grid grid-cols-1 ${SM_COLS[codeFieldCount]} gap-3`}>
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                {tr('Barcode / EAN-13')}
-              </label>
-              <button
-                type="button"
-                onClick={onOpenScanner}
-                className="text-[11px] font-bold text-sky-600 hover:underline flex items-center gap-1 cursor-pointer"
-              >
-                <Barcode className="w-3 h-3" />
-                <span>{tr('Scan Camera')}</span>
-              </button>
-            </div>
-            <Input
-              placeholder={tr('e.g. 8901030383748')}
-              value={formBarcode}
-              onChange={(e) => setFormBarcode(e.target.value)}
-            />
-          </div>
+          <ProductBarcodeField value={formBarcode} onChange={setFormBarcode} onOpenScanner={onOpenScanner} />
 
           {/* HSN / SAC: printed on GST invoices and grouped in the GSTR-1 HSN summary */}
           {switches.product_hsn && (
@@ -463,6 +445,13 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
             <Button type="button" variant="outline" onClick={onClose} className="rounded-xl">
               {tr('Cancel')}
             </Button>
+            {/* Save, then its labels (the 1-click label window) — not for a new item with variants (each size has its own). */}
+            {!(variantsEnabled && !editingProduct) && (
+              <Button type="submit" variant="outline" data-save-action="print" className="rounded-xl font-bold gap-1" data-product-save-print>
+                <Printer className="w-3.5 h-3.5" />
+                {tr('Save & print label')}
+              </Button>
+            )}
             <Button type="submit" className="font-black bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-950 hover:bg-slate-800 rounded-xl">
               {editingProduct ? tr('Update Product') : tr('Save Product')}
             </Button>

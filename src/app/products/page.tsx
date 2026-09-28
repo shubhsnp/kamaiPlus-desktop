@@ -66,6 +66,8 @@ export default function ProductsPage() {
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [isBarcodePrintOpen, setIsBarcodePrintOpen] = useState(false);
   const [barcodePrintProduct, setBarcodePrintProduct] = useState<Product | null>(null);
+  // "Save & print label": copies for the 1-click label window (a new counted item: its stock).
+  const [barcodePrintCopies, setBarcodePrintCopies] = useState<number | undefined>(undefined);
 
   useEffect(() => {
     try {
@@ -240,6 +242,8 @@ export default function ProductsPage() {
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
+    // Pressed "Save & print label" (v4.78.0): after saving, its labels open.
+    const printAfterSave = ((e.nativeEvent as SubmitEvent).submitter as HTMLElement | null)?.dataset?.saveAction === 'print';
 
     // "Separate Selling Price" off: the form shows only MRP and the item sells at MRP.
     const sellingShown = showSellingPriceField(switches.product_selling_price, editingProduct);
@@ -317,13 +321,11 @@ export default function ProductsPage() {
     }
 
     try {
+      let saved: Product | null = null;
       if (editingProduct) {
         // Keep fields the form does not show (variant links, supplier, IMEI…).
-        await db.products.put({
-          ...editingProduct,
-          ...productPayload,
-          id: editingProduct.id,
-        });
+        saved = { ...editingProduct, ...productPayload, id: editingProduct.id };
+        await db.products.put(saved);
       } else if (useVariants) {
         await createProductWithVariants(
           { ...productPayload, id: `prod_${Date.now()}` },
@@ -337,10 +339,8 @@ export default function ProductsPage() {
         );
       } else {
         const newId = `prod_${Date.now()}`;
-        await db.products.put({
-          ...productPayload,
-          id: newId,
-        });
+        saved = { ...productPayload, id: newId };
+        await db.products.put(saved);
 
         // Opening-stock entry in the stock history (an unlimited item has no count to record)
         if (!formIsUnlimitedStock) await db.inventory_movements.put({
@@ -359,6 +359,11 @@ export default function ProductsPage() {
       }
 
       setIsModalOpen(false);
+      if (printAfterSave && saved) {
+        setBarcodePrintProduct(saved);
+        setBarcodePrintCopies(!editingProduct && !formIsUnlimitedStock && stockNum > 0 ? stockNum : undefined);
+        setIsBarcodePrintOpen(true);
+      }
     } catch (err) {
       console.error('Failed to save product:', err);
     }
@@ -415,6 +420,7 @@ export default function ProductsPage() {
 
   const handle1ClickBarcodePrint = (p: Product) => {
     setBarcodePrintProduct(p);
+    setBarcodePrintCopies(undefined);
     setIsBarcodePrintOpen(true);
   };
 
@@ -646,6 +652,7 @@ export default function ProductsPage() {
         isOpen={isBarcodePrintOpen}
         onClose={() => setIsBarcodePrintOpen(false)}
         product={barcodePrintProduct}
+        initialCopies={barcodePrintCopies}
         storeName={business?.name}
       />
     </div>
