@@ -586,7 +586,7 @@ src/app/layout.tsx          (server component — metadata, viewport, fonts)
             ├── <main><FeatureGate>{children}</FeatureGate></main>   ◄── the route renders here
             │                                (switched-off screen → "turned off" card, §9.2)
             ├── <DesktopStatusBar>        online/printer/clock/version; the page's keys; "Bill rules" / "Help" links (v4.78.0)
-            └── <GlobalDrawers>           right-edge Checkout + History pull-tabs
+            └── <GlobalDrawers>           right-edge "Transactions" pull-tab (recent bills; was "History" before v4.78.0)
                                           (hidden on /billing)
 ```
 

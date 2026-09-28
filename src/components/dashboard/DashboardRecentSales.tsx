@@ -12,7 +12,8 @@ import {
   Printer, 
   Phone,
   Clock,
-  Sparkles
+  Sparkles,
+  X
 } from 'lucide-react';
 import { Sale, Business } from '@/types';
 import { formatINR, cn } from '@/lib/utils';
@@ -22,12 +23,15 @@ interface DashboardRecentSalesProps {
   sales: Sale[];
   onSelectSaleForInvoice: (sale: Sale) => void;
   business?: Business | null;
+  /** In the Transactions drawer: a close button in this header (the drawer has no header of its own). */
+  onClose?: () => void;
 }
 
 export const DashboardRecentSales: React.FC<DashboardRecentSalesProps> = ({
   sales,
   onSelectSaleForInvoice,
   business,
+  onClose,
 }) => {
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -116,6 +120,11 @@ export const DashboardRecentSales: React.FC<DashboardRecentSalesProps> = ({
           >
             {isCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
           </button>
+          {onClose && (
+            <button type="button" onClick={onClose} className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition cursor-pointer" aria-label={tr('Close')} data-drawer-close>
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 

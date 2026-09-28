@@ -1512,6 +1512,15 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     'Status bar "Bill rules" / "Help" open those Settings tabs (switching in place when Settings is open, still asking about unsaved changes)');
 }
 
+// (c) The right-edge drawer is "Transactions"; once open it has no second "Recent Sales" title
+// (the list's own header carries the close button).
+{
+  const drawers = readSource('components/layout/GlobalDrawers.tsx');
+  const recent = readSource('components/dashboard/DashboardRecentSales.tsx');
+  assert(/tr\('Transactions'\)/.test(drawers) && !/Recent Sales|'HISTORY'/.test(drawers) && /onClose=\{\(\) => setIsHistoryOpen\(false\)\}/.test(drawers) && /\{onClose && \(/.test(recent),
+    'The history drawer is called "Transactions" and shows no extra "Recent Sales" title; its close button sits in the list header');
+}
+
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.
 const PRO_OR_AI = /useProSubscription|requirePro|UpgradeModal|ProFeatureBadge|subscriptionService|razorpay|generativelanguage\.googleapis|gemini/i;
 const proOrAiOffenders = ALL_SOURCE.filter((f) => PRO_OR_AI.test(fs.readFileSync(f, 'utf8')));

@@ -442,14 +442,14 @@ async function run() {
     const backupCard = await page.getByText('Automatic Daily Backups', { exact: false }).first().isVisible();
     check(backupCard, 'Auto Backup card showing daily backup safety status');
 
-    // ── STEP 16: Right Edge Global Drawers (History) ──
-    console.log('\n--- 15. Global Drawers (Recent Sales History) ---');
-    const historyTab = page.locator('div:has-text("HISTORY")').first();
+    // ── STEP 16: Right Edge Global Drawers (Transactions) ──
+    console.log('\n--- 15. Global Drawers (Transactions) ---');
+    const historyTab = page.locator('[data-transactions-tab]').first();
     if (await historyTab.isVisible()) {
       await historyTab.click();
       await page.waitForTimeout(600);
-      const drawerTitle = await page.getByText('Recent Sales', { exact: false }).first().isVisible();
-      check(drawerTitle, 'Global History Drawer opens smoothly from right edge');
+      const drawerTitle = await page.locator('[data-drawer-close]').first().isVisible();
+      check(drawerTitle, 'Transactions drawer opens smoothly from right edge');
       await takeShot(page, '17_history_drawer');
       // Press Escape to close
       await page.keyboard.press('Escape');
