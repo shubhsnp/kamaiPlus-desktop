@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { db as localDb } from '@/lib/db';
 import { AuthUser, getStoredUser, setStoredUser } from '@/lib/auth';
 import { clearUnlockDestination, isAppLocked, lockApp, unlockDestination } from '@/lib/auth/masterPassword';
-import { globalShortcutFor } from '@/lib/ui/globalShortcuts';
+import { globalShortcutFor, NEW_BILL_HREF } from '@/lib/ui/globalShortcuts';
 import { IdleLock } from './IdleLock';
 import { WhatsNewModal } from '@/components/whatsNew/WhatsNewModal';
 import { Navbar } from './Navbar';
@@ -164,19 +164,18 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   }, [pathname, currentUser, locked, isClient, router]);
 
   // --- 3. GLOBAL KEYBOARD SHORTCUTS (lib/ui/globalShortcuts.ts — the status bar shows the same list) ---
-  // Ctrl+H Home and Ctrl+L Lock work while typing too (the POS search box always has the
-  // cursor, and Ctrl keys type no text); Shift+B Billing (Home only) never does.
+  // F1 (new bill), Ctrl+H (Home) and Ctrl+L (Lock) work while typing too — they type no text.
+  // With a window (form, dialog) open, F1 / Ctrl+H do nothing: leaving would lose what was typed.
   useEffect(() => {
     if (!isClient || !currentUser || locked) return;
 
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      const el = e.target as HTMLElement | null;
-      const typing = Boolean(el && (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement || el.isContentEditable));
-      const action = globalShortcutFor(e, pathname, typing);
+      const windowOpen = Boolean(document.querySelector('[aria-modal="true"]'));
+      const action = globalShortcutFor(e, pathname, windowOpen);
       if (!action) return;
       e.preventDefault();
       if (action === 'home') router.push('/');
-      else if (action === 'billing') router.push('/billing');
+      else if (action === 'billing') router.push(NEW_BILL_HREF);
       else if (action === 'lock') lockApp(pathname);
     };
 

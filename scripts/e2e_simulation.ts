@@ -64,7 +64,7 @@ import {
   isRevenueSale,
 } from '../src/lib/sales/saleMath';
 import { computeDrawerSummary, localDateKey } from '../src/lib/reports/cashDrawer';
-import { cartBeyond, makeEmptyTab, tabsAfterClosing, tabsAfterSale } from '../src/lib/billing/billTabs';
+import { cartBeyond, makeEmptyTab, tabsAfterClosing, tabsAfterSale, tabsForNewBill } from '../src/lib/billing/billTabs';
 import { applyPaymentToBill, openBillsOldestFirst, planBillAllocation } from '../src/lib/khata/billAllocation';
 import { generalCategoryId } from '../src/lib/products/defaultCategory';
 import { nextSupplierBalance } from '../src/lib/suppliers/supplierLedger';
@@ -1488,18 +1488,31 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
 }
 
 // 9j. Small changes (v4.78.0).
-// (a) Global keys: Ctrl+H Home and Ctrl+L Lock from any page, even with the cursor in a
-// box (the POS search box always has it); Shift+B Billing only on Home and never while typing.
+// (a) Global keys: F1 opens Billing on a fresh bill from any page (was Shift+B on Home only),
+// Ctrl+H Home, Ctrl+L Lock — also with the cursor in a box; F1 / Ctrl+H never while a window
+// (form) is open, so nothing typed there is lost.
 {
   const k = (key: string, mods: Partial<{ ctrlKey: boolean; shiftKey: boolean; altKey: boolean }> = {}) => ({ key, ctrlKey: false, shiftKey: false, altKey: false, ...mods });
-  assert(globalShortcutFor(k('l', { ctrlKey: true }), '/billing', true) === 'lock' && globalShortcutFor(k('L', { ctrlKey: true }), '/products', false) === 'lock'
-    && globalShortcutFor(k('h', { ctrlKey: true }), '/billing', true) === 'home' && globalShortcutFor(k('h', { ctrlKey: true }), '/', false) === null
-    && globalShortcutFor(k('B', { shiftKey: true }), '/', false) === 'billing' && globalShortcutFor(k('B', { shiftKey: true }), '/', true) === null && globalShortcutFor(k('B', { shiftKey: true }), '/products', false) === null
-    && globalShortcutFor(k('l', { ctrlKey: true, shiftKey: true }), '/', false) === null && globalShortcutFor(k('l'), '/', false) === null,
-    'Global keys: Ctrl+L locks and Ctrl+H goes Home from any page (also while typing); Shift+B opens Billing only from Home, never while typing');
+  assert(globalShortcutFor(k('l', { ctrlKey: true }), '/billing') === 'lock' && globalShortcutFor(k('L', { ctrlKey: true }), '/products', true) === 'lock'
+    && globalShortcutFor(k('h', { ctrlKey: true }), '/billing') === 'home' && globalShortcutFor(k('h', { ctrlKey: true }), '/') === null && globalShortcutFor(k('h', { ctrlKey: true }), '/products', true) === null
+    && globalShortcutFor(k('F1'), '/') === 'billing' && globalShortcutFor(k('F1'), '/products/') === 'billing' && globalShortcutFor(k('F1'), '/billing') === null && globalShortcutFor(k('F1'), '/customers', true) === null
+    && globalShortcutFor(k('B', { shiftKey: true }), '/') === null && globalShortcutFor(k('F1', { shiftKey: true }), '/') === null
+    && globalShortcutFor(k('l', { ctrlKey: true, shiftKey: true }), '/') === null && globalShortcutFor(k('l'), '/') === null,
+    'Global keys: F1 opens Billing from any page (Billing keeps its own F1), Ctrl+H Home, Ctrl+L Lock; with a form open F1 / Ctrl+H do nothing; Shift+B is no longer a shortcut');
   const shell = readSource('components/layout/AppShell.tsx');
-  assert(/globalShortcutFor\(e, pathname, typing\)/.test(shell) && /action === 'lock'\) lockApp\(pathname\)/.test(shell) && /if \(!isClient \|\| !currentUser \|\| locked\) return;/.test(shell),
-    'AppShell runs the global keys from one shared list, and only when the shop is open (not on the password screen)');
+  assert(/const windowOpen = Boolean\(document\.querySelector\('\[aria-modal="true"\]'\)\)/.test(shell) && /globalShortcutFor\(e, pathname, windowOpen\)/.test(shell) && /router\.push\(NEW_BILL_HREF\)/.test(shell)
+    && /action === 'lock'\) lockApp\(pathname\)/.test(shell) && /if \(!isClient \|\| !currentUser \|\| locked\) return;/.test(shell) && /role="dialog" aria-modal="true"/.test(readSource('components/ui/Modal.tsx')),
+    'AppShell runs the global keys from one shared list, only when the shop is open; every Modal marks itself so F1 waits while a form is open');
+  const t = (id: string, extra: Partial<ReturnType<typeof makeEmptyTab>> = {}) => ({ ...makeEmptyTab(id, Number(id.replace(/\D/g, '')) || 1), ...extra });
+  const line1 = { product_id: 'A', product_name: 'A', quantity: 1, unit: 'piece', unit_price: 100, total_amount: 100, tax_rate: 0, tax_amount: 0, discount_amount: 0 } as unknown as CartItem;
+  const keep = tabsForNewBill([t('t1')], 't1', 'tn');
+  const busy = tabsForNewBill([t('t1', { cart: [line1] })], 't1', 'tn');
+  const other = tabsForNewBill([t('t1', { cart: [line1] }), t('t2', { isHeld: true }), t('t3')], 't1', 'tn');
+  const typedName = tabsForNewBill([t('t1', { customerName: 'Anil' })], 't1', 'tn');
+  assert(keep.activeTabId === 't1' && keep.tabs.length === 1 && busy.activeTabId === 'tn' && busy.tabs.length === 2 && busy.tabs[0].cart.length === 1 && busy.tabs[1].tabNumber === 2
+    && other.activeTabId === 't3' && other.tabs.length === 3 && typedName.activeTabId === 'tn'
+    && /tabsForNewBill\(tabs, activeTabId,/.test(readSource('app/billing/page.tsx')) && /get\('new'\) !== '1'/.test(readSource('app/billing/page.tsx')),
+    'F1 from another page: Billing uses an open blank bill, else adds a new one — a bill with items or a typed customer is kept, never cleared');
 }
 
 // (b) The status bar shows the keys that work on the page it is on (every one handled), and
@@ -1507,13 +1520,14 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
 {
   const asEvent = (hint: string) => {
     const parts = hint.split('+');
-    return { key: parts[parts.length - 1].toLowerCase(), ctrlKey: parts.includes('Ctrl'), shiftKey: parts.includes('Shift'), altKey: false };
+    const last = parts[parts.length - 1];
+    return { key: /^F\d+$/.test(last) ? last : last.toLowerCase(), ctrlKey: parts.includes('Ctrl'), shiftKey: parts.includes('Shift'), altKey: false };
   };
   const pages = ['/', '/billing', '/products', '/barcode-generator', '/settings'];
-  const dead = pages.flatMap((pg) => globalShortcutHints(pg).filter(([key]) => !globalShortcutFor(asEvent(key), pg, false)).map(([key]) => `${pg} ${key}`));
-  assert(dead.length === 0 && globalShortcutHints('/').map(([key]) => key).join() === 'Shift+B,Ctrl+L' && globalShortcutHints('/products').map(([key]) => key).join() === 'Ctrl+H,Ctrl+L'
+  const dead = pages.flatMap((pg) => globalShortcutHints(pg).filter(([key]) => !globalShortcutFor(asEvent(key), pg)).map(([key]) => `${pg} ${key}`));
+  assert(dead.length === 0 && globalShortcutHints('/').map(([key]) => key).join() === 'F1,Ctrl+L' && globalShortcutHints('/products').map(([key]) => key).join() === 'F1,Ctrl+H,Ctrl+L' && globalShortcutHints('/billing').map(([key]) => key).join() === 'Ctrl+H,Ctrl+L'
     && globalShortcutHints('/products/').join() === globalShortcutHints('/products').join() && /pagePath\(pathname\) === '\/billing'/.test(readSource('components/layout/DesktopStatusBar.tsx')),
-    `Status bar: Home shows Shift+B Billing, other pages Ctrl+H Home, all show Ctrl+L Lock — every advertised key works${dead.length ? ` (dead: ${dead.join(', ')})` : ''}`);
+    `Status bar: F1 New bill everywhere (Billing lists its own), Ctrl+H Home off Home, Ctrl+L Lock — every advertised key works${dead.length ? ` (dead: ${dead.join(', ')})` : ''}`);
   const bar = readSource('components/layout/DesktopStatusBar.tsx');
   const settingsPage = readSource('app/settings/page.tsx');
   assert(/globalShortcutHints\(pathname\)/.test(bar) && /openSettingsTab\('invoicing', pathname, router\.push\)/.test(bar) && /openSettingsTab\('help', pathname, router\.push\)/.test(bar)

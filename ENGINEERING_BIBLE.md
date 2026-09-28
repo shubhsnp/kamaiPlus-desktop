@@ -618,7 +618,12 @@ shop is open; `globalShortcutHints` — shown by the status bar, so it never adv
   the cursor; Ctrl keys type no text).
 - `Ctrl + L` (v4.78.0): lock the screen (`lockApp(pathname)`, like Navbar → Lock now) — also
   while typing. After the master password the app returns to that page.
-- `Shift + B`: Billing (`/billing`) — ONLY on Home (`/`) and never while typing (it types "B").
+- `F1` (v4.78.0, replaced Shift+B): **new bill from any page** — `router.push('/billing?new=1')`;
+  the billing page then `tabsForNewBill` (`lib/billing/billTabs.ts`): an open blank bill is used,
+  else a new tab is added (bills with items / a typed customer and held bills are kept) and the
+  URL is cleaned. On Billing, F1 stays the counter's own "new bill tab" key.
+- F1 and Ctrl+H do **nothing while a window is open** (`[aria-modal="true"]` — every `ui/Modal`
+  and `DialogHost` carry it), so a half-filled form is never lost. Ctrl+L always locks.
 
 ### Cross-component messaging (window CustomEvents)
 
@@ -1187,8 +1192,8 @@ Recorded so the next agent does not rediscover them. None are fixed as of v4.38.
 1. ~~`DesktopStatusBar` advertised shortcuts that do not exist~~ — **fixed in v4.47.0**:
    it now shows the billing keys on `/billing` and only Ctrl+B elsewhere (Suite 9 §8i
    checks every advertised key is handled). Since v4.78.0 also the app-wide keys of the page
-   (`globalShortcutHints`: Shift+B on Home, else Ctrl+H; Ctrl+L everywhere — on Billing only
-   on 2xl screens) — Suite 9 §9j(b). The real bindings, POS-local in
+   (`globalShortcutHints`: F1 New bill off Billing, Ctrl+H off Home, Ctrl+L everywhere — on
+   Billing only on 2xl screens) — Suite 9 §9j(b). The real bindings, POS-local in
    `src/app/billing/page.tsx`:
    | Key | Actual |
    | :--- | :--- |

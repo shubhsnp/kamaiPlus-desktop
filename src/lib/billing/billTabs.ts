@@ -101,6 +101,24 @@ export function tabsAfterSale(tabs: BillTab[], doneId: string, sold: CartItem[],
   };
 }
 
+/** A bill with nothing typed into it yet (no items, customer, discount or cash). */
+export const isBlankTab = (t: BillTab) =>
+  t.cart.length === 0 && !(t.customerName || '').trim() && !(t.customerPhone || '').trim() && !t.selectedCustomerId && !t.billDiscountValue && !t.amountReceivedInput;
+
+/**
+ * F1 from any page (v4.78.0): the counter opens on a fresh bill. A blank, not-held bill that
+ * is already open is used (no pile of empty tabs); otherwise a new bill is added and the
+ * others — a waiting customer's bill, held bills — stay as they are.
+ */
+export function tabsForNewBill(tabs: BillTab[], activeTabId: string, newId: string): { tabs: BillTab[]; activeTabId: string } {
+  const active = tabs.find((t) => t.id === activeTabId);
+  if (active && !active.isHeld && isBlankTab(active)) return { tabs, activeTabId };
+  const blank = tabs.find((t) => !t.isHeld && isBlankTab(t));
+  if (blank) return { tabs, activeTabId: blank.id };
+  const tabNumber = tabs.reduce((max, t) => Math.max(max, t.tabNumber), 0) + 1;
+  return { tabs: [...tabs, makeEmptyTab(newId, tabNumber)], activeTabId: newId };
+}
+
 export function getInitialTabs(): { tabs: BillTab[]; activeTabId: string } {
   if (typeof window !== 'undefined') {
     try {

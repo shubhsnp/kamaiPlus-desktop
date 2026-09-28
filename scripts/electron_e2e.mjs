@@ -712,6 +712,25 @@ async function run() {
       await page.keyboard.press('Escape');
       await page.waitForTimeout(300);
 
+      // v4.78.0 — F1 from any page opens Billing on a fresh bill; not while a form is open.
+      step = 'f1 new bill';
+      await page.getByRole('button', { name: /Add Product/ }).first().click();
+      await page.locator('[role="dialog"]').first().waitFor({ timeout: 10000 });
+      await page.keyboard.press('F1');
+      await page.waitForTimeout(700);
+      const stayedWithForm = /\/products/.test(page.url());
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(400);
+      const busyTabsBefore = (await tabsNow()).filter((t) => t.cart.length > 0).length;
+      await page.keyboard.press('F1');
+      await page.waitForURL(/\/billing/, { timeout: 10000 });
+      await posSearch.waitFor({ timeout: 10000 });
+      await page.waitForTimeout(600);
+      const freshCart = await page.getByText(/CART ITEMS \(0\)/).first().isVisible().catch(() => false);
+      const busyTabsAfter = (await tabsNow()).filter((t) => t.cart.length > 0).length;
+      check(stayedWithForm && freshCart && busyTabsAfter === busyTabsBefore && !/new=1/.test(page.url()),
+        `F1 opens Billing on a fresh bill from Products (bills with items kept: ${busyTabsAfter}); with the Add Product form open it does nothing`);
+
       // v4.78.0 — Backup & restore: a backup file of the shop, then changes after it; "Add missing
       // records only" keeps those changes (nothing overwritten); "Clean Replace" brings the backup
       // back exactly, after saving the current data as today's automatic backup; a damaged file is refused.

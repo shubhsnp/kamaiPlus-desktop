@@ -80,7 +80,7 @@ import { PosProductCard } from '@/components/billing/PosProductCard';
 import { generalCategoryId } from '@/lib/products/defaultCategory';
 import { BillingToast, BillingToastData, FullscreenUpiQrModal, QuickAddScannedProductModal } from '@/components/billing/PosDialogs';
 import { CashTenderPanel, SplitPaymentPanel, UpiQrCard } from '@/components/billing/PosPaymentPanels';
-import { BillTab, getInitialTabs, makeEmptyTab, tabsAfterClosing, tabsAfterSale, TABS_STORAGE_KEY } from '@/lib/billing/billTabs';
+import { BillTab, getInitialTabs, makeEmptyTab, tabsAfterClosing, tabsAfterSale, tabsForNewBill, TABS_STORAGE_KEY } from '@/lib/billing/billTabs';
 import { PrintFailureBar, useBackgroundBillPrint, warmBillPrinting } from '@/components/billing/BillPrintQueue';
 import { tr } from '@/lib/i18n/core';
 
@@ -209,6 +209,16 @@ export default function BillingPage() {
   };
 
   // Tab Actions: Create New Tab, Hold Tab, Close Tab
+  // F1 from any other page opens Billing as /billing?new=1: start on a fresh bill (v4.78.0).
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('new') !== '1') return;
+    const next = tabsForNewBill(tabs, activeTabId, `tab_${Date.now()}`);
+    setTabs(next.tabs);
+    setActiveTabId(next.activeTabId);
+    window.history.replaceState(null, '', window.location.pathname);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleCreateNewTab = () => {
     const nextNum = (tabs.reduce((max, t) => Math.max(max, t.tabNumber), 0) || tabs.length) + 1;
     const newTabId = `tab_${Date.now()}`;

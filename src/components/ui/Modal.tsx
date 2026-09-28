@@ -47,7 +47,8 @@ export const Modal: React.FC<ModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+    // role / aria-modal: screen readers, and app-wide keys (F1, Ctrl+H) stay off while a window is open.
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4" role="dialog" aria-modal="true">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-slate-900/50"
