@@ -72,6 +72,8 @@ export interface KamaiDesktopApi {
   getPrinters(): Promise<DesktopPrinter[]>;
   /** null when Windows could not say (not Windows, PowerShell failed). */
   getPrinterStatus?(): Promise<DesktopPrinterStatus[] | null>;
+  /** Sends the label printer's own gap calibration (v4.80.0); manual = unknown make, use the FEED button. */
+  calibrateLabelPrinter?(name: string): Promise<{ ok: boolean; manual?: boolean; language?: string; error?: string }>;
   /** WhatsApp Desktop if installed, else wa.me; a too-long text is copied instead (v4.79.0). */
   openWhatsApp?(request: { phone: string; text: string }): Promise<{ ok: boolean; via: 'app' | 'web'; copied: boolean; error?: string }>;
   openPath(path: string): Promise<DesktopResult>;

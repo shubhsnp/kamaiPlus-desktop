@@ -19,6 +19,7 @@ export const CHANGELOG: Release[] = [
     items: [
       msg('Barcode labels: choose how tall the bars are (label setup → Barcode height). Set it once on this computer and every label uses it; bills are not affected.'),
       msg('Label setup shows your roll as a picture, and "Check size & position" prints a frame on each label — you see at once if the size or position is wrong.'),
+      msg('New label roll? Label setup → "Calibrate printer" makes TSC, TVS, Xprinter, Zebra and Godex printers measure the labels themselves.'),
       msg('Label cut at the top or a side? Label setup → Print position moves the whole print up, down, left or right, for any label printer.'),
       msg('A barcode label printer chosen for bills is now flagged in the printer setup and in the bottom bar, so bills do not end up on your labels.'),
       msg('More printers found on their own: Zebra, Xprinter, Retsol, Gprinter, SNBC, Postek and other label printers are set up for labels and never for bills.'),

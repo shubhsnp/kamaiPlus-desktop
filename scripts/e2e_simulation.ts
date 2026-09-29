@@ -1897,6 +1897,22 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     && (readSource('components/settings/PrintSettingsCard.tsx').match(/<BillPrinterWarning /g) || []).length === 2
     && /billPrinterMismatch\(billTarget, chosen\.format\)/.test(statusSrc) && /tone: 'warn' as Tone/.test(statusSrc) && /d\.isDefault/.test(statusSrc),
     'The warning shows under the bill printer in the Printers window and Settings (A4 and receipt), and turns the status bar amber — also when bills go to the Windows default');
+  // v4.80.0: "Calibrate printer" — a new roll printed ~2–3 mm high on the TSC TE244 until the printer
+  // measured the gap (TSPL GAPDETECT, tried on the real printer). One fixed command per printer family;
+  // the page only names the printer.
+  const { calibrationFor } = require('../labelCalibrate.js');
+  const cal = (name: string) => calibrationFor({ name, driver: name });
+  assert(cal('TSC TE244')?.commands === 'GAPDETECT\r\n' && cal('TVS LP 46 NEO')?.language === 'TSPL' && cal('Xprinter XP-365B')?.language === 'TSPL'
+    && cal('ZDesigner GC420t (EPL)')?.commands === '\r\nxa\r\n' && cal('ZDesigner ZD220-203dpi ZPL')?.commands === '~JC' && cal('Godex G500')?.language === 'EZPL'
+    && ['Brother QL-800', 'HP LaserJet P1108', 'Microsoft Print to PDF', 'XP-80C', 'TVS RP 3160 Gold', 'POS-58'].every((n) => cal(n) === null),
+    'Calibrate printer: TSPL (TSC, TVS LP, Xprinter…), Zebra EPL / ZPL and Godex each get their own command; receipt, office and unknown printers get none (FEED button instead)');
+  const calJs = fs.readFileSync(path.join(__dirname, '..', 'labelCalibrate.js'), 'utf8');
+  const mainSrc = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+  assert(/ipcMain\.handle\('kp:calibrate-label-printer', async \(_event, name\) => labelCalibrate\.calibrate\(printers, String\(name \|\| ''\)\)\)/.test(mainSrc)
+    && /calibrateLabelPrinter: \(name\) => ipcRenderer\.invoke\('kp:calibrate-label-printer', name\)/.test(fs.readFileSync(path.join(__dirname, '..', 'preload.js'), 'utf8'))
+    && (pkgJson.build?.files || []).includes('labelCalibrate.js') && /\$env:KP_RAW_PRINTER/.test(calJs) && /-EncodedCommand/.test(calJs) && !/\$\{name\}|\$\{printer/.test(calJs.split('const RAW_SCRIPT')[1].split('`;')[0])
+    && /desktop\.calibrateLabelPrinter\(s\.printer\)/.test(readSource('components/labels/LabelSetupPanel.tsx')) && /data-label-calibrate/.test(readSource('components/labels/LabelSetupPanel.tsx')),
+    'kp:calibrate-label-printer wired (main, preload, packaged); only the printer name crosses over and it reaches PowerShell through the environment, never the script text');
   const def = printerLine('', [{ ...pdf, isDefault: true }, tvs]);
   assert(printerLine('', []).state === 'none' && printerLine('X', [tvs]).state === 'missing' && printerLine(tvs.name, [{ ...tvs, offline: true }]).state === 'offline'
     && printerLine(tvs.name, [tvs]).state === 'ready' && def.state === 'default' && def.virtual === true

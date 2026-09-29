@@ -10,6 +10,7 @@ const backup = require('./backup');
 const errorlog = require('./errorlog');
 const printers = require('./printers');
 const whatsapp = require('./whatsapp');
+const labelCalibrate = require('./labelCalibrate');
 
 // Main-process failures are logged instead of vanishing (errorlog.js).
 process.on('uncaughtException', (err) => {
@@ -386,6 +387,10 @@ ipcMain.handle('kp:get-printers', async () => {
 
 // Driver, port and offline state from Windows (printers.js) — printer auto-detect (v4.78.0).
 ipcMain.handle('kp:printer-status', async () => printers.getPrinterStatus());
+
+// "Calibrate printer" for a label printer (labelCalibrate.js) — v4.80.0. Only a printer name comes in;
+// the command is picked from a fixed list by the printer's make.
+ipcMain.handle('kp:calibrate-label-printer', async (_event, name) => labelCalibrate.calibrate(printers, String(name || '')));
 
 // WhatsApp Desktop when installed, else wa.me in the browser (whatsapp.js) — v4.79.0.
 ipcMain.handle('kp:open-whatsapp', async (_event, request) => whatsapp.openWhatsApp({ shell, app, clipboard }, request));

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Frame, Printer, RefreshCw } from 'lucide-react';
+import { Frame, Printer, RefreshCw, Ruler } from 'lucide-react';
 import { DesktopPrinter, getDesktopApi } from '@/lib/desktop/desktopBridge';
 import {
   BAR_HEIGHTS_MM, CUSTOM_STOCK_ID, getLabelSettings, LABEL_SETTINGS_EVENT, LABEL_STOCKS, LabelContent, LabelSettings, saveLabelSettings, stockFor,
@@ -67,6 +67,17 @@ export function LabelSetupPanel({ shopName }: { shopName: string }) {
     setTestNote(tr('Printing a test label…'));
     const res = await printLabels([{ name: tr('Test label — अनार स्पेशल'), barcode: 'TEST-1234', pricePaise: 59000, mrpPaise: 65000, costPaise: 45000, detail: 'M / Red' }], s, shopName);
     setTestNote(res.ok ? tr('Test label sent. Check the size, the text and that the barcode scans.') : tr('Could not print: {error}', { error: res.error || '' }));
+  };
+
+  // New roll → the printer learns where each label starts (v4.80.0). Unknown make: the FEED button.
+  const calibrate = async () => {
+    if (!desktop?.calibrateLabelPrinter || !s.printer) return;
+    setTestNote(tr('Sending the calibration…'));
+    const res = await desktop.calibrateLabelPrinter(s.printer);
+    const byHand = tr('Calibrate it by hand: switch the printer off, hold the FEED button, switch it on and let go when the light blinks (see its manual). It feeds a few labels and learns the gap.');
+    if (res.ok) setTestNote(tr('The printer is measuring the labels (it feeds 2–3 blank ones). Then press "Check size & position".'));
+    else if (res.manual) setTestNote(byHand);
+    else setTestNote(`${tr('Could not send the calibration: {error}', { error: res.error || '' })} ${byHand}`);
   };
 
   const alignmentTest = async () => {
@@ -178,6 +189,11 @@ export function LabelSetupPanel({ shopName }: { shopName: string }) {
         <button type="button" onClick={alignmentTest} className="inline-flex items-center gap-1.5 px-3 h-9 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-bold cursor-pointer" data-label-align-test>
           <Frame className="w-3.5 h-3.5" /> {tr('Check size & position')}
         </button>
+        {desktop?.calibrateLabelPrinter && s.printer && (
+          <button type="button" onClick={calibrate} className="inline-flex items-center gap-1.5 px-3 h-9 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-bold cursor-pointer" title={tr('After loading a new roll: the printer measures the labels and the gap')} data-label-calibrate>
+            <Ruler className="w-3.5 h-3.5" /> {tr('Calibrate printer')}
+          </button>
+        )}
         {testNote && <span className="text-slate-600">{testNote}</span>}
       </div>
     </div>
