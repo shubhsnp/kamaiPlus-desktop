@@ -1474,6 +1474,18 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(/offsetMm: settings\.offsetMm/.test(readSource('lib/labels/printLabels.ts')) && /offsetMm: settings\.offsetMm/.test(readSource('components/labels/LabelPreview.tsx'))
     && /<LabelPositionControl value=\{s\.offsetMm\}/.test(readSource('components/labels/LabelSetupPanel.tsx')) && /STEP_MM = 0\.5/.test(positionUi) && /MAX_OFFSET_MM/.test(positionUi),
     'Print position: ↑ ↓ ← → in 0.5 mm steps (up to 10 mm) in the label setup, used by print and preview alike');
+  // v4.80.0: the TSC TE244 had a 38 × 25 mm 2-across roll set up as 50 × 25 mm — the print sat on
+  // the gap. "Check size & position" prints one framed label per column; the setup draws the roll.
+  const rollTwo = LABEL_STOCKS.find((st) => st.id === 'roll_38x25_2')!;
+  const blankRow = [0, 1].map(() => ({ name: '', barcode: '', pricePaise: 0 }));
+  const frames = buildLabelHtml(blankRow, rollTwo, DEFAULT_LABEL_SETTINGS.content, { alignment: true, offsetMm: { x: 0, y: 1 } });
+  assert((frames.match(/class="label align"/g) || []).length === 2 && frames.includes('38 × 25 mm') && frames.includes('1 / 2') && frames.includes('2 / 2') && !frames.includes('<svg')
+    && /inset: 1\.5mm/.test(frames) && frames.includes('top: 1mm;') && !plain.includes('.label.align'),
+    'Size & position check: a frame 1.5 mm inside every label of a row (past a driver\'s unprinted edge), its size and column, no bar code; the print position applies');
+  const setupUi = readSource('components/labels/LabelSetupPanel.tsx');
+  assert(/length: across/.test(readSource('lib/labels/printLabels.ts')) && /\{ alignment: true \}/.test(readSource('lib/labels/printLabels.ts'))
+    && /printAlignmentTest\(s\)/.test(setupUi) && /data-label-align-test/.test(setupUi) && /<LabelStockDiagram stock=\{stockFor\(s\)\} \/>/.test(setupUi) && setupUi.split('\n').length < 400,
+    'Label setup: "Check size & position" prints one row (every column); the chosen roll or sheet is drawn so the shop can compare');
 
   // (e) Loose packs: the bar code carries the item and the weight; the counter decodes it.
   const pack = makeWeighedBarcode('2000000000039', 'kg', 0.25) || '';

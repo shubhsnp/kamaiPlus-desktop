@@ -18,6 +18,7 @@ export const CHANGELOG: Release[] = [
     version: '4.80.0',
     items: [
       msg('Barcode labels: choose how tall the bars are (label setup → Barcode height). Set it once on this computer and every label uses it; bills are not affected.'),
+      msg('Label setup shows your roll as a picture, and "Check size & position" prints a frame on each label — you see at once if the size or position is wrong.'),
       msg('Label cut at the top or a side? Label setup → Print position moves the whole print up, down, left or right, for any label printer.'),
       msg('More printers found on their own: Zebra, Xprinter, Retsol, Gprinter, SNBC, Postek and other label printers are set up for labels and never for bills.'),
     ],

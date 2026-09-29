@@ -53,6 +53,16 @@ export interface LabelHtmlOptions {
   barHeightMm?: number;
   /** Print position nudge in mm (v4.80.0): + right / down. Every label moves the same. */
   offsetMm?: { x: number; y: number };
+  /** Size & position check (v4.80.0): each label prints only a frame, its size and its column. */
+  alignment?: boolean;
+}
+
+/** Alignment frame inset: past the 1.25 mm a label driver may leave unprinted at each side. */
+const FRAME_INSET_MM = 1.5;
+
+function alignmentLabelHtml(stock: LabelStock, index: number): string {
+  const col = (index % stock.across) + 1;
+  return `<div class="label align"><div class="al-size">${stock.widthMm} × ${stock.heightMm} mm</div>${stock.across > 1 ? `<div class="al-col">${col} / ${stock.across}</div>` : ''}</div>`;
 }
 
 export function buildLabelHtml(labels: LabelData[], stock: LabelStock, content: LabelContent, opts: LabelHtmlOptions = {}): string {
@@ -67,8 +77,16 @@ export function buildLabelHtml(labels: LabelData[], stock: LabelStock, content: 
 
   const pages: string[] = [];
   for (let i = 0; i < labels.length; i += per) {
-    pages.push(`<div class="page">${labels.slice(i, i + per).map((l) => labelHtml(l, content, opts.shopName || '', opts.dateText || '', content.qr ? opts.qrDataUrls?.[l.barcode] : undefined, opts.costCodeWord)).join('')}</div>`);
+    pages.push(`<div class="page">${labels.slice(i, i + per).map((l, n) => (opts.alignment ? alignmentLabelHtml(stock, n) : labelHtml(l, content, opts.shopName || '', opts.dateText || '', content.qr ? opts.qrDataUrls?.[l.barcode] : undefined, opts.costCodeWord))).join('')}</div>`);
   }
+  // Size & position check: a frame just inside each label — fully printed = size and position
+  // are right; cut at a side = move the print; across two labels = another label size.
+  const alignCss = opts.alignment
+    ? `.label.align { position: relative; justify-content: center; gap: ${(0.8 * k).toFixed(2)}mm; }
+.label.align::after { content: ''; position: absolute; inset: ${FRAME_INSET_MM}mm; border: 0.3mm solid #000; border-radius: 0.8mm; }
+.al-size { font-size: ${pt(9)}; font-weight: 900; line-height: 1; }
+.al-col { font-size: ${pt(6)}; font-weight: 700; line-height: 1; }`
+    : '';
 
   const zoom = opts.previewZoom || 0;
   const screenCss = zoom
@@ -118,6 +136,7 @@ body { width: ${page.widthMm}mm; }
 .cc { font-size: ${pt(5.5)}; font-weight: 700; letter-spacing: 0.3pt; }
 .date { font-size: ${pt(5)}; line-height: 1.1; }
 ${barHeightCss}
+${alignCss}
 ${offsetCss}
 ${screenCss}
 </style></head><body>${pages.join('')}</body></html>`;

@@ -319,7 +319,7 @@ src/components/<feature>/   Feature components, one folder per domain
 src/components/ui/          Button, Card, Input, Modal  (that is all of it)
 src/lib/<domain>/           Engines — see table below
 src/types/index.ts          All domain types. Single file.
-scripts/e2e_simulation.ts   The test suite (§11). 588 assertions.
+scripts/e2e_simulation.ts   The test suite (§11). 590 assertions.
 scripts/bump_version.ts     Version bumper (+0.1 minor)
 public/barcodes/*.json      5 shipped offline barcode dictionaries
 ```
@@ -901,6 +901,12 @@ with the reason) → import.
   edge is cut, as on the printer. `LabelPositionControl` (↑ ↓ ← → in 0.5 mm steps, Reset) sits in
   `LabelSetupPanel` above Test print — the any-printer fix for a print that starts high or to one
   side, no printer commands needed. Suite 9 §9i.
+- **Size & position check (v4.80.0)**: "Check size & position" in `LabelSetupPanel` →
+  `printAlignmentTest(settings)` (`printLabels(…, { alignment: true })`) prints one row — one label
+  per column — each with only a frame **1.5 mm inside** the label (past the 1.25 mm a driver may
+  leave unprinted), its size and "1 / 2". Whole frames = right; cut at a side = Print position; on
+  the gap = wrong label size. `LabelStockDiagram` draws the chosen roll / A4 sheet to scale with
+  "N labels side by side, each W × H mm". Suite 9 §9i.
 - **Physical printer check (v4.80.0, TSC TE244, Seagull "TSC TTP-244" driver, 203 dpi)**:
   the app's page size is honoured (Chromium sends it as DEVMODE width / length); a smaller
   page is printed **centred on the head** — a 50 mm page on a 38 × 25 2-across roll lands on
@@ -1233,7 +1239,7 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 588/588, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 590/590, 0 failures
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
 git push origin main
@@ -1282,7 +1288,7 @@ bypassed; without the key only the no-licence checks run. The script removes
 `ELECTRON_RUN_AS_NODE` (set by VS Code terminals), which otherwise stops Electron
 launching. Failure screenshots go to `%TEMP%\kamaiplus-e2e-shots\`.
 
-### Test suite map — `scripts/e2e_simulation.ts` (588 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (590 assertions)
 
 | Suite | Covers |
 | :--- | :--- |

@@ -1,14 +1,15 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Printer, RefreshCw } from 'lucide-react';
+import { Frame, Printer, RefreshCw } from 'lucide-react';
 import { DesktopPrinter, getDesktopApi } from '@/lib/desktop/desktopBridge';
 import {
-  BAR_HEIGHTS_MM, CUSTOM_STOCK_ID, getLabelSettings, LABEL_SETTINGS_EVENT, LABEL_STOCKS, LabelContent, LabelSettings, saveLabelSettings,
+  BAR_HEIGHTS_MM, CUSTOM_STOCK_ID, getLabelSettings, LABEL_SETTINGS_EVENT, LABEL_STOCKS, LabelContent, LabelSettings, saveLabelSettings, stockFor,
 } from '@/lib/labels/labelSettings';
-import { printLabels } from '@/lib/labels/printLabels';
+import { printAlignmentTest, printLabels } from '@/lib/labels/printLabels';
 import { encodeCostCode, isValidCostCodeWord } from '@/lib/labels/labelExtras';
 import { LabelPositionControl } from './LabelPositionControl';
+import { LabelStockDiagram } from './LabelStockDiagram';
 import { msg, tr } from '@/lib/i18n/core';
 
 const CONTENT: { key: keyof LabelContent; label: string }[] = [
@@ -68,6 +69,14 @@ export function LabelSetupPanel({ shopName }: { shopName: string }) {
     setTestNote(res.ok ? tr('Test label sent. Check the size, the text and that the barcode scans.') : tr('Could not print: {error}', { error: res.error || '' }));
   };
 
+  const alignmentTest = async () => {
+    setTestNote(tr('Printing a frame on each label…'));
+    const res = await printAlignmentTest(s);
+    setTestNote(res.ok
+      ? tr('Frames sent. Each frame should sit whole inside its label. Cut at a side: use Print position. On the gap between labels: choose another label size.')
+      : tr('Could not print: {error}', { error: res.error || '' }));
+  };
+
   return (
     <div className="space-y-3 text-xs">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -109,6 +118,8 @@ export function LabelSetupPanel({ shopName }: { shopName: string }) {
           ))}
         </div>
       )}
+
+      <LabelStockDiagram stock={stockFor(s)} />
 
       <label className="flex items-center gap-2 cursor-pointer">
         <input type="checkbox" checked={s.silent && Boolean(s.printer)} disabled={!s.printer} onChange={(e) => update({ silent: e.target.checked })} />
@@ -163,6 +174,9 @@ export function LabelSetupPanel({ shopName }: { shopName: string }) {
         </label>
         <button type="button" onClick={testPrint} className="inline-flex items-center gap-1.5 px-3 h-9 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold cursor-pointer" data-label-test>
           <Printer className="w-3.5 h-3.5" /> {tr('Test print')}
+        </button>
+        <button type="button" onClick={alignmentTest} className="inline-flex items-center gap-1.5 px-3 h-9 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-bold cursor-pointer" data-label-align-test>
+          <Frame className="w-3.5 h-3.5" /> {tr('Check size & position')}
         </button>
         {testNote && <span className="text-slate-600">{testNote}</span>}
       </div>
