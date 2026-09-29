@@ -74,7 +74,12 @@ export interface LabelSettings {
   costCodeWord: string;
   /** Height of the bars in mm; 0 = the bars fill the space left on the label (v4.80.0). */
   barHeightMm: number;
+  /** Print position nudge in mm (v4.80.0): + moves the print right / down, − left / up. */
+  offsetMm: { x: number; y: number };
 }
+
+/** Largest print position nudge, either way. */
+export const MAX_OFFSET_MM = 10;
 
 /** Bar heights offered in the label setup (besides "fill the label"). */
 export const BAR_HEIGHTS_MM = [6, 8, 10, 12, 14, 16, 20];
@@ -91,6 +96,7 @@ export const DEFAULT_LABEL_SETTINGS: LabelSettings = {
   copies: 1,
   costCodeWord: '',
   barHeightMm: 0,
+  offsetMm: { x: 0, y: 0 },
 };
 
 const clampNum = (v: unknown, min: number, max: number, fallback: number) => {
@@ -125,6 +131,10 @@ export function parseLabelSettings(raw: string | null | undefined): LabelSetting
     copies: Math.round(clampNum(s.copies, 1, 500, d.copies)),
     costCodeWord: typeof s.costCodeWord === 'string' ? s.costCodeWord.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 10) : d.costCodeWord,
     barHeightMm: +clampNum(s.barHeightMm, 3, 60, d.barHeightMm).toFixed(1),
+    offsetMm: {
+      x: +clampNum(s.offsetMm?.x, -MAX_OFFSET_MM, MAX_OFFSET_MM, 0).toFixed(1),
+      y: +clampNum(s.offsetMm?.y, -MAX_OFFSET_MM, MAX_OFFSET_MM, 0).toFixed(1),
+    },
   };
 }
 

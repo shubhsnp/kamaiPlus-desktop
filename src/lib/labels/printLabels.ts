@@ -17,6 +17,7 @@ export async function printLabels(labels: LabelData[], settings: LabelSettings, 
     qrDataUrls: settings.content.qr ? await qrImages(labels.map((l) => l.barcode)) : undefined,
     costCodeWord: settings.costCodeWord,
     barHeightMm: settings.barHeightMm,
+    offsetMm: settings.offsetMm,
   });
   return printHtml(html, stock.kind === 'sheet' ? 'a4' : 'label', {
     pageSizeMm: stock.kind === 'sheet' ? undefined : { width: page.widthMm, height: page.heightMm },

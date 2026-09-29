@@ -1462,6 +1462,18 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(/barHeightMm: settings\.barHeightMm/.test(readSource('lib/labels/printLabels.ts')) && /barHeightMm: settings\.barHeightMm/.test(readSource('components/labels/LabelPreview.tsx'))
     && /data-label-bar-height/.test(readSource('components/labels/LabelSetupPanel.tsx')) && !/barHeight/.test(readSource('lib/hardware/printSettings.ts')),
     'Bar height reaches print and preview alike, is chosen in the label setup, and bill printing does not use it');
+  // v4.80.0: a printer that starts a little high or to one side (the TSC TE244 cut the name's top
+  // until it was calibrated) — the shop moves the whole print in 0.5 mm steps, saved per computer.
+  const moved = buildLabelHtml([{ name: 'Shirt', barcode: '2000000000015', pricePaise: 49900 }], LABEL_STOCKS[0], DEFAULT_LABEL_SETTINGS.content, { offsetMm: { x: -0.5, y: 2 } });
+  const savedMove = parseLabelSettings(JSON.stringify({ offsetMm: { x: -0.5, y: 2 } })).offsetMm;
+  const badMove = parseLabelSettings(JSON.stringify({ offsetMm: { x: 50, y: 'up' } })).offsetMm;
+  assert(parseLabelSettings(null).offsetMm.x === 0 && parseLabelSettings(null).offsetMm.y === 0 && oldSaved.offsetMm.y === 0 && savedMove.x === -0.5 && savedMove.y === 2 && badMove.x === 0 && badMove.y === 0
+    && moved.includes('.label { position: relative; left: -0.5mm; top: 2mm; }') && !plain.includes('position: relative; left:'),
+    'Print position: moves every label the same (+ right / down), 0 = unchanged; old or broken values fall back to no move');
+  const positionUi = readSource('components/labels/LabelPositionControl.tsx');
+  assert(/offsetMm: settings\.offsetMm/.test(readSource('lib/labels/printLabels.ts')) && /offsetMm: settings\.offsetMm/.test(readSource('components/labels/LabelPreview.tsx'))
+    && /<LabelPositionControl value=\{s\.offsetMm\}/.test(readSource('components/labels/LabelSetupPanel.tsx')) && /STEP_MM = 0\.5/.test(positionUi) && /MAX_OFFSET_MM/.test(positionUi),
+    'Print position: ↑ ↓ ← → in 0.5 mm steps (up to 10 mm) in the label setup, used by print and preview alike');
 
   // (e) Loose packs: the bar code carries the item and the weight; the counter decodes it.
   const pack = makeWeighedBarcode('2000000000039', 'kg', 0.25) || '';

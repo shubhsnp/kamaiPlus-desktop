@@ -8,6 +8,7 @@ import {
 } from '@/lib/labels/labelSettings';
 import { printLabels } from '@/lib/labels/printLabels';
 import { encodeCostCode, isValidCostCodeWord } from '@/lib/labels/labelExtras';
+import { LabelPositionControl } from './LabelPositionControl';
 import { msg, tr } from '@/lib/i18n/core';
 
 const CONTENT: { key: keyof LabelContent; label: string }[] = [
@@ -145,6 +146,8 @@ export function LabelSetupPanel({ shopName }: { shopName: string }) {
           </p>
         </div>
       )}
+
+      <LabelPositionControl value={s.offsetMm} onChange={(offsetMm) => update({ offsetMm })} />
 
       <div className="flex flex-wrap items-center gap-3 pt-1">
         <label className="flex items-center gap-2">

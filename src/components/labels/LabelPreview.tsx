@@ -39,8 +39,9 @@ export function LabelPreview({ labels, settings, shopName, max = 48 }: { labels:
       qrDataUrls: qr,
       costCodeWord: settings.costCodeWord,
       barHeightMm: settings.barHeightMm,
+      offsetMm: settings.offsetMm,
     });
-  }, [shown, stock, settings.content, settings.costCodeWord, settings.barHeightMm, shopName, qr]);
+  }, [shown, stock, settings.content, settings.costCodeWord, settings.barHeightMm, settings.offsetMm, shopName, qr]);
 
   return (
     <div className="space-y-1.5">

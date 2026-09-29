@@ -51,6 +51,8 @@ export interface LabelHtmlOptions {
   costCodeWord?: string;
   /** Bar height in mm (v4.80.0); 0 / missing = the bars fill the space left. */
   barHeightMm?: number;
+  /** Print position nudge in mm (v4.80.0): + right / down. Every label moves the same. */
+  offsetMm?: { x: number; y: number };
 }
 
 export function buildLabelHtml(labels: LabelData[], stock: LabelStock, content: LabelContent, opts: LabelHtmlOptions = {}): string {
@@ -85,6 +87,11 @@ export function buildLabelHtml(labels: LabelData[], stock: LabelStock, content: 
 .label > * { flex-shrink: 0; }
 .bars { flex: 0 1 ${barH}mm; }`
     : '';
+  // A printer that starts a little high / to one side (driver margins, gap sensing): the whole
+  // print is moved; what goes past the page edge is cut, as the printer would.
+  const ox = opts.offsetMm?.x || 0;
+  const oy = opts.offsetMm?.y || 0;
+  const offsetCss = ox || oy ? `.label { position: relative; left: ${ox}mm; top: ${oy}mm; }` : '';
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Labels</title><style>
 @page { size: ${page.widthMm}mm ${page.heightMm}mm; margin: 0; }
@@ -111,6 +118,7 @@ body { width: ${page.widthMm}mm; }
 .cc { font-size: ${pt(5.5)}; font-weight: 700; letter-spacing: 0.3pt; }
 .date { font-size: ${pt(5)}; line-height: 1.1; }
 ${barHeightCss}
+${offsetCss}
 ${screenCss}
 </style></head><body>${pages.join('')}</body></html>`;
 }
