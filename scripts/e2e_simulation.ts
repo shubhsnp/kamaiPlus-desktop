@@ -1923,6 +1923,23 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   const many = parsePrinterJson('[{"Name":"A","Status":"Normal","WorkOffline":null},{"Name":"B","Status":"Normal","WorkOffline":true}]');
   assert(one.length === 1 && one[0].offline === true && one[0].port === 'USB001' && many.length === 2 && !many[0].offline && many[1].offline && parsePrinterJson('').length === 0,
     'Main side: Get-Printer JSON (one printer = an object) → name, driver, port, offline');
+  // v4.80.0: a TSC TE244 pulled out of USB stayed "Normal" in Get-Printer (status bar: green). The
+  // USB printer devices really present are listed too; a USB-port printer without one is unplugged.
+  const tscQueue = { Name: 'TSC TE244', DriverName: 'TSC TTP-244', PortName: 'USB001', Status: 'Normal', WorkOffline: null };
+  const netQueue = { Name: 'HP LaserJet', DriverName: 'HP', PortName: 'IP_192.168.1.20', Status: 'Normal', WorkOffline: null };
+  const pulled = parsePrinterJson(JSON.stringify({ printers: [tscQueue, netQueue], usb: '' }));
+  const pluggedIn = parsePrinterJson(JSON.stringify({ printers: [tscQueue], usb: 'USBPRINT\\TSCTE244\\6&10B3E789&0&USB001' }));
+  const otherPort = parsePrinterJson(JSON.stringify({ printers: tscQueue, usb: 'USBPRINT\\XP-58\\7&1&0&USB002' }));
+  const unknownUsb = parsePrinterJson(JSON.stringify({ printers: [tscQueue], usb: '?' }));
+  assert(pulled[0].offline && pulled[0].status === 'Unplugged' && !pulled[1].offline && !pluggedIn[0].offline && pluggedIn[0].status === 'Normal'
+    && otherPort.length === 1 && otherPort[0].offline && !unknownUsb[0].offline && parsePrinterJson(JSON.stringify({ printers: null, usb: '' })).length === 0
+    && /Win32_PnPEntity -Filter "PNPDeviceID LIKE 'USBPRINT%'"/.test(fs.readFileSync(path.join(__dirname, '..', 'printers.js'), 'utf8')),
+    'An unplugged USB printer shows offline (its USB device is gone, whatever Get-Printer says); a network printer or an unknown answer changes nothing');
+  // v4.80.0: the "Printer set automatically" card sat bottom-right over Billing's "Complete sale"
+  // (the Electron E2E could not finish a sale on a PC with a label printer installed).
+  const watcherSrc = readSource('components/printers/PrinterWatcher.tsx');
+  assert(/fixed bottom-10 left-4 z-\[90\]/.test(watcherSrc) && !/fixed bottom-10 right-4 z-\[90\]/.test(watcherSrc),
+    'The printer notice sits bottom-left, never over the "Complete sale" button');
   const main = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
   const preload = fs.readFileSync(path.join(__dirname, '..', 'preload.js'), 'utf8');
   assert(/ipcMain\.handle\('kp:printer-status'/.test(main) && /getPrinterStatus: \(\) => ipcRenderer\.invoke\('kp:printer-status'\)/.test(preload)

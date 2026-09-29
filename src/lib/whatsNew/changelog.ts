@@ -22,6 +22,7 @@ export const CHANGELOG: Release[] = [
       msg('New label roll? Label setup → "Calibrate printer" makes TSC, TVS, Xprinter, Zebra and Godex printers measure the labels themselves.'),
       msg('Label cut at the top or a side? Label setup → Print position moves the whole print up, down, left or right, for any label printer.'),
       msg('A barcode label printer chosen for bills is now flagged in the printer setup and in the bottom bar, so bills do not end up on your labels.'),
+      msg('A USB printer whose cable is pulled out now shows red in the bottom bar (Windows kept calling it ready), and the "printer found" note no longer covers the Complete sale button.'),
       msg('More printers found on their own: Zebra, Xprinter, Retsol, Gprinter, SNBC, Postek and other label printers are set up for labels and never for bills.'),
     ],
   },

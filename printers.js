@@ -7,31 +7,46 @@ const { execFile } = require('child_process');
  * so results are cached briefly and one call is shared by everyone asking at the same time.
  */
 
-const PS_SCRIPT = [
-  '[Console]::OutputEncoding = [Text.Encoding]::UTF8;',
-  "Get-Printer | Select-Object Name, DriverName, PortName, @{n='Status';e={[string]$_.PrinterStatus}}, WorkOffline | ConvertTo-Json -Compress",
-].join(' ');
+// v4.80.0: Windows keeps an unplugged USB printer "Normal" (tried: TSC TE244 pulled out), so the
+// USB printer devices that are really there are listed too (their ids end in "&USB001" — the
+// printer's port). usb: '' = none present, '?' = Windows could not say.
+const PS_SCRIPT = `
+[Console]::OutputEncoding = [Text.Encoding]::UTF8
+$p = @(Get-Printer | Select-Object Name, DriverName, PortName, @{n='Status';e={[string]$_.PrinterStatus}}, WorkOffline)
+$usb = '?'
+try { $usb = (@(Get-CimInstance Win32_PnPEntity -Filter "PNPDeviceID LIKE 'USBPRINT%'" -ErrorAction Stop | ForEach-Object { [string]$_.PNPDeviceID }) -join '|') } catch { $usb = '?' }
+@{ printers = $p; usb = $usb } | ConvertTo-Json -Compress -Depth 3
+`;
 
 const CACHE_MS = 5000;
 let cache = { at: 0, value: null };
 let pending = null;
 
-/** Get-Printer JSON (one printer = an object, several = an array) → plain records. */
+/**
+ * Get-Printer JSON → plain records. Either { printers, usb } (v4.80.0) or the printers alone
+ * (one printer = an object, several = an array). A printer on a USB port whose device is not
+ * present is unplugged: offline.
+ */
 function parsePrinterJson(stdout) {
   const text = String(stdout || '').trim();
   if (!text) return [];
   const raw = JSON.parse(text);
-  const list = Array.isArray(raw) ? raw : [raw];
+  const wrapped = raw && !Array.isArray(raw) && 'printers' in raw;
+  const printersRaw = wrapped ? raw.printers : raw;
+  const list = printersRaw == null ? [] : Array.isArray(printersRaw) ? printersRaw : [printersRaw];
+  const usb = wrapped && typeof raw.usb === 'string' && raw.usb !== '?' ? raw.usb.split('|').filter(Boolean).map((id) => id.toUpperCase()) : null;
   return list
     .filter((p) => p && typeof p.Name === 'string' && p.Name)
     .map((p) => {
       const status = String(p.Status || '');
+      const port = String(p.PortName || '');
+      const unplugged = Boolean(usb) && /^USB\d+$/i.test(port) && !usb.some((id) => id.endsWith(`&${port.toUpperCase()}`));
       return {
         name: p.Name,
         driver: String(p.DriverName || ''),
-        port: String(p.PortName || ''),
-        status,
-        offline: p.WorkOffline === true || /offline|notavailable/i.test(status),
+        port,
+        status: unplugged ? 'Unplugged' : status,
+        offline: unplugged || p.WorkOffline === true || /offline|notavailable/i.test(status),
       };
     });
 }
@@ -44,7 +59,7 @@ function getPrinterStatus() {
   pending = new Promise((resolve) => {
     execFile(
       'powershell.exe',
-      ['-NoProfile', '-NonInteractive', '-Command', PS_SCRIPT],
+      ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(PS_SCRIPT, 'utf16le').toString('base64')],
       { windowsHide: true, timeout: 15000, maxBuffer: 1024 * 1024 },
       (err, stdout) => {
         let value = null;

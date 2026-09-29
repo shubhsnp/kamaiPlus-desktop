@@ -153,7 +153,9 @@ export function PrinterWatcher() {
   return (
     <>
       {card && (
-        <div className="fixed bottom-10 right-4 z-[90] w-[320px] max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-2xl shadow-xl p-3 text-xs space-y-1 animate-in fade-in" role="status" data-printer-notice={notice?.kind}>
+        // Bottom-left (v4.80.0): at bottom-right it covered Billing's "Complete sale" button when a
+        // real printer was plugged in (found by the Electron E2E on a PC with a TSC label printer).
+        <div className="fixed bottom-10 left-4 z-[90] w-[320px] max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-2xl shadow-xl p-3 text-xs space-y-1 animate-in fade-in" role="status" data-printer-notice={notice?.kind}>
           <div className="flex items-start gap-2">
             <Printer className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
             <div className="min-w-0 flex-1 space-y-1">

@@ -106,7 +106,7 @@ Defined in `main.js` (`ipcMain.handle`), exposed in `preload.js`, typed in
 | `kp:print-to-pdf` | `printToPdf({html, fileName, folder})` | Vector A4 PDF → `Documents/KamaiPlus/{Invoices\|Reports\|Statements}` |
 | `kp:print` | `print({html, paper, deviceName, silent, pageSizeMm})` | Sends to OS printer; thermal page height is measured from the DOM; `paper: 'label'` (v4.71.0) prints at `pageSizeMm` (10–300 mm, one label-roll row per page) |
 | `kp:get-printers` | `getPrinters()` | Installed printer list |
-| `kp:printer-status` | `getPrinterStatus()` | v4.78.0: Windows `Get-Printer` via `printers.js` → `{name, driver, port, status, offline}[]` (null if Windows cannot say); cached 5 s, ~1 s per real call. Feeds printer auto-detect (§9.10) |
+| `kp:printer-status` | `getPrinterStatus()` | v4.78.0: Windows `Get-Printer` via `printers.js` → `{name, driver, port, status, offline}[]` (null if Windows cannot say; v4.80.0: a USB printer whose device is gone is offline); cached 5 s, ~2 s per real call. Feeds printer auto-detect (§9.10) |
 | `kp:calibrate-label-printer` | `calibrateLabelPrinter(name)` | v4.80.0: `labelCalibrate.js` — the label printer's own gap calibration as a RAW job (TSPL `GAPDETECT`, Zebra ZPL `~JC` / EPL `xa`, Godex `~S,SENSOR`), picked by make from a fixed list; only the name crosses over (to PowerShell via env). Unknown make → `{ok:false, manual:true}` (FEED button) (§9.4) |
 | `kp:open-whatsapp` | `openWhatsApp({phone, text})` | v4.79.0: `whatsapp.js` — WhatsApp Desktop (`whatsapp://send`) if installed, else `wa.me` in the browser; text over the Windows link limit → clipboard + empty chat → `{ok, via: 'app'\|'web', copied}` (§9.11) |
 | `kp:open-path` | `openPath(target)` | Opens a saved file — **only inside `Documents/KamaiPlus`** |
@@ -320,7 +320,7 @@ src/components/<feature>/   Feature components, one folder per domain
 src/components/ui/          Button, Card, Input, Modal  (that is all of it)
 src/lib/<domain>/           Engines — see table below
 src/types/index.ts          All domain types. Single file.
-scripts/e2e_simulation.ts   The test suite (§11). 594 assertions.
+scripts/e2e_simulation.ts   The test suite (§11). 596 assertions.
 scripts/bump_version.ts     Version bumper (+0.1 minor)
 public/barcodes/*.json      5 shipped offline barcode dictionaries
 ```
@@ -1122,11 +1122,17 @@ the Home tile and the status bar via `openPrintersWindow()`; rendered by `Printe
   one label printer + none chosen → label printer. A printer already chosen is **never**
   switched: a new printer is asked about once ("New printer found — Use for bills / Test
   print / Not now"). Seen printers: `kamai_known_printers` (first look = nothing is "new").
+  The notice card sits **bottom-left** (v4.80.0): bottom-right it covered Billing's "Complete
+  sale" — the Electron E2E could not finish a sale on a PC with a label printer installed.
 - Status bar (`printerLine`): green ready, amber check (Windows default only saves a PDF / no
   default), red missing / offline / none; the label printer shows when one is chosen. Click →
   Printers window.
-- Honest limit: offline detection relies on Windows' `PrinterStatus` / `WorkOffline`; not yet
-  tried with a physical USB printer unplugged.
+- **Unplugged USB printers (v4.80.0, tried on the TSC TE244)**: Windows keeps a pulled-out USB
+  printer `Normal` / not `WorkOffline`, so the bar stayed green. `printers.js` now also lists the
+  USB printer devices really present (`Win32_PnPEntity`, `USBPRINT…` ids end in `&USB001` = the
+  queue's port); a USB-port queue without one is `offline` (status `Unplugged`). `usb: '?'`
+  (Windows could not say) changes nothing; network / other ports are never touched. The full look
+  now takes ~2 s (runs in the background every 60 s). Plugged back in, the device returns.
 - Suite 9 §9j(m), §9j(n); Electron E2E "home tiles".
 
 ### 9.11 WhatsApp everywhere (v4.79.0) — the Android app's wa.me flows, on the desktop
@@ -1250,7 +1256,7 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 594/594, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 596/596, 0 failures
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
 git push origin main
@@ -1299,7 +1305,7 @@ bypassed; without the key only the no-licence checks run. The script removes
 `ELECTRON_RUN_AS_NODE` (set by VS Code terminals), which otherwise stops Electron
 launching. Failure screenshots go to `%TEMP%\kamaiplus-e2e-shots\`.
 
-### Test suite map — `scripts/e2e_simulation.ts` (594 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (596 assertions)
 
 | Suite | Covers |
 | :--- | :--- |

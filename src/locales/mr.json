@@ -253,6 +253,7 @@
   "A cost of ₹245 prints as \"{code}\". Only you know the word.": "₹245 ची खरेदी किंमत \"{code}\" अशी छापली जाईल. हा शब्द फक्त तुम्हाला माहीत आहे.",
   "A double click on Complete Sale saves the bill only once.": "\"विक्री पूर्ण करा\" वर डबल क्लिक केले तरी बिल एकदाच सेव्ह होते.",
   "A simpler Add Product form: name, MRP, barcode and stock. Turn on Selling Price, Cost Price, HSN, GST, size / colour or variants when you need them.": "प्रोडक्ट जोडण्याचा सोपा फॉर्म: नाव, MRP, बारकोड आणि स्टॉक. गरज असल्यास विक्री किंमत, खरेदी किंमत, HSN, GST, साइज / रंग किंवा प्रकार चालू करा.",
+  "A USB printer whose cable is pulled out now shows red in the bottom bar (Windows kept calling it ready), and the \"printer found\" note no longer covers the Complete sale button.": "ज्या USB प्रिंटरची केबल निघाली आहे, तो आता खालच्या पट्टीत लाल दिसतो (Windows त्याला तयारच सांगत राहायचा), आणि \"प्रिंटर सापडला\" संदेश आता बिल पूर्ण करण्याचे बटण झाकत नाही.",
   "A4 / office printer": "A4 / ऑफिस प्रिंटर",
   "A4 Bill": "A4 बिल",
   "A4 bills go to {name}, a receipt printer. Click to choose an A4 printer or another bill size.": "A4 बिल {name} वर जात आहेत, जो पावती प्रिंटर आहे. A4 प्रिंटर किंवा दुसरा बिल साइज निवडण्यासाठी क्लिक करा.",
