@@ -1845,6 +1845,21 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     'A chosen bill printer is never switched: a new printer is asked about once (then remembered); two receipt printers = no guess, both asked');
   const r6 = reviewPrinters({ known: [pdf.name], printers: [pdf, hp], bill: none, labelPrinter: '' });
   assert(r6.bill?.name === hp.name && r6.bill.format === 'a4', 'Only an office printer and A4 bills: it becomes the A4 bill printer (not the PDF default)');
+  // v4.80.0: label printers sold in India, as Windows names them. Zebra's driver is "ZDesigner …";
+  // Xprinter, Gprinter, Rongta, Retsol, Bixolon and SNBC make receipt printers too. Before, a lone
+  // Retsol LS became the bill printer and a lone XP-365B the A4 bill printer.
+  const labelNames = ['ZDesigner GC420t (EPL)', 'ZDesigner ZD220-203dpi ZPL', 'Xprinter XP-365B', 'XP-470B', 'XP-DT425B', 'Retsol LS 450', 'Gprinter GP-1324D', 'GP-3120TU',
+    'Rongta RP410', 'Bixolon SLP-TX400', 'SNBC BTP-2300E', 'POSTEK G2000', 'HPRT HT300', 'iDPRT SP410', 'Honeywell PC42t (203 dpi)', 'Godex G500', 'Citizen CL-E321'];
+  const receiptNames = ['XP-58IIH', 'XP-80C', 'Xprinter XP-Q200', 'XP-N160II', 'Gprinter GP-5890XIII', 'GP-80250N', 'Rongta RP326', 'BIXOLON SRP-350plusIII', 'SNBC BTP-R880NP', 'Retsol RTP 80', 'HPRT TP805', 'ZJ-5890'];
+  const misread = labelNames.filter((n) => printerKind({ name: n, driver: n }) !== 'label').concat(receiptNames.filter((n) => printerKind({ name: n, driver: n }) !== 'thermal'));
+  const xp365 = { name: 'Xprinter XP-365B', driver: 'Xprinter XP-365B' };
+  const retsolLs = { name: 'Retsol LS 450', driver: 'Retsol LS 450' };
+  const r7 = reviewPrinters({ known: [pdf.name], printers: [pdf, xp365], bill: none, labelPrinter: '' });
+  const r8 = reviewPrinters({ known: [], printers: [retsolLs], bill: none, labelPrinter: '' });
+  assert(misread.length === 0 && [hp, { name: 'Canon LBP2900' }, { name: 'EPSON L3150 Series' }].every((p) => printerKind(p) === 'a4')
+    && thermalFormat({ name: 'GP-5890XIII' }) === 'thermal-58' && thermalFormat({ name: 'ZJ-5890' }) === 'thermal-58'
+    && !r7.bill && r7.label === xp365.name && !r8.bill && r8.label === retsolLs.name,
+    `Label printers sold in India are known (Zebra "ZDesigner", Xprinter XP-365B, Retsol LS…) and never become the bill printer; the same makers' receipt models stay receipt printers (misread: ${misread.join(', ') || 'none'})`);
   const def = printerLine('', [{ ...pdf, isDefault: true }, tvs]);
   assert(printerLine('', []).state === 'none' && printerLine('X', [tvs]).state === 'missing' && printerLine(tvs.name, [{ ...tvs, offline: true }]).state === 'offline'
     && printerLine(tvs.name, [tvs]).state === 'ready' && def.state === 'default' && def.virtual === true

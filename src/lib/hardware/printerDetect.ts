@@ -25,8 +25,14 @@ export const KNOWN_PRINTERS_KEY = 'kamai_known_printers';
 const VIRTUAL_NAME = /print to pdf|xps|onenote|\bfax\b|adobe pdf|pdf ?creator|pdf24|cutepdf|foxit|nitro pdf|dopdf|bullzip|document writer|snagit|anydesk|teamviewer|redirected/i;
 const VIRTUAL_PORT = /^(portprompt:|nul:?|file:|shrfax:|xps|onenote)|\.pdf$/i;
 
-const LABEL = /\btsc\b|zebra|godex|argox|tvs[ -]?lp|\blp[ -]?4\d|\bttp[ -]?\d|label|citizen cl|honeywell pc|datamax|\bsato\b|brother ql|dymo|barcode printer/i;
-const THERMAL = /receipt|thermal|\bpos\b|\bpos[ -]?\d|tvs[ -]?rp|\brp[ -]?3\d{3}|epson tm|\btm-?[tmu]\d|\bxp-?(58|80)|\b(58|80) ?mm|star tsp|bixolon|\bsrp-|citizen ct|rugtek|retsol|posiflex|everycom|sewoo|rongta|gprinter|hoin/i;
+// Label printers as Windows names them (queue + driver). v4.80.0: Zebra's own driver is
+// "ZDesigner …"; Xprinter label models end in B (XP-365B — its receipt ones are XP-58, XP-80C);
+// Retsol LS, Gprinter GP-1xxx / 2120 / 3120 / 9xxx, Rongta RP4xx, Bixolon SLP / XD, SNBC BTP-2xxx
+// are the label lines of makers whose receipt printers the THERMAL list knows.
+const LABEL = /\btsc\b|zebra|zdesigner|godex|argox|tvs[ -]?lp|\blp[ -]?4\d|\bttp[ -]?\d|label|citizen cl|honeywell[ -]?p[cdmx]\d|intermec|datamax|\bsato\b|brother ql|dymo|barcode printer|\bxp-?(dt|tt|h|p)?\d{3}b\b|retsol[ -]?ls|\bgp-?(1\d{3}|[23]120|9[01]\d{2})|rongta[ -]?rp?[ -]?4\d{2}|\bslp-|\bx[dtm]\d-\d{2}|\bbtp-?([23]\d{3}|l\d)|postek|hprt[ -]?(ht|hlp|sl)\d|idprt|wincode|\bzj-?9\d{3}/i;
+// Receipt printers; checked after LABEL, so the broad Xprinter / Gprinter / SNBC / Zjiang model
+// patterns (v4.80.0: XP-Q200, GP-80250N, BTP-R880NP, ZJ-5890 were "other") never catch a label model.
+const THERMAL = /receipt|thermal|\bpos\b|\bpos[ -]?\d|tvs[ -]?rp|\brp[ -]?3\d{3}|epson tm|\btm-?[tmu]\d|\bxp-?[a-z]{0,2}\d{2,3}|\b(58|80) ?mm|star tsp|bixolon|\bsrp-|citizen ct|rugtek|retsol|posiflex|everycom|sewoo|rongta|gprinter|\bgp-?[a-z]?\d{2,5}|\bbtp-?[a-z]\d{2,3}|hprt[ -]?(tp|pp)|\bzj-?[58]\d{3}|hoin/i;
 const A4 = /laserjet|deskjet|officejet|inkjet|\bhp\b|canon|brother (hl|dcp|mfc)|epson (l\d|m\d|wf|et|ecotank)|samsung|xerox|ricoh|kyocera|lexmark|pantum|sharp|konica|okidata/i;
 
 const text = (p: PrinterFacts) => `${p.name} ${p.driver || ''}`;
@@ -47,7 +53,7 @@ export function printerKind(p: PrinterFacts): PrinterKind {
 
 /** Roll width of a receipt printer: 58 mm only when it says so, else 80 mm (the common one). */
 export function thermalFormat(p: PrinterFacts): PaperFormat {
-  return /\b58\b|58 ?mm|xp-?58|pos-?58/i.test(text(p)) ? 'thermal-58' : 'thermal-80';
+  return /\b58\b|58 ?mm|xp-?58|pos-?58|gp-?58|zj-?58/i.test(text(p)) ? 'thermal-58' : 'thermal-80';
 }
 
 export interface BillPrinterChoice {

@@ -319,7 +319,7 @@ src/components/<feature>/   Feature components, one folder per domain
 src/components/ui/          Button, Card, Input, Modal  (that is all of it)
 src/lib/<domain>/           Engines — see table below
 src/types/index.ts          All domain types. Single file.
-scripts/e2e_simulation.ts   The test suite (§11). 585 assertions.
+scripts/e2e_simulation.ts   The test suite (§11). 586 assertions.
 scripts/bump_version.ts     Version bumper (+0.1 minor)
 public/barcodes/*.json      5 shipped offline barcode dictionaries
 ```
@@ -1089,6 +1089,12 @@ the Home tile and the status bar via `openPrintersWindow()`; rendered by `Printe
 - `isVirtualPrinter`: PDF / XPS / OneNote / Fax / file ports are never bill printers.
   `printerKind`: label (checked first — TVS LP, TSC, Zebra…) / thermal (TVS RP, Epson TM,
   POS-58/80…; `thermalFormat` 58 or 80 mm) / A4 (HP, Canon…) / other.
+  v4.80.0: names as Windows really shows them — Zebra's driver is **"ZDesigner …"** (no
+  "Zebra"), Xprinter label models end in B (XP-365B / DT425B; receipt XP-58 / Q200 / N160II),
+  Retsol **LS**, Gprinter GP-1xxx / 2120 / 3120 / 9xxx, Rongta RP4xx, Bixolon SLP / XD, SNBC
+  BTP-2xxx, Postek, HPRT HT, iDPRT are label printers; those makers' receipt models (GP-5890 /
+  80250, BTP-R880 / S80, HPRT TP, ZJ-5890) are receipt printers. Before, a lone Retsol LS was
+  made the bill printer and a lone XP-365B the A4 bill printer.
 - `reviewPrinters`: nothing chosen + exactly one real receipt printer → it becomes the bill
   printer (bill size set to its roll); none + one office printer with A4 bills → A4 printer;
   one label printer + none chosen → label printer. A printer already chosen is **never**
@@ -1222,7 +1228,7 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 585/585, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 586/586, 0 failures
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
 git push origin main
@@ -1271,7 +1277,7 @@ bypassed; without the key only the no-licence checks run. The script removes
 `ELECTRON_RUN_AS_NODE` (set by VS Code terminals), which otherwise stops Electron
 launching. Failure screenshots go to `%TEMP%\kamaiplus-e2e-shots\`.
 
-### Test suite map — `scripts/e2e_simulation.ts` (585 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (586 assertions)
 
 | Suite | Covers |
 | :--- | :--- |

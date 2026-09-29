@@ -1335,6 +1335,7 @@
   "Money you paid to this supplier.": "इस सप्लायर को दिया पैसा।",
   "more": "और",
   "more low-stock items in catalog": "और सामान का स्टॉक कम है",
+  "More printers found on their own: Zebra, Xprinter, Retsol, Gprinter, SNBC, Postek and other label printers are set up for labels and never for bills.": "और प्रिंटर अपने-आप पहचाने जाते हैं: Zebra, Xprinter, Retsol, Gprinter, SNBC, Postek और दूसरे लेबल प्रिंटर लेबल के लिए सेट होते हैं, बिल के लिए कभी नहीं।",
   "More than one saved customer is named \"{name}\". Pick one from the list, or add the mobile number.": "\"{name}\" नाम के एक से ज़्यादा ग्राहक सेव हैं। सूची से एक चुनें, या मोबाइल नंबर डालें।",
   "Morning cash drawer": "सुबह का गल्ला",
   "Morning Opening Float (₹) *": "सुबह का शुरुआती कैश (₹) *",
