@@ -89,7 +89,7 @@ import { globalShortcutFor, globalShortcutHints } from '../src/lib/ui/globalShor
 import { settingsTabFromQuery } from '../src/lib/ui/settingsLinks';
 import { parseTabY, shareFromCenter, tabCenterPx } from '../src/lib/ui/drawerTab';
 import { billStats, GST_STAND_IN_HREF, quickActionsFor, showProfitCard } from '../src/lib/dashboard/homeTiles';
-import { isVirtualPrinter, parseKnownPrinters, printerKind, printerLine, reviewPrinters, thermalFormat } from '../src/lib/hardware/printerDetect';
+import { billPrinterMismatch, isVirtualPrinter, parseKnownPrinters, printerKind, printerLine, reviewPrinters, thermalFormat } from '../src/lib/hardware/printerDetect';
 import { SILENT_PRINT_KEY } from '../src/lib/hardware/printerWatch';
 import { toWhatsAppNumber, upiPayLink, whatsAppWebUrl } from '../src/lib/whatsapp/whatsappLinks';
 import { billMessage, khataReminderMessage, ledgerSlipMessage, MAX_BILL_LINES, paymentRequestMessage } from '../src/lib/whatsapp/customerMessages';
@@ -1884,6 +1884,19 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     && thermalFormat({ name: 'GP-5890XIII' }) === 'thermal-58' && thermalFormat({ name: 'ZJ-5890' }) === 'thermal-58'
     && !r7.bill && r7.label === xp365.name && !r8.bill && r8.label === retsolLs.name,
     `Label printers sold in India are known (Zebra "ZDesigner", Xprinter XP-365B, Retsol LS…) and never become the bill printer; the same makers' receipt models stay receipt printers (misread: ${misread.join(', ') || 'none'})`);
+  // v4.80.0: on the test PC the TSC label printer had been chosen for bills (by hand). It is kept —
+  // a chosen printer is never switched — but flagged in both printer setups and the status bar.
+  const tscChosen = { defaultFormat: 'thermal-80' as const, a4Printer: '', thermalPrinter: tsc.name };
+  const r9 = reviewPrinters({ known: [tsc.name], printers: [tsc, pos58], bill: tscChosen, labelPrinter: '' });
+  assert(billPrinterMismatch(tsc, 'thermal-80') === 'label' && billPrinterMismatch(xp365, 'a4') === 'label' && billPrinterMismatch(tvs, 'a4') === 'receipt-for-a4'
+    && billPrinterMismatch(tvs, 'thermal-80') === null && billPrinterMismatch(hp, 'a4') === null && billPrinterMismatch(pos58, 'thermal-58') === null && !r9.bill,
+    'A label printer chosen for bills (or a receipt printer for A4 bills) is recognised as the wrong kind; the choice itself is never switched');
+  const billSetupSrc = readSource('components/billing/BillPrinterSetup.tsx');
+  const statusSrc = readSource('components/layout/DesktopStatusBar.tsx');
+  assert(/<BillPrinterWarning name=\{printer \|\| printers\.find\(\(p\) => p\.isDefault\)\?\.name \|\| ''\} format=\{fmt\} \/>/.test(billSetupSrc)
+    && (readSource('components/settings/PrintSettingsCard.tsx').match(/<BillPrinterWarning /g) || []).length === 2
+    && /billPrinterMismatch\(billTarget, chosen\.format\)/.test(statusSrc) && /tone: 'warn' as Tone/.test(statusSrc) && /d\.isDefault/.test(statusSrc),
+    'The warning shows under the bill printer in the Printers window and Settings (A4 and receipt), and turns the status bar amber — also when bills go to the Windows default');
   const def = printerLine('', [{ ...pdf, isDefault: true }, tvs]);
   assert(printerLine('', []).state === 'none' && printerLine('X', [tvs]).state === 'missing' && printerLine(tvs.name, [{ ...tvs, offline: true }]).state === 'offline'
     && printerLine(tvs.name, [tvs]).state === 'ready' && def.state === 'default' && def.virtual === true

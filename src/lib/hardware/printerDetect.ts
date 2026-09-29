@@ -56,6 +56,20 @@ export function thermalFormat(p: PrinterFacts): PaperFormat {
   return /\b58\b|58 ?mm|xp-?58|pos-?58|gp-?58|zj-?58/i.test(text(p)) ? 'thermal-58' : 'thermal-80';
 }
 
+export type BillPrinterMismatch = 'label' | 'receipt-for-a4';
+
+/**
+ * A bill printer of the wrong kind (v4.80.0) — on the test PC the TSC label printer had been
+ * chosen for bills, so every bill would print on the label roll. Only warned about: a printer
+ * the shop chose is never switched.
+ */
+export function billPrinterMismatch(p: PrinterFacts, format: PaperFormat): BillPrinterMismatch | null {
+  const kind = printerKind(p);
+  if (kind === 'label') return 'label';
+  if (format === 'a4' && kind === 'thermal') return 'receipt-for-a4';
+  return null;
+}
+
 export interface BillPrinterChoice {
   defaultFormat: PaperFormat;
   a4Printer: string;

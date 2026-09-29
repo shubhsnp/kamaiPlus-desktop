@@ -8,7 +8,8 @@ import { useBusiness } from '@/components/layout/BusinessProvider';
 import { db } from '@/lib/db';
 import { getPrintSettings, printerForFormat } from '@/lib/hardware/printSettings';
 import { getLabelSettings, LABEL_SETTINGS_EVENT } from '@/lib/labels/labelSettings';
-import { PrinterLine, printerLine } from '@/lib/hardware/printerDetect';
+import { billPrinterMismatch, PrinterLine, printerLine } from '@/lib/hardware/printerDetect';
+import type { PaperFormat } from '@/lib/desktop/desktopBridge';
 import { openPrintersWindow, usePrinterFacts } from '@/lib/hardware/printerWatch';
 import { msg, tr } from '@/lib/i18n/core';
 import { openWhatsNew } from '@/components/whatsNew/WhatsNewModal';
@@ -70,11 +71,11 @@ export const DesktopStatusBar: React.FC = () => {
   // Real printer status (it used to say "Ready" whatever was connected): the printers the
   // watcher saw in Windows (v4.78.0: offline too), against the bill and label printer chosen.
   const printers = usePrinterFacts();
-  const [chosen, setChosen] = useState<{ bill: string; label: string }>({ bill: '', label: '' });
+  const [chosen, setChosen] = useState<{ bill: string; format: PaperFormat; label: string }>({ bill: '', format: 'a4', label: '' });
   useEffect(() => {
     const read = () => {
       const settings = getPrintSettings();
-      setChosen({ bill: printerForFormat(settings, settings.defaultFormat), label: getLabelSettings().printer });
+      setChosen({ bill: printerForFormat(settings, settings.defaultFormat), format: settings.defaultFormat, label: getLabelSettings().printer });
     };
     read();
     window.addEventListener('print_settings_changed', read);
@@ -84,7 +85,20 @@ export const DesktopStatusBar: React.FC = () => {
       window.removeEventListener(LABEL_SETTINGS_EVENT, read);
     };
   }, []);
-  const printer = printers ? billPrinterText(printerLine(chosen.bill, printers)) : null;
+  const billLine = printers ? billPrinterText(printerLine(chosen.bill, printers)) : null;
+  // v4.80.0: a ready bill printer of the wrong kind (a label printer, or a receipt printer for
+  // A4 bills) — chosen or the Windows default — is shown amber with the reason.
+  const billTarget = printers?.find((p) => p.name === (chosen.bill || printers.find((d) => d.isDefault)?.name));
+  const billMismatch = billTarget && billLine?.tone === 'ok' ? billPrinterMismatch(billTarget, chosen.format) : null;
+  const printer = billLine && billTarget && billMismatch
+    ? {
+        ...billLine,
+        tone: 'warn' as Tone,
+        title: billMismatch === 'label'
+          ? tr('Bills go to {name}, a barcode label printer — they would print on your labels. Click to choose your bill printer.', { name: billTarget.name })
+          : tr('A4 bills go to {name}, a receipt printer. Click to choose an A4 printer or another bill size.', { name: billTarget.name }),
+      }
+    : billLine;
   const labelLine = printers && chosen.label ? printerLine(chosen.label, printers) : null;
 
   useEffect(() => {

@@ -319,7 +319,7 @@ src/components/<feature>/   Feature components, one folder per domain
 src/components/ui/          Button, Card, Input, Modal  (that is all of it)
 src/lib/<domain>/           Engines — see table below
 src/types/index.ts          All domain types. Single file.
-scripts/e2e_simulation.ts   The test suite (§11). 590 assertions.
+scripts/e2e_simulation.ts   The test suite (§11). 592 assertions.
 scripts/bump_version.ts     Version bumper (+0.1 minor)
 public/barcodes/*.json      5 shipped offline barcode dictionaries
 ```
@@ -1106,6 +1106,12 @@ the Home tile and the status bar via `openPrintersWindow()`; rendered by `Printe
   BTP-2xxx, Postek, HPRT HT, iDPRT are label printers; those makers' receipt models (GP-5890 /
   80250, BTP-R880 / S80, HPRT TP, ZJ-5890) are receipt printers. Before, a lone Retsol LS was
   made the bill printer and a lone XP-365B the A4 bill printer.
+- **Wrong kind of bill printer (v4.80.0)**: `billPrinterMismatch(printer, format)` → `'label'`
+  (any bill size) / `'receipt-for-a4'`. Shown, never switched: `components/printers/
+  BillPrinterWarning.tsx` under the bill printer in `BillPrinterSetup` (the chosen one, else the
+  Windows default) and under both selects of `PrintSettingsCard`; the status bar turns amber with
+  the reason (chosen printer or Windows default, only while it is otherwise ready). Found on the
+  test PC: the TSC label printer had been picked by hand for 80 mm bills.
 - `reviewPrinters`: nothing chosen + exactly one real receipt printer → it becomes the bill
   printer (bill size set to its roll); none + one office printer with A4 bills → A4 printer;
   one label printer + none chosen → label printer. A printer already chosen is **never**
@@ -1239,7 +1245,7 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 590/590, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 592/592, 0 failures
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
 git push origin main
@@ -1288,7 +1294,7 @@ bypassed; without the key only the no-licence checks run. The script removes
 `ELECTRON_RUN_AS_NODE` (set by VS Code terminals), which otherwise stops Electron
 launching. Failure screenshots go to `%TEMP%\kamaiplus-e2e-shots\`.
 
-### Test suite map — `scripts/e2e_simulation.ts` (590 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (592 assertions)
 
 | Suite | Covers |
 | :--- | :--- |

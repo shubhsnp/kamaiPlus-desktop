@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Printer, RefreshCw } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
+import { BillPrinterWarning } from '@/components/printers/BillPrinterWarning';
 import { DesktopPrinter, getDesktopApi, PaperFormat } from '@/lib/desktop/desktopBridge';
 import { getPrintSettings, PrintSettings, savePrintSettings } from '@/lib/hardware/printSettings';
 import { cn } from '@/lib/utils';
@@ -101,10 +102,12 @@ export function PrintSettingsCard() {
         <label className="text-xs font-bold text-slate-700">
           {tr('A4 printer')}
           {printerSelect(settings.a4Printer, (v) => update({ a4Printer: v }))}
+          <BillPrinterWarning name={settings.a4Printer} format="a4" />
         </label>
         <label className="text-xs font-bold text-slate-700">
           {tr('Thermal receipt printer')}
           {printerSelect(settings.thermalPrinter, (v) => update({ thermalPrinter: v }))}
+          <BillPrinterWarning name={settings.thermalPrinter} format="thermal-80" />
         </label>
       </div>
 

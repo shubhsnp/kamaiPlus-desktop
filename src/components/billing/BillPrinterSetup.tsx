@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Printer, RefreshCw } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
+import { BillPrinterWarning } from '@/components/printers/BillPrinterWarning';
 import { Business } from '@/types';
 import { DesktopPrinter, getDesktopApi, PaperFormat } from '@/lib/desktop/desktopBridge';
 import { getPrintSettings, PrintSettings, printerForFormat, savePrintSettings } from '@/lib/hardware/printSettings';
@@ -111,6 +112,7 @@ export function BillPrinterSetup({ onClose, business, autoPrint, onAutoPrintChan
             <option value="">{tr('System default printer')}</option>
             {printers.map((p) => <option key={p.name} value={p.name}>{p.displayName}{p.isDefault ? tr(' (default)') : ''}</option>)}
           </select>
+          <BillPrinterWarning name={printer || printers.find((p) => p.isDefault)?.name || ''} format={fmt} />
         </label>
 
         <label className="flex items-start gap-2 p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 cursor-pointer">
