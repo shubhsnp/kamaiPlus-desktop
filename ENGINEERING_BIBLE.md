@@ -1,7 +1,7 @@
 # 📕 KamaiPlus Desktop — Engineering Bible
 
 > **Canonical context file. Read this before touching any code.**
-> Last verified against the tree at v4.79.0, 2026‑09‑28 (sections carry the version they were last touched in).
+> Last verified against the tree at v4.80.0, 2026‑09‑29 (sections carry the version they were last touched in).
 
 This file exists so that an agent starting cold does **not** have to scan 180 source
 files, and does **not** re-solve problems that were already solved. Everything here
@@ -319,7 +319,7 @@ src/components/<feature>/   Feature components, one folder per domain
 src/components/ui/          Button, Card, Input, Modal  (that is all of it)
 src/lib/<domain>/           Engines — see table below
 src/types/index.ts          All domain types. Single file.
-scripts/e2e_simulation.ts   The test suite (§11). 583 assertions.
+scripts/e2e_simulation.ts   The test suite (§11). 585 assertions.
 scripts/bump_version.ts     Version bumper (+0.1 minor)
 public/barcodes/*.json      5 shipped offline barcode dictionaries
 ```
@@ -855,14 +855,15 @@ with the reason) → import.
   50 categories, 796 unique valid codes; re-upload with 2 prices changed → 2 updated, 0 new.
   Suite 9 §9d; Electron E2E imports and re-imports a sheet with Hindi headings.
 
-### 9.4 Barcode labels — any printer, any size (v4.71.0)
+### 9.4 Barcode labels — any printer, any size (v4.71.0, v4.80.0)
 
 - **Setup per computer** (`lib/labels/labelSettings.ts`, localStorage `kamai_label_settings`):
   label stock (rolls 50×25, 38×25, 38×25 2-across, 50×25 2-across, 40×30, 50×30, 75×50,
   100×50; A4 sheets of 24 / 40 / 65; or a custom roll: width, height, 1–5 across, gap),
   label printer ('' = print dialog), print without dialog, what the label shows (shop,
   name, price, MRP when higher, digits, date, QR instead of bars; since v4.77.0 size /
-  colour and a cost code in the shop's 10-letter word — `labelExtras.ts`), default copies.
+  colour and a cost code in the shop's 10-letter word — `labelExtras.ts`), default copies,
+  barcode height (v4.80.0).
   Edited in `LabelSetupPanel` — Settings → Invoice & Bill Rules (`LabelPrinterCard`),
   Barcode Studio and the 1-click label share it, with a **Test print**.
 - **Add / Edit Product (v4.78.0)**: `ProductBarcodeField` — "Generate" fills the next store code
@@ -890,8 +891,20 @@ with the reason) → import.
 - Real-app check (printing caught in the main process and rendered to PDF): 50×25 → one
   50×25 page per label; 38×25 2-across → 78×25 pages; A4 → one A4 page; custom 60×40 to a
   chosen printer → silent. Electron E2E does the same for "Print labels" after an import.
-  **Not tested on a physical label printer** — the driver may need the same size set in
-  its own preferences.
+- **Bar height (v4.80.0)**: `LabelSettings.barHeightMm` (0 = the bars fill the space left, as
+  before; 6–20 mm in the setup, stored 3–60) → `buildLabelHtml({ barHeightMm })` from both
+  `printLabels` and `LabelPreview`. A set height centres the label's lines and only the bars
+  give way (down to 3 mm) when a long name needs room, so the price is never cut. Bills do not
+  use it (`kamai_print_settings` is separate). Suite 9 §9i.
+- **Physical printer check (v4.80.0, TSC TE244, Seagull "TSC TTP-244" driver, 203 dpi)**:
+  the app's page size is honoured (Chromium sends it as DEVMODE width / length); a smaller
+  page is printed **centred on the head** — a 50 mm page on a 38 × 25 2-across roll lands on
+  the gap between the two labels, so the roll must be chosen right. The driver keeps
+  **1.25 mm unprintable at each side** (a 78 mm page reaches the printer as `SIZE 75.5 mm`, no
+  scaling: 1 mm = 8 dots) and sends **no `GAP`** — the label start comes from the printer's own
+  calibration. A new roll printed ~2–3 mm high (the name's top cut) until the printer was
+  calibrated (TSPL `GAPDETECT` sent as a RAW job, or FEED held at power-on). Both codes
+  (Code-128 at ~1.9 dots per bar, EAN-13) scanned with a USB gun.
 
 ### 9.5 Barcode gun on the counter & the bill printer (v4.72.0)
 
@@ -1209,7 +1222,7 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 583/583, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 585/585, 0 failures
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
 git push origin main
@@ -1258,7 +1271,7 @@ bypassed; without the key only the no-licence checks run. The script removes
 `ELECTRON_RUN_AS_NODE` (set by VS Code terminals), which otherwise stops Electron
 launching. Failure screenshots go to `%TEMP%\kamaiplus-e2e-shots\`.
 
-### Test suite map — `scripts/e2e_simulation.ts` (583 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (585 assertions)
 
 | Suite | Covers |
 | :--- | :--- |

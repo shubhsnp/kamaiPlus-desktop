@@ -1452,6 +1452,16 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   const oldSaved = parseLabelSettings(JSON.stringify({ stockId: 'roll_38x25', content: { shopName: false } }));
   assert(oldSaved.content.costCode === false && oldSaved.content.detail === false && oldSaved.costCodeWord === '' && !oldSaved.content.shopName && parseLabelSettings(JSON.stringify({ costCodeWord: 'black-horse!' })).costCodeWord === 'BLACKHORSE',
     'A label setup saved before v4.77.0 keeps working (extras off); the code word is stored as capital letters only');
+  // v4.80.0 (tried on a TSC TE244, 38 × 25 mm 2 across): the bars filled the label top to
+  // bottom. The shop sets a bar height once (label setup, per computer); bills are untouched.
+  const shortBars = buildLabelHtml([{ name: 'Shirt', barcode: '2000000000015', pricePaise: 49900 }], LABEL_STOCKS[0], DEFAULT_LABEL_SETTINGS.content, { barHeightMm: 10 });
+  assert(parseLabelSettings(null).barHeightMm === 0 && oldSaved.barHeightMm === 0 && parseLabelSettings(JSON.stringify({ barHeightMm: 10 })).barHeightMm === 10
+    && parseLabelSettings(JSON.stringify({ barHeightMm: 999 })).barHeightMm === 0 && parseLabelSettings(JSON.stringify({ barHeightMm: 'x' })).barHeightMm === 0
+    && shortBars.includes('.bars { flex: 0 1 10mm; }') && shortBars.includes('.label { justify-content: center; }') && !plain.includes('flex: 0 1') && plain.includes('.bars { flex: 1 1 0;'),
+    'Bar height: saved per computer (0 = fill the label, as before; old or broken values fall back); a set height centres the lines and only the bars give way');
+  assert(/barHeightMm: settings\.barHeightMm/.test(readSource('lib/labels/printLabels.ts')) && /barHeightMm: settings\.barHeightMm/.test(readSource('components/labels/LabelPreview.tsx'))
+    && /data-label-bar-height/.test(readSource('components/labels/LabelSetupPanel.tsx')) && !/barHeight/.test(readSource('lib/hardware/printSettings.ts')),
+    'Bar height reaches print and preview alike, is chosen in the label setup, and bill printing does not use it');
 
   // (e) Loose packs: the bar code carries the item and the weight; the counter decodes it.
   const pack = makeWeighedBarcode('2000000000039', 'kg', 0.25) || '';

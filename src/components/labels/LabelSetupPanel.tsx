@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Printer, RefreshCw } from 'lucide-react';
 import { DesktopPrinter, getDesktopApi } from '@/lib/desktop/desktopBridge';
 import {
-  CUSTOM_STOCK_ID, getLabelSettings, LABEL_SETTINGS_EVENT, LABEL_STOCKS, LabelContent, LabelSettings, saveLabelSettings,
+  BAR_HEIGHTS_MM, CUSTOM_STOCK_ID, getLabelSettings, LABEL_SETTINGS_EVENT, LABEL_STOCKS, LabelContent, LabelSettings, saveLabelSettings,
 } from '@/lib/labels/labelSettings';
 import { printLabels } from '@/lib/labels/printLabels';
 import { encodeCostCode, isValidCostCodeWord } from '@/lib/labels/labelExtras';
@@ -147,6 +147,13 @@ export function LabelSetupPanel({ shopName }: { shopName: string }) {
       )}
 
       <div className="flex flex-wrap items-center gap-3 pt-1">
+        <label className="flex items-center gap-2">
+          <span className="font-bold text-slate-700">{tr('Barcode height')}</span>
+          <select value={s.barHeightMm} onChange={(e) => update({ barHeightMm: Number(e.target.value) || 0 })} className={`${field} w-auto`} data-label-bar-height>
+            <option value={0}>{tr('Auto (fill the label)')}</option>
+            {BAR_HEIGHTS_MM.map((mm) => <option key={mm} value={mm}>{`${mm} mm`}</option>)}
+          </select>
+        </label>
         <label className="flex items-center gap-2">
           <span className="font-bold text-slate-700">{tr('Copies per item')}</span>
           <input type="number" min="1" max="500" value={s.copies} onChange={(e) => update({ copies: Math.max(1, Number(e.target.value) || 1) })} className={`${field} w-20 font-mono`} />

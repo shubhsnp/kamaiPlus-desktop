@@ -49,6 +49,8 @@ export interface LabelHtmlOptions {
   qrDataUrls?: Record<string, string>;
   /** The shop's cost code word, when content.costCode is on. */
   costCodeWord?: string;
+  /** Bar height in mm (v4.80.0); 0 / missing = the bars fill the space left. */
+  barHeightMm?: number;
 }
 
 export function buildLabelHtml(labels: LabelData[], stock: LabelStock, content: LabelContent, opts: LabelHtmlOptions = {}): string {
@@ -75,6 +77,14 @@ export function buildLabelHtml(labels: LabelData[], stock: LabelStock, content: 
         .label { outline: 0.2mm dashed #cbd5e1; outline-offset: -0.2mm; }
       }`
     : '';
+  // A set bar height: the label's lines sit in the middle; only the bars give way (to 3 mm)
+  // when a long name needs the room, so the price is never cut off.
+  const barH = opts.barHeightMm && opts.barHeightMm > 0 ? opts.barHeightMm : 0;
+  const barHeightCss = barH
+    ? `.label { justify-content: center; }
+.label > * { flex-shrink: 0; }
+.bars { flex: 0 1 ${barH}mm; }`
+    : '';
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Labels</title><style>
 @page { size: ${page.widthMm}mm ${page.heightMm}mm; margin: 0; }
@@ -100,6 +110,7 @@ body { width: ${page.widthMm}mm; }
 .detail { font-size: ${pt(6.2)}; font-weight: 700; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .cc { font-size: ${pt(5.5)}; font-weight: 700; letter-spacing: 0.3pt; }
 .date { font-size: ${pt(5)}; line-height: 1.1; }
+${barHeightCss}
 ${screenCss}
 </style></head><body>${pages.join('')}</body></html>`;
 }

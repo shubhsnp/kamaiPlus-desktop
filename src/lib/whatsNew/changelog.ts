@@ -15,6 +15,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.80.0',
+    items: [
+      msg('Barcode labels: choose how tall the bars are (label setup → Barcode height). Set it once on this computer and every label uses it; bills are not affected.'),
+    ],
+  },
+  {
     version: '4.79.0',
     items: [
       msg('WhatsApp from every screen, like the Android app: a bill, an udhar reminder (friendly or formal), a khata slip, a payment link, a restock order to your supplier, the day summary to the owner and GST figures to your CA.'),

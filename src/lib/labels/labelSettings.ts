@@ -72,7 +72,12 @@ export interface LabelSettings {
   copies: number;
   /** 10 different letters for the digits 1…9, 0 (cost code); '' = not set. */
   costCodeWord: string;
+  /** Height of the bars in mm; 0 = the bars fill the space left on the label (v4.80.0). */
+  barHeightMm: number;
 }
+
+/** Bar heights offered in the label setup (besides "fill the label"). */
+export const BAR_HEIGHTS_MM = [6, 8, 10, 12, 14, 16, 20];
 
 export const LABEL_SETTINGS_KEY = 'kamai_label_settings';
 export const LABEL_SETTINGS_EVENT = 'label_settings_changed';
@@ -85,6 +90,7 @@ export const DEFAULT_LABEL_SETTINGS: LabelSettings = {
   content: { shopName: true, itemName: true, price: true, mrp: true, code: true, date: false, qr: false, costCode: false, detail: false },
   copies: 1,
   costCodeWord: '',
+  barHeightMm: 0,
 };
 
 const clampNum = (v: unknown, min: number, max: number, fallback: number) => {
@@ -118,6 +124,7 @@ export function parseLabelSettings(raw: string | null | undefined): LabelSetting
     content,
     copies: Math.round(clampNum(s.copies, 1, 500, d.copies)),
     costCodeWord: typeof s.costCodeWord === 'string' ? s.costCodeWord.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 10) : d.costCodeWord,
+    barHeightMm: +clampNum(s.barHeightMm, 3, 60, d.barHeightMm).toFixed(1),
   };
 }
 
