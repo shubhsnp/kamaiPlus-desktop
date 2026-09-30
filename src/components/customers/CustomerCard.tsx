@@ -18,6 +18,7 @@ import { formatINR, cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { tr } from '@/lib/i18n/core';
 import { WhatsAppButton } from '@/components/whatsapp/WhatsAppButton';
+import { useFeatureSwitches } from '@/lib/features/featureSwitches';
 
 interface CustomerCardProps {
   customer: Customer;
@@ -29,6 +30,7 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
   onEditCustomer,
 }) => {
   const isVip = customer.customer_type === 'vip';
+  const khataOn = useFeatureSwitches().khata; // Settings → Features: no "Khata" button when switched off
   const hasUdhar = customer.current_balance > 0;
   const hasAdvance = customer.current_balance < 0;
 
@@ -147,16 +149,18 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
           {/* v4.79.0: WhatsApp the customer — a reminder when udhar is due, else a greeting */}
           {customer.phone && <WhatsAppButton request={{ kind: 'customer', customerId: customer.id }} />}
 
+          {khataOn && (
           <Link href={`/khata?search=${encodeURIComponent(customer.phone || customer.name)}`}>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               className="h-7 px-2.5 text-[11px] font-bold gap-1 border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 rounded-lg"
             >
               <BookOpen className="w-3 h-3 text-amber-700 dark:text-amber-400" />
               <span>{tr('Khata')}</span>
             </Button>
           </Link>
+          )}
         </div>
       </div>
     </div>

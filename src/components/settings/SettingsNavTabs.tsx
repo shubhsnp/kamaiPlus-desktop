@@ -13,6 +13,7 @@ import {
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { tr } from '@/lib/i18n/core';
+import { useFeatureSwitches } from '@/lib/features/featureSwitches';
 
 // UPI QR & bank details live in the Store Profile tab since v4.78.0 (no separate tab).
 export type SettingsTabType = 'profile' | 'features' | 'invoicing' | 'data' | 'help';
@@ -28,6 +29,7 @@ export const SettingsNavTabs: React.FC<SettingsNavTabsProps> = ({
   onTabChange,
   changedCategories,
 }) => {
+  const designerOn = useFeatureSwitches().invoice_designer; // Settings → Features: no Themes link when off
   const tabs = [
     {
       id: 'profile' as SettingsTabType,
@@ -93,6 +95,7 @@ export const SettingsNavTabs: React.FC<SettingsNavTabsProps> = ({
 
       {/* Quick Links to Invoice Designer & Cloud Backup */}
       <div className="hidden lg:flex items-center gap-1.5 shrink-0">
+        {designerOn && (
         <Link
           href="/invoice-designer"
           className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center gap-1 shadow-2xs"
@@ -100,6 +103,7 @@ export const SettingsNavTabs: React.FC<SettingsNavTabsProps> = ({
           <Palette className="w-3.5 h-3.5 text-amber-600" />
           <span>{tr('Themes')}</span>
         </Link>
+        )}
         <Link
           href="/cloud-backup"
           className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center gap-1 shadow-2xs"

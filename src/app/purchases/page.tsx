@@ -31,11 +31,14 @@ import { recordSupplierEntry } from '@/lib/suppliers/supplierLedger';
 import { isVariantParent, tracksOwnStock } from '@/lib/products/variants';
 import { CashierPrivacyToggleButton, ProfitMask } from '@/components/privacy/ProfitMask';
 import { tr } from '@/lib/i18n/core';
+import { useFeatureSwitches } from '@/lib/features/featureSwitches';
 import { inwardMovement, labelCopiesFor, stockAfterInward } from '@/lib/inward/stockEntry';
 import { InwardLabelOffer, InwardLabels } from '@/components/purchases/InwardLabelOffer';
 import { FastBarcodeInwardModal } from '@/components/inward/FastBarcodeInwardModal';
 
 export default function PurchasesPage() {
+  // Settings → Features → Barcode Studio & Labels off: no "New items + labels", no label offer.
+  const labelsOn = useFeatureSwitches().barcode_studio;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState('');
   const [quantity, setQuantity] = useState('');
@@ -160,7 +163,7 @@ export default function PurchasesPage() {
         </div>
       )}
 
-      {labelOffer && <InwardLabelOffer offer={labelOffer} onDismiss={() => setLabelOffer(null)} />}
+      {labelOffer && labelsOn && <InwardLabelOffer offer={labelOffer} onDismiss={() => setLabelOffer(null)} />}
       {fastInwardOpen && <FastBarcodeInwardModal onClose={() => setFastInwardOpen(false)} />}
 
       {/* Header Bar */}
@@ -192,6 +195,7 @@ export default function PurchasesPage() {
             <span>{tr('Fast barcode inward')}</span>
           </Button>
 
+          {labelsOn && (
           <Link
             href="/barcode-generator?new=1"
             prefetch={false}
@@ -202,6 +206,7 @@ export default function PurchasesPage() {
             <Barcode className="w-4 h-4 text-emerald-600" />
             <span>{tr('New items + labels')}</span>
           </Link>
+          )}
 
           <Button onClick={() => setIsModalOpen(true)} size="md" className="text-xs font-bold gap-1.5 cursor-pointer">
             <Plus className="w-4 h-4" />

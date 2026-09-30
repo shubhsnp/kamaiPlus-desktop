@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { KeyRound, LayoutGrid, Lock, PackagePlus, ShieldCheck } from 'lucide-react';
+import { KeyRound, LayoutGrid, Lock, MessageCircle, PackagePlus, ShieldCheck } from 'lucide-react';
 import { FEATURES, FeatureInfo, setFeatureSwitch, useFeatureSwitches } from '@/lib/features/featureSwitches';
 import { hasOwnerPin, setProfitHidden } from '@/lib/auth/cashierPrivacy';
 import { OwnerPinPrompt } from '@/components/privacy/OwnerPinPrompt';
@@ -10,6 +10,7 @@ import { msg, tr } from '@/lib/i18n/core';
 const GROUPS: { id: FeatureInfo['group']; title: string; hint: string; icon: typeof LayoutGrid }[] = [
   { id: 'screens', title: msg('Screens in the menu'), hint: msg('Switched off = not in the menu or on the Home screen.'), icon: LayoutGrid },
   { id: 'product_form', title: msg('Add Product form'), hint: msg('Switched off = the field is not shown; items already saved keep their values.'), icon: PackagePlus },
+  { id: 'tools', title: msg('Buttons across the app'), hint: msg('Switched off = these buttons are hidden on every screen.'), icon: MessageCircle },
   { id: 'privacy', title: msg('Privacy'), hint: msg('Owner PIN for profit and cost prices.'), icon: ShieldCheck },
 ];
 

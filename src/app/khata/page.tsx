@@ -44,6 +44,7 @@ import { EditLedgerEntryModal } from '@/components/khata/EditLedgerEntryModal';
 import { QuickAddKhataCustomerModal } from '@/components/khata/QuickAddKhataCustomerModal';
 import { generateBulkMonthEndStatementPDF } from '@/lib/reports/bulkMonthEndStatement';
 import { tr } from '@/lib/i18n/core';
+import { useFeatureSwitches } from '@/lib/features/featureSwitches';
 import { WhatsAppButton } from '@/components/whatsapp/WhatsAppButton';
 
 const InvoiceModal = dynamic(
@@ -65,6 +66,7 @@ const ConsolidatedStatementModal = dynamic(
 
 function KhataContent() {
   const { t } = useTranslation();
+  const customersOn = useFeatureSwitches().customers; // Settings → Features: no Customers links when switched off
   const searchParams = useSearchParams();
   const initialSearch = searchParams.get('search') || searchParams.get('customer') || '';
 
@@ -516,16 +518,18 @@ function KhataContent() {
             <span className="hidden sm:inline">{tr('Bulk Month-End Statement')}</span>
             <span className="sm:hidden">{tr('Statement')}</span>
           </Button>
+          {customersOn && (
           <Link href="/customers">
-            <Button 
+            <Button
               size="sm"
-              variant="outline" 
+              variant="outline"
               className="font-bold border-sky-300 text-sky-900 bg-sky-50 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-950/60 dark:text-sky-300 text-xs px-2.5 py-1.5 shadow-2xs cursor-pointer"
             >
               <Users className="w-3.5 h-3.5 sm:mr-1 text-sky-700 dark:text-sky-400" />
               <span className="hidden sm:inline">{tr('Directory')}</span>
             </Button>
           </Link>
+          )}
           <Button 
             size="sm"
             onClick={() => setIsAddCustomerOpen(true)}
@@ -764,11 +768,13 @@ function KhataContent() {
                           <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-slate-100 truncate leading-tight">
                             {selectedCustomer.name}
                           </h2>
+                          {customersOn && (
                           <Link href={`/customers?search=${encodeURIComponent(selectedCustomer.phone || selectedCustomer.name)}`}>
                             <span className="text-[10px] font-bold text-sky-600 bg-sky-50 dark:bg-sky-950/60 dark:text-sky-400 px-2 py-0.5 rounded-md hover:underline cursor-pointer border border-sky-200/60 dark:border-sky-800">
                               {tr('360° Profile')}
                             </span>
                           </Link>
+                          )}
                           {/* v4.79.0: udhar reminder (friendly / formal, pay link) like the Android khata */}
                           <WhatsAppButton
                             request={{ kind: 'khata', customerId: selectedCustomer.id }}

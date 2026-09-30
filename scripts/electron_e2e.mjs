@@ -260,6 +260,23 @@ async function run() {
       await page.locator('label:has(input[data-feature="cash_register"])').click();
       await page.waitForTimeout(300);
 
+      // v4.81.0 — Khata switched off: out of the menu and no Credit / Udhar on the counter;
+      // switched back on afterwards (the khata checks further down need it).
+      const khataInMenuBefore = await menuHas('/khata');
+      await page.locator('label:has(input[data-feature="khata"])').click();
+      await page.waitForTimeout(400);
+      const khataInMenuOff = await menuHas('/khata');
+      await page.evaluate(() => { window.location.href = '/billing/'; });
+      await textVisible(page, 'Payment Mode', 15000);
+      const creditButtonsOff = await page.locator('button', { hasText: 'F9' }).count();
+      const f9HintOff = await page.locator('[data-status-shortcut="F9"]').count();
+      await page.evaluate(() => { window.location.href = '/settings/?tab=features'; });
+      await page.getByRole('checkbox', { name: 'Khata (Udhar)' }).waitFor({ state: 'attached', timeout: 15000 });
+      await page.locator('label:has(input[data-feature="khata"])').click();
+      await page.waitForTimeout(400);
+      check(khataInMenuBefore && !khataInMenuOff && creditButtonsOff === 0 && f9HintOff === 0 && (await menuHas('/khata')),
+        'Settings → Features → Khata off: Khata leaves the menu and Billing has no Credit (F9) button or hint; switched back on, it returns');
+
       // 🔊 / 🔇 in the top bar.
       const soundBtn = page.locator('header button[aria-pressed]').first();
       await soundBtn.click();

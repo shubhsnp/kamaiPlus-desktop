@@ -15,6 +15,7 @@ import { msg, tr } from '@/lib/i18n/core';
 import { openWhatsNew } from '@/components/whatsNew/WhatsNewModal';
 import { globalShortcutHints, pagePath } from '@/lib/ui/globalShortcuts';
 import { openSettingsTab } from '@/lib/ui/settingsLinks';
+import { useFeatureSwitches } from '@/lib/features/featureSwitches';
 
 // Keep in step with the keydown handler in app/billing/page.tsx. The bar used to
 // advertise F1 Billing / F2 Products / F4 Register everywhere — none of which existed.
@@ -54,15 +55,18 @@ function billPrinterText(line: PrinterLine): { tone: Tone; label: string; title:
 }
 
 /** The keys that work on this page: the counter's own keys on Billing, then the app-wide ones. */
-function shortcutsFor(pathname: string): { key: string; label: string; wide?: boolean }[] {
+function shortcutsFor(pathname: string, khataOn: boolean): { key: string; label: string; wide?: boolean }[] {
   const global = globalShortcutHints(pathname).map(([key, label]) => ({ key, label }));
-  if (pagePath(pathname) === '/billing') return [...BILLING_SHORTCUTS.map(([key, label]) => ({ key, label })), ...global.map((g) => ({ ...g, wide: true }))];
+  // Khata switched off: F9 (Credit) does nothing on the counter, so it is not shown.
+  const counterKeys = BILLING_SHORTCUTS.filter(([key]) => khataOn || key !== 'F9');
+  if (pagePath(pathname) === '/billing') return [...counterKeys.map(([key, label]) => ({ key, label })), ...global.map((g) => ({ ...g, wide: true }))];
   return [...global, { key: MENU_SHORTCUT[0], label: MENU_SHORTCUT[1] }];
 }
 
 export const DesktopStatusBar: React.FC = () => {
   const pathname = usePathname();
   const router = useRouter();
+  const switches = useFeatureSwitches();
   const [isOnline, setIsOnline] = useState<boolean>(true);
   const [currentTime, setCurrentTime] = useState<string>('');
 
@@ -171,7 +175,7 @@ export const DesktopStatusBar: React.FC = () => {
 
       {/* Center: the keyboard shortcuts that actually work on this screen */}
       <div className="hidden lg:flex items-center gap-3 text-slate-400 text-[10.5px]">
-        {shortcutsFor(pathname).map(({ key, label, wide }) => (
+        {shortcutsFor(pathname, switches.khata).map(({ key, label, wide }) => (
           // On Billing the app-wide keys show only on wide screens (the counter keys come first).
           <div key={key} className={`${wide ? 'hidden 2xl:flex' : 'flex'} items-center gap-1`} data-status-shortcut={key}>
             <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-mono font-bold text-[9.5px]">{key}</kbd>

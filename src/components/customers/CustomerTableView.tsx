@@ -8,11 +8,13 @@ import { cn, formatINR } from '@/lib/utils';
 import { balanceKind, shortDate } from '@/lib/customers/customerDirectory';
 import { msg, tr } from '@/lib/i18n/core';
 import { WhatsAppButton } from '@/components/whatsapp/WhatsAppButton';
+import { useFeatureSwitches } from '@/lib/features/featureSwitches';
 
 const TYPE_LABEL: Record<string, string> = { new: msg('New'), regular: msg('Regular'), inactive: msg('Inactive'), credit: msg('Credit') };
 
 /** Customer Directory as a list (v4.78.0): one row per customer, sortable columns shown by the page's sort. */
 export function CustomerTableView({ customers, onEditCustomer }: { customers: Customer[]; onEditCustomer: (c: Customer) => void }) {
+  const khataOn = useFeatureSwitches().khata; // Settings → Features: no "Khata" link when switched off
   return (
     <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-2xs overflow-x-auto" data-customer-table>
       <table className="w-full text-xs">
@@ -62,9 +64,9 @@ export function CustomerTableView({ customers, onEditCustomer }: { customers: Cu
                 <td className="px-3 py-2">
                   <div className="flex items-center justify-end gap-1">
                     {c.phone && <WhatsAppButton variant="icon" request={{ kind: 'customer', customerId: c.id }} />}
-                    <Link href={`/khata?search=${encodeURIComponent(c.phone || c.name)}`} className="inline-flex items-center gap-1 h-7 px-2 rounded-lg border border-amber-300 bg-amber-50 text-amber-900 font-bold text-[11px] hover:bg-amber-100" title={tr('Khata')}>
+                    {khataOn && <Link href={`/khata?search=${encodeURIComponent(c.phone || c.name)}`} className="inline-flex items-center gap-1 h-7 px-2 rounded-lg border border-amber-300 bg-amber-50 text-amber-900 font-bold text-[11px] hover:bg-amber-100" title={tr('Khata')}>
                       <BookOpen className="w-3 h-3" /> {tr('Khata')}
-                    </Link>
+                    </Link>}
                     <button type="button" onClick={() => onEditCustomer(c)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 cursor-pointer" title={tr('Edit Customer Profile')}>
                       <Edit3 className="w-3.5 h-3.5" />
                     </button>

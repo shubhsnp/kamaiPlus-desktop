@@ -17,6 +17,7 @@ import { WhatsAppSettingsCard } from '@/components/settings/WhatsAppSettingsCard
 
 import { formatInvoiceNumber } from '@/lib/invoices/invoiceNumberService';
 import { tr } from '@/lib/i18n/core';
+import { useFeatureSwitches } from '@/lib/features/featureSwitches';
 
 interface InvoiceSettingsTabProps {
   invoicePrefix: string;
@@ -48,6 +49,8 @@ export const InvoiceSettingsTab: React.FC<InvoiceSettingsTabProps> = ({
     parseInt(nextInvoiceNumber, 10) || 1,
     3
   );
+  // Settings → Features: no Invoice Themes link / WhatsApp settings when those are switched off.
+  const switches = useFeatureSwitches();
 
   return (
     <div className="space-y-4 animate-in fade-in duration-150">
@@ -61,6 +64,7 @@ export const InvoiceSettingsTab: React.FC<InvoiceSettingsTabProps> = ({
             </h3>
           </div>
 
+          {switches.invoice_designer && (
           <Link
             href="/invoice-designer"
             className="px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 font-bold text-xs flex items-center gap-1 shadow-2xs hover:bg-amber-100"
@@ -69,6 +73,7 @@ export const InvoiceSettingsTab: React.FC<InvoiceSettingsTabProps> = ({
             <span>{tr('Customize Bill Layout & Themes')}</span>
             <ArrowRight className="w-3 h-3" />
           </Link>
+          )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -209,7 +214,7 @@ export const InvoiceSettingsTab: React.FC<InvoiceSettingsTabProps> = ({
 
       <LabelPrinterCard />
 
-      <WhatsAppSettingsCard />
+      {switches.whatsapp && <WhatsAppSettingsCard />}
     </div>
   );
 };

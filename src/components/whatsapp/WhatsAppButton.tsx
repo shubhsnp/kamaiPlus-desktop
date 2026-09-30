@@ -5,6 +5,7 @@ import { MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
 import { openWhatsAppComposer, WhatsAppRequest } from '@/lib/whatsapp/openWhatsApp';
+import { useFeatureSwitches } from '@/lib/features/featureSwitches';
 
 /** WhatsApp green, the same on every button. */
 export function WhatsAppIcon({ className }: { className?: string }) {
@@ -19,7 +20,9 @@ const LOOK = {
 
 /**
  * Opens the WhatsApp window for a bill, a customer, a khata entry… (v4.79.0). Clicks never reach
- * the row / card underneath (many sit on clickable rows).
+ * the row / card underneath (many sit on clickable rows). Settings → Features → WhatsApp off
+ * (v4.81.0): the button is not drawn — every WhatsApp button in the app is this one or
+ * RestockOrderButton, so one check hides them all.
  */
 export function WhatsAppButton({
   request,
@@ -34,6 +37,8 @@ export function WhatsAppButton({
   title?: string;
   className?: string;
 }) {
+  const whatsappOn = useFeatureSwitches().whatsapp;
+  if (!whatsappOn) return null;
   const req = typeof request === 'function' ? null : request;
   return (
     <button

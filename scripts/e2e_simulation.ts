@@ -819,7 +819,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   const pos = billingSrc;
   assert(/if \(completingSaleRef\.current\) return;\s*completingSaleRef\.current = true;/.test(pos), 'Complete Sale ignores a second Enter / click while the first sale is saving (no double bill, no double stock cut)');
   assert(/const typedCashPaise = paymentMethod === 'cash' && amountReceivedInput/.test(pos) && /receivedPaise = typedCashPaise \?\?/.test(pos), 'Cash typed in cash mode never leaks into a UPI / card / credit bill as a part payment');
-  assert(/typedCashPaise < grandTotalPaise && !hasCustomer/.test(pos) && /const hasCustomer = Boolean\(targetCustomer \|\| newCustomer\);/.test(pos), 'Short cash without a customer (picked or typed) is refused (no untracked udhar)');
+  assert(/typedCashPaise < grandTotalPaise && \(!hasCustomer \|\| !udharAllowed\)/.test(pos) && /const hasCustomer = Boolean\(targetCustomer \|\| newCustomer\);/.test(pos), 'Short cash without a customer (picked or typed) is refused (no untracked udhar) — and with Khata switched off, even with one (v4.81.0)');
   assert(/if \(excess > parts\[0\]\)/.test(pos) && /changeReturnedPaise = excessP;/.test(pos), 'Overpaid split: the excess is change from the cash part, never counted in the drawer');
   assert(/const price = existing\.unit_price;/.test(pos) && /const price = item\.unit_price;/.test(pos) && (pos.match(/const price = product\.selling_price;/g) || []).length === 1, 'Adding more of a line keeps the rate the cashier edited (only a new line takes the catalogue price)');
   assert((pos.match(/is_tax_inclusive: product\.is_tax_inclusive \?\? !isBusinessGstExclusive/g) || []).length === 2, 'Cart lines store a resolved tax mode, so POS tax and bill totals (saleMath) agree');
@@ -2060,6 +2060,71 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     "A gun's Enter in the Add Product barcode box never saves the half-filled form; it fills name / MRP from the offline list");
   assert(/flex-wrap/.test(toolbar) && !/overflow-x-auto/.test(toolbar) && /data-product-category-more/.test(toolbar) && /\[picked, \.\.\.categories\.filter/.test(toolbar),
     'Category chips wrap (no side-scroll a mouse cannot reach) with "All categories (N)"; the picked one stays first');
+}
+
+// (q) More feature switches (v4.81.0): Khata, Customers, Inventory, Barcode Studio & Labels, Sales
+// Analytics, Invoice Themes and WhatsApp. They start ON (the shop keeps what it had); switched off
+// they leave the menu, Home and every button that leads there. Khata off also takes Credit / Udhar
+// off the counter — no Credit button, no F9, no udhar split, short cash refused.
+{
+  const D = DEFAULT_FEATURE_SWITCHES;
+  assert(D.khata && D.customers && D.inventory && D.barcode_studio && D.sales_reports && D.invoice_designer && D.whatsapp,
+    'The switches added in v4.81.0 start ON — nothing a shop used disappears after the update');
+  const saved = parseFeatureSwitches(JSON.stringify({ profit_privacy: false, cash_register: false }));
+  assert(saved.khata && saved.whatsapp && saved.barcode_studio && !saved.profit_privacy && parseFeatureSwitches(JSON.stringify({ khata: false })).khata === false,
+    'Switches saved before v4.81.0 (or in an old backup) keep their values; the new ones read as on until switched off');
+  assert(featureForPath('/khata') === 'khata' && featureForPath('/customers?search=98') === 'customers' && featureForPath('/inventory/') === 'inventory'
+    && featureForPath('/barcode-generator?from=inward') === 'barcode_studio' && featureForPath('/reports') === 'sales_reports' && featureForPath('/invoice-designer') === 'invoice_designer'
+    && ['/', '/billing', '/products', '/transactions', '/cloud-backup', '/settings'].every((p) => featureForPath(p) === undefined),
+    'Each new screen switch matches its address; Home, Billing, Products, Transactions, Backup and Settings can never be switched off');
+  assert(FEATURES.find((f) => f.id === 'whatsapp')?.group === 'tools' && /\{ id: 'tools', title: msg\('Buttons across the app'\)/.test(readSource('components/settings/FeaturesTab.tsx')),
+    'Settings → Features lists WhatsApp under "Buttons across the app"');
+
+  const pos = readSource('app/billing/page.tsx');
+  assert(/\.filter\(\(m\) => khataOn \|\| m\.id !== 'credit'\)/.test(pos) && /if \(!isFeatureOn\('khata'\)\) return; \/\/ Khata off/.test(pos) && /creditAllowed=\{khataOn\}/.test(pos)
+    && /if \(isCreditMode && !udharAllowed\)/.test(pos) && /\(!hasCustomer \|\| !udharAllowed\)/.test(pos) && /const udharTarget = Boolean\(targetCustomer\) && udharAllowed;/.test(pos)
+    && /if \(paymentMethod === 'credit'\) setPaymentMethod\('cash'\);/.test(pos)
+    && /\{creditAllowed && \(/.test(readSource('components/billing/PosPaymentPanels.tsx'))
+    && /khataOn \|\| key !== 'F9'/.test(readSource('components/layout/DesktopStatusBar.tsx')),
+    'Khata off: no Credit button, F9 or udhar split on the counter (the status bar drops F9); a bill left on Credit goes back to Cash; short cash is refused and an unsplit rest is cash — never udhar');
+
+  assert(quickActionsFor({ purchases: true, khata: false }).map((a) => a.id).join(',') === 'new_bill,stock_inward,day_summary,printers'
+    && quickActionsFor({ purchases: true }).some((a) => a.id === 'khata'),
+    'Home: Khata off takes its Quick Action tile away (the others grow into the row)');
+  const pulse = readSource('components/dashboard/TodayBusinessPulse.tsx');
+  assert(/<CardLink on=\{reportsOn\} href="\/reports"/.test(pulse) && /<CardLink on=\{khataOn\} href="\/khata">/.test(pulse)
+    && /\{switches\.sales_reports && <AdvancedAnalyticsBanner \/>\}/.test(readSource('components/dashboard/DashboardHome.tsx')),
+    'Home cards open Khata / Sales Analytics only while those screens are on; the analytics banner hides with its screen');
+
+  const khataPage = readSource('app/khata/page.tsx');
+  assert(/\{khataOn && \(/.test(readSource('components/customers/CustomerCard.tsx')) && /\{khataOn && <Link href=\{`\/khata/.test(readSource('components/customers/CustomerTableView.tsx'))
+    && /\{khataOn && \(/.test(readSource('components/customers/CustomerHeaderActions.tsx')) && (khataPage.match(/\{customersOn && \(/g) || []).length === 2,
+    'Khata / Customers off: the Customers page has no Khata buttons, the Khata page no Customers links');
+  const invoiceModal = readSource('components/invoices/InvoiceModal.tsx');
+  assert(/designerOn \? \(/.test(invoiceModal) && /onRequestReturn && designerOn &&/.test(invoiceModal)
+    && /const designerOn = useFeatureSwitches\(\)\.invoice_designer;[\s\S]*if \(!sale \|\| !business\) return null;/.test(invoiceModal)
+    && /\{switches\.invoice_designer && \(/.test(readSource('components/settings/InvoiceSettingsTab.tsx')) && /\{designerOn && \(/.test(readSource('components/settings/SettingsNavTabs.tsx')),
+    'Invoice Themes off: no Theme links in the bill window or Settings (the switch is read before the bill window\'s early return)');
+
+  assert(/if \(!whatsappOn\) return null;/.test(readSource('components/whatsapp/WhatsAppButton.tsx')) && /products\.length === 0 \|\| !whatsappOn/.test(readSource('components/whatsapp/RestockOrderButton.tsx'))
+    && /\{switches\.whatsapp && <WhatsAppSettingsCard \/>\}/.test(readSource('components/settings/InvoiceSettingsTab.tsx'))
+    && !ALL_SOURCE.some((f) => !/(components|lib)[\\/]whatsapp[\\/]/.test(f) && /openWhatsAppComposer\(/.test(fs.readFileSync(f, 'utf8'))),
+    'WhatsApp off hides every WhatsApp button — all of them are WhatsAppButton / RestockOrderButton (no screen opens the window itself) — and the message settings');
+
+  assert(/on1ClickBarcodePrint=\{switches\.barcode_studio \? handle1ClickBarcodePrint : undefined\}/.test(readSource('app/products/page.tsx'))
+    && /\{on1ClickBarcodePrint && <button/.test(readSource('components/products/ProductTableView.tsx'))
+    && /\{switches\.barcode_studio && !\(variantsEnabled && !editingProduct\) && \(/.test(readSource('components/products/AddEditProductModal.tsx'))
+    && /\{switches\.barcode_studio && \(\s*<button[\s\S]{0,300}?save\(true\)/.test(readSource('components/inward/FastBarcodeInwardModal.tsx'))
+    && /labelCount > 0 && switches\.barcode_studio/.test(readSource('components/inward/FastBarcodeInwardModal.tsx'))
+    && /const labels = labelsOn \?/.test(readSource('components/purchases/BillInwardDone.tsx'))
+    && /labelOffer && labelsOn && <InwardLabelOffer/.test(readSource('app/purchases/page.tsx'))
+    && /\{labelsOn && result && result\.created/.test(readSource('components/import/CatalogImportModal.tsx')),
+    'Barcode Studio & Labels off: no label button on a product row or in the product form, none after Fast inward, a supplier bill, a manual inward or an Excel import');
+  const studioLinks = ALL_SOURCE.filter((f) => /\/barcode-generator/.test(fs.readFileSync(f, 'utf8'))).map((f) => path.relative(SRC_ROOT, f).replace(/\\/g, '/'));
+  const studioGuardedElsewhere = ['components/layout/Sidebar.tsx', 'components/dashboard/QuickToolsGrid.tsx', 'lib/features/featureSwitches.ts', 'app/barcode-generator/page.tsx',
+    'components/purchases/BillScanReviewModal.tsx' /* its button lives in BillInwardDone */, 'components/purchases/InwardLabelOffer.tsx' /* shown only by Purchases when on */];
+  const unguarded = studioLinks.filter((rel) => !studioGuardedElsewhere.includes(rel) && !/barcode_studio|labelsOn/.test(readSource(rel)));
+  assert(unguarded.length === 0, `Every way into Barcode Studio checks its switch (unguarded: ${unguarded.join(', ') || 'none'})`);
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.

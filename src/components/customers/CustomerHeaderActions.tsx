@@ -10,6 +10,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import { formatINR } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
+import { useFeatureSwitches } from '@/lib/features/featureSwitches';
 
 interface CustomerHeaderActionsProps {
   totalCustomers: number;
@@ -24,6 +25,7 @@ export const CustomerHeaderActions: React.FC<CustomerHeaderActionsProps> = ({
   totalCreditDuePaise,
   onOpenAddModal,
 }) => {
+  const khataOn = useFeatureSwitches().khata; // Settings → Features: no "Khata Ledger" button when switched off
   return (
     <div className="bg-white dark:bg-slate-900 p-3.5 sm:p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
       <div className="min-w-0">
@@ -43,16 +45,18 @@ export const CustomerHeaderActions: React.FC<CustomerHeaderActionsProps> = ({
       </div>
 
       <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+        {khataOn && (
         <Link href="/khata">
-          <Button 
+          <Button
             size="sm"
-            variant="outline" 
+            variant="outline"
             className="font-bold border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 text-xs px-3 py-1.5 shadow-2xs cursor-pointer rounded-xl"
           >
             <BookOpen className="w-3.5 h-3.5 mr-1 text-amber-700 dark:text-amber-400" />
             <span>{tr('Khata Ledger')}</span>
           </Button>
         </Link>
+        )}
         <Button 
           size="sm"
           onClick={onOpenAddModal} 

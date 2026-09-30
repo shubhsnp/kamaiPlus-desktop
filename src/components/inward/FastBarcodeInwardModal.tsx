@@ -145,7 +145,7 @@ export function FastBarcodeInwardModal({ onClose }: { onClose: () => void }) {
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" size="sm" onClick={onClose}>{tr('Close')}</Button>
             <Button type="button" variant="outline" size="sm" onClick={() => { setDone(null); focusScan(); }} data-fast-scan-more>{tr('Scan more')}</Button>
-            {labelCount > 0 && (
+            {labelCount > 0 && switches.barcode_studio && (
               <Button type="button" size="sm" onClick={() => printLabels(done)} className="bg-slate-900 hover:bg-slate-950 text-white font-bold gap-1.5" data-fast-print-labels>
                 <Barcode className="w-4 h-4 text-amber-400" /> {tr('Print {count} labels', { count: labelCount })}
               </Button>
@@ -217,9 +217,11 @@ export function FastBarcodeInwardModal({ onClose }: { onClose: () => void }) {
               <button type="button" disabled={saving || rows.length === 0} onClick={() => void save(false)} className="inline-flex items-center gap-1.5 px-3 h-9 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 font-bold cursor-pointer disabled:opacity-50" data-fast-save>
                 {saving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} {tr('Save {count} items', { count: plan.lines.length })}
               </button>
+              {switches.barcode_studio && (
               <button type="button" disabled={saving || rows.length === 0} onClick={() => void save(true)} className="inline-flex items-center gap-1.5 px-4 h-9 rounded-lg bg-slate-900 hover:bg-slate-950 text-white font-black cursor-pointer disabled:opacity-50" data-fast-save-labels>
                 <Barcode className="w-3.5 h-3.5 text-amber-400" /> {tr('Save & print labels')}
               </button>
+              )}
             </div>
           </div>
         </div>

@@ -5,10 +5,15 @@ import { Barcode, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { BillInwardResult } from '@/lib/purchases/billInwardDb';
 import { tr } from '@/lib/i18n/core';
+import { useFeatureSwitches } from '@/lib/features/featureSwitches';
 
-/** After a supplier's bill is saved: what happened, and its labels (one per piece). */
+/**
+ * After a supplier's bill is saved: what happened, and its labels (one per piece) — no label
+ * offer with Settings → Features → Barcode Studio & Labels off.
+ */
 export function BillInwardDone({ result, onClose, onPrintLabels }: { result: BillInwardResult; onClose: () => void; onPrintLabels: () => void }) {
-  const labels = result.labels.reduce((n, l) => n + l.copies, 0);
+  const labelsOn = useFeatureSwitches().barcode_studio;
+  const labels = labelsOn ? result.labels.reduce((n, l) => n + l.copies, 0) : 0;
   return (
     <div className="space-y-4 text-xs" data-inward-done>
       <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex gap-3">

@@ -18,16 +18,20 @@ export interface QuickActionSpec {
   action?: HomeAction;
 }
 
-/** Quick Actions row: New bill, Khata, stock inward (or its stand-in), Day summary, Printers. */
-export function quickActionsFor(switches: Pick<FeatureSwitches, 'purchases'>): QuickActionSpec[] {
-  return [
+/**
+ * Quick Actions row: New bill, Khata, stock inward (or its stand-in), Day summary, Printers.
+ * Khata switched off (v4.81.0): its tile goes and the others grow into the room.
+ */
+export function quickActionsFor(switches: Pick<FeatureSwitches, 'purchases'> & Partial<Pick<FeatureSwitches, 'khata'>>): QuickActionSpec[] {
+  const tiles: (QuickActionSpec | null)[] = [
     { id: 'new_bill', href: NEW_BILL_HREF },
-    { id: 'khata', href: '/khata' },
+    switches.khata === false ? null : { id: 'khata', href: '/khata' },
     // Purchases off: stock still comes in — by scanning it in, right here on Home.
     switches.purchases ? { id: 'stock_inward', href: '/purchases' } : { id: 'fast_inward', action: 'fast_inward' },
     { id: 'day_summary', action: 'day_summary' },
     { id: 'printers', action: 'printers' },
   ];
+  return tiles.filter((t): t is QuickActionSpec => t !== null);
 }
 
 /** GST Reports off: the CA / Tally exports still live in Settings → Data Backup & Tax Reports. */

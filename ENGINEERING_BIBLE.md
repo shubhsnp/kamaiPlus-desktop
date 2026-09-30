@@ -321,7 +321,7 @@ src/components/<feature>/   Feature components, one folder per domain
 src/components/ui/          Button, Card, Input, Modal  (that is all of it)
 src/lib/<domain>/           Engines — see table below
 src/types/index.ts          All domain types. Single file.
-scripts/e2e_simulation.ts   The test suite (§11). 601 assertions.
+scripts/e2e_simulation.ts   The test suite (§11). 613 assertions.
 scripts/bump_version.ts     Version bumper (+0.1 minor)
 public/barcodes/*.json      5 shipped offline barcode dictionaries
 ```
@@ -410,6 +410,10 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 `/cash-register`, `/purchases`, `/suppliers` and `/gst-reports` can be switched off in
 Settings → Features (§9.2): off = not in the Sidebar or on Home, and the address shows a
 "turned off" card (`<FeatureGate>` in AppShell). **Off by default for a new shop.**
+Since v4.81.0 also `/khata`, `/customers`, `/inventory`, `/barcode-generator`, `/reports` and
+`/invoice-designer` — **on** by default. `/`, `/billing`, `/products`, `/transactions`,
+`/cloud-backup` and `/settings` have no switch (a shop cannot work, or switch things back on,
+without them).
 
 ### 4.1 Which file writes which Dexie table (verified — the real side-effect map)
 
@@ -803,7 +807,7 @@ Billing, returns, inventory, valuation and alerts already skip unlimited items
 (`tracksOwnStock`). Other creators keep their own rule: POS "unknown barcode" quick-add
 = 50 counted, Excel / bill inward = the quantity received.
 
-### 9.2 Feature switches — Settings → Features (v4.69.0)
+### 9.2 Feature switches — Settings → Features (v4.69.0, v4.81.0)
 
 A shop hides what it does not use. **Per feature, never per trade** — nothing may branch
 on `business_type` (Suite 9 still bans it, and the identifier `featureToggles`; the
@@ -815,15 +819,26 @@ module is `featureSwitches`). Switching off only hides; no data is deleted.
 | `product_selling_price` | off | Add Product shows only **MRP (required)**; the item sells at MRP (`selling_price = mrp`). An existing item whose price ≠ MRP still shows both boxes (`showSellingPriceField`) so a save never changes its price. |
 | `product_cost_price`, `product_hsn`, `product_gst_rate`, `product_size_colour`, `product_variants` | off | field not shown; a new item gets 0 / empty / 0 % GST, an edited one keeps its value. |
 | `profit_privacy` | **on** | off = no "Cashier Privacy" button anywhere, `isProfitHidden()` always false, Reports show profit without the owner PIN. |
+| `khata` (v4.81.0) | **on** | screen hidden (menu, Home tile + "Market Udhar" card is no longer a link, Customers' "Khata" buttons) **and no udhar on the counter**: Billing drops the Credit button, F9 (`isFeatureOn('khata')` at key time) and the split's Credit box (`creditAllowed`); a tab left on Credit / with an udhar split is reset to Cash; `handleCompleteSale` refuses credit, refuses short cash even with a customer, and books an unsplit rest as cash (`udharAllowed`). The status bar drops F9. Returns / Edit Bill keep their khata options — they correct bills made before. |
+| `customers` (v4.81.0) | **on** | screen hidden; the Khata page's "Directory" / "360° Profile" links go. The POS customer row stays (a bill still carries a name / mobile). |
+| `inventory` (v4.81.0) | **on** | screen hidden (menu, Home tools). |
+| `barcode_studio` (v4.81.0) | **on** | screen hidden **and every label button**: product row printer icon (`on1ClickBarcodePrint` optional), "Save & print label", Fast inward "Save & print labels" / "Print N labels", supplier-bill `BillInwardDone`, manual-inward `InwardLabelOffer`, Purchases "New items + labels", Excel import "Print labels". Suite 9 §9j(q) fails on any new unguarded `/barcode-generator` link. Label printer setup stays in Settings / Printers. |
+| `sales_reports` (v4.81.0) | **on** | `/reports` hidden; Home `AdvancedAnalyticsBanner` and the Average-Bill card link go. |
+| `invoice_designer` (v4.81.0) | **on** | `/invoice-designer` hidden; the Theme links in `InvoiceModal`, Settings tabs and Invoice & Bill Rules go. Bills keep the saved theme. |
+| `whatsapp` (v4.81.0, group "Buttons across the app") | **on** | `WhatsAppButton` / `RestockOrderButton` return null (every WhatsApp entry point is one of the two — Suite 9 checks no screen calls `openWhatsAppComposer` itself); `WhatsAppSettingsCard` hidden. |
 
+- **v4.81.0 defaults:** the owner asked that what was on stays on. On the owner's PC all 11 older
+  switches were off (read from `app://kamaiplus` localStorage), so those defaults did not change; the
+  7 new ones start on because those screens / buttons always existed. `parseFeatureSwitches` gives a
+  missing key its default, so older saved values and backups keep working.
 - Stored **per computer** in localStorage `kamai_feature_switches` (one licence = one
   computer), read through `useFeatureSwitches()` (re-renders on `feature_switches_changed`).
 - With an owner PIN set, the Features tab asks for it (`FeaturesTab` → `OwnerPinPrompt`);
   otherwise staff could switch profit privacy off.
 - 🔊 / 🔇 (`SoundToggleButton`, top bar, `kamai_sound_muted`): `playBeepSound`,
   `playSupermarketBeep` and the soundbox voice all return early when muted.
-- Suite 9 §9c; Electron E2E checks the new-shop form, menu, "turned off" card, a switch
-  going on, and the sound button.
+- Suite 9 §9c, §9j(q) (v4.81.0 switches); Electron E2E checks the new-shop form, menu,
+  "turned off" card, a switch going on, and the sound button.
 
 ### 9.3 Excel price-list import & the shop's own barcodes (v4.70.0)
 
@@ -1280,7 +1295,7 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 601/601, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 613/613, 0 failures
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
 git push origin main
@@ -1291,7 +1306,7 @@ billing), also run the real app:
 
 ```bash
 npx next build                      # out/ must be current
-npm run test:electron               # scripts/electron_e2e.mjs — 70/70
+npm run test:electron               # scripts/electron_e2e.mjs — 71/71
 ```
 
 `electron_e2e.mjs` launches the actual Electron app with Playwright (`playwright-core`,
@@ -1322,6 +1337,9 @@ offline list), F1 from Products opens a fresh bill (not with a form open), backu
 (no gaps), the Printers window from Home and the status bar, and printer auto-detect reading Windows.
 Since v4.79.0: WhatsApp (`kp:open-whatsapp` caught in the main process) — a bill from Transactions
 to a typed number (Hindi on one click), Esc over a bill closes only the WhatsApp window, a khata message.
+Since v4.81.0: Settings → Features → Khata off takes Khata out of the menu and the Credit (F9) button / hint
+off Billing; switched back on it returns. (The first licensed launch's "Set Master Password" check waits
+20 s and can miss on a cold start right after a build — tracker K-D17; the steps after it pass.)
 Its data goes to a temp folder via `KAMAI_E2E_DIR` (main.js honours it only
 when `!app.isPackaged`). The licence is **signed for this PC with the private key** in
 `%USERPROFILE%\KamaiPlus-Secrets\` (or `KAMAI_LICENCE_PRIVATE_KEY`) — nothing is
@@ -1329,7 +1347,7 @@ bypassed; without the key only the no-licence checks run. The script removes
 `ELECTRON_RUN_AS_NODE` (set by VS Code terminals), which otherwise stops Electron
 launching. Failure screenshots go to `%TEMP%\kamaiplus-e2e-shots\`.
 
-### Test suite map — `scripts/e2e_simulation.ts` (601 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (613 assertions)
 
 | Suite | Covers |
 | :--- | :--- |

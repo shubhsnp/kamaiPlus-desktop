@@ -17,6 +17,13 @@ import {
 import { tr } from '@/lib/i18n/core';
 import { useFeatureSwitches } from '@/lib/features/featureSwitches';
 
+/** A Home card that opens its screen — or, with that screen switched off, just shows the figure. */
+function CardLink({ on, href, children, ...data }: { on: boolean; href: string; children: React.ReactNode } & Record<`data-${string}`, boolean | undefined>) {
+  return on
+    ? <Link href={href} className="group block focus:outline-none" {...data}>{children}</Link>
+    : <div className="group block" {...data}>{children}</div>;
+}
+
 interface TodayBusinessPulseProps {
   todaysSalesTotal: number;
   todaysSalesCount: number;
@@ -50,8 +57,12 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
   const marginBase = profitCoveredRevenue ?? todaysSalesTotal;
   const profitMarginPercent = marginBase > 0 ? Math.round((todaysGrossProfit / marginBase) * 100) : 0;
 
-  // Cash Register can be switched off in Settings → Features (then the card is not a link).
-  const cashRegisterOn = useFeatureSwitches().cash_register;
+  // Cash Register, Khata and Sales Analytics can be switched off in Settings → Features
+  // (then their card is not a link and shows no arrow — v4.81.0 for Khata / Analytics).
+  const switches = useFeatureSwitches();
+  const cashRegisterOn = switches.cash_register;
+  const khataOn = switches.khata;
+  const reportsOn = switches.sales_reports;
   const cashInHandCard = (
     <Card className="p-3 sm:p-3.5 bg-gradient-to-br from-white to-amber-50/60 dark:from-slate-900 dark:to-amber-950/20 border border-amber-200/90 dark:border-amber-800/60 hover:border-amber-400 active:scale-[0.98] transition-all rounded-2xl shadow-2xs group-hover:shadow-md h-full flex flex-col justify-between cursor-pointer">
       <div>
@@ -163,7 +174,7 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
           </Card>
         </div>
         ) : (
-        <Link href="/reports" className="group block focus:outline-none" data-pulse-average-bill>
+        <CardLink on={reportsOn} href="/reports" data-pulse-average-bill>
           <Card className="p-3 sm:p-3.5 bg-gradient-to-br from-white to-blue-50/60 dark:from-slate-900 dark:to-blue-950/20 border border-blue-200/90 dark:border-blue-800/60 hover:border-blue-400 active:scale-[0.98] transition-all rounded-2xl shadow-2xs group-hover:shadow-md h-full flex flex-col justify-between cursor-pointer">
             <div>
               <div className="flex items-center justify-between gap-1">
@@ -185,13 +196,15 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
               <span className="text-slate-500 dark:text-slate-400 font-semibold truncate" title={tr('Add buying prices to your items to see profit here.')}>
                 {tr('Biggest bill')}: <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{formatINR(biggestBillPaise)}</span>
               </span>
+              {reportsOn && (
               <span className="text-blue-700 dark:text-blue-400 font-bold inline-flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform text-[10px]">
                 <span>{tr('Reports')}</span>
                 <ArrowRight className="w-2.5 h-2.5" />
               </span>
+              )}
             </div>
           </Card>
-        </Link>
+        </CardLink>
         )}
 
         {/* 3. Cash in Drawer (Galle me Cash) */}
@@ -203,7 +216,7 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
         )}
 
         {/* 4. Total Outstanding Credit (Khata Udhar) */}
-        <Link href="/khata" className="group block focus:outline-none">
+        <CardLink on={khataOn} href="/khata">
           <Card className="p-3 sm:p-3.5 bg-gradient-to-br from-white to-rose-50/60 dark:from-slate-900 dark:to-rose-950/20 border border-rose-200/90 dark:border-rose-800/60 hover:border-rose-400 active:scale-[0.98] transition-all rounded-2xl shadow-2xs group-hover:shadow-md h-full flex flex-col justify-between cursor-pointer">
             <div>
               <div className="flex items-center justify-between gap-1">
@@ -225,13 +238,15 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
               <span className="text-slate-500 dark:text-slate-400 font-semibold truncate">
                 {tr('Pending Ledger')}
               </span>
+              {khataOn && (
               <span className="text-rose-700 dark:text-rose-400 font-bold inline-flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform text-[10px]">
                 <span>{tr('Khata')}</span>
                 <ArrowRight className="w-2.5 h-2.5" />
               </span>
+              )}
             </div>
           </Card>
-        </Link>
+        </CardLink>
       </div>
     </div>
   );

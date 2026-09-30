@@ -32,6 +32,7 @@ import { EditInvoiceModal } from '@/components/invoices/EditInvoiceModal';
 import { InvoicePreview } from '@/components/invoices/InvoicePreview';
 import { WhatsAppButton } from '@/components/whatsapp/WhatsAppButton';
 import { msg, tr } from '@/lib/i18n/core';
+import { useFeatureSwitches } from '@/lib/features/featureSwitches';
 
 export type InvoiceFormat = PaperFormat;
 
@@ -131,6 +132,9 @@ export function InvoiceModal({
     autoPrinted.current = sale.id;
     printInvoice({ sale, business, customer, upiVpa: selectedVpa }).catch(() => {});
   }, [isOpen, isPostSaleSuccess, sale, business, customer, selectedVpa]);
+
+  // Before the early return below: a hook must run on every render.
+  const designerOn = useFeatureSwitches().invoice_designer; // Settings → Features: no Theme links when off
 
   if (!sale || !business) return null;
 
@@ -271,13 +275,13 @@ export function InvoiceModal({
               <Button variant="outline" onClick={() => onRequestReturn(sale)} className="h-10 text-rose-700 border-rose-200 hover:bg-rose-50">
                 <RotateCcw className="w-4 h-4" /> {tr('Return')}
               </Button>
-            ) : (
+            ) : designerOn ? (
               <Link href="/invoice-designer" className="contents">
                 <Button variant="outline" className="h-10 w-full">
                   <Palette className="w-4 h-4 text-purple-600" /> {tr('Theme')}
                 </Button>
               </Link>
-            )}
+            ) : null}
           </div>
 
           {/* v4.79.0: the bill as a WhatsApp message (+ pay link for what is due), like the Android app. */}
@@ -289,7 +293,7 @@ export function InvoiceModal({
                 <Bluetooth className="w-3.5 h-3.5" /> {busy === 'bt' ? tr('Printing…') : tr('Print on Bluetooth printer')}
               </button>
             )}
-            {onRequestReturn && (
+            {onRequestReturn && designerOn && (
               <Link href="/invoice-designer" className="inline-flex items-center gap-1 font-bold text-purple-700 hover:underline">
                 <Palette className="w-3.5 h-3.5" /> {tr('Invoice theme')}
               </Link>

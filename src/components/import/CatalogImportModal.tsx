@@ -14,6 +14,7 @@ import { applyImportPlan, ImportResult } from '@/lib/import/catalogImportDb';
 import { ImportColumnMapper } from './ImportColumnMapper';
 import { ImportPreview } from './ImportPreview';
 import { tr } from '@/lib/i18n/core';
+import { useFeatureSwitches } from '@/lib/features/featureSwitches';
 
 interface CatalogImportModalProps {
   onClose: () => void;
@@ -38,6 +39,7 @@ const SAMPLE_ROWS = [
  * sheet again with new prices updates those prices; nothing is added twice.
  */
 export function CatalogImportModal({ onClose, businessId, onImportComplete }: CatalogImportModalProps) {
+  const labelsOn = useFeatureSwitches().barcode_studio; // Settings → Features: no "Print labels" when off
   const [step, setStep] = useState<'pick' | 'map' | 'preview' | 'done'>('pick');
   const [busy, setBusy] = useState(false);
   const [fileName, setFileName] = useState('');
@@ -266,7 +268,7 @@ export function CatalogImportModal({ onClose, businessId, onImportComplete }: Ca
           )}
           {step === 'done' && (
             <div className="flex items-center gap-2">
-              {result && result.created + result.updated > 0 && (
+              {labelsOn && result && result.created + result.updated > 0 && (
                 <Link
                   href="/barcode-generator?from=import"
                   prefetch={false}

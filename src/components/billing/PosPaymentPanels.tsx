@@ -20,9 +20,11 @@ export interface SplitPaymentPanelProps {
   splitUpi: string; setSplitUpi: SetStr;
   splitCard: string; setSplitCard: SetStr;
   splitCredit: string; setSplitCredit: SetStr;
+  /** Settings → Features → Khata off (v4.81.0): no Credit / Udhar part. */
+  creditAllowed?: boolean;
 }
 
-export function SplitPaymentPanel({ grandTotalPaise, splitCash, setSplitCash, splitUpi, setSplitUpi, splitCard, setSplitCard, splitCredit, setSplitCredit }: SplitPaymentPanelProps) {
+export function SplitPaymentPanel({ grandTotalPaise, splitCash, setSplitCash, splitUpi, setSplitUpi, splitCard, setSplitCard, splitCredit, setSplitCredit, creditAllowed = true }: SplitPaymentPanelProps) {
   const cVal = parseFloat(splitCash || '0') || 0;
   const uVal = parseFloat(splitUpi || '0') || 0;
   const crVal = parseFloat(splitCredit || '0') || 0;
@@ -76,6 +78,7 @@ export function SplitPaymentPanel({ grandTotalPaise, splitCash, setSplitCash, sp
           />
         </div>
 
+        {creditAllowed && (
         <div>
           <label className="text-[10px] font-bold text-slate-600 uppercase block mb-0.5">{tr('Credit / Udhar (₹)')}</label>
           <input
@@ -87,6 +90,7 @@ export function SplitPaymentPanel({ grandTotalPaise, splitCash, setSplitCash, sp
             className="w-full bg-white border border-slate-300 text-slate-900 font-mono font-bold text-xs rounded p-1.5 focus:outline-none focus:border-slate-900"
           />
         </div>
+        )}
       </div>
 
       {/* Quick Split Presets */}

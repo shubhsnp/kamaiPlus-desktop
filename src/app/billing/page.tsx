@@ -82,6 +82,7 @@ import { generalCategoryId } from '@/lib/products/defaultCategory';
 import { BillingToast, BillingToastData, FullscreenUpiQrModal, QuickAddScannedProductModal } from '@/components/billing/PosDialogs';
 import { CashTenderPanel, SplitPaymentPanel, UpiQrCard } from '@/components/billing/PosPaymentPanels';
 import { BillTab, getInitialTabs, makeEmptyTab, tabsAfterClosing, tabsAfterSale, tabsForNewBill, TABS_STORAGE_KEY } from '@/lib/billing/billTabs';
+import { isFeatureOn, useFeatureSwitches } from '@/lib/features/featureSwitches';
 import { PrintFailureBar, useBackgroundBillPrint, warmBillPrinting } from '@/components/billing/BillPrintQueue';
 import { tr } from '@/lib/i18n/core';
 
@@ -321,6 +322,15 @@ export default function BillingPage() {
   };
 
   const business = useBusiness();
+  // Settings → Features → Khata off (v4.81.0): no Credit / Udhar on the counter — a bill left
+  // on Credit (or with an udhar part in Split) from before goes back to a paid mode.
+  const khataOn = useFeatureSwitches().khata;
+  useEffect(() => {
+    if (khataOn) return;
+    if (paymentMethod === 'credit') setPaymentMethod('cash');
+    if ((parseFloat(splitCredit || '0') || 0) > 0) setSplitCredit('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [khataOn, paymentMethod, splitCredit]);
   const categories = useLiveQuery(async () => db.categories.toArray()) || [];
   const customers = useLiveQuery(async () => db.customers.toArray()) || [];
 
@@ -895,6 +905,13 @@ export default function BillingPage() {
 
     // MANDATORY CUSTOMER VALIDATION FOR CREDIT / UDHAR PAYMENT MODE
     const isCreditMode = paymentMethod === 'credit' || (paymentMethod === 'split' && parseFloat(splitCredit || '0') > 0);
+    // Khata switched off (Settings → Features): no udhar at all — read now, not from the render.
+    const udharAllowed = isFeatureOn('khata');
+    if (isCreditMode && !udharAllowed) {
+      playBeepSound('alert');
+      showBillingToast(tr('Khata (Udhar) is switched off in Settings → Features. Take the full payment.'), 'error');
+      return;
+    }
     if (isCreditMode && !hasCustomer) {
       playBeepSound('alert');
       showBillingToast(tr('Customer name is mandatory for Credit (Udhar) sale. Type the customer name or mobile number.'), 'error');
@@ -907,9 +924,11 @@ export default function BillingPage() {
     const typedCashPaise = paymentMethod === 'cash' && amountReceivedInput
       ? Math.round((parseFloat(amountReceivedInput) || 0) * 100)
       : null;
-    if (typedCashPaise !== null && typedCashPaise < grandTotalPaise && !hasCustomer) {
+    if (typedCashPaise !== null && typedCashPaise < grandTotalPaise && (!hasCustomer || !udharAllowed)) {
       playBeepSound('alert');
-      showBillingToast(tr('Cash received is {v1} short. Correct the amount, or select a customer to put the rest on udhar.', { v1: formatINR(grandTotalPaise - typedCashPaise) }), 'error');
+      showBillingToast(udharAllowed
+        ? tr('Cash received is {v1} short. Correct the amount, or select a customer to put the rest on udhar.', { v1: formatINR(grandTotalPaise - typedCashPaise) })
+        : tr('Cash received is {v1} short. Correct the amount.', { v1: formatINR(grandTotalPaise - typedCashPaise) }), 'error');
       return;
     }
 
@@ -959,8 +978,10 @@ export default function BillingPage() {
         const unassigned = Math.max(0, grandTotalPaise - allocatedP);
         // Overpaid (checked above to fit inside the cash part) = change handed back.
         const excessP = Math.max(0, allocatedP - grandTotalPaise);
-        const finalCreditP = creditP + (targetCustomer ? unassigned : 0);
-        const finalCashP = cashP - excessP + (!targetCustomer ? unassigned : 0);
+        // What is not split goes on the customer's khata — or is taken as cash (no customer, or Khata off).
+        const udharTarget = Boolean(targetCustomer) && udharAllowed;
+        const finalCreditP = creditP + (udharTarget ? unassigned : 0);
+        const finalCashP = cashP - excessP + (!udharTarget ? unassigned : 0);
 
         receivedPaise = finalCashP + upiP + cardP;
         balanceDuePaise = finalCreditP;
@@ -1283,6 +1304,7 @@ export default function BillingPage() {
 
       if (e.key === 'F9') {
         e.preventDefault();
+        if (!isFeatureOn('khata')) return; // Khata off: no Credit (Udhar) key either
         setPaymentMethod('credit');
         showBillingToast(tr('Selected Credit (Udhar) [F9]'), 'info');
         return;
@@ -1598,13 +1620,13 @@ export default function BillingPage() {
         <label className="text-xs font-bold text-slate-900 uppercase tracking-wider block mb-1">
           {tr('Payment Mode')}
         </label>
-        <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
+        <div className={cn('grid gap-1.5 sm:gap-2', khataOn ? 'grid-cols-4' : 'grid-cols-3')}>
           {[
             { id: 'cash', label: tr('Cash'), icon: Banknote, shortcut: 'F4' },
             { id: 'upi', label: tr('UPI / QR'), icon: QrCode, shortcut: 'F8' },
             { id: 'credit', label: tr('Credit'), icon: BookOpen, shortcut: 'F9' },
             { id: 'split', label: tr('Split'), icon: CreditCard },
-          ].map((m) => {
+          ].filter((m) => khataOn || m.id !== 'credit').map((m) => {
             const Icon = m.icon;
             const isSelected = paymentMethod === m.id;
             return (
@@ -1702,6 +1724,7 @@ export default function BillingPage() {
           splitUpi={splitUpi} setSplitUpi={setSplitUpi}
           splitCard={splitCard} setSplitCard={setSplitCard}
           splitCredit={splitCredit} setSplitCredit={setSplitCredit}
+          creditAllowed={khataOn}
         />
       )}
 

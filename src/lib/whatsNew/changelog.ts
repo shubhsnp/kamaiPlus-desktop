@@ -19,6 +19,8 @@ export const CHANGELOG: Release[] = [
     items: [
       msg('Products: the search now finds items by HSN, size and colour too, and every category can be reached — “All categories” opens them all.'),
       msg('The camera Scan button on Products is gone (it did nothing). Scan with the barcode gun into the search or the barcode box — in Add Product the gun now fills the name and MRP and no longer saves a half-filled item.'),
+      msg('Settings → Features has more switches: Khata, Customers, Inventory, Barcode Studio & Labels, Sales Analytics, Invoice Themes and WhatsApp. They start on — switch off what your shop does not use; nothing is deleted.'),
+      msg('Khata switched off also takes Credit / Udhar off the billing counter (no Credit button, no F9), so every bill is paid in full.'),
     ],
   },
   {

@@ -206,7 +206,7 @@ export default function DashboardHome() {
       />
 
       {/* 3. ADVANCED ANALYTICS BANNER (Android Home parity) */}
-      <AdvancedAnalyticsBanner />
+      {switches.sales_reports && <AdvancedAnalyticsBanner />}
 
 
 

@@ -114,7 +114,7 @@ Order zaroori hai — pehle nayi site, phir purani cheezein band.
 
 ## 4. Kamiyan (count)
 
-**Total: 42** — Platform 14 · Android 12 · Desktop 16. **Open 38 · Done 4.**
+**Total: 43** — Platform 14 · Android 12 · Desktop 17. **Open 39 · Done 4.**
 🔴 = paisa / data / security / Play Store risk · 🟠 = galat ya adhoora behaviour · 🟢 = chhota / feature gap
 
 ### Platform / website (K-P)
@@ -173,6 +173,7 @@ Order zaroori hai — pehle nayi site, phir purani cheezein band.
 | K-D14 | Products search "HSN, size, color" ka daava karta tha, par sirf naam / barcode dhoondhta tha | 🟠 | ✅ Done v4.81.0 — `lib/products/detailSearch.ts` |
 | K-D15 | Category chips ek line mein side-scroll — mouse se aage ki categories tak pahunch hi nahi | 🟠 | ✅ Done v4.81.0 — chips wrap + "All categories (N)" |
 | K-D16 | Add Product ke barcode box mein gun ka Enter adhoora product save kar deta tha | 🔴 | ✅ Done v4.81.0 — Enter = offline list se naam / MRP |
+| K-D17 | Electron E2E ka pehla licensed launch check ("Set Master Password" 20 s mein) naye build ke baad thande start par fail ho jaata hai — agle steps pass hote hain (screen der se aati hai). Timeout / wait sudharna hai | 🟢 | Open |
 
 ---
 
@@ -187,3 +188,4 @@ Order zaroori hai — pehle nayi site, phir purani cheezein band.
 | 2026-09-30 | Website / web app ka kaam Rahul ne roka — pending sawaal §1b mein. Ab Desktop app ke changes. | — |
 | 2026-09-30 | Desktop v4.81.0 — Products toolbar: camera Scan hataya, gun Enter fix, search HSN / size / colour, category chips wrap. Test §9j(p), suite 601/601. K-D13…K-D16. | Desktop |
 | 2026-09-30 | Rahul ke PC ke Feature switches padhe (`app://kamaiplus` localStorage): 11 ke 11 **off** (profit privacy bhi). Naye switches default **on** rahenge (jo screens aaj dikhti hain). | — |
+| 2026-09-30 | Desktop v4.81.0 — Settings → Features mein 7 naye switch (Khata, Customers, Inventory, Barcode Studio & Labels, Sales Analytics, Invoice Themes, WhatsApp), sab default on. Khata off = counter par udhar bhi band. Test §9j(q), suite 613/613; Electron E2E mein Khata-off check. | Desktop |

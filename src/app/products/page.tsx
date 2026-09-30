@@ -498,7 +498,7 @@ export default function ProductsPage() {
             onDelete={(prod) => handleDeleteProduct(prod.id, prod.name)}
             onQuickStockChange={handleQuickStockChange}
             onQuickPriceChange={handleQuickPriceChange}
-            on1ClickBarcodePrint={handle1ClickBarcodePrint}
+            on1ClickBarcodePrint={switches.barcode_studio ? handle1ClickBarcodePrint : undefined}
             onOpenVariants={setVariantsParent}
           />
         ) : (

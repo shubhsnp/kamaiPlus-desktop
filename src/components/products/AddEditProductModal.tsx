@@ -446,8 +446,9 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
             <Button type="button" variant="outline" onClick={onClose} className="rounded-xl">
               {tr('Cancel')}
             </Button>
-            {/* Save, then its labels (the 1-click label window) — not for a new item with variants (each size has its own). */}
-            {!(variantsEnabled && !editingProduct) && (
+            {/* Save, then its labels (the 1-click label window) — not for a new item with variants (each size has its own),
+                nor with Settings → Features → Barcode Studio & Labels off. */}
+            {switches.barcode_studio && !(variantsEnabled && !editingProduct) && (
               <Button type="submit" variant="outline" data-save-action="print" className="rounded-xl font-bold gap-1" data-product-save-print>
                 <Printer className="w-3.5 h-3.5" />
                 {tr('Save & print label')}
