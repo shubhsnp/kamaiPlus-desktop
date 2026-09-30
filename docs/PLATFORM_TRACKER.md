@@ -118,7 +118,7 @@ Order zaroori hai — pehle nayi site, phir purani cheezein band.
 Order zaroori hai: **pehle data surakshit → phir data ka ek format → phir login → phir sync.** Har step alag version + test + commit. Sync tab tak band (`CLOUD_SYNC_ENABLED = false`) jab tak Step 4 na aaye. Firestore rules Android repo mein hain — rule badle to wahin se deploy.
 
 - [x] **Step 0 — Local backup har ghante (K-D18).** ✅ v4.82.0. Firebase se alag, abhi ka khatra. `AutoBackupScheduler.tsx` / `lib/backup/autoBackup.ts`: din ki file har ghante (ya N bill ke baad) idle time par overwrite, 30 din wala niyam wahi. Size S (andaza 1 din).
-- [ ] **Step 1 — Cloud data contract (K-P15).** Code likhne se pehle kaagaz par:
+- [ ] **Step 1 — Cloud data contract (K-P15).** ⏳ Contract **v1.0 OK** (D1 haan, D2 na, D3 jodo — 2026-09-30). **Desktop hissa ✅ v4.83.0** (`lib/cloud/cloudContract.ts`, test §9j(s)). **Android hissa baaki** (C6–C10, C13, C15, C16 — contract §7). Code likhne se pehle kaagaz par:
   - Android `firestore_sync_service.dart` jo field likhta / padhta hai (products, categories, customers, sales, inward_orders, business doc) + Desktop `firestoreSync.ts` / Dexie tables ki list.
   - Ek table: cloud field → Desktop field → Android field. Paisa hamesha `*_paise` (integer), dukaan ID `biz_<uid>`, tareekh ka format, id ka format.
   - Jo sirf Desktop cloud mein bhejta hai (`suppliers`, `ledger_transactions`, `cash_expenses`) — Android khata ledger cloud mein nahi bhejta (sirf customer balance); tay karo dono kya karenge.
@@ -138,7 +138,7 @@ Order zaroori hai: **pehle data surakshit → phir data ka ek format → phir lo
 
 ## 4. Kamiyan (count)
 
-**Total: 51** — Platform 15 · Android 12 · Desktop 24. **Open 46 · Done 5.**
+**Total: 52** — Platform 15 · Android 13 · Desktop 24. **Open 46 · Done 6.**
 🔴 = paisa / data / security / Play Store risk · 🟠 = galat ya adhoora behaviour · 🟢 = chhota / feature gap
 
 ### Platform / website (K-P)
@@ -159,7 +159,7 @@ Order zaroori hai: **pehle data surakshit → phir data ka ek format → phir lo
 | K-P12 | Uncommitted kaam: Desktop `docs/FUTURE_SCOPE.md`, Android `DEVELOPMENT_LOG.md`, web app 45 files | 🟢 | Open |
 | K-P13 | Policy pages ka content aaj ki apps se mel nahi khaata. Live (web app): purana naam "KamaiPlus / ProVenture", `info@proventure.in`, `kamaiplus.proventure.in`, mobile + PIN login, Supabase, browser storage, "Enterprise" plan, "voice billing". Android `website/privacy.html`: OTP login, `support@kamaiplus.com`. Dono mein nahi: Google Sign-In, Firebase sync, notification access (UPI payment padhna), contacts, fingerprint, AI photo scan (Gemini), Crashlytics, Google Drive, push, Razorpay (Android), aur **Desktop app bilkul nahi** (licence activation par PC ka naam / id jaata hai) | 🔴 | Open |
 | K-P14 | Refund policy mein Desktop ki one-time licence ka koi niyam nahi; Android Pro ke niyam purane ("Pro & Enterprise", "Free Forever Tier") | 🟠 | Open — Rahul ka faisla chahiye |
-| K-P15 | Desktop aur Android ka cloud data format mel nahi khaata (sync band hai, isliye abhi nuksaan nahi — **sync chalu karne se pehle zaroori**): (1) Desktop businessId `biz_<8 akshar>_<time>` (`app/onboarding/page.tsx:101`), Android + Firestore rules `biz_<uid>` maangte hain; (2) Desktop paise wale field `_paise` naam ke bina bhejta hai (`subtotal`, `selling_price` — dono paise mein), Android `subtotal_paise ?? subtotal*100` aur `selling_price_paise ?? price*100` padhta hai (`firestore_sync_service.dart:413, 732, 799`) → Desktop ka ₹100 ka bill Android par ₹10,000, product ka daam ₹0 | 🔴 | Open |
+| K-P15 | Desktop aur Android ka cloud data format mel nahi khaata (sync band hai, isliye abhi nuksaan nahi — **sync chalu karne se pehle zaroori**): (1) Desktop businessId `biz_<8 akshar>_<time>` (`app/onboarding/page.tsx:101`), Android + Firestore rules `biz_<uid>` maangte hain; (2) Desktop paise wale field `_paise` naam ke bina bhejta hai (`subtotal`, `selling_price` — dono paise mein), Android `subtotal_paise ?? subtotal*100` aur `selling_price_paise ?? price*100` padhta hai (`firestore_sync_service.dart:413, 732, 799`) → Desktop ka ₹100 ka bill Android par ₹10,000, product ka daam ₹0. **Poori list (C1–C16, dono apps) + fix: `docs/CLOUD_DATA_CONTRACT.md`** | 🔴 | Open — contract v1.0; Desktop ✅ v4.83.0 (C2–C5, C14; C1 cloud side), Android baaki |
 
 ### Android (K-A)
 
@@ -176,6 +176,7 @@ Order zaroori hai: **pehle data surakshit → phir data ka ek format → phir lo
 | K-A09 | English mein type karke Hindi naam wala item nahi milta | 🟢 | Open |
 | K-A10 | `showQuotationEstimate` flag bana, estimate / quotation feature nahi | 🟢 | Open |
 | K-A11 | `DESKTOP_FIXES_ANDROID_CHECK.md` ka audit (double-tap = do bill, cash leak, short cash udhar, split excess, GSTR-1 JSON …) abhi tak hua hi nahi | 🔴 | Open |
+| K-A13 | Bill-discount GST kam nahi karta — `processPosBill` GST chhoot se pehle ki rakam par lagata, `total = grand − discount` (GST report mein zyada tax); `subtotal` mein inclusive / exclusive lines mili. Desktop ne ye `saleMath.allocateBillDiscount` se theek kiya tha (contract C16) | 🔴 | Open |
 | K-A12 | Account delete karne ka koi tarika nahi (app mein bhi nahi, web par bhi nahi). Google Sign-In se account banta hai, to Play policy dono maangti hai (Data safety → "Delete account URL") | 🔴 | Open |
 
 ### Desktop (K-D)
@@ -204,7 +205,7 @@ Order zaroori hai: **pehle data surakshit → phir data ka ek format → phir lo
 | K-D20 | Batch / expiry nahi — product type mein field hi nahi (pharmacy / FMCG ke liye zaroori) (FS-08) | 🟠 | Open |
 | K-D21 | Purchase return / debit note / purchase order nahi (FS-09) | 🟢 | Open |
 | K-D22 | GSTR-3B summary, e-invoice (IRN), e-way bill nahi — `src` mein koi code nahi (FS-10, FS-11, FS-12) | 🟢 | Open |
-| K-D24 | Electron E2E ka "Transactions tab drag, phir click se khule" check kabhi-kabhi fail (v4.82.0 par 2 run mein 1 baar: click ke 600 ms baad drawer screen par nahi) — doosre run mein 71/71. Wait badhana / drawer ke khulne ka intezaar karna hai | 🟢 | Open |
+| K-D24 | Electron E2E ka "Transactions tab drag, phir click se khule" check kabhi-kabhi fail (v4.82.0 par 2 run mein 1 baar: click ke 600 ms baad drawer screen par nahi) — doosre run mein 71/71. Wait badhana / drawer ke khulne ka intezaar karna hai | 🟢 | ✅ Done v4.83.0 — test ab drawer ke khulne ka 3 s tak intezaar karta hai (300 ms slide), fail par overlay / path / tab likhta hai; 71/71 |
 | K-D23 | 16 files 400 line ke niyam se badi — `billing/page.tsx` **2,254**, `khata/page.tsx` 1,175, `products/page.tsx` 655 … Sabse zaroori screen mein har badlav sabse risky (FS-04, FS-15) | 🟠 | Open |
 
 ---
@@ -226,3 +227,5 @@ Order zaroori hai: **pehle data surakshit → phir data ka ek format → phir lo
 | 2026-09-30 | Rahul: Firebase Auth ke fayde? + faisla F-07 (Desktop + Android ek jaise). Android login (Google Sign-In → Firebase Auth, `biz_<uid>`), Firestore rules, Desktop ka band sync code (`firestoreSync.ts`) padha. Naya: K-P15 (data format mel nahi khaata). | — |
 | 2026-09-30 | F-07 ka step plan likha (§3b): Step 0 backup → 1 data contract → 2 Google login → 3 one-way → 4 dono taraf → 5 features. Check kiya: Android khata ledger cloud mein nahi bhejta; Desktop mein koi OAuth code nahi; Dexie mein `business_id` har record par. | `docs/PLATFORM_TRACKER.md` |
 | 2026-09-30 | **Desktop v4.82.0 — Step 0 / K-D18: backup har ghante.** Din ki file data badalne par har ghante nayi (counter 30 s khaali ho; rush mein bhi max 2 ghante). "Data badla" = Dexie DBCore middleware (har write). Test §9j(r), suite 621/621; asli Dexie (fake-indexeddb, scratchpad) 9/9; Electron E2E 70/71 phir 71/71 (drawer check flaky → K-D24). Installer publish **nahi** kiya. | Desktop |
+| 2026-09-30 | Step 1 shuru: Android `firestore_sync_service.dart` + `models.dart` aur Desktop `firestoreSync.ts` + types field-by-field padhe. **Contract draft v0.1** (`docs/CLOUD_DATA_CONTRACT.md`): niyam R1–R10, 15 galtiyan C1–C15 (Desktop 6, Android 8, dono 1) — sab K-P15 ke andar. Naye: Android ke products Desktop par ₹0 / stock 0; Android customer save Desktop ka opening balance 0 kar deta; Android `updated_at` server Timestamp; Android bill push mein split / GSTIN nahi; Android categories cloud mein nahi. Faisle D1–D3 Rahul se. | `docs/CLOUD_DATA_CONTRACT.md` |
+| 2026-09-30 | Rahul ke faisle: **D1** Desktop sab bheje, **D2** Android ke asli users nahi → seedha naya format, **D3** "jo theek lage" → `bottle` / `can` / `bag` Desktop mein. Contract **v1.0**. **Desktop v4.83.0:** `lib/cloud/cloudContract.ts` + `cloudFormat.ts` (14 tables, `toCloud` / `fromCloud`), `firestoreSync.ts` table-driven (515 → ~270 lines), `cloudMerge` + onboarding bhi contract se (onboarding ka `subscription_tier: 'free'` hata). Chhoot ka matlab tay (bill vs line, GST-sahi) — Android ki GST galti mili: **K-A13**. Test §9j(s), suite 643/643. Sync abhi bhi band. `next build` ✔; Electron E2E 70/71 (drawer) → test ko intezaar wala banaya (K-D24) → 71/71. | Desktop |

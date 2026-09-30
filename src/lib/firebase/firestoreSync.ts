@@ -1,19 +1,33 @@
 import { getFirestoreDb } from './config';
-import { 
-  collection, 
-  doc, 
-  setDoc, 
+import {
+  collection,
+  doc,
+  setDoc,
   getDoc,
-  getDocs, 
-  writeBatch, 
-  onSnapshot, 
-  query, 
-  orderBy, 
-  limit, 
-  Unsubscribe 
+  getDocs,
+  writeBatch,
+  onSnapshot,
+  query,
+  orderBy,
+  limit,
+  Unsubscribe
 } from 'firebase/firestore';
 import { db } from '@/lib/db';
-import { Sale, Product, Customer, LedgerTransaction, Business, Category, Supplier, CashExpense, CashRegister } from '@/types';
+import { CLOUD_TABLES, CloudTable, fromCloud, toCloud } from '@/lib/cloud/cloudContract';
+import { Sale } from '@/types';
+
+/**
+ * Full push / pull between Dexie and Firestore. Every document goes through the cloud data
+ * contract (lib/cloud/cloudContract.ts, docs/CLOUD_DATA_CONTRACT.md) — never a raw Dexie row —
+ * so the Android app reads the same shop. Cloud sync is off until the Desktop has a Firebase
+ * login (CLOUD_SYNC_ENABLED); nothing here runs before that.
+ */
+
+/** Every table except the shop document itself, in the order they are pushed / pulled. */
+const DATA_TABLES = CLOUD_TABLES.filter((t) => t !== 'businesses') as Exclude<CloudTable, 'businesses'>[];
+
+/** Tables whose rows carry `updated_at`: the cloud copy only wins when it is newer. */
+const NEWER_WINS = new Set<CloudTable>(['products', 'customers', 'suppliers', 'sales']);
 
 /**
  * Sanitizes any data structure to remove `undefined` values that Firestore rejects
@@ -45,14 +59,33 @@ export function sanitizeForFirestore<T>(data: T): T {
   }
 }
 
+/** Cloud copy newer than (or as new as) the local row? Rows without a time always take the cloud copy. */
+function cloudIsNewer(cloud: Record<string, any>, local: Record<string, any> | undefined, strictly: boolean): boolean {
+  if (!local || !local.updated_at || !cloud.updated_at) return true;
+  const c = new Date(cloud.updated_at).getTime();
+  const l = new Date(local.updated_at).getTime();
+  if (!Number.isFinite(c) || !Number.isFinite(l)) return true;
+  return strictly ? c > l : c >= l;
+}
+
+/** Cloud documents → Dexie rows for one table, merged over the local rows (R7). */
+async function mergeIntoDexie(table: CloudTable, docs: Record<string, any>[], bizId: string, strictly: boolean): Promise<number> {
+  const withId = docs.filter((d) => d && d.id);
+  if (withId.length === 0) return 0;
+  const locals = (await db.table(table).bulkGet(withId.map((d) => String(d.id)))) as (Record<string, any> | undefined)[];
+  const rows: Record<string, any>[] = [];
+  withId.forEach((d, i) => {
+    const row = fromCloud(table, d, locals[i], { bizId });
+    if (!NEWER_WINS.has(table) || cloudIsNewer(row, locals[i], strictly)) rows.push(row);
+  });
+  if (rows.length > 0) await db.table(table).bulkPut(rows);
+  return rows.length;
+}
+
 /**
  * Helper to commit items in Firestore batches (max 450 per batch)
  */
-async function commitBatchInChunks<T extends { id: string }>(
-  firestore: any,
-  items: T[],
-  collectionPath: string
-): Promise<number> {
+async function commitBatchInChunks(firestore: any, table: CloudTable, items: Record<string, any>[], bizId: string): Promise<number> {
   if (!items || items.length === 0) return 0;
 
   const CHUNK_SIZE = 450;
@@ -60,9 +93,8 @@ async function commitBatchInChunks<T extends { id: string }>(
     const chunk = items.slice(i, i + CHUNK_SIZE);
     const batch = writeBatch(firestore);
     for (const item of chunk) {
-      const ref = doc(firestore, `${collectionPath}/${item.id}`);
-      const cleanItem = sanitizeForFirestore(item);
-      batch.set(ref, cleanItem, { merge: true });
+      const ref = doc(firestore, `businesses/${bizId}/${table}/${item.id}`);
+      batch.set(ref, sanitizeForFirestore(toCloud(table, item, { bizId })), { merge: true });
     }
     await batch.commit();
   }
@@ -78,23 +110,17 @@ export async function syncLocalDexieToFirestore(businessId: string): Promise<{ s
     throw new Error('Firestore is not configured. Please check Firebase credentials.');
   }
 
-  const stats: Record<string, number> = {
-    products: 0,
-    sales: 0,
-    customers: 0,
-    suppliers: 0,
-    categories: 0,
-    ledger: 0,
-    expenses: 0,
-  };
+  const stats: Record<string, number> = {};
 
   // PREVENT RESURRECTION OF DELETED STORES: Verify business exists in cloud before sync!
   const bizRef = doc(firestore, 'businesses', businessId);
+  let cloudShopExists = true;
   try {
     const [bizSnap, tombSnap] = await Promise.all([
       getDoc(bizRef).catch(() => null),
       getDoc(doc(firestore, 'deleted_businesses', businessId)).catch(() => null),
     ]);
+    if (bizSnap) cloudShopExists = bizSnap.exists();
 
     if (tombSnap?.exists()) {
       console.warn(`🛑 Business ${businessId} was deleted in cloud. Aborting sync and wiping device.`);
@@ -109,40 +135,19 @@ export async function syncLocalDexieToFirestore(businessId: string): Promise<{ s
     console.warn('Sync cloud existence check notice:', checkErr);
   }
 
-  // 1. Sync Business Profile
+  // 1. Shop profile. The Desktop never overwrites the Android vertical; a new cloud shop gets 'grocery'.
   const biz = await db.businesses.get(businessId);
   if (biz) {
-    const cleanBiz = sanitizeForFirestore({ ...biz, last_synced_at: new Date().toISOString() });
-    await setDoc(bizRef, cleanBiz, { merge: true });
+    const shopDoc = toCloud('businesses', biz, { bizId: businessId });
+    if (!cloudShopExists) shopDoc.business_type = 'grocery';
+    await setDoc(bizRef, sanitizeForFirestore(shopDoc), { merge: true });
   }
 
-  // 2. Categories
-  const categories = await db.categories.where('business_id').equals(businessId).toArray();
-  stats.categories = await commitBatchInChunks(firestore, categories, `businesses/${businessId}/categories`);
-
-  // 3. Products
-  const products = await db.products.where('business_id').equals(businessId).toArray();
-  stats.products = await commitBatchInChunks(firestore, products, `businesses/${businessId}/products`);
-
-  // 4. All Sales (Unlimited, batched in chunks)
-  const sales = await db.sales.where('business_id').equals(businessId).toArray();
-  stats.sales = await commitBatchInChunks(firestore, sales, `businesses/${businessId}/sales`);
-
-  // 5. Customers
-  const customers = await db.customers.where('business_id').equals(businessId).toArray();
-  stats.customers = await commitBatchInChunks(firestore, customers, `businesses/${businessId}/customers`);
-
-  // 6. Suppliers
-  const suppliers = await db.suppliers.where('business_id').equals(businessId).toArray();
-  stats.suppliers = await commitBatchInChunks(firestore, suppliers, `businesses/${businessId}/suppliers`);
-
-  // 7. Ledger Transactions
-  const ledgerTxs = await db.ledger_transactions.where('business_id').equals(businessId).toArray();
-  stats.ledger = await commitBatchInChunks(firestore, ledgerTxs, `businesses/${businessId}/ledger_transactions`);
-
-  // 8. Cash Expenses
-  const expenses = await db.cash_expenses.where('business_id').equals(businessId).toArray();
-  stats.expenses = await commitBatchInChunks(firestore, expenses, `businesses/${businessId}/cash_expenses`);
+  // 2. Every other table (D1: khata, suppliers, expenses, stock history… all of it).
+  for (const table of DATA_TABLES) {
+    const rows = (await db.table(table).toArray()) as Record<string, any>[];
+    stats[table] = await commitBatchInChunks(firestore, table, rows, businessId);
+  }
 
   return { success: true, stats };
 }
@@ -156,99 +161,25 @@ export async function restoreFirestoreToLocalDexie(businessId: string): Promise<
     throw new Error('Firestore is not configured.');
   }
 
-  const stats: Record<string, number> = {
-    products: 0,
-    sales: 0,
-    customers: 0,
-    suppliers: 0,
-    categories: 0,
-    ledger: 0,
-    expenses: 0,
-  };
+  const stats: Record<string, number> = {};
 
-  // 0. Business Profile Document (Syncs store type, name, phone, address across all devices)
+  // 0. Business Profile Document (name, phone, address… — never this computer's invoice counter)
   try {
     const bizSnap = await getDoc(doc(firestore, 'businesses', businessId));
-    if (bizSnap.exists()) {
-      const bizData = bizSnap.data() as Business;
-      if (bizData && bizData.name) {
-        await db.businesses.put(bizData);
-      }
+    const data = bizSnap.exists() ? bizSnap.data() : null;
+    if (data && data.name) {
+      const local = await db.businesses.get(businessId);
+      await db.businesses.put(fromCloud('businesses', data, local, { bizId: businessId }) as any);
     }
   } catch (bizErr) {
     console.warn('Business profile cloud restore notice:', bizErr);
   }
 
-  // 1. Categories
-  const catSnap = await getDocs(collection(firestore, `businesses/${businessId}/categories`));
-  const categories: Category[] = [];
-  catSnap.forEach((d) => categories.push(d.data() as Category));
-  if (categories.length > 0) {
-    await db.categories.bulkPut(categories);
-    stats.categories = categories.length;
-  }
-
-  // 2. Products
-  const prodSnap = await getDocs(collection(firestore, `businesses/${businessId}/products`));
-  const cloudProducts: Product[] = [];
-  prodSnap.forEach((d) => cloudProducts.push(d.data() as Product));
-  if (cloudProducts.length > 0) {
-    const productsToUpdate: Product[] = [];
-    for (const cp of cloudProducts) {
-      const lp = await db.products.get(cp.id);
-      if (!lp || !lp.updated_at || !cp.updated_at || new Date(cp.updated_at).getTime() >= new Date(lp.updated_at).getTime()) {
-        productsToUpdate.push(cp);
-      }
-    }
-    if (productsToUpdate.length > 0) {
-      await db.products.bulkPut(productsToUpdate);
-    }
-    stats.products = cloudProducts.length;
-  }
-
-  // 3. Customers
-  const custSnap = await getDocs(collection(firestore, `businesses/${businessId}/customers`));
-  const customers: Customer[] = [];
-  custSnap.forEach((d) => customers.push(d.data() as Customer));
-  if (customers.length > 0) {
-    await db.customers.bulkPut(customers);
-    stats.customers = customers.length;
-  }
-
-  // 4. Suppliers
-  const supSnap = await getDocs(collection(firestore, `businesses/${businessId}/suppliers`));
-  const suppliers: Supplier[] = [];
-  supSnap.forEach((d) => suppliers.push(d.data() as Supplier));
-  if (suppliers.length > 0) {
-    await db.suppliers.bulkPut(suppliers);
-    stats.suppliers = suppliers.length;
-  }
-
-  // 5. Sales
-  const salesSnap = await getDocs(collection(firestore, `businesses/${businessId}/sales`));
-  const sales: Sale[] = [];
-  salesSnap.forEach((d) => sales.push(d.data() as Sale));
-  if (sales.length > 0) {
-    await db.sales.bulkPut(sales);
-    stats.sales = sales.length;
-  }
-
-  // 6. Ledger Transactions
-  const ledgerSnap = await getDocs(collection(firestore, `businesses/${businessId}/ledger_transactions`));
-  const ledgerTxs: LedgerTransaction[] = [];
-  ledgerSnap.forEach((d) => ledgerTxs.push(d.data() as LedgerTransaction));
-  if (ledgerTxs.length > 0) {
-    await db.ledger_transactions.bulkPut(ledgerTxs);
-    stats.ledger = ledgerTxs.length;
-  }
-
-  // 7. Cash Expenses
-  const expSnap = await getDocs(collection(firestore, `businesses/${businessId}/cash_expenses`));
-  const expenses: CashExpense[] = [];
-  expSnap.forEach((d) => expenses.push(d.data() as CashExpense));
-  if (expenses.length > 0) {
-    await db.cash_expenses.bulkPut(expenses);
-    stats.expenses = expenses.length;
+  for (const table of DATA_TABLES) {
+    const snap = await getDocs(collection(firestore, `businesses/${businessId}/${table}`));
+    const docs: Record<string, any>[] = [];
+    snap.forEach((d) => docs.push({ id: d.id, ...d.data() }));
+    stats[table] = await mergeIntoDexie(table, docs, businessId, false);
   }
 
   return { success: true, stats };
@@ -297,7 +228,7 @@ export function subscribeToLiveSales(
 
   return onSnapshot(salesQuery, (snapshot) => {
     const list: Sale[] = [];
-    snapshot.forEach((doc) => list.push(doc.data() as Sale));
+    snapshot.forEach((d) => list.push(fromCloud('sales', { id: d.id, ...d.data() }, null, { bizId: businessId }) as Sale));
     onSalesUpdate(list);
   });
 }
@@ -312,201 +243,47 @@ export function subscribeToMultiDeviceSync(businessId: string): Unsubscribe[] {
   const unsubs: Unsubscribe[] = [];
 
   try {
-    // 0. Business Profile live stream (mirrors store type, plan, and freeze changes in real-time across devices)
+    // 0. Business Profile live stream (name / address changes, and the admin's kill-switch)
     const bizDocUnsub = onSnapshot(
       doc(firestore, `businesses/${businessId}`),
       async (snapshot) => {
-        if (snapshot.exists()) {
-          const cloudBiz = snapshot.data() as Business;
-          if (cloudBiz && cloudBiz.name) {
-            // 1. Instant Real-time Freeze / Block Lockout
-            if ((cloudBiz as any).is_active === false) {
-              if (typeof window !== 'undefined') {
-                window.dispatchEvent(new CustomEvent('account_frozen', {
-                  detail: { message: 'Your merchant store has been blocked/frozen by the platform administrator.' }
-                }));
-              }
-            } else if (typeof window !== 'undefined') {
-              window.dispatchEvent(new Event('account_unfrozen'));
+        const data = snapshot.exists() ? snapshot.data() : null;
+        if (data && data.name) {
+          // 1. Instant Real-time Freeze / Block Lockout (`account_disabled` is the Admin Console's switch)
+          if (data.account_disabled === true || data.is_active === false) {
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('account_frozen', {
+                detail: { message: 'Your merchant store has been blocked/frozen by the platform administrator.' }
+              }));
             }
-
-            await db.businesses.put(cloudBiz);
+          } else if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('account_unfrozen'));
           }
+
+          const local = await db.businesses.get(businessId);
+          await db.businesses.put(fromCloud('businesses', data, local, { bizId: businessId }) as any);
         }
       },
       (err) => console.warn('Realtime business sync notice:', err.message)
     );
     unsubs.push(bizDocUnsub);
 
-    // 1. Products live stream
-    const prodUnsub = onSnapshot(
-      collection(firestore, `businesses/${businessId}/products`),
-      async (snapshot) => {
-        if (!snapshot.empty) {
-          const items: Product[] = [];
-          for (const change of snapshot.docChanges()) {
-            if (change.type === 'added' || change.type === 'modified') {
-              const cloudProd = change.doc.data() as Product;
-              if (cloudProd && cloudProd.id) {
-                const localProd = await db.products.get(cloudProd.id);
-                // Conflict resolution: only overwrite if local record is missing or cloud is strictly newer
-                if (!localProd || !localProd.updated_at || !cloudProd.updated_at) {
-                  items.push(cloudProd);
-                } else if (new Date(cloudProd.updated_at).getTime() > new Date(localProd.updated_at).getTime()) {
-                  items.push(cloudProd);
-                }
-              }
-            }
-          }
-          if (items.length > 0) {
-            await db.products.bulkPut(items);
-          }
-        }
-      },
-      (err) => console.warn('Realtime products sync notice:', err.message)
-    );
-    unsubs.push(prodUnsub);
-
-    // 2. Customers live stream
-    const custUnsub = onSnapshot(
-      collection(firestore, `businesses/${businessId}/customers`),
-      async (snapshot) => {
-        if (!snapshot.empty) {
-          const items: Customer[] = [];
-          snapshot.docChanges().forEach((change) => {
-            if (change.type === 'added' || change.type === 'modified') {
-              items.push(change.doc.data() as Customer);
-            }
-          });
-          if (items.length > 0) {
-            await db.customers.bulkPut(items);
-          }
-        }
-      },
-      (err) => console.warn('Realtime customers sync notice:', err.message)
-    );
-    unsubs.push(custUnsub);
-
-    // 3. Sales live stream (Recent 100 sales)
-    const salesUnsub = onSnapshot(
-      query(collection(firestore, `businesses/${businessId}/sales`), orderBy('created_at', 'desc'), limit(100)),
-      async (snapshot) => {
-        if (!snapshot.empty) {
-          const items: Sale[] = [];
-          snapshot.docChanges().forEach((change) => {
-            if (change.type === 'added' || change.type === 'modified') {
-              items.push(change.doc.data() as Sale);
-            }
-          });
-          if (items.length > 0) {
-            await db.sales.bulkPut(items);
-          }
-        }
-      },
-      (err) => console.warn('Realtime sales sync notice:', err.message)
-    );
-    unsubs.push(salesUnsub);
-
-    // 4. Categories live stream
-    const catUnsub = onSnapshot(
-      collection(firestore, `businesses/${businessId}/categories`),
-      async (snapshot) => {
-        if (!snapshot.empty) {
-          const items: Category[] = [];
-          snapshot.docChanges().forEach((change) => {
-            if (change.type === 'added' || change.type === 'modified') {
-              items.push(change.doc.data() as Category);
-            }
-          });
-          if (items.length > 0) {
-            await db.categories.bulkPut(items);
-          }
-        }
-      },
-      (err) => console.warn('Realtime categories sync notice:', err.message)
-    );
-    unsubs.push(catUnsub);
-
-    // 5. Ledger Transactions live stream
-    const ledgerUnsub = onSnapshot(
-      collection(firestore, `businesses/${businessId}/ledger_transactions`),
-      async (snapshot) => {
-        if (!snapshot.empty) {
-          const items: LedgerTransaction[] = [];
-          snapshot.docChanges().forEach((change) => {
-            if (change.type === 'added' || change.type === 'modified') {
-              items.push(change.doc.data() as LedgerTransaction);
-            }
-          });
-          if (items.length > 0) {
-            await db.ledger_transactions.bulkPut(items);
-          }
-        }
-      },
-      (err) => console.warn('Realtime ledger sync notice:', err.message)
-    );
-    unsubs.push(ledgerUnsub);
-
-    // 6. Cash Expenses live stream
-    const expUnsub = onSnapshot(
-      collection(firestore, `businesses/${businessId}/cash_expenses`),
-      async (snapshot) => {
-        if (!snapshot.empty) {
-          const items: CashExpense[] = [];
-          snapshot.docChanges().forEach((change) => {
-            if (change.type === 'added' || change.type === 'modified') {
-              items.push(change.doc.data() as CashExpense);
-            }
-          });
-          if (items.length > 0) {
-            await db.cash_expenses.bulkPut(items);
-          }
-        }
-      },
-      (err) => console.warn('Realtime expenses sync notice:', err.message)
-    );
-    unsubs.push(expUnsub);
-
-    // 7. Suppliers live stream
-    const supUnsub = onSnapshot(
-      collection(firestore, `businesses/${businessId}/suppliers`),
-      async (snapshot) => {
-        if (!snapshot.empty) {
-          const items: Supplier[] = [];
-          snapshot.docChanges().forEach((change) => {
-            if (change.type === 'added' || change.type === 'modified') {
-              items.push(change.doc.data() as Supplier);
-            }
-          });
-          if (items.length > 0) {
-            await db.suppliers.bulkPut(items);
-          }
-        }
-      },
-      (err) => console.warn('Realtime suppliers sync notice:', err.message)
-    );
-    unsubs.push(supUnsub);
-
-    // 8. Cash Registers live stream
-    const cashRegUnsub = onSnapshot(
-      collection(firestore, `businesses/${businessId}/cash_registers`),
-      async (snapshot) => {
-        if (!snapshot.empty) {
-          const items: CashRegister[] = [];
-          snapshot.docChanges().forEach((change) => {
-            if (change.type === 'added' || change.type === 'modified') {
-              items.push(change.doc.data() as CashRegister);
-            }
-          });
-          if (items.length > 0) {
-            await db.cash_registers.bulkPut(items);
-          }
-        }
-      },
-      (err) => console.warn('Realtime cash registers sync notice:', err.message)
-    );
-    unsubs.push(cashRegUnsub);
-
+    // 1. Every table: other counters' / the phone's changes into this computer (sales: the latest 100).
+    for (const table of ['products', 'customers', 'sales', 'categories', 'ledger_transactions', 'cash_expenses', 'suppliers', 'cash_registers'] as CloudTable[]) {
+      const ref = collection(firestore, `businesses/${businessId}/${table}`);
+      const source = table === 'sales' ? query(ref, orderBy('created_at', 'desc'), limit(100)) : ref;
+      const unsub = onSnapshot(
+        source,
+        async (snapshot) => {
+          const changed = snapshot.docChanges()
+            .filter((c) => c.type === 'added' || c.type === 'modified')
+            .map((c) => ({ id: c.doc.id, ...c.doc.data() }));
+          await mergeIntoDexie(table, changed, businessId, true);
+        },
+        (err) => console.warn(`Realtime ${table} sync notice:`, err.message)
+      );
+      unsubs.push(unsub);
+    }
   } catch (e) {
     console.warn('Multi-device sync listener setup notice:', e);
   }

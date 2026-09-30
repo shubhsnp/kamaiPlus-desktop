@@ -12,18 +12,25 @@
 
 import { CLOUD_SYNC_ENABLED } from './cloudAvailability';
 
-/** Mirrors one document to Firestore (merge write). Silently no-ops when offline. */
+/**
+ * Mirrors one document to Firestore (merge write). Silently no-ops when offline.
+ * `data` is a Dexie row (or part of one); it goes out in the cloud data contract's names
+ * (lib/cloud/cloudContract.ts) — a path outside `businesses/{biz}/…` is not written.
+ */
 export async function cloudMerge(path: string, data: Record<string, any>): Promise<void> {
   if (!CLOUD_SYNC_ENABLED) return;
   try {
-    const [{ getFirestoreDb }, { doc, setDoc }, { sanitizeForFirestore }] = await Promise.all([
+    const [{ getFirestoreDb }, { doc, setDoc }, { sanitizeForFirestore }, { tableForCloudPath, toCloud }] = await Promise.all([
       import('@/lib/firebase/config'),
       import('firebase/firestore'),
       import('@/lib/firebase/firestoreSync'),
+      import('@/lib/cloud/cloudContract'),
     ]);
     const firestore = getFirestoreDb();
-    if (!firestore) return;
-    await setDoc(doc(firestore, path), sanitizeForFirestore(data), { merge: true });
+    const table = tableForCloudPath(path);
+    if (!firestore || !table) return;
+    const bizId = path.split('/').filter(Boolean)[1];
+    await setDoc(doc(firestore, path), sanitizeForFirestore(toCloud(table, data, { bizId })), { merge: true });
   } catch {
     // Non-blocking: the local Dexie copy is the source of truth.
   }

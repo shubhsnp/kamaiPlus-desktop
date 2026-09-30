@@ -115,6 +115,9 @@ export type ProductUnit =
   | 'meter'
   | 'foot'
   | 'sqft'
+  | 'bottle'
+  | 'can'
+  | 'bag'
   | 'custom';
 
 export interface Category {

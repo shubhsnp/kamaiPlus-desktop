@@ -101,7 +101,8 @@ import { allowsFractionalQty, dozenFromPieces, formatCartQty, lineAmountPaise, p
 import { getQuantityConfigForUnit } from '../src/components/billing/posQuantityConfig';
 import { scanIntoRows, splitTrailingCode } from '../src/lib/inward/fastInward';
 import { customerListHtmlBody, customerSheetRows, sortCustomers } from '../src/lib/customers/customerDirectory';
-import { checkBackupPayload } from '../src/lib/backup/cloudBackupService';
+import { BACKUP_TABLES, checkBackupPayload } from '../src/lib/backup/cloudBackupService';
+import { CLOUD_TABLES, fromCloud, normalizeUnit, tableForCloudPath, toCloud } from '../src/lib/cloud/cloudContract';
 import { autoBackupDecision, MAX_WAIT_MS, QUIET_FOR_MS, REFRESH_EVERY_MS } from '../src/lib/backup/backupSchedule';
 import { backupChangeMiddleware, clearDataChanged, dataChangedSinceBackup } from '../src/lib/backup/backupChanges';
 import { breakupSales } from '../src/lib/tally/saleBreakup';
@@ -2172,9 +2173,141 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     'Backup: checked every 5 minutes on idle; keys (the barcode gun too) and clicks tell it the counter is in use');
 }
 
+// (s) Cloud data contract (v4.83.0, K-P15 — docs/CLOUD_DATA_CONTRACT.md). Desktop and Android read one
+// cloud: money as *_paise, stock as stock_quantity, the shop as biz_<uid>. Before this the Desktop sent
+// raw Dexie rows — a ₹100 bill read as ₹10,000 on the phone, product prices as ₹0, stock as 0 — and
+// saved the phone's documents as Dexie rows unchanged. Every document now goes through toCloud / fromCloud.
+{
+  const ctx = { bizId: 'biz_UID1' };
+  const norm = (v: any): any => Array.isArray(v) ? v.map(norm) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, norm(v[k])])) : v;
+  const same = (a: any, b: any) => JSON.stringify(norm(a)) === JSON.stringify(norm(b));
+
+  // Products.
+  const product = { id: 'p1', business_id: 'biz_UID1', name: 'Tata Salt 1kg', barcode: '8901', category_id: 'c1', unit: 'packet', purchase_price: 2200, selling_price: 2800, mrp: 3000,
+    tax_rate: 5, is_tax_inclusive: true, current_stock: 12.5, min_stock_level: 2, is_favorite: false, is_active: true, created_at: '2026-09-30T05:00:00.000Z', updated_at: '2026-09-30T06:00:00.000Z' };
+  const pc = toCloud('products', { ...product, business_id: 'biz_local_1', sync_status: 'pending' }, ctx);
+  assert(pc.selling_price_paise === 2800 && pc.mrp_paise === 3000 && pc.purchase_price_paise === 2200 && pc.stock_quantity === 12.5
+    && !['selling_price', 'mrp', 'purchase_price', 'current_stock', 'sync_status'].some((k) => k in pc) && pc.business_id === 'biz_UID1',
+    'Cloud contract: a product goes out as selling_price_paise / mrp_paise / purchase_price_paise / stock_quantity under biz_<uid> — no raw Dexie names');
+  assert(same(fromCloud('products', pc, null, ctx), product), 'Cloud contract: a product comes back from the cloud exactly as it went out');
+
+  // A product as the Android app writes it today (pushProductToCloud).
+  const androidProduct = { id: 'a1', business_id: 'biz_UID1', name: 'Parle-G', barcode: '8902', category_id: 'cat9', selling_price_paise: 1000, selling_price: 1000, mrp_paise: 1000, mrp: 1000,
+    purchase_price_paise: 850, purchase_price: 850, stock_quantity: 40, current_stock: 40, tax_rate: 18, is_tax_inclusive: true, unit: 'pcs', is_loose_item: false, is_active: true,
+    is_favorite: false, business_type: 'grocery', batch_number: 'B12', expiry_date: '2027-01-31', has_variants: 0, sync_status: 'synced', lastSyncedAt: '2026-09-30T10:00:00.000',
+    updated_at: { seconds: 1790000000, nanoseconds: 0 } };
+  const ap = fromCloud('products', androidProduct, null, ctx);
+  assert(ap.selling_price === 1000 && ap.mrp === 1000 && ap.purchase_price === 850 && ap.current_stock === 40 && ap.unit === 'piece' && ap.has_variants === false
+    && ap.updated_at === new Date(1790000000 * 1000).toISOString() && !('lastSyncedAt' in ap) && !('stock_quantity' in ap) && ap.min_stock_level === 0 && ap.category_id === 'cat9',
+    "Cloud contract: the phone's product reads right on the Desktop — price, MRP, stock, 'pcs' → piece, 1/0 → true/false, a server Timestamp → an ISO time");
+  assert(toCloud('products', ap, ctx).batch_number === 'B12' && toCloud('products', ap, ctx).expiry_date === '2027-01-31',
+    "Cloud contract: fields only the phone knows (batch, expiry) ride along and go back unchanged when the Desktop saves the product");
+
+  // Customers: the phone's `opening_balance: 0` must not wipe the Desktop's opening balance (C9).
+  const customer = { id: 'c1', business_id: 'biz_UID1', name: 'Ramesh', phone: '9876543210', gstin: '27ABCDE1234F1Z5', date_of_birth: '1990-08-15', opening_balance: 20000,
+    current_balance: 50000, loyalty_points: 3, total_spent: 125000, total_visits: 9, customer_type: 'vip', created_at: '2026-09-01T05:00:00.000Z', updated_at: '2026-09-30T05:00:00.000Z' };
+  const cc = toCloud('customers', customer, ctx);
+  assert(cc.current_balance_paise === 50000 && cc.opening_balance_paise === 20000 && cc.total_spent_paise === 125000 && cc.is_vip === true && cc.birthday === '08-15' && cc.state_code === '27'
+    && !('current_balance' in cc), 'Cloud contract: a customer goes out with udhar as current_balance_paise, is_vip, birthday MM-DD and the GST state code');
+  assert(same(fromCloud('customers', cc, null, ctx), customer), 'Cloud contract: a customer comes back exactly as it went out');
+  const phoneCust = fromCloud('customers', { id: 'c1', name: 'Ramesh', phone: '9876543210', current_balance_paise: 70000, current_balance: 70000, opening_balance: 0, is_vip: true,
+    birthday: '08-15', credit_limit_paise: 500000 }, customer, ctx);
+  assert(phoneCust.opening_balance === 20000 && phoneCust.current_balance === 70000 && phoneCust.date_of_birth === '1990-08-15' && phoneCust.credit_limit_paise === 500000 && phoneCust.loyalty_points === 3,
+    "Cloud contract: the phone's customer save updates the udhar but never zeroes the opening balance, keeps the birth year and what the phone does not send");
+  const cleared = fromCloud('customers', { id: 'c1', address: '' }, { ...customer, address: 'Main Road' }, ctx);
+  assert(cleared.address === '' && cleared.phone === '9876543210', 'Cloud contract: a field sent empty is cleared; a field not sent keeps this computer\'s value');
+
+  // A bill with a line discount, a bill discount and a split payment — money exact both ways.
+  const mk = (id: string, qty: number, rate: number, disc: number, tax: number) => {
+    const total = qty * rate - disc;
+    return { product_id: id, product_name: id.toUpperCase(), quantity: qty, unit: 'piece', unit_price: rate, mrp: rate, discount_amount: disc, tax_rate: tax,
+      tax_amount: calculateLineTax(total, tax, true), total_amount: total, is_tax_inclusive: true } as any;
+  };
+  const lines = allocateBillDiscount([mk('a', 2, 5000, 0, 5), mk('b', 1, 10000, 1000, 18)], 1400);
+  const t = computeBillTotals(lines);
+  const sale = { id: 'sale_1', business_id: 'biz_UID1', invoice_number: 'INV-0101', customer_id: 'c1', customer_name: 'Ramesh', items: lines, subtotal: t.subtotal, discount_total: t.discountTotal,
+    tax_total: t.taxTotal, grand_total: t.grandTotal, payment_method: 'split', payment_split: { cash_amount: 10000, upi_amount: 5000, card_amount: 0, credit_amount: t.grandTotal - 15000 },
+    amount_received: 15000, balance_due: t.grandTotal - 15000, change_returned: 0, payment_status: 'partial', status: 'completed', created_by: 'owner',
+    created_at: '2026-09-30T12:30:00.000Z', updated_at: '2026-09-30T12:30:00.000Z' };
+  const sc = toCloud('sales', sale, ctx);
+  assert(sc.total_amount_paise === t.grandTotal && sc.subtotal_paise === t.subtotal && sc.tax_amount_paise === t.taxTotal && sc.discount_paise === 1400 && sc.line_discount_paise === 1000
+    && sc.split_cash_paise === 10000 && sc.split_upi_paise === 5000 && sc.split_credit_paise === t.grandTotal - 15000 && sc.balance_due_paise === t.grandTotal - 15000
+    && sc.timestamp === Date.parse(sale.created_at) && sc.source === 'desktop' && !('grand_total' in sc) && !('payment_split' in sc),
+    `Cloud contract: a ₹${t.grandTotal / 100} bill goes out as total_amount_paise ${t.grandTotal}; bill discount 1400 and line discount 1000 apart; the split as flat *_paise fields`);
+  const lb = sc.items[1];
+  assert(lb.unit_price_paise === 10000 && lb.gross_total_paise === 9000 && lb.discount_paise === 1000 && lb.bill_discount_paise === lines[1].bill_discount_amount
+    && sc.items.reduce((s: number, l: any) => s + l.bill_discount_paise, 0) === 1400 && lb.is_tax_inclusive === true,
+    'Cloud contract: a bill line carries gross_total_paise before its share of the bill discount (the phone\'s meaning), its own discount and that share apart');
+  assert(same(fromCloud('sales', sc, null, ctx), sale), 'Cloud contract: the bill comes back exactly — every line, tax, discount and the split');
+  assert(toCloud('sales', { ...sale, items: [], grand_total: 10000, subtotal: 10000, tax_total: 0, discount_total: 0 }, ctx).total_amount_paise === 10000,
+    'Cloud contract: a ₹100 bill is 10000 paise in the cloud — not ₹10,000 on the phone');
+
+  // A bill as the phone writes it today (pushSaleToCloud): udhar, a partial return, a flat ₹10 line discount.
+  const phoneSale = fromCloud('sales', { id: 's-and-1', business_id: 'biz_UID1', invoice_number: 'INV-0042', customer_name: 'Suresh', subtotal_paise: 19000, tax_amount_paise: 0,
+    discount_paise: 0, total_amount_paise: 19000, total_amount: 190.0, payment_method: 'credit', status: 'partially_refunded', created_at: '2026-09-30T18:05:00.000', timestamp: 1, source: 'mobile_native_pos',
+    items: [{ product_id: 'a1', product_name: 'Parle-G', quantity: 2, unit_price_paise: 10000, gross_total_paise: 19000, cost_price_paise: 8500, tax_rate: 0, is_tax_inclusive: 1,
+      discount_type: 'flat', discount_value: 10.0, returned_quantity: 1 }], synced_at: { seconds: 1, nanoseconds: 0 } }, null, ctx) as any;
+  const pl = phoneSale.items[0];
+  assert(phoneSale.grand_total === 19000 && phoneSale.status === 'partial_return' && phoneSale.balance_due === 19000 && phoneSale.amount_received === 0 && phoneSale.payment_status === 'unpaid'
+    && !('total_amount' in phoneSale) && !('synced_at' in phoneSale) && phoneSale.created_at === new Date('2026-09-30T18:05:00.000').toISOString()
+    && pl.unit_price === 10000 && pl.total_amount === 19000 && pl.discount_amount === 1000 && pl.is_tax_inclusive === true && pl.tax_amount === 0 && pl.cost_price === 8500 && pl.unit === 'piece' && pl.returned_quantity === 1,
+    "Cloud contract: the phone's udhar bill reads right on the Desktop — total, 'partially_refunded' → partial_return, what is owed, the line and its ₹10 discount, local time → UTC");
+
+  // The shop: no plan fields out or in, this computer's invoice counter and type stay its own.
+  const shopOut = toCloud('businesses', { id: 'biz_local_1', name: 'Jadhav Stores', owner_name: 'Rahul', phone: '9000000000', address: 'Pune', upi_id: 'shop@upi', fssai_license_no: '1234',
+    business_type: 'retail', subscription_tier: 'pro', subscription_valid_until: '2027-01-01', next_invoice_number: 57, is_onboarded: true, currency: 'INR', sync_status: 'pending' }, ctx);
+  assert(shopOut.id === 'biz_UID1' && shopOut.upi_vpa === 'shop@upi' && shopOut.fssai === '1234' && shopOut.platform === 'desktop'
+    && !['subscription_tier', 'subscription_valid_until', 'next_invoice_number', 'business_type', 'upi_id', 'is_onboarded', 'sync_status'].some((k) => k in shopOut),
+    'Cloud contract: the shop goes out as biz_<uid> with upi_vpa / fssai, never with plan fields (the rules would refuse the whole save), its invoice counter or a business type');
+  const shopIn = fromCloud('businesses', { name: 'Jadhav Stores', is_pro: true, account_disabled: true, next_invoice_number: 999, business_type: 'pharmacy', shop_name: 'Jadhav Stores', upi_vpa: 'new@upi' },
+    { id: 'biz_local_1', name: 'Old', next_invoice_number: 57, business_type: 'retail', upi_id: 'shop@upi' }, ctx);
+  assert(shopIn.id === 'biz_local_1' && shopIn.next_invoice_number === 57 && shopIn.business_type === 'retail' && shopIn.upi_id === 'new@upi' && shopIn.name === 'Jadhav Stores'
+    && !['is_pro', 'account_disabled', 'shop_name', 'upi_vpa'].some((k) => k in shopIn),
+    "Cloud contract: the cloud shop never brings plan fields, the kill-switch or the phone's extra names into Dexie, nor changes this computer's invoice counter");
+
+  // Khata, returns, purchase bills, cash shifts (D1): money renamed inside the nested lines too.
+  const ledger = { id: 'ledg_1', business_id: 'biz_UID1', party_type: 'customer', party_id: 'c1', party_name: 'Ramesh', transaction_type: 'PAYMENT_RECEIVED', amount: 30000, balance_after: 20000,
+    bill_allocations: [{ sale_id: 'sale_1', amount: 30000 }], created_at: '2026-09-30T13:00:00.000Z' };
+  const ret = { id: 'ret_1', business_id: 'biz_UID1', return_number: 'RET-1', original_sale_id: 'sale_1', original_invoice_number: 'INV-0101', refund_amount: 5000, refund_method: 'cash',
+    created_by: 'owner', created_at: '2026-09-30T14:00:00.000Z', items: [{ product_id: 'a', product_name: 'A', quantity: 1, unit: 'piece', unit_price: 5000, tax_rate: 5, total_amount: 5000, restock_to_inventory: true }] };
+  const bill = { id: 'pb_1', business_id: 'biz_UID1', raw_ai_response: '', ai_model_used: 'manual', status: 'confirmed', total_amount: 44000, created_at: '2026-09-30T08:00:00.000Z',
+    line_items: [{ raw_name: 'Salt', is_new_product: false, quantity: 20, unit_price: 2200, total_price: 44000, selling_price: 2800, mrp: 3000, confidence: 'high' }] };
+  const shift = { id: 'reg_1', business_id: 'biz_UID1', opened_at: '2026-09-30T03:30:00.000Z', opening_cash: 100000, cash_sales: 250000, upi_sales: 90000, credit_sales: 0, cash_in: 0, cash_out: 5000,
+    expected_closing_cash: 345000, status: 'open', opened_by: 'owner' };
+  const lc = toCloud('ledger_transactions', ledger, ctx);
+  assert(lc.amount_paise === 30000 && lc.balance_after_paise === 20000 && lc.bill_allocations[0].amount_paise === 30000 && toCloud('sales_returns', ret, ctx).items[0].unit_price_paise === 5000
+    && toCloud('purchase_bills', bill, ctx).line_items[0].total_price_paise === 44000 && toCloud('cash_registers', shift, ctx).expected_closing_cash_paise === 345000
+    && same(fromCloud('ledger_transactions', lc, null, ctx), ledger) && same(fromCloud('sales_returns', toCloud('sales_returns', ret, ctx), null, ctx), ret)
+    && same(fromCloud('purchase_bills', toCloud('purchase_bills', bill, ctx), null, ctx), bill) && same(fromCloud('cash_registers', toCloud('cash_registers', shift, ctx), null, ctx), shift),
+    'Cloud contract: khata entries (with the bills a payment cleared), returns, supplier bills and cash shifts go out in paise names and come back exactly');
+
+  assert([...CLOUD_TABLES].sort().join() === [...BACKUP_TABLES].sort().join(), 'Cloud contract: every table a backup file carries also goes to the cloud (D1) — and nothing else');
+  assert(tableForCloudPath('businesses/biz_UID1') === 'businesses' && tableForCloudPath('businesses/biz_UID1/customers/c1') === 'customers' && tableForCloudPath('merchants/x') === null
+    && tableForCloudPath('businesses/b/unknown/x') === null && normalizeUnit(' PCS ') === 'piece' && normalizeUnit('pkt') === 'packet',
+    "Cloud contract: a cloud path names its table (anything else is not written); older unit words read as the Desktop's");
+  assert(['bottle', 'can', 'bag'].every((u) => MASTER_UNITS.some((m) => m.id === u)), 'Units: bottle, can and bag exist on the Desktop too (the phone uses them — D3)');
+
+  const syncSrc = readSource('lib/firebase/firestoreSync.ts');
+  assert(/batch\.set\(ref, sanitizeForFirestore\(toCloud\(table, item, \{ bizId \}\)\)/.test(syncSrc) && (syncSrc.match(/fromCloud\(/g) || []).length >= 4
+    && !/\.data\(\) as (Product|Customer|Sale|Category|Business)/.test(syncSrc) && /for \(const table of DATA_TABLES\)/.test(syncSrc)
+    && /data\.account_disabled === true/.test(syncSrc) && /if \(!cloudShopExists\) shopDoc\.business_type = 'grocery';/.test(syncSrc),
+    'Cloud contract: the full sync writes and reads only through toCloud / fromCloud (no raw Dexie rows either way), covers every table and obeys the admin kill-switch');
+  assert(/toCloud\(table, data, \{ bizId \}\)/.test(readSource('lib/firebase/lazyCloud.ts')) && /toCloud\('businesses', businessDoc, \{ bizId: businessId \}\)/.test(readSource('app/onboarding/page.tsx'))
+    && !/subscription_tier: 'free'/.test(readSource('app/onboarding/page.tsx')),
+    'Cloud contract: the per-bill mirror (cloudMerge) and onboarding write contract documents too; onboarding sends no plan field');
+  const contractSrc = readSource('lib/cloud/cloudContract.ts') + readSource('lib/cloud/cloudFormat.ts');
+  assert(!/from '(firebase|@\/lib\/db|@\/lib\/firebase)/.test(contractSrc), 'Cloud contract: the mapping is pure (no Firebase, no Dexie) — tested here, safe to load anywhere');
+}
+
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.
 const PRO_OR_AI = /useProSubscription|requirePro|UpgradeModal|ProFeatureBadge|subscriptionService|razorpay|generativelanguage\.googleapis|gemini/i;
-const proOrAiOffenders = ALL_SOURCE.filter((f) => PRO_OR_AI.test(fs.readFileSync(f, 'utf8')));
+// The one exception: the cloud contract's list of plan fields the Desktop must NEVER write (R9,
+// lib/cloud/cloudFormat.ts `PRO_FIELDS`) names them. Only that list is skipped; the rest of the file is checked.
+const proCheckSource = (f: string) => {
+  const s = fs.readFileSync(f, 'utf8');
+  return /[\\/]lib[\\/]cloud[\\/]cloudFormat\.ts$/.test(f) ? s.replace(/export const PRO_FIELDS: ReadonlySet<string> = new Set\(\[[\s\S]*?\]\);/, '') : s;
+};
+const proOrAiOffenders = ALL_SOURCE.filter((f) => PRO_OR_AI.test(proCheckSource(f)));
 assert(
   proOrAiOffenders.length === 0,
   `No Pro gate, payment upsell or AI scan code in src (found: ${proOrAiOffenders.map((f) => path.relative(SRC_ROOT, f)).join(', ') || 'none'})`

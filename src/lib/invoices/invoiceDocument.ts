@@ -121,6 +121,9 @@ const UNIT_SHORT: Record<string, string> = {
   meter: 'm',
   foot: 'ft',
   sqft: 'sqft',
+  bottle: 'btl',
+  can: 'can',
+  bag: 'bag',
 };
 
 export function formatQty(qty: number): string {

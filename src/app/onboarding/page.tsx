@@ -154,13 +154,14 @@ export default function OnboardingPage() {
       // 2. Write Complete Merchant Document to Firestore `merchants/{uid}`.
       // Firebase (~650 KB) is pulled in here, at the one moment onboarding needs
       // it, rather than with the page — the shop is usable offline without it.
-      const [{ getFirestoreDb }, { doc, setDoc, deleteDoc }, { sanitizeForFirestore }] = CLOUD_SYNC_ENABLED
+      const [{ getFirestoreDb }, { doc, setDoc, deleteDoc }, { sanitizeForFirestore }, { toCloud }] = CLOUD_SYNC_ENABLED
         ? await Promise.all([
             import('@/lib/firebase/config'),
             import('firebase/firestore'),
             import('@/lib/firebase/firestoreSync'),
+            import('@/lib/cloud/cloudContract'),
           ])
-        : [{ getFirestoreDb: () => null }, {} as any, {} as any];
+        : [{ getFirestoreDb: () => null }, {} as any, {} as any, {} as any];
       // Skipped while the desktop app has no cloud login: the writes are rejected, and
       // awaiting them on a slow connection could stall first-time store setup.
       const firestore = CLOUD_SYNC_ENABLED ? getFirestoreDb() : null;
@@ -196,19 +197,19 @@ export default function OnboardingPage() {
             }), { merge: true });
           }
 
-          // Also write Business Document for full compatibility with email & phone bindings
+          // Also write Business Document for full compatibility with email & phone bindings.
+          // In the cloud data contract's names; no plan fields (the rules reject any write carrying them).
           const businessDoc = {
             ...newBusinessRecord,
             user_uid: rawUid,
             email: user?.email || null,
             user_email: user?.email || null,
             phone: cleanPhone,
-            subscription_tier: 'free',
             is_active: true,
             created_at: now,
             updated_at: now,
           };
-          await setDoc(doc(firestore, 'businesses', businessId), sanitizeForFirestore(businessDoc), { merge: true });
+          await setDoc(doc(firestore, 'businesses', businessId), sanitizeForFirestore(toCloud('businesses', businessDoc, { bizId: businessId })), { merge: true });
 
           // Clear any legacy tombstones for this store ID and phone so it is immediately active and visible in Admin
           await deleteDoc(doc(firestore, 'deleted_businesses', businessId)).catch(() => {});

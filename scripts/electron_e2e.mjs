@@ -830,12 +830,16 @@ async function run() {
       });
       const drawerOpenAfterDrag = await drawerOnScreen();
       await pullTab.click();
-      await page.waitForTimeout(600);
-      const drawerOpened = await drawerOnScreen();
+      // K-D24: the drawer slides in (300 ms) — wait for it instead of looking once after a fixed pause.
+      const drawerOpened = await page.waitForFunction(() => {
+        const b = document.querySelector('[data-drawer-close]');
+        return Boolean(b) && b.getBoundingClientRect().left < window.innerWidth - 10;
+      }, null, { timeout: 3000 }).then(() => true, () => false);
+      const drawerWhy = drawerOpened ? '' : await page.evaluate(() => `overlay: ${document.querySelectorAll('.fixed.inset-0.z-\\[100\\]').length}, path: ${location.pathname}, tab: ${JSON.stringify(document.querySelector('[data-transactions-tab]')?.getBoundingClientRect())}`);
       await page.keyboard.press('Escape');
       await page.waitForTimeout(400);
       check(boxAfter.y < boxBefore.y - 150 && savedY > 0 && savedY < 0.5 && !drawerOpenAfterDrag && drawerOpened,
-        `Transactions tab dragged up ${Math.round(boxBefore.y - boxAfter.y)} px and remembered (${savedY}); the drag did not open it, a click does${!drawerOpenAfterDrag && drawerOpened ? '' : ` [open after drag: ${drawerOpenAfterDrag}, open after click: ${drawerOpened}]`}`);
+        `Transactions tab dragged up ${Math.round(boxBefore.y - boxAfter.y)} px and remembered (${savedY}); the drag did not open it, a click does${!drawerOpenAfterDrag && drawerOpened ? '' : ` [open after drag: ${drawerOpenAfterDrag}, open after click: ${drawerOpened}; ${drawerWhy}]`}`);
 
       // v4.78.0 — Home fills itself: Purchases off → Fast barcode inward tile (opens on Home), GST off →
       // Backup & CA exports, every row of tiles full; Printer setup opens the bill + label printer.

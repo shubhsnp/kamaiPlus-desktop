@@ -364,7 +364,8 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 | `hardware/bluetoothPrinter.ts` | Web Bluetooth ESC/POS printer — only the "Bluetooth" print in "Sale completed" and Barcode Studio use it; it connects on demand (the billing hardware manager that paired it was removed in v4.73.0) |
 | `hardware/barcodeScannerListener.ts` | USB/HID scanner keystroke capture when **no** text box owns the scan (key timing by `e.timeStamp`; `ignore` lets the POS search box read scans itself) — §9.5 |
 | `firebase/lazyCloud.ts` | **The only way billing touches the cloud.** §6.4 |
-| `firebase/firestoreSync.ts` | Full push/pull sync + `sanitizeForFirestore` |
+| `firebase/firestoreSync.ts` | Full push/pull sync of all 14 tables + live listeners + `sanitizeForFirestore` — only through `toCloud` / `fromCloud` |
+| `cloud/cloudContract.ts` · `cloudFormat.ts` | **Cloud data contract** (`docs/CLOUD_DATA_CONTRACT.md`, v4.83.0): Dexie row ↔ Firestore doc per table — money `*_paise`, `stock_quantity`, split flat, `biz_<uid>`, plan fields never; `CLOUD_TABLES` = backup tables. Pure (no Firebase / Dexie) |
 | `backup/cloudBackupService.ts` | Local JSON backup/restore of every table (`BACKUP_TABLES`), `checkBackupPayload`, one-transaction restore, "add missing" merge, settings (§2.3, v4.78.0) |
 | `backup/autoBackup.ts` · `backupSchedule.ts` · `backupChanges.ts` | Automatic backup: run it / when (hourly while data changes, counter free) / "data changed" DBCore middleware registered in `db/index.ts` (§2.3, v4.82.0) |
 | `auth.ts` | `getStoredUser` / `setStoredUser` / `logoutUser` / `purgeLocalDeviceData`, 24h session |
@@ -589,7 +590,7 @@ It must always be `await import(...)`-ed. See §8.
 
 | Function | Use |
 | :--- | :--- |
-| `cloudMerge(path, data)` | Mirror one document to Firestore. Swallows all errors. |
+| `cloudMerge(path, data)` | Mirror one document to Firestore. Swallows all errors. `data` is a Dexie row (or part); it goes out through `toCloud` (table from the path, `tableForCloudPath`) — a path outside `businesses/{biz}/…` is not written. |
 | `cloudSyncSoon(businessId)` | Queue the debounced full backup. |
 | `cloudTrackInvoice(payload)` | Analytics for a completed bill. |
 | `prewarmCloud()` | Called once on POS mount; pulls the Firebase chunk in on idle so the first bill never waits for it. |
@@ -1303,6 +1304,7 @@ Each was a real bug that cost real time. The test suite guards most of them.
 | 30 | **The next customer's scan vanished in busy hours (before v4.74.0).** `completeSale` awaited the silent print before closing the bill, so the counter stood still for the printer; scans made meanwhile went into the bill being closed and were dropped by `tabsAfterClosing`; a failed print opened "Sale completed" over the next customer. Every beep created an `AudioContext` that was never closed. | §9.7: close first with `tabsAfterSale` (extras move to the next bill) + `activeTabIdRef`; `BillPrintQueue` prints in the background, failures wait in a red bar; one shared beep context. Suite 9 §9h; Electron E2E slow-printer + failed-print checks. |
 | 33 | **Products toolbar controls that did nothing (before v4.81.0).** "Scan" filled a closed form; the search ignored HSN / size / colour it advertised; category chips past the window edge could not be reached with a mouse; a gun scan into the product form's barcode box saved the half-filled item. | §9.12: webcam scanner deleted, gun Enter → offline-list fill, `matchesProductDetails`, wrapped chips + "All categories (N)". Suite 9 §9j(p). |
 | 34 | **The automatic backup held only yesterday's bills (before v4.82.0).** One file per day, written 2 min after launch and never again that day — a disk that died in the evening took every bill of the day. | §2.3: the day's file is refreshed hourly while data changes (DBCore middleware `backupChangeMiddleware`), when the counter is free, at most 2 h late. Suite 9 §9j(r). Do not go back to "skip if today's file exists". |
+| 35 | **Desktop and Android spoke different cloud languages (before v4.83.0; sync off, so nothing broke yet).** The Desktop sent raw Dexie rows: prices / bill totals / udhar in paise under names the phone reads as rupees (₹100 bill → ₹10,000), `current_stock` the phone never reads (stock 0), plan fields the rules refuse, and it saved the phone's documents as Dexie rows unchanged. | `lib/cloud/cloudContract.ts` `toCloud` / `fromCloud` for all 14 tables (`docs/CLOUD_DATA_CONTRACT.md` v1.0); `firestoreSync.ts`, `cloudMerge`, onboarding use nothing else. Suite 9 §9j(s): round-trips exact, the phone's real documents read right. |
 ---
 
 ## 11. Verification protocol (AGENTS.md Rule 6)
@@ -1451,6 +1453,9 @@ Recorded so the next agent does not rediscover them. None are fixed as of v4.38.
    `lib/firebase/cloudAvailability.ts` short-circuits every cloud path (`lazyCloud`,
    `backgroundSync`, `syncEngine`, onboarding, Cloud Backup buttons show a message).
    Turning cloud sync on needs a real Firebase login first — then flip the flag.
+   **Since v4.83.0 every cloud read / write goes through the cloud data contract**
+   (`lib/cloud/cloudContract.ts`, `docs/CLOUD_DATA_CONTRACT.md`) — the same names as the
+   Android app. Never `setDoc` a raw Dexie row or `bulkPut` a raw cloud doc (§10 #35).
 
 8. ~~Every bill read the whole `sales` table~~ — **fixed in v4.43.0**, see §10 #17.
 

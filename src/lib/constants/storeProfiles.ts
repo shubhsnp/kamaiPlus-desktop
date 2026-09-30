@@ -34,6 +34,10 @@ export const MASTER_UNITS: UnitOption[] = [
   { id: 'foot', labelEn: 'Feet / Running Ft (ft)', labelHi: 'फीट (ft)', symbol: 'ft', isDecimalAllowed: true },
   { id: 'sqft', labelEn: 'Square Feet (sq.ft)', labelHi: 'स्क्वायर फीट (sq.ft)', symbol: 'sq.ft', isDecimalAllowed: true },
   { id: 'bundle', labelEn: 'Bundle (bdl)', labelHi: 'बंडल (bdl)', symbol: 'bdl' },
+  // Same units as the Android app (cloud data contract, D3).
+  { id: 'bottle', labelEn: 'Bottle (btl)', labelHi: 'बोतल (btl)', symbol: 'btl' },
+  { id: 'can', labelEn: 'Can / Tin (can)', labelHi: 'कैन / टिन (can)', symbol: 'can' },
+  { id: 'bag', labelEn: 'Bag / Sack (bag)', labelHi: 'थैला / बोरी (bag)', symbol: 'bag' },
   { id: 'custom', labelEn: 'Custom Unit', labelHi: 'अन्य / कस्टम', symbol: 'unit' },
 ];
 
