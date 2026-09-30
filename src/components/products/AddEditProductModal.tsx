@@ -61,7 +61,8 @@ interface AddEditProductModalProps {
   setFormSize: (val: string) => void;
   formColor: string;
   setFormColor: (val: string) => void;
-  onOpenScanner: () => void;
+  /** A code scanned (USB gun + Enter) into the barcode box — fill name / MRP from the offline list. */
+  onBarcodeScanned?: (code: string) => void;
   onOpenAddCategoryModal: () => void;
   onOpenInwardSheet?: () => void;
   onSubmit: (e: React.FormEvent) => Promise<void>;
@@ -110,7 +111,7 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
   setFormSize,
   formColor,
   setFormColor,
-  onOpenScanner,
+  onBarcodeScanned,
   onOpenAddCategoryModal,
   onOpenInwardSheet,
   onSubmit,
@@ -275,7 +276,7 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
 
         {/* Barcode, HSN & GST Rate (HSN and GST only when switched on in Settings → Features) */}
         <div className={`grid grid-cols-1 ${SM_COLS[codeFieldCount]} gap-3`}>
-          <ProductBarcodeField value={formBarcode} onChange={setFormBarcode} onOpenScanner={onOpenScanner} />
+          <ProductBarcodeField value={formBarcode} onChange={setFormBarcode} onScanned={onBarcodeScanned} />
 
           {/* HSN / SAC: printed on GST invoices and grouped in the GSTR-1 HSN summary */}
           {switches.product_hsn && (

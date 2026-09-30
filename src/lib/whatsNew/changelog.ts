@@ -15,6 +15,13 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.81.0',
+    items: [
+      msg('Products: the search now finds items by HSN, size and colour too, and every category can be reached — “All categories” opens them all.'),
+      msg('The camera Scan button on Products is gone (it did nothing). Scan with the barcode gun into the search or the barcode box — in Add Product the gun now fills the name and MRP and no longer saves a half-filled item.'),
+    ],
+  },
+  {
     version: '4.80.0',
     items: [
       msg('Barcode labels: choose how tall the bars are (label setup → Barcode height). Set it once on this computer and every label uses it; bills are not affected.'),

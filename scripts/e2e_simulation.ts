@@ -71,6 +71,7 @@ import { nextSupplierBalance } from '../src/lib/suppliers/supplierLedger';
 import { cleanVariantLabels, DEFAULT_COUNTED_STOCK, summarizeVariants, tracksOwnStock } from '../src/lib/products/variants';
 import { buildBillCustomer, isDraftEmpty, resolveBillCustomer, splitDraft, suggestCustomers } from '../src/lib/billing/billCustomer';
 import { DEFAULT_FEATURE_SWITCHES, FEATURES, featureForPath, isPathEnabled, parseFeatureSwitches, showSellingPriceField } from '../src/lib/features/featureSwitches';
+import { matchesProductDetails } from '../src/lib/products/detailSearch';
 import { buildImportRows, buildItemName, findHeaderRow, guessColumnRoles, mapUnit, parseAmount, planImport } from '../src/lib/import/catalogImport';
 import { ean13CheckDigit, isValidEan13, nextStoreBarcodes } from '../src/lib/barcode/storeBarcodes';
 import type { CartItem, Product } from '../src/types';
@@ -2036,6 +2037,29 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     `WhatsApp is on every screen the Android app has it (missing: ${missing.join(', ') || 'none'}); no hand-made wa.me links left`);
   assert(/document\.activeElement === searchInputRef\.current \|\| Boolean\(document\.querySelector\('\[data-whatsapp-composer\]'\)\)/.test(readSource('app/billing/page.tsx')),
     'On Billing the barcode listener stands aside while the WhatsApp window is open (a typed number is not a scan)');
+}
+
+// (p) Products page toolbar (v4.81.0): the webcam "Scan" is gone — it filled an Add Product form
+// that was not open, so nothing happened (a USB gun types into the search / barcode box). A gun's
+// Enter in the Add Product barcode box fills name / MRP from the offline list instead of saving a
+// half-filled form. The search finds HSN / size / colour as its box says. Category chips wrap
+// (a mouse wheel cannot scroll sideways) with "All categories (N)".
+{
+  const shirt = { name: 'Cotton Shirt (XL)', barcode: '8901234567890', hsn_code: '6205', size: 'XL', color: 'Red', variant_label: 'XL' };
+  assert(matchesProductDetails(shirt, '6205') && matchesProductDetails(shirt, 'red xl') && matchesProductDetails(shirt, 'shirt RED') && matchesProductDetails({ name: 'Kurta', size: 'M' }, 'm')
+    && !matchesProductDetails({ name: 'Mango Pickle' }, 'm') && !matchesProductDetails(shirt, 'blue') && !matchesProductDetails(shirt, '   '),
+    'Products search finds HSN, size and colour (every word somewhere in the item); a one-letter word must be a whole size, not any "m" in a name');
+  const page = readSource('app/products/page.tsx');
+  const toolbar = readSource('components/products/ProductFilterToolbar.tsx');
+  const field = readSource('components/products/ProductBarcodeField.tsx');
+  assert(!fs.existsSync(path.join(SRC_ROOT, 'components/barcode/BarcodeScannerModal.tsx')) && !ALL_SOURCE.some((f) => /BarcodeScannerModal|onOpenScanner|Scan Camera/.test(fs.readFileSync(f, 'utf8'))),
+    'No webcam scanner left anywhere (the toolbar Scan filled a closed form); the USB gun types into the boxes');
+  assert(/productSearchScore\(p, productQuery\) < 0 && !matchesProductDetails\(p, debouncedSearch\)/.test(page),
+    'The Products search box uses the detail match next to the shared name / barcode search');
+  assert(/e\.key !== 'Enter'/.test(field) && /e\.preventDefault\(\);/.test(field) && /onScanned\?\.\(value\.trim\(\)\)/.test(field) && /onBarcodeScanned=\{handleBarcodeScanned\}/.test(page),
+    "A gun's Enter in the Add Product barcode box never saves the half-filled form; it fills name / MRP from the offline list");
+  assert(/flex-wrap/.test(toolbar) && !/overflow-x-auto/.test(toolbar) && /data-product-category-more/.test(toolbar) && /\[picked, \.\.\.categories\.filter/.test(toolbar),
+    'Category chips wrap (no side-scroll a mouse cannot reach) with "All categories (N)"; the picked one stays first');
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.

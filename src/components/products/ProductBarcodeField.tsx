@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Barcode, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { barcodesInUse, nextStoreBarcodes } from '@/lib/barcode/storeBarcodes';
 import { tr } from '@/lib/i18n/core';
@@ -10,8 +10,12 @@ import { tr } from '@/lib/i18n/core';
  * Add / Edit Product → barcode: type or scan it, or "Generate" the shop's own next code
  * (EAN-13 "200…", never used before — v4.78.0). Generate shows only while the box is
  * empty, so a maker's barcode is never replaced by mistake.
+ *
+ * v4.81.0: the webcam scan button is gone — a USB gun types into this box. The gun's Enter
+ * no longer saves the half-filled form; it hands the code to `onScanned` (name / MRP from the
+ * offline barcode list), as the camera did.
  */
-export function ProductBarcodeField({ value, onChange, onOpenScanner }: { value: string; onChange: (v: string) => void; onOpenScanner: () => void }) {
+export function ProductBarcodeField({ value, onChange, onScanned }: { value: string; onChange: (v: string) => void; onScanned?: (code: string) => void }) {
   const [busy, setBusy] = useState(false);
 
   const generate = async () => {
@@ -37,13 +41,19 @@ export function ProductBarcodeField({ value, onChange, onOpenScanner }: { value:
               <span>{tr('Generate')}</span>
             </button>
           )}
-          <button type="button" onClick={onOpenScanner} className="text-[11px] font-bold text-sky-600 hover:underline flex items-center gap-1 cursor-pointer">
-            <Barcode className="w-3 h-3" />
-            <span>{tr('Scan Camera')}</span>
-          </button>
         </span>
       </div>
-      <Input placeholder={tr('e.g. 8901030383748')} value={value} onChange={(e) => onChange(e.target.value)} data-product-barcode />
+      <Input
+        placeholder={tr('e.g. 8901030383748')}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key !== 'Enter') return;
+          e.preventDefault();
+          if (value.trim()) onScanned?.(value.trim());
+        }}
+        data-product-barcode
+      />
     </div>
   );
 }

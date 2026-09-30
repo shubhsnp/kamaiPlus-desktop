@@ -1,15 +1,15 @@
 'use client';
 
-import React from 'react';
-import { 
-  Search, 
-  Barcode, 
-  X, 
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  Search,
+  X,
   AlertTriangle,
   LayoutGrid,
-  Table as TableIcon
+  Table as TableIcon,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
 import { Category } from '@/types';
 import { cn } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
@@ -24,7 +24,6 @@ interface ProductFilterToolbarProps {
   onToggleLowStock: (val: boolean) => void;
   showExpiringOnly?: boolean;
   onToggleExpiringOnly?: (val: boolean) => void;
-  onOpenScanner: () => void;
   viewMode?: 'table' | 'cards';
   onViewModeChange?: (mode: 'table' | 'cards') => void;
 }
@@ -37,10 +36,29 @@ export const ProductFilterToolbar: React.FC<ProductFilterToolbarProps> = ({
   onSelectCategory,
   showLowStockOnly,
   onToggleLowStock,
-  onOpenScanner,
   viewMode = 'table',
   onViewModeChange,
 }) => {
+  // Category chips (v4.81.0): one row that wraps instead of a side-scroll strip — a mouse
+  // wheel cannot scroll sideways, so a shop with 50 sections never reached most of them.
+  // "All categories (N)" opens every row; the picked category always sits right after "All Items".
+  const [showAllCats, setShowAllCats] = useState(false);
+  const [chipsOverflow, setChipsOverflow] = useState(false);
+  const chipsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = chipsRef.current;
+    if (!el) return;
+    const measure = () => setChipsOverflow(el.scrollHeight > el.clientHeight + 2);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [categories.length, showAllCats]);
+
+  const picked = categories.find((c) => c.id === selectedCategory);
+  const orderedCategories = picked ? [picked, ...categories.filter((c) => c.id !== picked.id)] : categories;
+
   return (
     <div className="flex flex-col gap-2.5 bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-2xs">
       <div className="flex items-center gap-2">
@@ -64,18 +82,6 @@ export const ProductFilterToolbar: React.FC<ProductFilterToolbarProps> = ({
             </button>
           )}
         </div>
-
-        {/* Scan Barcode Button */}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onOpenScanner}
-          className="text-xs font-bold gap-1 rounded-xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 cursor-pointer shrink-0"
-        >
-          <Barcode className="w-4 h-4 text-sky-600" />
-          <span className="hidden sm:inline">{tr('Scan')}</span>
-        </Button>
 
         {/* Low Stock Toggle */}
         <button
@@ -128,35 +134,63 @@ export const ProductFilterToolbar: React.FC<ProductFilterToolbarProps> = ({
       </div>
 
       {/* 1-Tap Category Chips */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none select-none">
-        <button
-          type="button"
-          onClick={() => onSelectCategory('all')}
-          className={cn(
-            "px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap",
-            selectedCategory === 'all'
-              ? "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-950 shadow-2xs"
-              : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200"
-          )}
+      <div className="flex items-start gap-1.5">
+        <div
+          ref={chipsRef}
+          className={cn("flex flex-1 min-w-0 flex-wrap items-center gap-1.5 select-none", !showAllCats && "max-h-[30px] overflow-hidden")}
+          data-product-category-chips
         >
-          {tr('All Items')}
-        </button>
-
-        {categories.map((c) => (
           <button
-            key={c.id}
             type="button"
-            onClick={() => onSelectCategory(c.id)}
+            onClick={() => onSelectCategory('all')}
             className={cn(
               "px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap",
-              selectedCategory === c.id
+              selectedCategory === 'all'
                 ? "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-950 shadow-2xs"
                 : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200"
             )}
           >
-            {c.name}
+            {tr('All Items')}
           </button>
-        ))}
+
+          {orderedCategories.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => onSelectCategory(c.id)}
+              className={cn(
+                "px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap",
+                selectedCategory === c.id
+                  ? "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-950 shadow-2xs"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200"
+              )}
+            >
+              {c.name}
+            </button>
+          ))}
+        </div>
+
+        {(chipsOverflow || showAllCats) && (
+          <button
+            type="button"
+            onClick={() => setShowAllCats((v) => !v)}
+            className="px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 flex items-center gap-1 cursor-pointer border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+            aria-expanded={showAllCats}
+            data-product-category-more
+          >
+            {showAllCats ? (
+              <>
+                <span>{tr('Show less')}</span>
+                <ChevronUp className="w-3.5 h-3.5" />
+              </>
+            ) : (
+              <>
+                <span>{tr('All categories ({count})', { count: categories.length })}</span>
+                <ChevronDown className="w-3.5 h-3.5" />
+              </>
+            )}
+          </button>
+        )}
       </div>
     </div>
   );

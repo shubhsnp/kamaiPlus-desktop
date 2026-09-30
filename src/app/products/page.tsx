@@ -32,6 +32,7 @@ import { showSellingPriceField, useFeatureSwitches } from '@/lib/features/featur
 import { createProductWithVariants, DEFAULT_COUNTED_STOCK, deleteProductAndVariants, isVariantChild, isVariantParent, tracksOwnStock } from '@/lib/products/variants';
 import { tr } from '@/lib/i18n/core';
 import { makeProductQuery, productSearchScore } from '@/lib/search/productSearch';
+import { matchesProductDetails } from '@/lib/products/detailSearch';
 
 const VariantsManagerModal = dynamic(
   () => import('@/components/products/VariantsManagerModal').then((m) => m.VariantsManagerModal),
@@ -47,10 +48,6 @@ const CatalogImportModal = dynamic(
   () => import('@/components/import/CatalogImportModal').then((m) => m.CatalogImportModal),
   { ssr: false }
 );
-const BarcodeScannerModal = dynamic(
-  () => import('@/components/barcode/BarcodeScannerModal').then((m) => m.BarcodeScannerModal),
-  { ssr: false }
-);
 
 export default function ProductsPage() {
   const { t } = useTranslation();
@@ -58,7 +55,6 @@ export default function ProductsPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isPurchaseSheetOpen, setIsPurchaseSheetOpen] = useState(false);
   const [isExcelImporterOpen, setIsExcelImporterOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -152,8 +148,9 @@ export default function ProductsPage() {
 
       // 1. Search Query
       if (debouncedSearch.trim()) {
-        // Name or barcode, typed in English or हिंदी / मराठी (lib/search/productSearch.ts).
-        if (productSearchScore(p, productQuery) < 0) return false;
+        // Name or barcode, typed in English or हिंदी / मराठी (lib/search/productSearch.ts),
+        // or HSN / size / colour as the box promises (lib/products/detailSearch.ts, v4.81.0).
+        if (productSearchScore(p, productQuery) < 0 && !matchesProductDetails(p, debouncedSearch)) return false;
       }
 
       // 2. Category Filter
@@ -426,8 +423,9 @@ export default function ProductsPage() {
     setIsBarcodePrintOpen(true);
   };
 
+  // A code scanned into the Add / Edit Product barcode box (USB gun + Enter): name, price,
+  // GST and unit from the offline barcode list, only while the name is still empty.
   const handleBarcodeScanned = async (code: string) => {
-    setIsScannerOpen(false);
     setFormBarcode(code);
 
     if (!formName) {
@@ -486,7 +484,6 @@ export default function ProductsPage() {
         onSelectCategory={setSelectedCategory}
         showLowStockOnly={showLowStockOnly}
         onToggleLowStock={setShowLowStockOnly}
-        onOpenScanner={() => setIsScannerOpen(true)}
         viewMode={viewMode}
         onViewModeChange={handleViewModeChange}
       />
@@ -573,7 +570,7 @@ export default function ProductsPage() {
         setFormSize={setFormSize}
         formColor={formColor}
         setFormColor={setFormColor}
-        onOpenScanner={() => setIsScannerOpen(true)}
+        onBarcodeScanned={handleBarcodeScanned}
         onOpenAddCategoryModal={() => setIsAddCategoryModalOpen(true)}
         onOpenInwardSheet={switches.purchases ? () => setIsPurchaseSheetOpen(true) : undefined}
         onSubmit={handleSaveProduct}
@@ -622,13 +619,6 @@ export default function ProductsPage() {
           </div>
         </form>
       </Modal>
-
-      {/* Barcode Scanner Modal */}
-      <BarcodeScannerModal
-        isOpen={isScannerOpen}
-        onClose={() => setIsScannerOpen(false)}
-        onScan={handleBarcodeScanned}
-      />
 
       {/* Excel / CSV price-list import (mounted only while open — xlsx is heavy) */}
       {isExcelImporterOpen && (

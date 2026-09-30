@@ -1,7 +1,7 @@
 # 📕 KamaiPlus Desktop — Engineering Bible
 
 > **Canonical context file. Read this before touching any code.**
-> Last verified against the tree at v4.80.0, 2026‑09‑29 (sections carry the version they were last touched in).
+> Last verified against the tree at v4.81.0, 2026‑09‑30 (sections carry the version they were last touched in).
 
 This file exists so that an agent starting cold does **not** have to scan 180 source
 files, and does **not** re-solve problems that were already solved. Everything here
@@ -30,6 +30,7 @@ by exactly this (see §12).
 | :--- | :--- |
 | `AGENTS.md` | ✅ **Authoritative.** Hard rules. Obey it. |
 | `ENGINEERING_BIBLE.md` (this file) | ✅ **Authoritative.** Verified map. |
+| `docs/PLATFORM_TRACKER.md` | ✅ **Read before any work (since 2026-09-30).** Cross-product decisions (Desktop + Android + website / domain), what runs where in Firebase, the web-app shutdown plan, and the numbered list of known gaps (K-…). Update it after every task. |
 | `docs/FUTURE_SCOPE.md` | ✅ **Backlog, not a map.** Planned work (FS-01…FS-27: multi-counter sync, staff logins, batch / expiry, GSTR-3B, big-file splits…) with priority and code pointers. Pick work from here; tick it off with the version. |
 | `docs/archive/SYSTEM_ARCHITECTURE.md` | ⚠️ **Partly stale.** Claims React 19 (actually 18.3.1), Next 15 (actually 16.3.1) and Supabase as the server DB (the Supabase dep was removed in v4.38.0 — nothing uses it). The *paise math* section in it is still correct. |
 | `docs/archive/HANDOVER.md`, `docs/archive/KamaiPlus_Complete_App_Documentation.md` | ⚠️ **Historical.** Snapshots of older versions. Treat as archaeology. |
@@ -320,7 +321,7 @@ src/components/<feature>/   Feature components, one folder per domain
 src/components/ui/          Button, Card, Input, Modal  (that is all of it)
 src/lib/<domain>/           Engines — see table below
 src/types/index.ts          All domain types. Single file.
-scripts/e2e_simulation.ts   The test suite (§11). 596 assertions.
+scripts/e2e_simulation.ts   The test suite (§11). 601 assertions.
 scripts/bump_version.ts     Version bumper (+0.1 minor)
 public/barcodes/*.json      5 shipped offline barcode dictionaries
 ```
@@ -373,6 +374,7 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 | `labels/` | Barcode labels (§9.4): `labelSettings.ts` (stocks, per-computer setup, `saveLabelHandoff` / `readLabelHandoff`), `labelSheet.ts` (`buildLabelHtml` — preview = print), `printLabels.ts`, `labelExtras.ts` (cost code, size / colour — v4.77.0) |
 | `customers/customerDirectory.ts` | Customer Directory (v4.78.0): `sortCustomers`, `customerSheetRows` (Excel), `customerListHtmlBody` (PDF, English) |
 | `products/categories.ts` | `findOrCreateCategory` / `findCategoryByName` — a typed category name picks the saved one (any case), else saves it (v4.78.0) |
+| `products/detailSearch.ts` | `matchesProductDetails` — the Products page search also finds HSN / size / colour / variant label (v4.81.0, §9.12); the shared `productSearch.ts` is unchanged |
 | `inward/` | Goods coming in (§9.8): `stockEntry.ts` (pure — `stockAfterInward`, `labelCopiesFor`, `lowStockAlertFor`, `inwardMovement`, `planStockEntry`), `stockEntryDb.ts` (`applyStockEntry`), `stockEntryDraft.ts` (typed rows kept per computer), `fastInward.ts` (`scanIntoRows`, `splitTrailingCode` — Fast barcode inward, v4.78.0) |
 | `barcode/weighedBarcode.ts` | Loose-pack codes `29 IIIII QQQQQ C` (§9.8): `makeWeighedBarcode`, `parseWeighedBarcode`, `weighedQuantity`, `formatPackAmount` |
 
@@ -962,7 +964,7 @@ normally the product search box (it has focus when Billing opens and after every
   (`HardwareManagerModal`: Web Bluetooth pairing — no `select-bluetooth-device` handler in
   `main.js` — and roll width / cash drawer / UPI QR switches that only its Bluetooth path
   read) were removed from Billing; the two billing-only files are deleted. The bill printer
-  is the ⚙ button (`BillPrinterSetup`). `BarcodeScannerModal` still exists on `/products`.
+  is the ⚙ button (`BillPrinterSetup`). `BarcodeScannerModal` was also removed from `/products` in v4.81.0 (§9.12) — the app has no webcam scanner.
 
 ### 9.6 Search in English letters (v4.73.0)
 
@@ -1180,6 +1182,27 @@ the Android share sheet — wa.me carries text only, so the desktop saves the PD
 folder to drag it in. Suite 9 §9j(o); Electron E2E "whatsapp" (the IPC is caught in the main
 process — nothing opens).
 
+### 9.12 Products page toolbar (v4.81.0)
+
+Found on the owner's PC (a fireworks shop, ~50 sections): three controls did not do what they showed.
+
+- **"Scan" (webcam) removed.** It opened `BarcodeScannerModal`, and the scanned code went into the
+  Add Product form's state while that form was closed — nothing visible happened. The "Scan Camera"
+  link in the product form went too, and `components/barcode/BarcodeScannerModal.tsx` is deleted: a
+  shop PC scans with a USB gun, which types into the search box or the barcode box.
+- **Barcode box + gun (`ProductBarcodeField`)**: the gun's Enter used to submit the half-filled
+  form. Enter now calls `onScanned` → `handleBarcodeScanned` in `app/products/page.tsx` (name, price,
+  GST, unit from the offline list while the name is empty — what the camera did).
+- **Search**: the box promises "name, barcode, HSN, size, color", but `productSearchScore` (shared
+  with Billing, Barcode Studio, Edit Invoice) reads only name + barcode. The page now also accepts
+  `matchesProductDetails` (every word somewhere in name / barcode / HSN / size / colour / variant
+  label; a one-letter word must be a whole word, so "m" finds size M, not every name with an m).
+- **Category chips** (`ProductFilterToolbar`): were one `overflow-x-auto` strip — a mouse wheel does
+  not scroll sideways, and `scrollbar-none` is not a class in this project (the bar showed), so most
+  sections could not be reached. Now one wrapped row (`max-h` 30 px) + **"All categories (N)"** /
+  "Show less"; the picked category is always placed right after "All Items".
+- Suite 9 §9j(p).
+
 ### 9.1 Product variants (v4.49.0) — same model as the Android app
 
 Not a per-vertical mode: any shop can use it. `lib/products/variants.ts`.
@@ -1248,6 +1271,7 @@ Each was a real bug that cost real time. The test suite guards most of them.
 | 32 | **Backup, restore and accountant exports (before v4.78.0).** "Clean Replace" emptied every table and then wrote the backup outside a transaction — a bad record left the shop with half its data; "Merge & Append" (`bulkPut`) put a backup's old balances, stock and prices over newer ones; no copy was saved before a restore; the file was barely checked. The CA register put the **shop's** GSTIN in the buyer column, counted estimates, called every bill "Intra-State" with IGST 0, totalled discount as 0, had no BOM (Hindi names garbled in Excel) and no period. Tally XML carried stock lines for items Tally does not have (import errors), estimates, card payments as Cash, no IGST, a ledger named like Tally's "Bank Accounts" group. GST page "documents issued" never counted cancelled bills (they were filtered out before the report) and showed "INV-001 ➔ INV-001" when there were none. | §2.3 restore; `lib/tally/saleBreakup.ts` shared by `caExcelGenerator` / `tallyXmlGenerator` (accounting vouchers, balanced, GST duty heads, cash / UPI-card / party lines); `AccountingExportsCard` period picker; GST page passes every bill of the period. Suite 9 §9j(j); Electron E2E. **Not yet imported into a real Tally company** — try one month with the CA first. |
 | 31 | **Labels and inward that did not hold up (before v4.77.0).** Barcode Studio's "Custom label" printed a `KP…` code saved on no item ("unknown barcode" at the counter). Purchases → Excel bill: the review never opened (unmounted with the sheet); every Hindi name normalised to "" and matched the first Hindi item; headings were matched by substring ("Discount" → qty, "Unit Price" → unit); `₹1,250` read as 0; a missing selling price became cost × 1.25; lines were written one by one (half a bill on an error; the same item on two lines lost the first); new items ignored the shop's GST mode and got no barcode. Manual Inward into an "Unlimited" item changed nothing. | §9.8: "New stock + labels" saves typed items with stock and a barcode; `readBillSheet` + `billLineProblem` + `applyBillInward` (one transaction); `normalizeName` keeps Indian scripts; `stockAfterInward` starts counting. Suite 9 §9i; Electron E2E. |
 | 30 | **The next customer's scan vanished in busy hours (before v4.74.0).** `completeSale` awaited the silent print before closing the bill, so the counter stood still for the printer; scans made meanwhile went into the bill being closed and were dropped by `tabsAfterClosing`; a failed print opened "Sale completed" over the next customer. Every beep created an `AudioContext` that was never closed. | §9.7: close first with `tabsAfterSale` (extras move to the next bill) + `activeTabIdRef`; `BillPrintQueue` prints in the background, failures wait in a red bar; one shared beep context. Suite 9 §9h; Electron E2E slow-printer + failed-print checks. |
+| 33 | **Products toolbar controls that did nothing (before v4.81.0).** "Scan" filled a closed form; the search ignored HSN / size / colour it advertised; category chips past the window edge could not be reached with a mouse; a gun scan into the product form's barcode box saved the half-filled item. | §9.12: webcam scanner deleted, gun Enter → offline-list fill, `matchesProductDetails`, wrapped chips + "All categories (N)". Suite 9 §9j(p). |
 ---
 
 ## 11. Verification protocol (AGENTS.md Rule 6)
@@ -1256,7 +1280,7 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 596/596, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 601/601, 0 failures
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
 git push origin main
@@ -1305,7 +1329,7 @@ bypassed; without the key only the no-licence checks run. The script removes
 `ELECTRON_RUN_AS_NODE` (set by VS Code terminals), which otherwise stops Electron
 launching. Failure screenshots go to `%TEMP%\kamaiplus-e2e-shots\`.
 
-### Test suite map — `scripts/e2e_simulation.ts` (596 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (601 assertions)
 
 | Suite | Covers |
 | :--- | :--- |
