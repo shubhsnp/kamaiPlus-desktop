@@ -102,6 +102,8 @@ import { getQuantityConfigForUnit } from '../src/components/billing/posQuantityC
 import { scanIntoRows, splitTrailingCode } from '../src/lib/inward/fastInward';
 import { customerListHtmlBody, customerSheetRows, sortCustomers } from '../src/lib/customers/customerDirectory';
 import { checkBackupPayload } from '../src/lib/backup/cloudBackupService';
+import { autoBackupDecision, MAX_WAIT_MS, QUIET_FOR_MS, REFRESH_EVERY_MS } from '../src/lib/backup/backupSchedule';
+import { backupChangeMiddleware, clearDataChanged, dataChangedSinceBackup } from '../src/lib/backup/backupChanges';
 import { breakupSales } from '../src/lib/tally/saleBreakup';
 import { generateCASalesRegisterCSV } from '../src/lib/tally/caExcelGenerator';
 import { generateTallyPrimeXML } from '../src/lib/tally/tallyXmlGenerator';
@@ -2125,6 +2127,49 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     'components/purchases/BillScanReviewModal.tsx' /* its button lives in BillInwardDone */, 'components/purchases/InwardLabelOffer.tsx' /* shown only by Purchases when on */];
   const unguarded = studioLinks.filter((rel) => !studioGuardedElsewhere.includes(rel) && !/barcode_studio|labelsOn/.test(readSource(rel)));
   assert(unguarded.length === 0, `Every way into Barcode Studio checks its switch (unguarded: ${unguarded.join(', ') || 'none'})`);
+}
+
+// (r) Hourly automatic backup (v4.82.0, K-D18). The day's backup file used to be written once,
+// 2 minutes after the app opened — so it held only yesterday's bills, and a disk that died in the
+// evening took the whole day's bills with it. Now the same file is refreshed at most hourly while
+// data changes (every Dexie write marks it), when the counter is free — or anyway after 2 hours.
+{
+  const now = Date.parse('2026-09-30T18:00:00+05:30');
+  const ago = (min: number) => new Date(now - min * 60_000).toISOString();
+  const decide = (o: Partial<Parameters<typeof autoBackupDecision>[0]>) =>
+    autoBackupDecision({ hasTodaysBackup: true, lastBackupAt: ago(90), changedSinceBackup: true, msSinceLastInput: 10 * 60_000, now, ...o });
+  assert(decide({ hasTodaysBackup: false, changedSinceBackup: false, msSinceLastInput: 0 }) === 'backup',
+    "Backup: the day's first file is written at app start as before, even with no change yet and someone at the counter");
+  assert(decide({ changedSinceBackup: false }) === 'no-changes' && decide({ lastBackupAt: ago(20) }) === 'too-soon' && decide({}) === 'backup',
+    'Backup: refreshed when data changed and the file is over an hour old; nothing changed or under an hour = no work');
+  assert(REFRESH_EVERY_MS === 60 * 60_000 && QUIET_FOR_MS === 30_000 && MAX_WAIT_MS === 2 * REFRESH_EVERY_MS
+    && decide({ msSinceLastInput: 5_000 }) === 'counter-busy' && decide({ msSinceLastInput: 5_000, lastBackupAt: ago(121) }) === 'backup',
+    'Backup: waits while the counter is in use (a key / scan / click in the last 30 s), but never past 2 hours in a rush');
+  assert(decide({ lastBackupAt: null }) === 'backup' && decide({ lastBackupAt: new Date(now + 3 * 3600_000).toISOString() }) === 'backup' && decide({ lastBackupAt: 'garbage' }) === 'backup',
+    'Backup: a missing, unreadable or "future" file time (PC clock put back) counts as old — never as fresh');
+
+  // The change tracker: a pass-through DBCore middleware; writes mark, reads do not.
+  const RESULT = { numFailures: 0, failures: {}, results: ['s1'] };
+  const fakeTable: any = { name: 'sales', get: () => 'row', query: () => 'rows', mutate: () => ({ then: (f: (r: unknown) => unknown) => f(RESULT) }) };
+  const core = (backupChangeMiddleware.create as any)({ stack: 'dbcore', table: () => fakeTable, tables: [] });
+  const wrapped = core.table('sales');
+  clearDataChanged();
+  const readUntouched = wrapped.get === fakeTable.get && wrapped.query === fakeTable.query && !dataChangedSinceBackup();
+  const out = wrapped.mutate({ type: 'put', values: [{ id: 's1' }] });
+  assert(readUntouched && out === RESULT && dataChangedSinceBackup(),
+    'Backup: every database write marks "changed" and passes its result on unchanged; reads are not wrapped');
+
+  const dbSrc = readSource('lib/db/index.ts');
+  assert(/export const db = new VyaparSetuDatabase\(\);[\s\S]{0,200}?db\.use\(backupChangeMiddleware\);/.test(dbSrc) && backupChangeMiddleware.stack === 'dbcore',
+    'Backup: the change tracker is registered right where the database is made (before it opens), so no write is missed');
+  const auto = readSource('lib/backup/autoBackup.ts');
+  assert(/clearDataChanged\(\);\s*const payload = await createFullBackupPayload\(\);/.test(auto) && (auto.match(/markDataChanged\(\);/g) || []).length === 3
+    && /changedSinceBackup: dataChangedSinceBackup\(\)/.test(auto) && /if \(!force\) \{/.test(auto),
+    'Backup: "changed" is cleared just before the tables are read (a bill during the backup marks it again) and set back if the backup fails; Backup Now / restore still force it');
+  const sched = readSource('components/layout/AutoBackupScheduler.tsx');
+  assert(/CHECK_EVERY_MS = 5 \* 60 \* 1000/.test(sched) && /addEventListener\('keydown', onInput/.test(sched) && /addEventListener\('pointerdown', onInput/.test(sched)
+    && /runAutoBackup\(\{ msSinceLastInput: Date\.now\(\) - lastInputAt \}\)/.test(sched) && /requestIdleCallback/.test(sched),
+    'Backup: checked every 5 minutes on idle; keys (the barcode gun too) and clicks tell it the counter is in use');
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.

@@ -7,7 +7,7 @@ import { runAutoBackup } from '@/lib/backup/autoBackup';
 import { tr } from '@/lib/i18n/core';
 
 /**
- * Status and controls for the daily automatic backup (backup.js + autoBackup.ts).
+ * Status and controls for the automatic backup (backup.js + autoBackup.ts).
  * Shown only in the desktop app — a browser has nowhere to write the files.
  */
 export function AutoBackupCard() {
@@ -61,9 +61,12 @@ export function AutoBackupCard() {
             <ShieldCheck className="w-4 h-4" />
           </div>
           <div className="min-w-0">
-            <h3 className="text-xs font-black text-slate-900 leading-tight">{tr('Automatic Daily Backup')}</h3>
+            <h3 className="text-xs font-black text-slate-900 leading-tight">{tr('Automatic Backup')}</h3>
             <p className="text-[11px] text-slate-500 mt-0.5">
               {tr('Last backup:')} <span className="font-bold text-slate-800">{lastLabel}</span> · {info.count} {tr('kept (last')} {info.keepDays} {tr('days)')}
+            </p>
+            <p className="text-[10.5px] text-slate-400 mt-0.5">
+              {tr('Saved when the app opens, then every hour while you keep billing — when the counter is free.')}
             </p>
           </div>
         </div>

@@ -249,9 +249,23 @@ the environment, and skips signing (as today) when it is not.
 Cloud sync is off (§12 #7), so the shop's own disk is the only safety net.
 
 - `<AutoBackupScheduler>` (in `AppShell`): first run 2 min after launch, then a check
-  every 30 min; **one backup per calendar day**. `lib/backup/autoBackup.ts` builds the
-  same JSON as "Export Full Backup" (`createFullBackupPayload`) and sends it over
-  `kp:backup-write`.
+  every 5 min on idle. **One file per calendar day, refreshed at most hourly (v4.82.0)** —
+  before, the day's file was written once at launch, so it held only yesterday's bills and a
+  disk that died in the evening lost the whole day. `lib/backup/backupSchedule.ts`
+  (`autoBackupDecision`, pure): no file today → write; else write only if data **changed**
+  since the last backup **and** the file is ≥ 60 min old **and** the counter has been left
+  alone 30 s (a keydown — the barcode gun too — or pointerdown resets it) — or the file is
+  ≥ 2 h old, busy or not. A file time in the future (PC clock put back) counts as old.
+- "Changed" = `lib/backup/backupChanges.ts`: a pass-through Dexie **DBCore middleware**
+  (`db.use(backupChangeMiddleware)` in `lib/db/index.ts`, before the DB opens) marks every
+  `mutate` — put / add / delete / modify / clear, in any transaction — so no screen reports
+  its own writes; reads are not wrapped. Starts as "changed" (bills from before a restart).
+  `autoBackup.ts` clears it just before reading the tables (a write during the backup marks
+  it again) and sets it back if the backup fails. Feature switches / label setup (in
+  localStorage, also in the file) do not mark it — they ride along with the next backup.
+- `lib/backup/autoBackup.ts` builds the same JSON as "Export Full Backup"
+  (`createFullBackupPayload`) and sends it over `kp:backup-write`. `force` (Backup Now, the
+  safety copy before a Clean Replace restore) skips the schedule.
 - `backup.js` (main process) writes `Documents/KamaiPlus/Backups/KamaiPlus_AutoBackup_<shop>_<YYYY-MM-DD>.json`
   via temp file + rename, keeps the newest 30, never deletes files it did not create.
   Optional **extra folder** (pen drive / Google Drive folder) in
@@ -352,6 +366,7 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 | `firebase/lazyCloud.ts` | **The only way billing touches the cloud.** §6.4 |
 | `firebase/firestoreSync.ts` | Full push/pull sync + `sanitizeForFirestore` |
 | `backup/cloudBackupService.ts` | Local JSON backup/restore of every table (`BACKUP_TABLES`), `checkBackupPayload`, one-transaction restore, "add missing" merge, settings (§2.3, v4.78.0) |
+| `backup/autoBackup.ts` · `backupSchedule.ts` · `backupChanges.ts` | Automatic backup: run it / when (hourly while data changes, counter free) / "data changed" DBCore middleware registered in `db/index.ts` (§2.3, v4.82.0) |
 | `auth.ts` | `getStoredUser` / `setStoredUser` / `logoutUser` / `purgeLocalDeviceData`, 24h session |
 | `auth/cashierPrivacy.ts` | Owner PIN + profit-masking for staff |
 | `reports/advancedReports.ts` | Sales analytics (net of returns, profit only on frozen `cost_price`) |
@@ -1287,6 +1302,7 @@ Each was a real bug that cost real time. The test suite guards most of them.
 | 31 | **Labels and inward that did not hold up (before v4.77.0).** Barcode Studio's "Custom label" printed a `KP…` code saved on no item ("unknown barcode" at the counter). Purchases → Excel bill: the review never opened (unmounted with the sheet); every Hindi name normalised to "" and matched the first Hindi item; headings were matched by substring ("Discount" → qty, "Unit Price" → unit); `₹1,250` read as 0; a missing selling price became cost × 1.25; lines were written one by one (half a bill on an error; the same item on two lines lost the first); new items ignored the shop's GST mode and got no barcode. Manual Inward into an "Unlimited" item changed nothing. | §9.8: "New stock + labels" saves typed items with stock and a barcode; `readBillSheet` + `billLineProblem` + `applyBillInward` (one transaction); `normalizeName` keeps Indian scripts; `stockAfterInward` starts counting. Suite 9 §9i; Electron E2E. |
 | 30 | **The next customer's scan vanished in busy hours (before v4.74.0).** `completeSale` awaited the silent print before closing the bill, so the counter stood still for the printer; scans made meanwhile went into the bill being closed and were dropped by `tabsAfterClosing`; a failed print opened "Sale completed" over the next customer. Every beep created an `AudioContext` that was never closed. | §9.7: close first with `tabsAfterSale` (extras move to the next bill) + `activeTabIdRef`; `BillPrintQueue` prints in the background, failures wait in a red bar; one shared beep context. Suite 9 §9h; Electron E2E slow-printer + failed-print checks. |
 | 33 | **Products toolbar controls that did nothing (before v4.81.0).** "Scan" filled a closed form; the search ignored HSN / size / colour it advertised; category chips past the window edge could not be reached with a mouse; a gun scan into the product form's barcode box saved the half-filled item. | §9.12: webcam scanner deleted, gun Enter → offline-list fill, `matchesProductDetails`, wrapped chips + "All categories (N)". Suite 9 §9j(p). |
+| 34 | **The automatic backup held only yesterday's bills (before v4.82.0).** One file per day, written 2 min after launch and never again that day — a disk that died in the evening took every bill of the day. | §2.3: the day's file is refreshed hourly while data changes (DBCore middleware `backupChangeMiddleware`), when the counter is free, at most 2 h late. Suite 9 §9j(r). Do not go back to "skip if today's file exists". |
 ---
 
 ## 11. Verification protocol (AGENTS.md Rule 6)

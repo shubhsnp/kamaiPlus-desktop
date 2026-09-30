@@ -23,6 +23,7 @@
 | F-04 | 2026-09-30 | Main website ka code **Android repo ke `website/`** mein rahega (wahi pehle se site `kamaiplus` par deploy hota hai; privacy / terms / help bhi wahin). Admin panel **`/admin`** par. | ⏳ Proposal — OK ka intezaar |
 | F-05 | 2026-09-30 | `kamaiplus-desktop.web.app` (Desktop update server) aur `kamaiplus-pay.web.app` (WhatsApp UPI pay link) **peeche chalte rahenge** — inke bina installed PC update nahi lenge aur bheje gaye pay links toot jayenge. Inka home page main site par bhej denge, taaki user ko ek hi website dikhe. | ⏳ Proposal |
 | F-06 | 2026-09-30 | Web app ka GitHub repo **delete nahi, Archive** (read-only; history bachi rahe). | ⏳ Proposal |
+| F-07 | 2026-09-30 | Rahul: "ab hum dhire dhire desktop app and android app ko same same rakhte jayenge" — dono apps ke features aur data **ek jaise** banenge; naya feature ek mein aaye to doosre ka bhi socho. Firebase Auth (Desktop par) ka vichaar isi ka hissa. | ✅ Final (direction) — Firebase Auth par faisla baaki |
 
 ### 1b. Website / web app ka kaam — ⏸️ ROKA HUA (Rahul, 2026-09-30: "ye sab baad me karte hai, likh kar rakho")
 
@@ -63,7 +64,7 @@ Tab tak: **`kamaiplus.web.app` par koi deploy nahi**, aur web app ki koi cheez d
 
 | Repo | Local | Branch | Aage |
 | :--- | :--- | :--- | :--- |
-| `sayrahul/kamaiplusDesktopApp` | `D:\My Web Sites\KamaiPlus Desktop App` | `main` (v4.80.0) | Chalega |
+| `sayrahul/kamaiplusDesktopApp` | `D:\My Web Sites\KamaiPlus Desktop App` | `main` (v4.82.0) | Chalega |
 | `sayrahul/KamaiPlus` | `D:\My Web Sites\KamaiPlus Android` | naya kaam `feat/desktop-licence` par (v4.29.1); `main` 17 commit peeche | Chalega |
 | `sayrahul/kamai` | `D:\My Web Sites\Billing WebApp` | `main` (v4.22.0) + 45 files ka uncommitted kaam | Archive (F-06) |
 
@@ -112,9 +113,32 @@ Order zaroori hai — pehle nayi site, phir purani cheezein band.
 
 ---
 
+## 3b. Desktop + Android ek jaisa — step plan (F-07)
+
+Order zaroori hai: **pehle data surakshit → phir data ka ek format → phir login → phir sync.** Har step alag version + test + commit. Sync tab tak band (`CLOUD_SYNC_ENABLED = false`) jab tak Step 4 na aaye. Firestore rules Android repo mein hain — rule badle to wahin se deploy.
+
+- [x] **Step 0 — Local backup har ghante (K-D18).** ✅ v4.82.0. Firebase se alag, abhi ka khatra. `AutoBackupScheduler.tsx` / `lib/backup/autoBackup.ts`: din ki file har ghante (ya N bill ke baad) idle time par overwrite, 30 din wala niyam wahi. Size S (andaza 1 din).
+- [ ] **Step 1 — Cloud data contract (K-P15).** Code likhne se pehle kaagaz par:
+  - Android `firestore_sync_service.dart` jo field likhta / padhta hai (products, categories, customers, sales, inward_orders, business doc) + Desktop `firestoreSync.ts` / Dexie tables ki list.
+  - Ek table: cloud field → Desktop field → Android field. Paisa hamesha `*_paise` (integer), dukaan ID `biz_<uid>`, tareekh ka format, id ka format.
+  - Jo sirf Desktop cloud mein bhejta hai (`suppliers`, `ledger_transactions`, `cash_expenses`) — Android khata ledger cloud mein nahi bhejta (sirf customer balance); tay karo dono kya karenge.
+  - Same file dono repo mein: `docs/CLOUD_DATA_CONTRACT.md`. Rahul OK kare.
+  - Desktop mein `toCloud` / `fromCloud` mapping + Suite 9 test (₹100 bill → `subtotal_paise = 10000`; Android wala doc padh kar sahi rakam). Size M (andaza 2–3 din).
+- [ ] **Step 2 — Desktop par Google login (Firebase Auth).** Faisla pehle: sirf Google (Android jaisa) ya OTP bhi.
+  - Google Cloud Console → Credentials → "Desktop app" OAuth client (project `kamaiplus`).
+  - Electron: system browser mein Google login, `127.0.0.1` loopback par jawab, phir `signInWithCredential` (app ke andar wali window mein Google login block karta hai). Desktop mein aaj koi OAuth code nahi.
+  - Onboarding: dukaan ID `biz_<uid>` (aaj `biz_<8 akshar>_<time>`, `app/onboarding/page.tsx:101`; Dexie mein `business_id` har record par — test installs ka data migrate ya reset).
+  - Master password PC lock ki tarah rahe; pehli baar ke baad login bina internet chale.
+  - Size L (andaza 1 hafta).
+- [ ] **Step 3 — Sirf Desktop → cloud (one-way backup).** Pehle test Google account par. Check: Android par same account → Desktop ke bill / product sahi rakam ke saath; naye PC par login → data wapas. Firebase usage (kharcha) ek hafta dekho. Privacy policy (K-P13) isse pehle.
+- [ ] **Step 4 — Dono taraf sync.** Niyam tay: stock "-N / +N" entries (overwrite nahi), har counter ki alag bill series, licence = ek dukaan kai PC (`desktop_licences`, `desktopLicence` function). Pilot dukaan par.
+- [ ] **Step 5 — Features ek jaise (lagatar).** Ek-ek karke: batch / expiry Desktop mein (K-D20, Android mein field hai), label print Android mein (K-A01), khata edit Android mein (K-A05) … Naya feature dono mein.
+
+---
+
 ## 4. Kamiyan (count)
 
-**Total: 43** — Platform 14 · Android 12 · Desktop 17. **Open 39 · Done 4.**
+**Total: 51** — Platform 15 · Android 12 · Desktop 24. **Open 46 · Done 5.**
 🔴 = paisa / data / security / Play Store risk · 🟠 = galat ya adhoora behaviour · 🟢 = chhota / feature gap
 
 ### Platform / website (K-P)
@@ -135,6 +159,7 @@ Order zaroori hai — pehle nayi site, phir purani cheezein band.
 | K-P12 | Uncommitted kaam: Desktop `docs/FUTURE_SCOPE.md`, Android `DEVELOPMENT_LOG.md`, web app 45 files | 🟢 | Open |
 | K-P13 | Policy pages ka content aaj ki apps se mel nahi khaata. Live (web app): purana naam "KamaiPlus / ProVenture", `info@proventure.in`, `kamaiplus.proventure.in`, mobile + PIN login, Supabase, browser storage, "Enterprise" plan, "voice billing". Android `website/privacy.html`: OTP login, `support@kamaiplus.com`. Dono mein nahi: Google Sign-In, Firebase sync, notification access (UPI payment padhna), contacts, fingerprint, AI photo scan (Gemini), Crashlytics, Google Drive, push, Razorpay (Android), aur **Desktop app bilkul nahi** (licence activation par PC ka naam / id jaata hai) | 🔴 | Open |
 | K-P14 | Refund policy mein Desktop ki one-time licence ka koi niyam nahi; Android Pro ke niyam purane ("Pro & Enterprise", "Free Forever Tier") | 🟠 | Open — Rahul ka faisla chahiye |
+| K-P15 | Desktop aur Android ka cloud data format mel nahi khaata (sync band hai, isliye abhi nuksaan nahi — **sync chalu karne se pehle zaroori**): (1) Desktop businessId `biz_<8 akshar>_<time>` (`app/onboarding/page.tsx:101`), Android + Firestore rules `biz_<uid>` maangte hain; (2) Desktop paise wale field `_paise` naam ke bina bhejta hai (`subtotal`, `selling_price` — dono paise mein), Android `subtotal_paise ?? subtotal*100` aur `selling_price_paise ?? price*100` padhta hai (`firestore_sync_service.dart:413, 732, 799`) → Desktop ka ₹100 ka bill Android par ₹10,000, product ka daam ₹0 | 🔴 | Open |
 
 ### Android (K-A)
 
@@ -174,6 +199,13 @@ Order zaroori hai — pehle nayi site, phir purani cheezein band.
 | K-D15 | Category chips ek line mein side-scroll — mouse se aage ki categories tak pahunch hi nahi | 🟠 | ✅ Done v4.81.0 — chips wrap + "All categories (N)" |
 | K-D16 | Add Product ke barcode box mein gun ka Enter adhoora product save kar deta tha | 🔴 | ✅ Done v4.81.0 — Enter = offline list se naam / MRP |
 | K-D17 | Electron E2E ka pehla licensed launch check ("Set Master Password" 20 s mein) naye build ke baad thande start par fail ho jaata hai — agle steps pass hote hain (screen der se aati hai). Timeout / wait sudharna hai | 🟢 | Open |
+| K-D18 | Automatic backup din mein sirf **ek** baar — app khulne ke 2 min baad (`AutoBackupScheduler.tsx`, "one backup per calendar day"). Matlab aaj ke bill kal subah tak kisi auto backup mein nahi; shaam ko disk / PC kharab = poore din ke bill gaye (FS-03) | 🔴 | ✅ Done v4.82.0 — din ki file har ghante nayi (data badla ho + counter 30 s khaali; rush mein bhi max 2 ghante), Bible §2.3 / §10 #34, test §9j(r) |
+| K-D19 | Staff login / roles nahi — kaun sa cashier kaunsa bill kaata, record nahi; cashier ko discount / return / delete se rok nahi sakte (sirf owner PIN profit chhupata hai). `staff_id` sirf `lib/auth/session.ts` mein (FS-07) | 🟠 | Open |
+| K-D20 | Batch / expiry nahi — product type mein field hi nahi (pharmacy / FMCG ke liye zaroori) (FS-08) | 🟠 | Open |
+| K-D21 | Purchase return / debit note / purchase order nahi (FS-09) | 🟢 | Open |
+| K-D22 | GSTR-3B summary, e-invoice (IRN), e-way bill nahi — `src` mein koi code nahi (FS-10, FS-11, FS-12) | 🟢 | Open |
+| K-D24 | Electron E2E ka "Transactions tab drag, phir click se khule" check kabhi-kabhi fail (v4.82.0 par 2 run mein 1 baar: click ke 600 ms baad drawer screen par nahi) — doosre run mein 71/71. Wait badhana / drawer ke khulne ka intezaar karna hai | 🟢 | Open |
+| K-D23 | 16 files 400 line ke niyam se badi — `billing/page.tsx` **2,254**, `khata/page.tsx` 1,175, `products/page.tsx` 655 … Sabse zaroori screen mein har badlav sabse risky (FS-04, FS-15) | 🟠 | Open |
 
 ---
 
@@ -190,3 +222,7 @@ Order zaroori hai — pehle nayi site, phir purani cheezein band.
 | 2026-09-30 | Rahul ke PC ke Feature switches padhe (`app://kamaiplus` localStorage): 11 ke 11 **off** (profit privacy bhi). Naye switches default **on** rahenge (jo screens aaj dikhti hain). | — |
 | 2026-09-30 | **Desktop v4.81.0 publish — sabke liye** (`release:desktop` → `release:publish`). Live `latest.yml` + `beta.yml` = 4.81.0; installer 115,456,076 bytes, live file ka sha512 = `latest.yml` ✔; 4.80.0 installer hosting se hata. Installed PCs 60 s baad / har 4 ghante mein khud update lenge ("Restart & Update"). Installer abhi bhi unsigned (K-D08). | kamaiplus-desktop.web.app |
 | 2026-09-30 | Desktop v4.81.0 — Settings → Features mein 7 naye switch (Khata, Customers, Inventory, Barcode Studio & Labels, Sales Analytics, Invoice Themes, WhatsApp), sab default on. Khata off = counter par udhar bhi band. Test §9j(q), suite 613/613; Electron E2E mein Khata-off check. | Desktop |
+| 2026-09-30 | Rahul: "desktop app me kya kya kamiya hai?" — K-D list + `FUTURE_SCOPE.md` + Bible §12 code se dobara check (sab purani kamiyan abhi bhi hain). FUTURE_SCOPE ki jo kamiyan yahan gini nahi thi unhe ID diya: K-D18…K-D23. | `docs/PLATFORM_TRACKER.md` |
+| 2026-09-30 | Rahul: Firebase Auth ke fayde? + faisla F-07 (Desktop + Android ek jaise). Android login (Google Sign-In → Firebase Auth, `biz_<uid>`), Firestore rules, Desktop ka band sync code (`firestoreSync.ts`) padha. Naya: K-P15 (data format mel nahi khaata). | — |
+| 2026-09-30 | F-07 ka step plan likha (§3b): Step 0 backup → 1 data contract → 2 Google login → 3 one-way → 4 dono taraf → 5 features. Check kiya: Android khata ledger cloud mein nahi bhejta; Desktop mein koi OAuth code nahi; Dexie mein `business_id` har record par. | `docs/PLATFORM_TRACKER.md` |
+| 2026-09-30 | **Desktop v4.82.0 — Step 0 / K-D18: backup har ghante.** Din ki file data badalne par har ghante nayi (counter 30 s khaali ho; rush mein bhi max 2 ghante). "Data badla" = Dexie DBCore middleware (har write). Test §9j(r), suite 621/621; asli Dexie (fake-indexeddb, scratchpad) 9/9; Electron E2E 70/71 phir 71/71 (drawer check flaky → K-D24). Installer publish **nahi** kiya. | Desktop |

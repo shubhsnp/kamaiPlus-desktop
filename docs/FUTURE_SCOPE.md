@@ -18,7 +18,7 @@ likhein (jaise `[x] v4.85.0`). Naya kaam mile to neeche jod dein (agla ID).
 | :-- | :-- | :-- | :-- | :-- |
 | FS-01 | Asli dukaan mein pilot, asli hardware ke saath | P1 | M | [ ] |
 | FS-02 | Installer par code-signing certificate | P1 | S | [ ] |
-| FS-03 | Backup din mein ek baar se zyada | P1 | S | [ ] |
+| FS-03 | Backup din mein ek baar se zyada | P1 | S | [x] v4.82.0 |
 | FS-04 | Billing page (2,208 lines) ko chhote hisson mein todna | P1 | L | [ ] |
 | FS-05 | Target dukaan tay karna → roadmap | P1 | S | [ ] |
 | FS-06 | Multi-counter / multi-computer sync + maalik ka mobile view | P2 | XL | [ ] |
@@ -64,7 +64,9 @@ likhein (jaise `[x] v4.85.0`). Naya kaam mile to neeche jod dein (agla ID).
   `CSC_LINK` / token; pehle signed version ke baad hi `publisherName` jodna.
 - **Kahan:** Bible §2.2 "Code signing — not yet" (poore steps wahin likhe hain).
 
-### FS-03 · Backup din mein ek baar se zyada — P1 · S
+### FS-03 · Backup din mein ek baar se zyada — P1 · S — ✅ v4.82.0
+- **Hua:** din ki file ab har ghante nayi hoti hai jab data badla ho aur counter 30 s khaali
+  ho (rush mein bhi 2 ghante se zyada nahi rukta). Bible §2.3, §10 #34. Neeche purana plan.
 - **Kyun:** automatic backup din mein **ek** baar hota hai. Shaam ko computer / disk kharab ho
   to us din ke bill sirf manual backup se bachte hain.
 - **Kya karna hai:** har ghante ya har N bill ke baad backup (din ki file overwrite, 30 din rakhna

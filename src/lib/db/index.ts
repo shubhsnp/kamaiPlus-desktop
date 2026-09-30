@@ -18,6 +18,7 @@ import {
 } from '@/types';
 import { STARTER_CATEGORIES } from '@/lib/constants/storeProfiles';
 import { seedCategoryDefaultProducts } from '@/lib/constants/defaultProducts';
+import { backupChangeMiddleware } from '@/lib/backup/backupChanges';
 
 export class VyaparSetuDatabase extends Dexie {
   businesses!: Table<Business, string>;
@@ -76,6 +77,9 @@ export class VyaparSetuDatabase extends Dexie {
 }
 
 export const db = new VyaparSetuDatabase();
+// Tells the hourly automatic backup that data changed (lib/backup/backupChanges.ts).
+// Must be registered before the database opens; it passes every write on unchanged.
+db.use(backupChangeMiddleware);
 
 import { getStoredUser } from '@/lib/auth';
 
