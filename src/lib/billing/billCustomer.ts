@@ -33,6 +33,27 @@ export const mobileKey = (phone?: string): string => {
   return d.length >= 10 ? d.slice(-10) : '';
 };
 
+/**
+ * The name box takes a NAME only (v4.85.0, Rahul): letters of any script (Hindi, Marathi…),
+ * their vowel signs, spaces and . ' - & — no digits or other symbols. Spaces are kept while
+ * typing (a full name needs them); only a run of spaces is squeezed.
+ */
+// Built with RegExp(): tsconfig targets ES5, where a /…/u literal does not compile.
+const NOT_NAME_CHAR = new RegExp("[^\\p{L}\\p{M}\\s.'&-]", 'gu');
+
+export function cleanCustomerNameInput(raw: string): string {
+  return (raw || '').replace(NOT_NAME_CHAR, '').replace(/\s{2,}/g, ' ').replace(/^\s+/, '').slice(0, 60);
+}
+
+/**
+ * The mobile box takes digits only, at most 10. A pasted "+91 98765 43210" or "098765 43210"
+ * keeps the last 10 digits (the number itself), never the first 10.
+ */
+export function cleanMobileInput(raw: string): string {
+  const d = digits(raw);
+  return d.length > 10 ? d.slice(-10) : d;
+}
+
 /** Name and mobile digits from the two boxes; digits typed in the name box are the mobile. */
 export function splitDraft(draft: CustomerDraft): { name: string; phoneDigits: string } {
   const name = (draft.name || '').trim();

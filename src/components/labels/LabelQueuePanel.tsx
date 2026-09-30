@@ -115,8 +115,9 @@ export function LabelQueuePanel({ queue, onChange, products, categories, onAdd, 
       {queue.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-lg bg-slate-50 border border-slate-200">
           <span className="font-bold text-slate-700">{tr('Copies for all:')}</span>
-          <input type="number" min="1" value={allCopies} onChange={(e) => setAllCopies(e.target.value)} className="w-16 h-8 px-2 rounded-lg border border-slate-300 font-mono" data-queue-all-copies />
-          <button type="button" onClick={() => onChange(queue.map((q) => ({ ...q, copies: Math.max(1, Math.round(Number(allCopies)) || 1) })))} className={`${btn} border-slate-300 bg-white`}>{tr('Apply')}</button>
+          <input type="number" min="1" max="999" value={allCopies} onChange={(e) => setAllCopies(e.target.value)} className="w-16 h-8 px-2 rounded-lg border border-slate-300 font-mono" data-queue-all-copies />
+          {/* Same 1…999 as the − / + boxes (v4.85.0 — "Apply" took any number, e.g. 50000 labels). */}
+          <button type="button" onClick={() => { const n = Math.max(1, Math.min(999, Math.round(Number(allCopies)) || 1)); setAllCopies(String(n)); onChange(queue.map((q) => ({ ...q, copies: n }))); }} className={`${btn} border-slate-300 bg-white`} data-queue-all-apply>{tr('Apply')}</button>
           <button type="button" onClick={() => onChange(queue.map((q) => (q.stock && q.stock > 0 ? { ...q, copies: Math.min(999, Math.ceil(q.stock)) } : q)))} className={`${btn} border-slate-300 bg-white`} title={tr('Items with counted stock get one label per piece in stock')}>
             {tr('= stock')}
           </button>
@@ -134,7 +135,7 @@ export function LabelQueuePanel({ queue, onChange, products, categories, onAdd, 
                 <div className="text-[10px] text-slate-500 font-mono">{q.barcode} • {formatINR(q.pricePaise)}</div>
               </div>
               <button type="button" onClick={() => setCopies(q.id, q.copies - 1)} className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 font-bold cursor-pointer">−</button>
-              <input type="number" min="1" value={q.copies} onChange={(e) => setCopies(q.id, Number(e.target.value))} className="w-12 h-6 text-center rounded border border-slate-200 font-mono font-bold" />
+              <input type="number" min="1" max="999" value={q.copies} onChange={(e) => setCopies(q.id, Number(e.target.value))} className="w-12 h-6 text-center rounded border border-slate-200 font-mono font-bold" aria-label={tr('Copies')} />
               <button type="button" onClick={() => setCopies(q.id, q.copies + 1)} className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 font-bold cursor-pointer">+</button>
               <button type="button" onClick={() => onChange(queue.filter((x) => x.id !== q.id))} className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer" aria-label={tr('Remove')}>
                 <Trash2 className="w-3.5 h-3.5" />

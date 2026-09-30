@@ -101,6 +101,16 @@ export function tabsAfterSale(tabs: BillTab[], doneId: string, sold: CartItem[],
   };
 }
 
+/**
+ * F2 on the counter (v4.85.0): the next open bill after the active one (wrapping round), or
+ * null when only one bill is open — then F2 opens a new bill, like "+ New Bill".
+ */
+export function nextBillTabId(tabs: Pick<BillTab, 'id'>[], activeTabId: string): string | null {
+  if (tabs.length < 2) return null;
+  const i = tabs.findIndex((t) => t.id === activeTabId);
+  return tabs[(i + 1) % tabs.length].id;
+}
+
 /** A bill with nothing typed into it yet (no items, customer, discount or cash). */
 export const isBlankTab = (t: BillTab) =>
   t.cart.length === 0 && !(t.customerName || '').trim() && !(t.customerPhone || '').trim() && !t.selectedCustomerId && !t.billDiscountValue && !t.amountReceivedInput;

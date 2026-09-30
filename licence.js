@@ -16,6 +16,18 @@
  * Copying licence.json to another PC does not work (different machine id), and
  * editing it breaks the signature. Keys are created / moved / blocked in the
  * Admin Console → Desktop Licences.
+ *
+ * v4.85.0 — validity + check-in:
+ *   - A key can have an end date (`valid_until`, set in the Admin Console). It is
+ *     inside the signed licence, so it is enforced offline. The clock used is never
+ *     earlier than the licence's `issued_at` (server time) or the latest time this
+ *     computer has already seen (licence_clock.json) — turning the PC clock back
+ *     does not bring an ended licence back.
+ *   - While online, `refresh()` checks in (main.js: at start and every few hours):
+ *     a fresh licence with the current end date comes back. A key blocked in the
+ *     Admin Console ("revoked") or moved to another computer ("moved") stops the
+ *     app: licence.json is set aside as licence.blocked.json (kept for support).
+ *     No internet, or any other answer: nothing changes.
  */
 
 const crypto = require('crypto');
@@ -33,6 +45,9 @@ MCowBQYDK2VwAyEAw4ceFjPzb1z6Xq9b8i2WgT4k2D3NUgRdmlLVhKKJLqk=
 `;
 
 const LICENCE_FILE = 'licence.json';
+const BLOCKED_FILE = 'licence.blocked.json';
+const CLOCK_FILE = 'licence_clock.json';
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 let cachedMachineId = null;
 
@@ -100,26 +115,64 @@ function licencePath(userDataDir) {
   return path.join(userDataDir, LICENCE_FILE);
 }
 
-function activeStatus(payload) {
-  return {
-    state: 'active',
-    key: maskKey(payload.key),
-    shopName: payload.shop_name || '',
-    machineName: getMachineName(),
-  };
+const timeOf = (iso) => {
+  const t = Date.parse(iso || '');
+  return Number.isFinite(t) ? t : 0;
+};
+
+/**
+ * "Now" for the end-date check: never before the licence's server time or the
+ * latest time already seen on this computer. Remembers the new latest time.
+ */
+function licenceNow(userDataDir, payload, nowMs = Date.now()) {
+  const file = path.join(userDataDir, CLOCK_FILE);
+  let seen = 0;
+  try {
+    seen = Number(JSON.parse(fs.readFileSync(file, 'utf8')).seen) || 0;
+  } catch {
+    // first check on this computer
+  }
+  const now = Math.max(nowMs, seen, timeOf(payload && payload.issued_at));
+  if (now > seen) {
+    try {
+      fs.writeFileSync(file, JSON.stringify({ seen: now }), 'utf8');
+    } catch {
+      // read-only folder: the check still uses the best time known now
+    }
+  }
+  return now;
+}
+
+/** Active, or ended when the licence has an end date that is past. */
+function statusFor(payload, now) {
+  const base = { key: maskKey(payload.key), shopName: payload.shop_name || '', machineName: getMachineName() };
+  const end = timeOf(payload.valid_until);
+  if (!end) return { state: 'active', ...base, validUntil: null, daysLeft: null };
+  if (now > end) return { state: 'expired', ...base, validUntil: payload.valid_until };
+  return { state: 'active', ...base, validUntil: payload.valid_until, daysLeft: Math.floor((end - now) / DAY_MS) };
+}
+
+function readJson(file) {
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch {
+    return null;
+  }
 }
 
 /**
  * Offline check, done on every launch. `dev` (electron . --dev / no build)
  * skips the licence so development never needs a key.
  */
-function getStatus({ userDataDir, dev }) {
+function getStatus({ userDataDir, dev, nowMs }) {
   if (dev) return { state: 'active', key: '', shopName: '', machineName: getMachineName(), dev: true };
-  let record = null;
-  try {
-    record = JSON.parse(fs.readFileSync(licencePath(userDataDir), 'utf8'));
-  } catch {
-    return { state: 'required', machineName: getMachineName() };
+  const record = readJson(licencePath(userDataDir));
+  if (!record) {
+    // Stopped at a check-in (blocked / moved): say why on the activation screen.
+    const blocked = readJson(path.join(userDataDir, BLOCKED_FILE));
+    return blocked && blocked.reason
+      ? { state: 'required', machineName: getMachineName(), reason: String(blocked.reason) }
+      : { state: 'required', machineName: getMachineName() };
   }
   const payload = verifyLicence(record);
   if (!payload) {
@@ -129,7 +182,7 @@ function getStatus({ userDataDir, dev }) {
       reason: 'The licence on this computer is not valid for this computer. Please activate again.',
     };
   }
-  return activeStatus(payload);
+  return statusFor(payload, licenceNow(userDataDir, payload, nowMs));
 }
 
 /** "kpd 7f3k-9qxm…" and "KPD-7F3K-9QXM-…" compare equal. */
@@ -161,38 +214,55 @@ async function verifyOwnKey({ userDataDir, key }) {
   return { ok: true };
 }
 
-/** One-time online activation. Never throws; returns { ok, status } or { ok:false, error }. */
-async function activate({ userDataDir, key, appVersion, fetchImpl }) {
-  const cleanKey = String(key || '').trim();
-  if (!cleanKey) return { ok: false, error: 'Please enter your licence key.' };
-
+/** POSTs to the licence server. Never throws: { res, body } or { offline: true }. */
+async function callServer({ action, key, appVersion, fetchImpl, timeoutMs = 20000 }) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 20000);
-  let res;
-  let body = {};
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    res = await fetchImpl(ACTIVATION_URL, {
+    const res = await fetchImpl(ACTIVATION_URL, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        action: 'activate',
-        key: cleanKey,
+        action,
+        key,
         machine_id: getMachineId(),
         machine_name: getMachineName(),
         app_version: appVersion,
       }),
       signal: controller.signal,
     });
-    body = await res.json().catch(() => ({}));
+    const body = await res.json().catch(() => ({}));
+    return { res, body: body || {} };
   } catch {
+    return { offline: true };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function saveRecord(userDataDir, record) {
+  fs.mkdirSync(userDataDir, { recursive: true });
+  fs.writeFileSync(licencePath(userDataDir), JSON.stringify(record, null, 2), 'utf8');
+  try {
+    fs.rmSync(path.join(userDataDir, BLOCKED_FILE), { force: true });
+  } catch {
+    // an old note only
+  }
+}
+
+/** One-time online activation. Never throws; returns { ok, status } or { ok:false, error }. */
+async function activate({ userDataDir, key, appVersion, fetchImpl }) {
+  const cleanKey = String(key || '').trim();
+  if (!cleanKey) return { ok: false, error: 'Please enter your licence key.' };
+
+  const call = await callServer({ action: 'activate', key: cleanKey, appVersion, fetchImpl });
+  if (call.offline) {
     return {
       ok: false,
       error: 'Could not reach the KamaiPlus licence server. Please check the internet connection and try again.',
     };
-  } finally {
-    clearTimeout(timer);
   }
-
+  const { res, body } = call;
   if (!res.ok) {
     return { ok: false, error: body.error || `Activation failed (error ${res.status}). Please try again.` };
   }
@@ -204,12 +274,55 @@ async function activate({ userDataDir, key, appVersion, fetchImpl }) {
   }
 
   try {
-    fs.mkdirSync(userDataDir, { recursive: true });
-    fs.writeFileSync(licencePath(userDataDir), JSON.stringify(record, null, 2), 'utf8');
+    saveRecord(userDataDir, record);
   } catch (err) {
     return { ok: false, error: `Activated, but the licence could not be saved on this computer: ${err.message}` };
   }
-  return { ok: true, status: activeStatus(payload) };
+  return { ok: true, status: statusFor(payload, licenceNow(userDataDir, payload)) };
 }
 
-module.exports = { getMachineId, getMachineName, maskKey, verifyLicence, getStatus, activate, verifyOwnKey, LICENCE_PUBLIC_KEY };
+/**
+ * Online check-in (v4.85.0). Never throws. Returns:
+ *   { ok: true, status }                 fresh licence saved (new end date, if any)
+ *   { ok: false, stopped: true, status } key blocked / moved: the app must stop
+ *   { ok: false, offline: true }         no internet — nothing changes
+ *   { ok: false, error }                 any other answer — nothing changes
+ */
+async function refresh({ userDataDir, appVersion, fetchImpl, timeoutMs }) {
+  const record = readJson(licencePath(userDataDir));
+  const current = record && verifyLicence(record);
+  if (!current) return { ok: false, error: 'no-licence' };
+
+  const call = await callServer({ action: 'refresh', key: current.key, appVersion, fetchImpl, timeoutMs });
+  if (call.offline) return { ok: false, offline: true };
+  const { res, body } = call;
+
+  if (!res.ok) {
+    // Only the two answers that mean "this computer may no longer use the key" stop the app.
+    if (body.code === 'revoked' || body.code === 'moved') {
+      const reason = body.error || (body.code === 'revoked'
+        ? 'This licence key has been blocked. Please contact KamaiPlus support.'
+        : 'This licence key is no longer on this computer. Enter the key again, or contact KamaiPlus support.');
+      try {
+        fs.writeFileSync(path.join(userDataDir, BLOCKED_FILE), JSON.stringify({ ...record, code: body.code, reason, at: new Date().toISOString() }, null, 2), 'utf8');
+        fs.rmSync(licencePath(userDataDir), { force: true });
+      } catch (err) {
+        return { ok: false, error: `Could not update the licence on this computer: ${err.message}` };
+      }
+      return { ok: false, stopped: true, status: { state: 'required', machineName: getMachineName(), reason } };
+    }
+    return { ok: false, error: body.error || `error ${res.status}` };
+  }
+
+  const fresh = { licence: body.licence, signature: body.signature };
+  const payload = verifyLicence(fresh);
+  if (!payload || payload.key !== current.key) return { ok: false, error: 'invalid-licence' };
+  try {
+    saveRecord(userDataDir, fresh);
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+  return { ok: true, status: statusFor(payload, licenceNow(userDataDir, payload)) };
+}
+
+module.exports = { getMachineId, getMachineName, maskKey, verifyLicence, getStatus, activate, refresh, verifyOwnKey, statusFor, licenceNow, LICENCE_PUBLIC_KEY };

@@ -5,7 +5,7 @@ import { Check, Phone, User, UserPlus, X } from 'lucide-react';
 import { Customer } from '@/types';
 import { cn, formatINR } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
-import { CustomerDraft, isDraftEmpty, resolveBillCustomer, splitDraft, suggestCustomers } from '@/lib/billing/billCustomer';
+import { cleanCustomerNameInput, cleanMobileInput, CustomerDraft, isDraftEmpty, resolveBillCustomer, splitDraft, suggestCustomers } from '@/lib/billing/billCustomer';
 
 /** Puts the cursor in the (visible) customer name / mobile box — used instead of a pop-up. */
 export function focusPosCustomerName(field: 'name' | 'phone' = 'name') {
@@ -130,9 +130,9 @@ export function PosCustomerRow({ customers, selectedCustomer, draft, onDraftChan
             type="text"
             value={draft.name}
             onFocus={() => { setFocused('name'); setOpen(true); }}
-            onChange={(e) => { onDraftChange({ ...draft, name: e.target.value }); setOpen(true); }}
+            onChange={(e) => { onDraftChange({ ...draft, name: cleanCustomerNameInput(e.target.value) }); setOpen(true); }}
             onKeyDown={onKeyDown('name')}
-            placeholder={tr('Customer name or search')}
+            placeholder={tr('Customer name (optional)')}
             aria-label={tr('Customer name')}
             className={inputClass}
             autoComplete="off"
@@ -144,12 +144,11 @@ export function PosCustomerRow({ customers, selectedCustomer, draft, onDraftChan
             data-pos-customer-phone
             type="tel"
             inputMode="numeric"
-            maxLength={14}
             value={draft.phone}
             onFocus={() => { setFocused('phone'); setOpen(true); }}
-            onChange={(e) => { onDraftChange({ ...draft, phone: e.target.value.replace(/[^\d+\s-]/g, '') }); setOpen(true); }}
+            onChange={(e) => { onDraftChange({ ...draft, phone: cleanMobileInput(e.target.value) }); setOpen(true); }}
             onKeyDown={onKeyDown('phone')}
-            placeholder={tr('Mobile number')}
+            placeholder={tr('10-digit mobile (optional)')}
             aria-label={tr('Customer mobile number')}
             className={cn(inputClass, 'font-mono')}
             autoComplete="off"

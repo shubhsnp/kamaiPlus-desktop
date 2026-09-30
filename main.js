@@ -423,6 +423,39 @@ ipcMain.handle('kp:licence-status', async () =>
   licence.getStatus({ userDataDir: app.getPath('userData'), dev: isDevServer })
 );
 
+// Online check-in (v4.85.0): a fresh licence with the key's end date; a key blocked or moved
+// in the Admin Console stops the app. Offline: nothing changes. See licence.js refresh().
+const licenceRefresh = () =>
+  licence.refresh({ userDataDir: app.getPath('userData'), appVersion: app.getVersion(), fetchImpl: (url, opts) => net.fetch(url, opts) });
+
+// "Check again" on the licence-ended screen (after the shop renews).
+ipcMain.handle('kp:licence-refresh', async () => {
+  const res = await licenceRefresh();
+  return { ...res, status: res.status || licence.getStatus({ userDataDir: app.getPath('userData'), dev: isDevServer }) };
+});
+
+const LICENCE_TICK_MS = 30 * 60 * 1000; // the end date can pass while the app is open
+const LICENCE_CHECKIN_MS = 6 * 60 * 60 * 1000;
+
+/** Every 30 min: re-check the licence (and every 6 h, online, check in); tell the page on a change. */
+function startLicenceWatch() {
+  if (isDevServer) return;
+  let lastState = licence.getStatus({ userDataDir: app.getPath('userData'), dev: false }).state;
+  let lastCheckIn = 0;
+  const tick = async () => {
+    // Installed app only: a test or source run never calls the licence server on its own.
+    if (app.isPackaged && Date.now() - lastCheckIn >= LICENCE_CHECKIN_MS) {
+      lastCheckIn = Date.now();
+      await licenceRefresh().catch(() => {});
+    }
+    const status = licence.getStatus({ userDataDir: app.getPath('userData'), dev: false });
+    if (status.state !== lastState && mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('kp:licence-changed', status);
+    lastState = status.state;
+  };
+  setTimeout(() => { void tick(); }, 60 * 1000);
+  setInterval(() => { void tick(); }, LICENCE_TICK_MS);
+}
+
 // ---------------------------------------------------------------------------
 // Error log & support report — see errorlog.js
 // ---------------------------------------------------------------------------
@@ -531,6 +564,7 @@ if (!app.requestSingleInstanceLock()) {
       userDataDir: app.getPath('userData'),
       currentVersion: app.getVersion(),
     });
+    startLicenceWatch();
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });

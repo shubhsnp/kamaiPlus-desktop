@@ -7,6 +7,7 @@ import { tr } from '@/lib/i18n/core';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
 import { SupportContactLine } from '@/components/support/SupportContact';
 import { supportGreeting } from '@/lib/support/contact';
+import { LicenceEndedScreen, LicenceEndingNotice } from './LicenceEndedScreen';
 
 /**
  * Nothing in the app opens until this computer holds a valid licence.
@@ -31,10 +32,18 @@ export const LicenceGate: React.FC<{ children: React.ReactNode }> = ({ children 
     api.getLicenceStatus()
       .then(setStatus)
       .catch(() => setStatus({ state: 'required', machineName: '' }));
+    // v4.85.0: the main process re-checks while the app is open (end date passed, key
+    // blocked or moved at an online check-in, or renewed).
+    return api.onLicenceChanged?.(setStatus);
   }, []);
 
   if (status === 'checking') return <main className="min-h-screen bg-slate-950" />;
-  if (status === 'no-desktop' || status.state === 'active') return <>{children}</>;
+  if (status === 'no-desktop') return <>{children}</>;
+  if (status.state === 'active') {
+    const ending = status.validUntil && status.daysLeft != null && status.daysLeft <= 7;
+    return <>{children}{ending && <LicenceEndingNotice validUntil={status.validUntil!} daysLeft={status.daysLeft!} />}</>;
+  }
+  if (status.state === 'expired') return <LicenceEndedScreen status={status} onChecked={setStatus} />;
   return <ActivationScreen status={status} onActivated={setStatus} />;
 };
 

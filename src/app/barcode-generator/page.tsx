@@ -13,7 +13,7 @@ import { bluetoothPrinter } from '@/lib/hardware/bluetoothPrinter';
 import { EscPosEncoder } from '@/lib/hardware/escpos';
 import { ensureProductBarcodes } from '@/lib/barcode/storeBarcodes';
 import { productLabelExtras } from '@/lib/labels/labelExtras';
-import { clearLabelHandoff, getLabelSettings, getLastImportIds, LABEL_SETTINGS_EVENT, LabelSettings, readLabelHandoff } from '@/lib/labels/labelSettings';
+import { clearLabelHandoff, getLabelSettings, getLastImportIds, LABEL_SETTINGS_EVENT, LabelSettings, readLabelHandoff, stockFor } from '@/lib/labels/labelSettings';
 import { expandCopies, printLabels } from '@/lib/labels/printLabels';
 import { LabelSetupPanel } from '@/components/labels/LabelSetupPanel';
 import { LabelPreview } from '@/components/labels/LabelPreview';
@@ -139,6 +139,11 @@ export default function BarcodeGeneratorPage() {
   };
 
   const labels = useMemo(() => expandCopies(queue), [queue]);
+  // One row of the roll (or sheet) with a made-up item — shown until the list has labels.
+  const across = stockFor(settings).across;
+  const sampleLabels = useMemo(() => Array.from({ length: across }, () => ({
+    name: tr('Sample item — अनार स्पेशल'), barcode: '2000000000015', pricePaise: 9900, mrpPaise: 12000, costPaise: 7500, detail: 'M / Red',
+  })), [across]);
 
   const handlePrint = async () => {
     if (labels.length === 0) return;
@@ -163,7 +168,12 @@ export default function BarcodeGeneratorPage() {
         enc.alignCenter();
         if (settings.content.shopName && shopName) enc.bold(true).textLine(shopName).bold(false);
         if (settings.content.itemName) enc.doubleHeight(true).textLine(l.name).doubleHeight(false);
-        enc.textLine(`MRP: ${formatINR(l.mrpPaise || l.pricePaise)} | PRICE: ${formatINR(l.pricePaise)}`);
+        // Price / MRP follow "On the label" like the label printer does (v4.85.0 — both always printed).
+        const priceLine = [
+          settings.content.mrp && l.mrpPaise && l.mrpPaise > l.pricePaise ? `MRP: ${formatINR(l.mrpPaise)}` : '',
+          settings.content.price ? `PRICE: ${formatINR(l.pricePaise)}` : '',
+        ].filter(Boolean).join(' | ');
+        if (priceLine) enc.textLine(priceLine);
         if (settings.content.qr) enc.qrcode(l.barcode, 5);
         else enc.barcode(l.barcode, 'CODE128', 50);
         if (settings.content.code) enc.textLine(l.barcode);
@@ -196,7 +206,7 @@ export default function BarcodeGeneratorPage() {
           </Button>
           <Button size="sm" onClick={handlePrint} disabled={busy || labels.length === 0} className="bg-slate-900 hover:bg-slate-950 text-white font-bold text-xs gap-1 px-3" data-print-labels>
             <Printer className="w-3.5 h-3.5 text-amber-400" />
-            <span>{tr('Print {count} labels', { count: labels.length })}</span>
+            <span>{labels.length === 1 ? tr('Print 1 label') : tr('Print {count} labels', { count: labels.length })}</span>
           </Button>
         </div>
       </div>
@@ -249,15 +259,20 @@ export default function BarcodeGeneratorPage() {
           </Card>
         </div>
 
-        <div className="lg:col-span-7">
-          <Card className="p-3 bg-white border border-slate-200 shadow-2xs">
-            {labels.length === 0 ? (
-              <div className="h-[62vh] flex items-center justify-center text-xs text-slate-400 text-center px-6">
-                {tr('Add items on the left — the labels appear here exactly as they will print.')}
-              </div>
-            ) : (
-              <LabelPreview labels={labels} settings={settings} shopName={shopName} />
+        {/* Stays in view while the left side scrolls (v4.85.0). An empty list shows a sample
+            label with the current setup, so size / content changes are seen at once. */}
+        <div className="lg:col-span-7 lg:sticky lg:top-4 lg:self-start">
+          <Card className="p-3 bg-white border border-slate-200 shadow-2xs space-y-2">
+            <div className="flex items-center justify-between gap-2 text-xs">
+              <span className="font-black text-slate-900 uppercase tracking-wider">{tr('Preview')}</span>
+              <span className="text-slate-500 truncate" data-preview-stock>{tr(stockFor(settings).label)}</span>
+            </div>
+            {labels.length === 0 && (
+              <p className="px-2.5 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-[11px] font-bold text-amber-900" data-preview-sample>
+                {tr('Sample label — add items on the left to see yours, exactly as they will print.')}
+              </p>
             )}
+            <LabelPreview labels={labels.length ? labels : sampleLabels} settings={settings} shopName={shopName} />
           </Card>
         </div>
       </div>

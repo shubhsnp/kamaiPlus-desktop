@@ -81,7 +81,7 @@ import { PosProductCard } from '@/components/billing/PosProductCard';
 import { generalCategoryId } from '@/lib/products/defaultCategory';
 import { BillingToast, BillingToastData, FullscreenUpiQrModal, QuickAddScannedProductModal } from '@/components/billing/PosDialogs';
 import { CashTenderPanel, SplitPaymentPanel, UpiQrCard } from '@/components/billing/PosPaymentPanels';
-import { BillTab, getInitialTabs, makeEmptyTab, tabsAfterClosing, tabsAfterSale, tabsForNewBill, TABS_STORAGE_KEY } from '@/lib/billing/billTabs';
+import { BillTab, getInitialTabs, makeEmptyTab, nextBillTabId, tabsAfterClosing, tabsAfterSale, tabsForNewBill, TABS_STORAGE_KEY } from '@/lib/billing/billTabs';
 import { isFeatureOn, useFeatureSwitches } from '@/lib/features/featureSwitches';
 import { PrintFailureBar, useBackgroundBillPrint, warmBillPrinting } from '@/components/billing/BillPrintQueue';
 import { tr } from '@/lib/i18n/core';
@@ -325,6 +325,7 @@ export default function BillingPage() {
   // Settings → Features → Khata off (v4.81.0): no Credit / Udhar on the counter — a bill left
   // on Credit (or with an udhar part in Split) from before goes back to a paid mode.
   const khataOn = useFeatureSwitches().khata;
+  const paymentKeysOn = useFeatureSwitches().payment_keys;
   useEffect(() => {
     if (khataOn) return;
     if (paymentMethod === 'credit') setPaymentMethod('cash');
@@ -1282,11 +1283,28 @@ export default function BillingPage() {
         return;
       }
 
-      if (e.key === 'F2' || (e.key === '/' && !isInput)) {
+      // F2 (v4.85.0, Rahul): the next open bill — or a new one when only one is open. Search is '/'.
+      if (e.key === 'F2') {
+        e.preventDefault();
+        const nextId = nextBillTabId(tabs, activeTabId);
+        if (!nextId) {
+          handleCreateNewTab();
+          showBillingToast(tr('Created New Bill Tab [F2]'), 'info');
+        } else {
+          setActiveTabId(nextId);
+          showBillingToast(tr('Switched to Bill #{tabNumber}', { tabNumber: tabs.find((t) => t.id === nextId)?.tabNumber ?? '' }), 'info');
+        }
+        return;
+      }
+
+      if (e.key === '/' && !isInput) {
         e.preventDefault();
         searchInputRef.current?.focus();
         return;
       }
+
+      // F4 / F8 / F9 pick the payment only when Settings → Features → "Payment keys" is on (default off).
+      if ((e.key === 'F4' || e.key === 'F8' || e.key === 'F9') && !isFeatureOn('payment_keys')) return;
 
       if (e.key === 'F4') {
         e.preventDefault();
@@ -1359,6 +1377,8 @@ export default function BillingPage() {
           return (
             <div
               key={tab.id}
+              data-bill-tab={tab.id}
+              data-active-bill={isActive ? 'true' : undefined}
               onClick={() => setActiveTabId(tab.id)}
               className={cn(
                 'px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer select-none transition-all flex-shrink-0',
@@ -1652,7 +1672,7 @@ export default function BillingPage() {
               >
                 <Icon className="w-3.5 h-3.5 flex-shrink-0" />
                 <span className="truncate">{m.label}</span>
-                {m.shortcut && (
+                {m.shortcut && paymentKeysOn && (
                   <span className={cn(
                     "text-[9px] font-mono px-1 py-0.2 rounded font-bold hidden sm:inline-block",
                     isSelected ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
@@ -1978,14 +1998,14 @@ export default function BillingPage() {
               <div className="relative flex-1">
                 <Input
                   ref={searchInputRef}
-                  placeholder={tr('Search products by name, barcode or category... [F2]')}
+                  placeholder={tr('Search products by name, barcode or category... [/]')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   leftIcon={<Search className="w-4 h-4 text-slate-400" />}
                   autoFocus
                 />
                 <div className="absolute right-2.5 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-1 pointer-events-none">
-                  <kbd className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-500 font-mono text-[10px] font-bold">F2</kbd>
+                  <kbd className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-500 font-mono text-[10px] font-bold">/</kbd>
                 </div>
               </div>
             </div>

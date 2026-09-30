@@ -48,7 +48,11 @@ export const QuickBarcodePrintModal: React.FC<QuickBarcodePrintModalProps> = ({ 
     setCopies(initialCopies && initialCopies > 0 ? Math.min(999, Math.ceil(initialCopies)) : getLabelSettings().copies);
     setBarcodeValue(product.barcode?.trim() || '');
     if (!product.barcode?.trim()) {
-      ensureProductBarcode(product).then((code) => live && setBarcodeValue(code)).catch((err) => console.error('Barcode assign failed:', err));
+      ensureProductBarcode(product).then((code) => live && setBarcodeValue(code)).catch((err) => {
+        console.error('Barcode assign failed:', err);
+        // Said on screen (v4.85.0): the preview and Print stayed empty with no reason given.
+        if (live) setError(tr('Could not give this item a barcode: {error}', { error: err?.message || '' }));
+      });
     }
     return () => {
       live = false;
@@ -77,7 +81,7 @@ export const QuickBarcodePrintModal: React.FC<QuickBarcodePrintModalProps> = ({ 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={tr('1-Click Barcode Print')} size="md">
       <div className="space-y-3 text-xs">
-        {labels.length > 0 && <LabelPreview labels={labels} settings={settings} shopName={storeName} max={4} />}
+        {labels.length > 0 && <LabelPreview labels={labels} settings={settings} shopName={storeName} max={4} maxHeight="40vh" />}
 
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-bold text-slate-600">{tr('Copies')}</span>
@@ -86,7 +90,7 @@ export const QuickBarcodePrintModal: React.FC<QuickBarcodePrintModalProps> = ({ 
               {num}
             </button>
           ))}
-          <input type="number" min="1" max="500" value={copies} onChange={(e) => setCopies(Math.max(1, Math.min(500, Number(e.target.value) || 1)))} className="w-16 h-7 px-2 rounded-lg border border-slate-300 font-mono" aria-label={tr('Copies')} />
+          <input type="number" min="1" max="500" value={copies} onChange={(e) => setCopies(Math.max(1, Math.min(500, Math.round(Number(e.target.value)) || 1)))} className="w-16 h-7 px-2 rounded-lg border border-slate-300 font-mono" aria-label={tr('Copies')} />
         </div>
 
         <button type="button" onClick={() => setShowSetup(!showSetup)} className="w-full flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200 cursor-pointer">

@@ -113,7 +113,8 @@ Defined in `main.js` (`ipcMain.handle`), exposed in `preload.js`, typed in
 | `kp:open-path` | `openPath(target)` | Opens a saved file — **only inside `Documents/KamaiPlus`** |
 | `kp:show-in-folder` | `showItemInFolder(target)` | Same path restriction |
 | `kp:app-info` | `getAppInfo()` | `{version, documentsDir}` |
-| `kp:licence-status` | `getLicenceStatus()` | Offline licence check (§2.1) → `{state:'active',…}` or `{state:'required', machineName, reason?}` |
+| `kp:licence-status` | `getLicenceStatus()` | Offline licence check (§2.1) → `{state:'active',…, validUntil, daysLeft}`, `{state:'expired',…, validUntil}` (v4.85.0) or `{state:'required', machineName, reason?}` |
+| `kp:licence-refresh` | `refreshLicence()` | v4.85.0: online check-in now ("Check again" on the licence-ended screen) → `{ok, offline?, stopped?, status}` (§2.1). The main process also checks in by itself (installed app, every 6 h) and sends `kp:licence-changed` (`onLicenceChanged`) when the state changes. |
 | `kp:licence-activate` | `activateLicence(key)` | One-time online activation (§2.1) → `{ok, status}` or `{ok:false, error}` |
 | `kp:licence-verify-key` | `verifyLicenceKey(key)` | Forgot master password: `{ok}` only if `key` is the key of the signed licence on THIS PC (offline). The login screen then clears the password so a new one can be set — data untouched. |
 | `kp:google-signin` | `googleSignIn({clientId, clientSecret})` | Google sign-in (§2.6): `googleSignIn.js` opens the shop's browser, takes the answer on a one-time `127.0.0.1` server (PKCE S256 + `state`), swaps the code for an ID token → `{ok, idToken, email, name, picture}`. The Electron E2E (unpackaged + `KAMAI_E2E_GOOGLE_STUB=1`) gets a stand-in `{stub: true}`. |
@@ -161,8 +162,25 @@ Admin Console (KamaiPlus Android repo, admin_console/) → Desktop Licences
 - **Private key** is the Firebase secret `DESKTOP_LICENCE_SIGNING_KEY`; it is in no repo.
   Rotating it means shipping a new `LICENCE_PUBLIC_KEY` and re-activating every PC —
   don't.
-- Revoking a key in the console stops **new** activations only; a PC that already
-  activated keeps working offline (a consequence of offline use, accepted).
+- ~~Revoking a key stops new activations only~~ — **since v4.85.0 the Admin Console controls
+  a running PC too** (owner's request: "admin panel me desktop ke liye aur control"):
+  - **End date per key** (`valid_until` on `desktop_licences/{KEY}`, set / renewed in Admin →
+    Desktop Licences → "Set validity / renew"; missing = lifetime). The server signs it into the
+    licence, so it is enforced **offline**. `licence.js` `licenceNow` never uses a time earlier
+    than the licence's `issued_at` or the latest time already seen (`<userData>/licence_clock.json`)
+    — turning the PC clock back does not help. Past the end → `{state:'expired'}` →
+    `LicenceEndedScreen` ("Check again", data untouched). ≤ 7 days left → a closable note.
+  - **Online check-in** (`refresh()`, action `refresh` on the same Cloud Function): installed app
+    only, 1 min after start and every 6 h (`startLicenceWatch` in main.js; every 30 min the
+    status is re-checked for a passed end date). Same computer only — it never binds a key. A
+    fresh licence (new end date) is saved. `403 revoked` / `409 moved` (key blocked, or freed /
+    moved to another PC) **stop the app**: `licence.json` → `licence.blocked.json` (kept for
+    support), the activation screen shows the reason. No internet, 5xx, anything else: no change.
+  - A PC that never goes online still works until its end date (lifetime = forever).
+  - Server: `functions/licence_core.js` `executeActivate({mode})` + `validUntilIso` (Android repo,
+    branch `feat/desktop-licence-validity`; its tests `functions/test/licence_core.test.js`).
+    Desktop: Suite 9 §9j(x) + Electron E2E §1b (signed licences, stand-in server, a real launch
+    with an ended licence).
 - `licence.js` must stay in `package.json` → `build.files`, or the installer ships
   without it and the app cannot start.
 
@@ -319,8 +337,8 @@ Cloud sync is off (§12 #7), so the shop's own disk is the only safety net.
 
 ### 2.6 Google sign-in — the shop's cloud account (v4.84.0, Step 2)
 
-Rahul (2026-09-30): the desktop app signs in with **Google the very first time**, then the
-**master password** opens it every day. Same account as the Android app, so the shop's cloud
+Rahul (2026-09-30): the desktop app offers **Google the very first time**, then the
+**master password** opens it every day — **optional since v4.85.0** ("can be added later"). Same account as the Android app, so the shop's cloud
 is `businesses/biz_<uid>` (`docs/CLOUD_DATA_CONTRACT.md` R1). Cloud sync stays off (§12 #7).
 
 - **Main process** `googleSignIn.js`: Google blocks its sign-in page inside an app window, so
@@ -336,9 +354,9 @@ is `businesses/biz_<uid>` (`docs/CLOUD_DATA_CONTRACT.md` R1). Cloud sync stays o
   import; `getFirebaseAuth()` uses `initializeAuth` + IndexedDB persistence, no popup
   resolver) → `kamai_cloud_account` {uid, email, name, photoURL, bizId: `biz_<uid>`}. This
   computer's own business id is **not** changed — the contract maps `business_id` to `bizId`.
-- **AuthForm**: in the desktop app, "Set Master Password" is step 2; step 1 "Continue with
-  Google" must be done first (the button stays disabled). A shop set up before v4.84.0
-  connects on Backup → **Google Account** (`CloudAccountCard`).
+- **AuthForm**: in the desktop app "Set Master Password" also offers "Continue with Google"
+  ("Google account — optional"); the password works without it. Any shop can connect later
+  on Backup → **Google Account** (`CloudAccountCard`).
 - **Electron E2E**: `KAMAI_E2E_GOOGLE_STUB=1` (only in an unpackaged run — an installed app never) →
   `kp:google-signin` answers `{stub: true}`, no Firebase call.
 - Branding verification (app name / logo on the Google screen) is pending: the home page
@@ -573,6 +591,10 @@ three other screens. The order matters:
 ```
 
 **Rules for this function:**
+- **v4.85.0:** the name box keeps only a name (`cleanCustomerNameInput`: letters of any script,
+  vowel signs, spaces and . ' & -; no digits / symbols, ≤ 60) and the mobile box only digits
+  (`cleanMobileInput`: ≤ 10, a pasted `+91…` keeps the last 10). Both optional; a mobile that is
+  not 10 digits is an error (`resolveBillCustomer`). Suite 9 §9j(v).
 - There is **no customer pop-up** on the counter (v4.68.0). `components/billing/PosCustomerRow.tsx`
   is one row — name box + mobile box, saved customers listed underneath (↑ ↓ Enter / click).
   What is typed lives on the bill tab (`customerName` / `customerPhone` in `kamai_pos_tabs`)
@@ -872,6 +894,7 @@ module is `featureSwitches`). Switching off only hides; no data is deleted.
 | `barcode_studio` (v4.81.0) | **on** | screen hidden **and every label button**: product row printer icon (`on1ClickBarcodePrint` optional), "Save & print label", Fast inward "Save & print labels" / "Print N labels", supplier-bill `BillInwardDone`, manual-inward `InwardLabelOffer`, Purchases "New items + labels", Excel import "Print labels". Suite 9 §9j(q) fails on any new unguarded `/barcode-generator` link. Label printer setup stays in Settings / Printers. |
 | `sales_reports` (v4.81.0) | **on** | `/reports` hidden; Home `AdvancedAnalyticsBanner` and the Average-Bill card link go. |
 | `invoice_designer` (v4.81.0) | **on** | `/invoice-designer` hidden; the Theme links in `InvoiceModal`, Settings tabs and Invoice & Bill Rules go. Bills keep the saved theme. |
+| `payment_keys` (v4.85.0, group "Buttons across the app") | off | F4 / F8 / F9 do nothing on the counter (`isFeatureOn('payment_keys')`), the payment buttons show no key badge and the status bar lists none of them; payment is picked with the mouse. |
 | `whatsapp` (v4.81.0, group "Buttons across the app") | **on** | `WhatsAppButton` / `RestockOrderButton` return null (every WhatsApp entry point is one of the two — Suite 9 checks no screen calls `openWhatsAppComposer` itself); `WhatsAppSettingsCard` hidden. |
 
 - **v4.81.0 defaults:** the owner asked that what was on stays on. On the owner's PC all 11 older
@@ -949,6 +972,11 @@ with the reason) → import.
   Since v4.77.0 also **"New stock + labels"** and **loose packs** (§9.8). The old "Custom
   label" (`CustomLabelModal`, a `KP…` code saved nowhere — "unknown barcode" at the
   counter) is gone: every label now belongs to a saved item.
+  **v4.85.0:** the preview is always on screen and sticky — with an empty list it shows a
+  **sample label** (one row of the roll) with the current setup; the frame is as tall as the
+  labels (`LabelPreview` `maxHeight`, not a fixed 62vh). Custom roll size boxes save only a
+  usable value (`CUSTOM_LIMITS`; typing "38" used to jump back to 50 after the "3"). "Copies for
+  all" is capped at 999; Bluetooth labels follow "On the label" for price / MRP. Suite 9 §9j(w).
 - **Bar codes** (`barcodeGenerator.ts`): valid EAN-13 → EAN-13 (all store codes), digits of
   even length → Code-128 C, anything else → Code-128 B. **Verified with ZXing** (the
   decoder in `html5-qrcode/third_party`): every check value, 300 store codes and real
@@ -1335,6 +1363,7 @@ Each was a real bug that cost real time. The test suite guards most of them.
 | 30 | **The next customer's scan vanished in busy hours (before v4.74.0).** `completeSale` awaited the silent print before closing the bill, so the counter stood still for the printer; scans made meanwhile went into the bill being closed and were dropped by `tabsAfterClosing`; a failed print opened "Sale completed" over the next customer. Every beep created an `AudioContext` that was never closed. | §9.7: close first with `tabsAfterSale` (extras move to the next bill) + `activeTabIdRef`; `BillPrintQueue` prints in the background, failures wait in a red bar; one shared beep context. Suite 9 §9h; Electron E2E slow-printer + failed-print checks. |
 | 33 | **Products toolbar controls that did nothing (before v4.81.0).** "Scan" filled a closed form; the search ignored HSN / size / colour it advertised; category chips past the window edge could not be reached with a mouse; a gun scan into the product form's barcode box saved the half-filled item. | §9.12: webcam scanner deleted, gun Enter → offline-list fill, `matchesProductDetails`, wrapped chips + "All categories (N)". Suite 9 §9j(p). |
 | 34 | **The automatic backup held only yesterday's bills (before v4.82.0).** One file per day, written 2 min after launch and never again that day — a disk that died in the evening took every bill of the day. | §2.3: the day's file is refreshed hourly while data changes (DBCore middleware `backupChangeMiddleware`), when the counter is free, at most 2 h late. Suite 9 §9j(r). Do not go back to "skip if today's file exists". |
+| 36 | **Barcode Studio showed no preview until an item was added, and a custom roll size could not be typed (before v4.85.0).** Empty list = a grey box with a line of text; saving "3" on the way to "38" was clamped back to 50 by the settings event. | Sample label preview + sticky frame; `LabelSetupPanel` draft values saved only inside `CUSTOM_LIMITS`. Suite 9 §9j(w), Electron E2E "Barcode Studio preview". |
 | 35 | **Desktop and Android spoke different cloud languages (before v4.83.0; sync off, so nothing broke yet).** The Desktop sent raw Dexie rows: prices / bill totals / udhar in paise under names the phone reads as rupees (₹100 bill → ₹10,000), `current_stock` the phone never reads (stock 0), plan fields the rules refuse, and it saved the phone's documents as Dexie rows unchanged. | `lib/cloud/cloudContract.ts` `toCloud` / `fromCloud` for all 14 tables (`docs/CLOUD_DATA_CONTRACT.md` v1.0); `firestoreSync.ts`, `cloudMerge`, onboarding use nothing else. Suite 9 §9j(s): round-trips exact, the phone's real documents read right. |
 ---
 
@@ -1442,8 +1471,9 @@ Recorded so the next agent does not rediscover them. None are fixed as of v4.38.
    | Key | Actual |
    | :--- | :--- |
    | F1 | New bill tab |
-   | F2 (or `/`) | Focus product search |
-   | F4 / F8 / F9 | Payment = cash / UPI / credit |
+   | F2 | **Next open bill** (v4.85.0, `nextBillTabId`); only one bill open → a new bill, like "+ New Bill" |
+   | `/` | Focus product search (F2 did this too before v4.85.0) |
+   | F4 / F8 / F9 | Payment = cash / UPI / credit — **only with the `payment_keys` switch on** (v4.85.0, off by default; also no key badges / status-bar hints) |
    | F10 or Enter | Complete sale |
    | Esc | Clear search |
    | ↑ ↓ + Enter (in search) | Pick a product from the results |

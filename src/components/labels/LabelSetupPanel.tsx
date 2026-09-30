@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Frame, Printer, RefreshCw, Ruler } from 'lucide-react';
 import { DesktopPrinter, getDesktopApi } from '@/lib/desktop/desktopBridge';
 import {
-  BAR_HEIGHTS_MM, CUSTOM_STOCK_ID, getLabelSettings, LABEL_SETTINGS_EVENT, LABEL_STOCKS, LabelContent, LabelSettings, saveLabelSettings, stockFor,
+  BAR_HEIGHTS_MM, CUSTOM_LIMITS, CUSTOM_STOCK_ID, getLabelSettings, LABEL_SETTINGS_EVENT, LABEL_STOCKS, LabelContent, LabelSettings, MAX_SETUP_COPIES, saveLabelSettings, stockFor,
 } from '@/lib/labels/labelSettings';
 import { printAlignmentTest, printLabels } from '@/lib/labels/printLabels';
 import { encodeCostCode, isValidCostCodeWord } from '@/lib/labels/labelExtras';
@@ -36,6 +36,9 @@ export function LabelSetupPanel({ shopName }: { shopName: string }) {
   const [printers, setPrinters] = useState<DesktopPrinter[]>([]);
   const [loading, setLoading] = useState(false);
   const [testNote, setTestNote] = useState('');
+  // What is typed in the custom size boxes. Saved only once it is a usable size: saving "3"
+  // on the way to "38" came back as the default 50 and the box could not be typed (v4.85.0).
+  const [customDraft, setCustomDraft] = useState<Partial<Record<keyof LabelSettings['custom'], string>>>({});
   const desktop = getDesktopApi();
 
   const loadPrinters = async () => {
@@ -61,7 +64,20 @@ export function LabelSetupPanel({ shopName }: { shopName: string }) {
     setS(next);
     saveLabelSettings(next);
   };
-  const setCustom = (key: keyof LabelSettings['custom'], v: string) => update({ custom: { ...s.custom, [key]: Number(v) || 0 } });
+  const customOk = (key: keyof LabelSettings['custom'], v: string) => {
+    const n = Number(v);
+    const [min, max] = CUSTOM_LIMITS[key];
+    return v.trim() !== '' && Number.isFinite(n) && n >= min && n <= max && (key !== 'across' || Number.isInteger(n));
+  };
+  const setCustom = (key: keyof LabelSettings['custom'], v: string) => {
+    setCustomDraft((d) => ({ ...d, [key]: v }));
+    if (customOk(key, v)) update({ custom: { ...s.custom, [key]: Number(v) } });
+  };
+  const endCustom = (key: keyof LabelSettings['custom']) => setCustomDraft((d) => {
+    const next = { ...d };
+    delete next[key];
+    return next;
+  });
 
   const testPrint = async () => {
     setTestNote(tr('Printing a test label…'));
@@ -121,12 +137,27 @@ export function LabelSetupPanel({ shopName }: { shopName: string }) {
             ['heightMm', msg('Height (mm)'), '0.5'],
             ['across', msg('Labels across'), '1'],
             ['gapMm', msg('Gap between (mm)'), '0.5'],
-          ] as [keyof LabelSettings['custom'], string, string][]).map(([key, label, step]) => (
-            <label key={key} className="block">
-              <span className="font-bold text-slate-600">{tr(label)}</span>
-              <input type="number" step={step} min="0" value={s.custom[key]} onChange={(e) => setCustom(key, e.target.value)} className={`${field} mt-1 font-mono`} data-label-custom={key} />
-            </label>
-          ))}
+          ] as [keyof LabelSettings['custom'], string, string][]).map(([key, label, step]) => {
+            const typed = customDraft[key];
+            const bad = typed !== undefined && !customOk(key, typed);
+            return (
+              <label key={key} className="block">
+                <span className="font-bold text-slate-600">{tr(label)}</span>
+                <input
+                  type="number"
+                  step={step}
+                  min={CUSTOM_LIMITS[key][0]}
+                  max={CUSTOM_LIMITS[key][1]}
+                  value={typed ?? String(s.custom[key])}
+                  onChange={(e) => setCustom(key, e.target.value)}
+                  onBlur={() => endCustom(key)}
+                  className={`${field} mt-1 font-mono ${bad ? 'border-rose-400 focus:ring-rose-300' : ''}`}
+                  data-label-custom={key}
+                />
+                {bad && <span className="block mt-0.5 text-[10px] font-bold text-rose-700" data-label-custom-error={key}>{tr('{min} to {max}', { min: CUSTOM_LIMITS[key][0], max: CUSTOM_LIMITS[key][1] })}</span>}
+              </label>
+            );
+          })}
         </div>
       )}
 
@@ -181,7 +212,7 @@ export function LabelSetupPanel({ shopName }: { shopName: string }) {
         </label>
         <label className="flex items-center gap-2">
           <span className="font-bold text-slate-700">{tr('Copies per item')}</span>
-          <input type="number" min="1" max="500" value={s.copies} onChange={(e) => update({ copies: Math.max(1, Number(e.target.value) || 1) })} className={`${field} w-20 font-mono`} />
+          <input type="number" min="1" max={MAX_SETUP_COPIES} value={s.copies} onChange={(e) => update({ copies: Math.max(1, Math.min(MAX_SETUP_COPIES, Math.round(Number(e.target.value)) || 1)) })} className={`${field} w-20 font-mono`} data-label-copies />
         </label>
         <button type="button" onClick={testPrint} className="inline-flex items-center gap-1.5 px-3 h-9 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold cursor-pointer" data-label-test>
           <Printer className="w-3.5 h-3.5" /> {tr('Test print')}

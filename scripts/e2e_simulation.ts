@@ -64,19 +64,19 @@ import {
   isRevenueSale,
 } from '../src/lib/sales/saleMath';
 import { computeDrawerSummary, localDateKey } from '../src/lib/reports/cashDrawer';
-import { cartBeyond, makeEmptyTab, tabsAfterClosing, tabsAfterSale, tabsForNewBill } from '../src/lib/billing/billTabs';
+import { cartBeyond, makeEmptyTab, nextBillTabId, tabsAfterClosing, tabsAfterSale, tabsForNewBill } from '../src/lib/billing/billTabs';
 import { applyPaymentToBill, openBillsOldestFirst, planBillAllocation } from '../src/lib/khata/billAllocation';
 import { generalCategoryId } from '../src/lib/products/defaultCategory';
 import { nextSupplierBalance } from '../src/lib/suppliers/supplierLedger';
 import { cleanVariantLabels, DEFAULT_COUNTED_STOCK, summarizeVariants, tracksOwnStock } from '../src/lib/products/variants';
-import { buildBillCustomer, isDraftEmpty, resolveBillCustomer, splitDraft, suggestCustomers } from '../src/lib/billing/billCustomer';
+import { buildBillCustomer, cleanCustomerNameInput, cleanMobileInput, isDraftEmpty, resolveBillCustomer, splitDraft, suggestCustomers } from '../src/lib/billing/billCustomer';
 import { DEFAULT_FEATURE_SWITCHES, FEATURES, featureForPath, isPathEnabled, parseFeatureSwitches, showSellingPriceField } from '../src/lib/features/featureSwitches';
 import { matchesProductDetails } from '../src/lib/products/detailSearch';
 import { buildImportRows, buildItemName, findHeaderRow, guessColumnRoles, mapUnit, parseAmount, planImport } from '../src/lib/import/catalogImport';
 import { ean13CheckDigit, isValidEan13, nextStoreBarcodes } from '../src/lib/barcode/storeBarcodes';
 import type { CartItem, Product } from '../src/types';
 import { barcodeSymbol } from '../src/lib/barcode/barcodeGenerator';
-import { DEFAULT_LABEL_SETTINGS, LABEL_STOCKS, labelPageMm, labelsPerPage, parseLabelSettings, stockFor } from '../src/lib/labels/labelSettings';
+import { CUSTOM_LIMITS, DEFAULT_LABEL_SETTINGS, LABEL_STOCKS, labelPageMm, labelsPerPage, MAX_SETUP_COPIES, parseLabelSettings, stockFor } from '../src/lib/labels/labelSettings';
 import { buildLabelHtml } from '../src/lib/labels/labelSheet';
 import { expandCopies } from '../src/lib/labels/printLabels';
 import { looksLikeBarcode, searchEnterAction } from '../src/lib/billing/scanInput';
@@ -2357,14 +2357,121 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     && /process\.env\.KAMAI_E2E_GOOGLE_STUB === '1' && !app\.isPackaged\) \{/.test(mainSrc) && (mainSrc.match(/KAMAI_E2E_GOOGLE_STUB/g) || []).length === 1,
     'Google sign-in: packaged into the installer; the one-time server listens on 127.0.0.1 only; the test stand-in exists only in an unpackaged run');
   const authSrc = readSource('components/auth/AuthForm.tsx');
-  assert(/const googleStepPending = isDesktop && !account;/.test(authSrc) && /if \(googleStepPending\) \{\s*throw new Error/.test(authSrc)
-    && /disabled=\{loading \|\| !password \|\| !confirmPassword \|\| googleStepPending\}/.test(authSrc),
-    'First run: in the desktop app the master password cannot be set before the Google account is connected (Google first, then password)');
+  assert(/tr\('Continue with Google'\)/.test(authSrc) && /tr\('Google account — optional'\)/.test(authSrc) && !/googleStepPending/.test(authSrc)
+    && /disabled=\{loading \|\| !password \|\| !confirmPassword\}/.test(authSrc),
+    'First run: the Google account is offered with the master password but optional (v4.85.0) — it can be connected later on Backup');
   const acctSrc = readSource('lib/cloud/cloudAccount.ts');
   assert(/initializeAuth\(firebaseApp, \{ persistence: indexedDBLocalPersistence \}\)/.test(readSource('lib/firebase/config.ts'))
     && /signInWithCredential\(auth, GoogleAuthProvider\.credential\(res\.idToken\)\)/.test(acctSrc) && !/^import .*firebase/m.test(acctSrc)
     && /<CloudAccountCard \/>/.test(readSource('app/cloud-backup/page.tsx')),
     'Google account: Firebase sign-in with the Google ID token (Firebase loaded only when connecting, session in IndexedDB); a shop set up earlier connects on the Backup page');
+}
+
+// 9j(v). v4.85.0 (Rahul) — the counter's customer boxes take a name / a 10-digit mobile (both
+// optional), F2 = next bill (search moved to '/'), F4 / F8 / F9 behind a switch (off).
+{
+  assert(cleanCustomerNameInput('Rahul 123 Jadhav') === 'Rahul Jadhav' && cleanCustomerNameInput('राहुल जाधव') === 'राहुल जाधव'
+    && cleanCustomerNameInput("  Mr. D'Souza & Sons!!") === "Mr. D'Souza & Sons" && cleanCustomerNameInput('रमेश९८@#') === 'रमेश'
+    && cleanCustomerNameInput('रमेश  पाटील') === 'रमेश पाटील' && cleanCustomerNameInput('x'.repeat(80)).length === 60,
+    "Customer name box: letters of any script (Hindi vowel signs kept) with . ' & -; digits (also Devanagari) and symbols dropped; at most 60");
+  assert(cleanMobileInput('+91 98765 43210') === '9876543210' && cleanMobileInput('098765-43210') === '9876543210'
+    && cleanMobileInput('abc98') === '98' && cleanMobileInput('') === '',
+    'Mobile box: digits only, at most 10 — a pasted +91 / 0 number keeps its last 10 digits');
+  const r = resolveBillCustomer([], { name: '', phone: '98765' });
+  assert(r.kind === 'error' && r.field === 'phone' && resolveBillCustomer([], { name: '', phone: '' }).kind === 'none'
+    && resolveBillCustomer([], { name: 'Ramesh', phone: '' }).kind === 'new',
+    'Counter customer: both boxes optional; a mobile that is not 10 digits is an error, never saved');
+  const posCustSrc = readSource('components/billing/PosCustomerRow.tsx');
+  assert(/name: cleanCustomerNameInput\(e\.target\.value\)/.test(posCustSrc) && /phone: cleanMobileInput\(e\.target\.value\)/.test(posCustSrc)
+    && /tr\('Customer name \(optional\)'\)/.test(posCustSrc) && /tr\('10-digit mobile \(optional\)'\)/.test(posCustSrc),
+    'Counter customer row cleans both boxes as they are typed / pasted and says both are optional');
+
+  assert(nextBillTabId([{ id: 'a' }], 'a') === null && nextBillTabId([{ id: 'a' }, { id: 'b' }, { id: 'c' }], 'a') === 'b'
+    && nextBillTabId([{ id: 'a' }, { id: 'b' }, { id: 'c' }], 'c') === 'a' && nextBillTabId([{ id: 'a' }, { id: 'b' }], 'gone') === 'a',
+    'F2: the next open bill, round to the first after the last; one bill open → null (F2 then opens a new bill)');
+  const f2At = billingSrc.indexOf("if (e.key === 'F2') {");
+  const f2Block = billingSrc.slice(f2At, billingSrc.indexOf("if (e.key === '/'", f2At));
+  assert(f2At > 0 && /nextBillTabId\(tabs, activeTabId\)/.test(f2Block) && /handleCreateNewTab\(\)/.test(f2Block) && !/searchInputRef/.test(f2Block)
+    && /if \(e\.key === '\/' && !isInput\) \{/.test(billingSrc) && /\[\/\]'\)/.test(billingSrc),
+    "Billing: F2 switches to the next bill or opens a new one (it no longer duplicates search); '/' focuses search");
+
+  assert(DEFAULT_FEATURE_SWITCHES.payment_keys === false && FEATURES.some((f) => f.id === 'payment_keys')
+    && parseFeatureSwitches(JSON.stringify({ khata: true })).payment_keys === false && parseFeatureSwitches(JSON.stringify({ payment_keys: true })).payment_keys === true,
+    'Payment keys F4 / F8 / F9: a switch in Settings → Features, off by default (also for a shop saved before v4.85.0)');
+  assert(/if \(\(e\.key === 'F4' \|\| e\.key === 'F8' \|\| e\.key === 'F9'\) && !isFeatureOn\('payment_keys'\)\) return;/.test(billingSrc)
+    && /\{m\.shortcut && paymentKeysOn && \(/.test(billingSrc),
+    'Billing: with the switch off, F4 / F8 / F9 do nothing and the payment buttons show no key badge');
+  assert(/\['F2', msg\('Next bill'\)\]/.test(statusBarSrc) && /\['\/', msg\('Search'\)\]/.test(statusBarSrc)
+    && /paymentKeysOn \|\| !\['F4', 'F8', 'F9'\]\.includes\(key\)/.test(statusBarSrc) && /khataOn \|\| key !== 'F9'/.test(statusBarSrc),
+    'Status bar: F2 "Next bill", / "Search"; F4 / F8 / F9 listed only when the switch is on (F9 also needs Khata)');
+}
+
+// 9j(w). v4.85.0 — Barcode Studio: a preview is always on screen (a sample label while the
+// list is empty), the custom roll size can be typed, copies stay 1…999.
+{
+  const studioSrc = readSource('app/barcode-generator/page.tsx');
+  assert(/<LabelPreview labels=\{labels\.length \? labels : sampleLabels\}/.test(studioSrc) && /data-preview-sample/.test(studioSrc)
+    && !/labels\.length === 0 \? \(/.test(studioSrc) && /lg:sticky/.test(studioSrc),
+    'Barcode Studio: the preview is always shown (a sample label with the current setup while the list is empty) and stays in view');
+  const previewSrc = readSource('components/labels/LabelPreview.tsx');
+  assert(/style=\{\{ height: `\$\{heightPx\}px`, maxHeight \}\}/.test(previewSrc) && !/h-\[62vh\]/.test(previewSrc)
+    && /maxHeight="40vh"/.test(readSource('components/products/QuickBarcodePrintModal.tsx')),
+    'Label preview: the frame is as tall as the labels (up to a limit), not a fixed 62vh box');
+  const setupSrc = readSource('components/labels/LabelSetupPanel.tsx');
+  assert(/if \(customOk\(key, v\)\) update\(/.test(setupSrc) && /value=\{typed \?\? String\(s\.custom\[key\]\)\}/.test(setupSrc) && /onBlur=\{\(\) => endCustom\(key\)\}/.test(setupSrc),
+    'Label setup: a custom size is saved only once usable — typing "38" no longer jumps back to 50 after the "3"');
+  const lim = CUSTOM_LIMITS;
+  const parsed = parseLabelSettings(JSON.stringify({ stockId: 'custom', custom: { widthMm: 38, heightMm: 25, across: 2, gapMm: 2 }, copies: 600 }));
+  assert(parsed.custom.widthMm === 38 && parsed.custom.across === 2 && parsed.copies === DEFAULT_LABEL_SETTINGS.copies && MAX_SETUP_COPIES === 500
+    && lim.widthMm[0] === 15 && lim.widthMm[1] === 120 && lim.heightMm[0] === 10 && lim.across[1] === 5 && lim.gapMm[1] === 10
+    && parseLabelSettings(JSON.stringify({ stockId: 'custom', custom: { widthMm: 3 } })).custom.widthMm === DEFAULT_LABEL_SETTINGS.custom.widthMm,
+    'Label settings: custom roll limits in one place (width 15–120, height 10–120, 1–5 across, gap 0–10); out of range falls back');
+  const queueSrc = readSource('components/labels/LabelQueuePanel.tsx');
+  assert(/const n = Math\.max\(1, Math\.min\(999, Math\.round\(Number\(allCopies\)\) \|\| 1\)\);/.test(queueSrc),
+    'Print list: "Copies for all" stays 1…999 like the − / + boxes (it took any number before)');
+  assert(/settings\.content\.price \? `PRICE:/.test(studioSrc) && /labels\.length === 1 \? tr\('Print 1 label'\)/.test(studioSrc),
+    'Barcode Studio: Bluetooth labels follow "On the label" for price / MRP; one label reads "Print 1 label"');
+  const html = buildLabelHtml([{ name: 'S', barcode: '2000000000015', pricePaise: 9900 }], stockFor(parseLabelSettings(JSON.stringify({ stockId: 'roll_38x25_2' }))), DEFAULT_LABEL_SETTINGS.content, { previewZoom: 1.5 });
+  assert((html.match(/class="label"/g) || []).length === 1 && /zoom: 1\.5/.test(html) && labelsPerPage(LABEL_STOCKS.find((s) => s.id === 'roll_38x25_2')!) === 2,
+    'Label preview HTML: one label drawn, magnified on screen only; a 2-across roll holds 2 labels per row');
+}
+
+// 9j(x). v4.85.0 (Rahul) — Admin Console controls the Desktop licence: an end date per key
+// (signed, enforced offline, clock cannot be turned back) and an online check-in that brings
+// renewals and stops a blocked / moved key. Signed-licence flows: scripts/electron_e2e.mjs §1b.
+{
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const lic = require('../licence.js');
+  const day = 24 * 60 * 60 * 1000;
+  const now = Date.parse('2026-10-01T06:30:00.000Z');
+  const p = { v: 1, key: 'KPD-AAAA-BBBB-CCCC-DDDD', shop_name: 'Sharma Kirana', issued_at: '2026-09-30T00:00:00.000Z' };
+  const life = lic.statusFor(p, now);
+  const soon = lic.statusFor({ ...p, valid_until: new Date(now + 6 * day + 3600000).toISOString() }, now);
+  const ended = lic.statusFor({ ...p, valid_until: new Date(now - 1000).toISOString() }, now);
+  assert(life.state === 'active' && life.validUntil === null && life.daysLeft === null && soon.state === 'active' && soon.daysLeft === 6
+    && ended.state === 'expired' && ended.key === 'KPD-AAAA-••••-••••-DDDD' && ended.validUntil,
+    'Licence: no end date = lifetime; days left counted; past the end date = ended (key shown masked)');
+  const tmp = fs.mkdtempSync(path.join(require('os').tmpdir(), 'kp-sim-lic-'));
+  const t1 = lic.licenceNow(tmp, p, now + 10 * day);
+  const t2 = lic.licenceNow(tmp, p, now);
+  const t3 = lic.licenceNow(fs.mkdtempSync(path.join(require('os').tmpdir(), 'kp-sim-lic-')), { ...p, issued_at: new Date(now + 3 * day).toISOString() }, now);
+  assert(t1 === now + 10 * day && t2 === now + 10 * day && t3 === now + 3 * day,
+    "Licence clock: never earlier than the latest time this PC has seen or the licence's server time (turning the clock back does not help)");
+
+  const licSrc = fs.readFileSync(path.join(__dirname, '..', 'licence.js'), 'utf8');
+  const mainSrc2 = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+  const preloadSrc = fs.readFileSync(path.join(__dirname, '..', 'preload.js'), 'utf8');
+  assert(/if \(body\.code === 'revoked' \|\| body\.code === 'moved'\)/.test(licSrc) && /if \(call\.offline\) return \{ ok: false, offline: true \};/.test(licSrc)
+    && /payload\.key !== current\.key/.test(licSrc) && licSrc.includes("callServer({ action: 'refresh', key: current.key"),
+    'Check-in: only "revoked" / "moved" stop the app; offline or any other answer changes nothing; a licence for another key is refused');
+  assert(/ipcMain\.handle\('kp:licence-refresh'/.test(mainSrc2) && /if \(app\.isPackaged && Date\.now\(\) - lastCheckIn >= LICENCE_CHECKIN_MS\)/.test(mainSrc2)
+    && /startLicenceWatch\(\);/.test(mainSrc2) && /webContents\.send\('kp:licence-changed', status\)/.test(mainSrc2)
+    && /refreshLicence: \(\) => ipcRenderer\.invoke\('kp:licence-refresh'\)/.test(preloadSrc) && /ipcRenderer\.on\('kp:licence-changed', listener\)/.test(preloadSrc),
+    'Check-in runs in the installed app only (every 6 h while online); every 30 min the licence is re-checked and the page told of a change');
+  const gateSrc2 = readSource('components/licence/LicenceGate.tsx');
+  assert(/return api\.onLicenceChanged\?\.\(setStatus\);/.test(gateSrc2) && /if \(status\.state === 'expired'\) return <LicenceEndedScreen/.test(gateSrc2)
+    && /status\.daysLeft <= 7/.test(gateSrc2) && /data-licence-check-again/.test(readSource('components/licence/LicenceEndedScreen.tsx')),
+    'Licence gate: an ended licence shows only the "licence has ended" screen with "Check again"; a week before the end a closable note shows');
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.

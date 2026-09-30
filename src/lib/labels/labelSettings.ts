@@ -99,6 +99,17 @@ export const DEFAULT_LABEL_SETTINGS: LabelSettings = {
   offsetMm: { x: 0, y: 0 },
 };
 
+/** Allowed custom roll values [min, max] — the setup boxes save only a value inside them. */
+export const CUSTOM_LIMITS: Record<keyof LabelSettings['custom'], [number, number]> = {
+  widthMm: [15, 120],
+  heightMm: [10, 120],
+  across: [1, 5],
+  gapMm: [0, 10],
+};
+
+/** Most copies per item the label setup offers. */
+export const MAX_SETUP_COPIES = 500;
+
 const clampNum = (v: unknown, min: number, max: number, fallback: number) => {
   const n = Number(v);
   return Number.isFinite(n) && n >= min && n <= max ? n : fallback;
@@ -120,15 +131,15 @@ export function parseLabelSettings(raw: string | null | undefined): LabelSetting
   return {
     stockId: stockOk ? s.stockId : d.stockId,
     custom: {
-      widthMm: clampNum(c.widthMm, 15, 120, d.custom.widthMm),
-      heightMm: clampNum(c.heightMm, 10, 120, d.custom.heightMm),
-      across: Math.round(clampNum(c.across, 1, 5, d.custom.across)),
-      gapMm: clampNum(c.gapMm, 0, 10, d.custom.gapMm),
+      widthMm: clampNum(c.widthMm, ...CUSTOM_LIMITS.widthMm, d.custom.widthMm),
+      heightMm: clampNum(c.heightMm, ...CUSTOM_LIMITS.heightMm, d.custom.heightMm),
+      across: Math.round(clampNum(c.across, ...CUSTOM_LIMITS.across, d.custom.across)),
+      gapMm: clampNum(c.gapMm, ...CUSTOM_LIMITS.gapMm, d.custom.gapMm),
     },
     printer: typeof s.printer === 'string' ? s.printer : d.printer,
     silent: typeof s.silent === 'boolean' ? s.silent : d.silent,
     content,
-    copies: Math.round(clampNum(s.copies, 1, 500, d.copies)),
+    copies: Math.round(clampNum(s.copies, 1, MAX_SETUP_COPIES, d.copies)),
     costCodeWord: typeof s.costCodeWord === 'string' ? s.costCodeWord.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 10) : d.costCodeWord,
     barHeightMm: +clampNum(s.barHeightMm, 3, 60, d.barHeightMm).toFixed(1),
     offsetMm: {

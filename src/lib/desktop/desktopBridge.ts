@@ -29,8 +29,14 @@ export interface DesktopResult {
 
 /** Offline licence check result from `licence.js` in the Electron main process. */
 export type LicenceStatus =
-  | { state: 'active'; key: string; shopName: string; machineName: string; dev?: boolean }
-  | { state: 'required'; machineName: string; reason?: string };
+  /** validUntil: the key's end date (ISO) or null = lifetime; daysLeft: whole days to go (v4.85.0). */
+  | { state: 'active'; key: string; shopName: string; machineName: string; dev?: boolean; validUntil?: string | null; daysLeft?: number | null }
+  | { state: 'required'; machineName: string; reason?: string }
+  /** The key's end date has passed (v4.85.0) — renewed in the Admin Console, then "Check again". */
+  | { state: 'expired'; key: string; shopName: string; machineName: string; validUntil: string };
+
+/** Online check-in result (licence.js refresh). */
+export type LicenceRefreshResult = { ok: boolean; offline?: boolean; stopped?: boolean; error?: string; status: LicenceStatus };
 
 export type LicenceActivationResult =
   | { ok: true; status: LicenceStatus }
@@ -85,6 +91,10 @@ export interface KamaiDesktopApi {
   getAppInfo(): Promise<{ version: string; documentsDir: string }>;
   getLicenceStatus(): Promise<LicenceStatus>;
   activateLicence(key: string): Promise<LicenceActivationResult>;
+  /** Check in with the licence server now (a renewed end date comes back). v4.85.0 — optional for older builds. */
+  refreshLicence?(): Promise<LicenceRefreshResult>;
+  /** The licence changed while the app is open (ended, blocked, renewed). */
+  onLicenceChanged?(callback: (status: LicenceStatus) => void): () => void;
   /** Master-password recovery: is this the key of the licence activated on this PC? */
   verifyLicenceKey(key: string): Promise<{ ok: boolean; error?: string }>;
   /** Google sign-in in the shop's browser (googleSignIn.js). `stub` only in the Electron E2E. */

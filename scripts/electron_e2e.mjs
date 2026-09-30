@@ -75,13 +75,87 @@ function readStore(page, store) {
   }), store);
 }
 
-function writeSignedLicence(dataDir) {
+/** A licence signed like the server does; `extra` adds / overrides payload fields (valid_until…). */
+function signedLicence(extra = {}) {
   const pem = fs.readFileSync(PRIVATE_KEY, 'utf8');
-  const payload = { v: 1, key: 'KPD-E2E0-TEST-0000-0001', machine_id: licence.getMachineId(), shop_name: 'E2E Test Shop', issued_at: new Date().toISOString() };
+  const payload = { v: 1, key: 'KPD-E2E0-TEST-0000-0001', machine_id: licence.getMachineId(), shop_name: 'E2E Test Shop', issued_at: new Date().toISOString(), ...extra };
   const bytes = Buffer.from(JSON.stringify(payload), 'utf8');
   const signature = crypto.sign(null, bytes, crypto.createPrivateKey(pem));
+  return { licence: bytes.toString('base64url'), signature: signature.toString('base64url') };
+}
+
+function writeSignedLicence(dataDir, extra = {}) {
   fs.mkdirSync(path.join(dataDir, 'userData'), { recursive: true });
-  fs.writeFileSync(path.join(dataDir, 'userData', 'licence.json'), JSON.stringify({ licence: bytes.toString('base64url'), signature: signature.toString('base64url') }));
+  fs.writeFileSync(path.join(dataDir, 'userData', 'licence.json'), JSON.stringify(signedLicence(extra)));
+}
+
+/**
+ * v4.85.0 — licence end date + online check-in, on licence.js itself (a stand-in server).
+ * Then one real launch with an ended licence: only the "licence has ended" screen shows.
+ */
+async function licenceValidityChecks() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kp-e2e-valid-'));
+  const userDataDir = path.join(dir, 'userData');
+  const day = 24 * 60 * 60 * 1000;
+  try {
+    writeSignedLicence(dir, { valid_until: new Date(Date.now() + 5 * day + 3600000).toISOString() });
+    const soon = licence.getStatus({ userDataDir, dev: false });
+    writeSignedLicence(dir, { valid_until: new Date(Date.now() - day).toISOString() });
+    const ended = licence.getStatus({ userDataDir, dev: false });
+    writeSignedLicence(dir);
+    const lifetime = licence.getStatus({ userDataDir, dev: false });
+    check(soon.state === 'active' && soon.daysLeft === 5 && ended.state === 'expired' && lifetime.state === 'active' && lifetime.validUntil === null,
+      `Licence end date: 5 days left → active (${soon.daysLeft}), a past end date → ended, no end date → lifetime`);
+
+    // Turning the PC clock back: the time already seen (and the licence's server time) wins.
+    const end = Date.now() + 2 * day;
+    writeSignedLicence(dir, { valid_until: new Date(end).toISOString() });
+    const later = licence.getStatus({ userDataDir, dev: false, nowMs: end + day });
+    const rolledBack = licence.getStatus({ userDataDir, dev: false, nowMs: Date.now() });
+    fs.rmSync(path.join(userDataDir, 'licence_clock.json'), { force: true });
+    writeSignedLicence(dir, { valid_until: new Date(Date.now() + day).toISOString(), issued_at: new Date(Date.now() + 3 * day).toISOString() });
+    const beforeIssue = licence.getStatus({ userDataDir, dev: false, nowMs: Date.now() });
+    check(later.state === 'expired' && rolledBack.state === 'expired' && beforeIssue.state === 'expired',
+      'Licence end date: turning the computer clock back does not bring an ended licence back');
+    fs.rmSync(path.join(userDataDir, 'licence_clock.json'), { force: true });
+
+    // Check-in: renewed end date saved; blocked / moved stops the app; offline changes nothing.
+    writeSignedLicence(dir, { valid_until: new Date(Date.now() - day).toISOString() });
+    const sent = [];
+    const answer = (status, body) => async (_url, init) => { sent.push(JSON.parse(init.body)); return { ok: status === 200, status, json: async () => body }; };
+    const renewedUntil = new Date(Date.now() + 365 * day).toISOString();
+    const renewed = await licence.refresh({ userDataDir, appVersion: '4.85.0', fetchImpl: answer(200, signedLicence({ valid_until: renewedUntil })) });
+    const afterRenew = licence.getStatus({ userDataDir, dev: false });
+    const offline = await licence.refresh({ userDataDir, appVersion: '4.85.0', fetchImpl: async () => { throw new Error('ENOTFOUND'); } });
+    const otherKey = await licence.refresh({ userDataDir, appVersion: '4.85.0', fetchImpl: answer(200, signedLicence({ key: 'KPD-OTHE-RKEY-0000-0002' })) });
+    const serverDown = await licence.refresh({ userDataDir, appVersion: '4.85.0', fetchImpl: answer(500, { error: 'Licence service error.' }) });
+    const stillOk = licence.getStatus({ userDataDir, dev: false });
+    check(renewed.ok && afterRenew.state === 'active' && afterRenew.validUntil === renewedUntil && sent[0].action === 'refresh' && sent[0].key === 'KPD-E2E0-TEST-0000-0001'
+      && sent[0].machine_id === licence.getMachineId() && offline.offline && !otherKey.ok && !serverDown.ok && stillOk.state === 'active',
+      'Check-in: a renewed end date comes back and the ended licence works again; no internet, a server error or a licence for another key change nothing');
+    const blocked = await licence.refresh({ userDataDir, appVersion: '4.85.0', fetchImpl: answer(403, { code: 'revoked', error: 'This licence key has been blocked. Please contact KamaiPlus support.' }) });
+    const afterBlock = licence.getStatus({ userDataDir, dev: false });
+    check(blocked.stopped && afterBlock.state === 'required' && /blocked/.test(afterBlock.reason || '') && fs.existsSync(path.join(userDataDir, 'licence.blocked.json')) && !fs.existsSync(path.join(userDataDir, 'licence.json')),
+      'Check-in: a key blocked in the Admin Console stops the app with the reason (the old licence is kept aside for support)');
+
+    // A real launch with an ended licence.
+    writeSignedLicence(dir, { valid_until: new Date(Date.now() - day).toISOString() });
+    fs.rmSync(path.join(userDataDir, 'licence.blocked.json'), { force: true });
+    const { app, page } = await launch(dir);
+    try {
+      const shown = await textVisible(page, 'Your KamaiPlus licence has ended');
+      await page.evaluate(() => { window.location.href = '/billing/'; });
+      await page.waitForTimeout(2500);
+      check(shown && (await textVisible(page, 'Your KamaiPlus licence has ended', 8000)) && !(await page.getByText('Complete Sale').count()) && (await page.locator('[data-licence-check-again]').count()) === 1,
+        'An ended licence opens only the "licence has ended" screen (with "Check again"), even on /billing');
+    } finally {
+      await app.close();
+    }
+  } catch (err) {
+    check(false, `Licence validity checks crashed: ${err.message}`);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 }
 
 async function shot(page, name) {
@@ -135,6 +209,9 @@ async function run() {
     return;
   }
 
+  // ── 1b. Licence end date + online check-in (v4.85.0) ──
+  await licenceValidityChecks();
+
   // ── 2. Licensed: password → onboarding → sell one item → stock goes down ──
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kp-e2e-shop-'));
   writeSignedLicence(dataDir);
@@ -150,13 +227,14 @@ async function run() {
       check(await textVisible(page, 'Set Master Password'), 'A signed licence for this computer is accepted (master password setup shown)');
       await page.getByPlaceholder('Enter new password').fill(PASSWORD);
       await page.getByPlaceholder('Re-enter password').fill(PASSWORD);
-      // v4.84.0 — first time: Google account (step 1) before the password (step 2).
+      // v4.84.0 — first time the Google account is offered with the password; optional since
+      // v4.85.0 (it can be connected later on Backup). The stand-in answers here.
       const setBtn = page.getByRole('button', { name: /Set Password & Start/i });
-      const blockedBeforeGoogle = await setBtn.isDisabled();
+      const openBeforeGoogle = await setBtn.isEnabled();
       await page.getByRole('button', { name: /Continue with Google/i }).click();
       const connected = await textVisible(page, 'e2e.owner@example.com', 10000);
-      check(blockedBeforeGoogle && connected && (await setBtn.isEnabled()),
-        `First run asks for the Google account before the password (button off before: ${blockedBeforeGoogle}, connected: ${connected})`);
+      check(openBeforeGoogle && connected,
+        `First run offers the Google account (optional — password works without it: ${openBeforeGoogle}; connected: ${connected})`);
       await setBtn.click();
 
       step = 'onboarding';
@@ -355,6 +433,17 @@ async function run() {
       await page.locator('[data-import-print-labels]').click();
       await page.waitForURL(/barcode-generator/, { timeout: 15000 });
       await page.locator('[data-label-preview]').waitFor({ timeout: 15000 });
+      // v4.85.0 — the preview must actually SHOW the labels (Rahul: "preview dikh nahi raha").
+      const previewFrame = page.frameLocator('[data-label-preview]');
+      await previewFrame.locator('.label').first().waitFor({ timeout: 10000 }).catch(() => {});
+      const previewLabels = await previewFrame.locator('.label').count();
+      const previewBars = await previewFrame.locator('.label .bars svg').count();
+      const previewBox = await previewFrame.locator('.label').first().boundingBox().catch(() => null);
+      const frameBox = await page.locator('[data-label-preview]').boundingBox();
+      const inView = frameBox && frameBox.y < 860 && frameBox.y + 40 > 0;
+      await shot(page, 'studio-preview');
+      check(previewLabels > 0 && previewBars > 0 && previewBox && previewBox.width > 60 && previewBox.height > 25 && inView,
+        `Barcode Studio preview shows the labels on screen (${previewLabels} labels, bars ${previewBars}, label ${JSON.stringify(previewBox)}, frame top ${frameBox?.y})`);
       await page.locator('[data-print-labels]').click();
       await page.locator('[data-print-notice]').waitFor({ timeout: 30000 });
       const [labelJob] = await app.evaluate(() => globalThis.__labelJobs);
@@ -386,6 +475,18 @@ async function run() {
       step = 'shortcuts';
       const tabsNow = () => page.evaluate(() => JSON.parse(localStorage.getItem('kamai_pos_tabs') || '[]'));
       await page.locator('main').first().click({ position: { x: 5, y: 5 } }).catch(() => {});
+      const activeBill = () => page.locator('[data-active-bill]').first().getAttribute('data-bill-tab').catch(() => '');
+      // v4.85.0 — F4 / F8 / F9 are a switch (Settings → Features), off for a new shop:
+      // F8 does nothing and the status bar shows no payment keys. Then switched on.
+      await page.keyboard.press('F8'); await page.waitForTimeout(150);
+      const keysOffByDefault = (await tabsNow()).every((t) => t.paymentMethod !== 'upi')
+        && (await page.locator('[data-status-shortcut="F8"]').count()) === 0 && (await page.locator('[data-status-shortcut="F2"]').count()) === 1;
+      await page.evaluate(() => {
+        localStorage.setItem('kamai_feature_switches', JSON.stringify({ ...JSON.parse(localStorage.getItem('kamai_feature_switches') || '{}'), payment_keys: true }));
+        window.dispatchEvent(new Event('feature_switches_changed'));
+      });
+      await page.waitForTimeout(300);
+      const keysHintOn = (await page.locator('[data-status-shortcut="F8"]').count()) === 1;
       const t0 = (await tabsNow()).length;
       await page.keyboard.press('F1');
       await page.waitForTimeout(300);
@@ -396,12 +497,18 @@ async function run() {
       const credit = (await tabsNow()).some((t) => t.paymentMethod === 'credit');
       await page.keyboard.press('F4'); await page.waitForTimeout(150);
       const cash = (await tabsNow()).every((t) => t.paymentMethod === 'cash');
-      await page.keyboard.press('F2');
+      // F2 = the next open bill (v4.85.0 — it was a second "search" key); '/' is search.
+      const billBefore = await activeBill();
+      await page.keyboard.press('F2'); await page.waitForTimeout(300);
+      const billAfter = await activeBill();
+      const f2Next = (await tabsNow()).length === t1.length && Boolean(billAfter) && billAfter !== billBefore;
+      await page.keyboard.press('/');
       const searchFocused = await posSearch.evaluate((el) => el === document.activeElement);
       await posSearch.fill('E2E');
       await page.keyboard.press('Escape');
       const cleared = (await posSearch.inputValue()) === '';
-      check(t1.length === t0 + 1 && upi && credit && cash && searchFocused && cleared, 'F1 new bill, F8 UPI, F9 Credit, F4 Cash, F2 search, Esc clears search all work');
+      check(keysOffByDefault && keysHintOn && t1.length === t0 + 1 && upi && credit && cash && f2Next && searchFocused && cleared,
+        `F4/F8/F9 off for a new shop (${keysOffByDefault}), switched on they show (${keysHintOn}) and F8 UPI, F9 Credit, F4 Cash work; F1 new bill, F2 next bill (${billBefore} → ${billAfter}), / search, Esc clears search`);
       await addByName('E2E Unlimited Item');      // this bill waits…
       await page.keyboard.press('F1');
       await page.waitForTimeout(300);

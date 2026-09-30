@@ -21,7 +21,8 @@ import { useFeatureSwitches } from '@/lib/features/featureSwitches';
 // advertise F1 Billing / F2 Products / F4 Register everywhere — none of which existed.
 const BILLING_SHORTCUTS: [string, string][] = [
   ['F1', msg('New bill')],
-  ['F2', msg('Search')],
+  ['F2', msg('Next bill')],
+  ['/', msg('Search')],
   ['F4', msg('Cash')],
   ['F8', 'UPI'],
   ['F9', msg('Credit')],
@@ -55,10 +56,12 @@ function billPrinterText(line: PrinterLine): { tone: Tone; label: string; title:
 }
 
 /** The keys that work on this page: the counter's own keys on Billing, then the app-wide ones. */
-function shortcutsFor(pathname: string, khataOn: boolean): { key: string; label: string; wide?: boolean }[] {
+function shortcutsFor(pathname: string, khataOn: boolean, paymentKeysOn: boolean): { key: string; label: string; wide?: boolean }[] {
   const global = globalShortcutHints(pathname).map(([key, label]) => ({ key, label }));
   // Khata switched off: F9 (Credit) does nothing on the counter, so it is not shown.
-  const counterKeys = BILLING_SHORTCUTS.filter(([key]) => khataOn || key !== 'F9');
+  // Payment keys (F4 / F8 / F9) switched off (the default since v4.85.0): none of them is shown.
+  const counterKeys = BILLING_SHORTCUTS.filter(([key]) => khataOn || key !== 'F9')
+    .filter(([key]) => paymentKeysOn || !['F4', 'F8', 'F9'].includes(key));
   if (pagePath(pathname) === '/billing') return [...counterKeys.map(([key, label]) => ({ key, label })), ...global.map((g) => ({ ...g, wide: true }))];
   return [...global, { key: MENU_SHORTCUT[0], label: MENU_SHORTCUT[1] }];
 }
@@ -175,7 +178,7 @@ export const DesktopStatusBar: React.FC = () => {
 
       {/* Center: the keyboard shortcuts that actually work on this screen */}
       <div className="hidden lg:flex items-center gap-3 text-slate-400 text-[10.5px]">
-        {shortcutsFor(pathname, switches.khata).map(({ key, label, wide }) => (
+        {shortcutsFor(pathname, switches.khata, switches.payment_keys).map(({ key, label, wide }) => (
           // On Billing the app-wide keys show only on wide screens (the counter keys come first).
           <div key={key} className={`${wide ? 'hidden 2xl:flex' : 'flex'} items-center gap-1`} data-status-shortcut={key}>
             <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-mono font-bold text-[9.5px]">{key}</kbd>

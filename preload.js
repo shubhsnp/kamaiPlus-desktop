@@ -15,6 +15,12 @@ contextBridge.exposeInMainWorld('kamaiDesktop', {
   getAppInfo: () => ipcRenderer.invoke('kp:app-info'),
   getLicenceStatus: () => ipcRenderer.invoke('kp:licence-status'),
   activateLicence: (key) => ipcRenderer.invoke('kp:licence-activate', key),
+  refreshLicence: () => ipcRenderer.invoke('kp:licence-refresh'),
+  onLicenceChanged: (callback) => {
+    const listener = (_event, status) => callback(status);
+    ipcRenderer.on('kp:licence-changed', listener);
+    return () => ipcRenderer.removeListener('kp:licence-changed', listener);
+  },
   verifyLicenceKey: (key) => ipcRenderer.invoke('kp:licence-verify-key', key),
   googleSignIn: (opts) => ipcRenderer.invoke('kp:google-signin', opts),
   logError: (entry) => ipcRenderer.invoke('kp:log-error', entry),
