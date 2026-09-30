@@ -102,9 +102,16 @@ async function commitBatchInChunks(firestore: any, table: CloudTable, items: Rec
 }
 
 /**
- * Pushes entire local Dexie database to Cloud Firestore for backup & multi-device sync
+ * Pushes entire local Dexie database to Cloud Firestore for backup & multi-device sync.
+ * `businessId` is the CLOUD id (`biz_<uid>`); `opts.localBusinessId` is this computer's own
+ * shop id when it differs (v4.85.0: the Google-linked shop keeps its local id).
+ * `opts.onTombstone: 'stop'` (the Step 3 sender) never wipes this computer when the cloud
+ * says the shop was deleted — it only stops and reports it.
  */
-export async function syncLocalDexieToFirestore(businessId: string): Promise<{ success: boolean; stats: Record<string, number> }> {
+export async function syncLocalDexieToFirestore(
+  businessId: string,
+  opts: { localBusinessId?: string; onTombstone?: 'purge' | 'stop' } = {}
+): Promise<{ success: boolean; stats: Record<string, number>; error?: string }> {
   const firestore = getFirestoreDb();
   if (!firestore) {
     throw new Error('Firestore is not configured. Please check Firebase credentials.');
@@ -122,6 +129,9 @@ export async function syncLocalDexieToFirestore(businessId: string): Promise<{ s
     ]);
     if (bizSnap) cloudShopExists = bizSnap.exists();
 
+    if (tombSnap?.exists() && opts.onTombstone === 'stop') {
+      return { success: false, stats, error: 'deleted_in_cloud' };
+    }
     if (tombSnap?.exists()) {
       console.warn(`🛑 Business ${businessId} was deleted in cloud. Aborting sync and wiping device.`);
       const { purgeLocalDeviceData } = await import('@/lib/auth');
@@ -136,7 +146,7 @@ export async function syncLocalDexieToFirestore(businessId: string): Promise<{ s
   }
 
   // 1. Shop profile. The Desktop never overwrites the Android vertical; a new cloud shop gets 'grocery'.
-  const biz = await db.businesses.get(businessId);
+  const biz = await db.businesses.get(opts.localBusinessId || businessId);
   if (biz) {
     const shopDoc = toCloud('businesses', biz, { bizId: businessId });
     if (!cloudShopExists) shopDoc.business_type = 'grocery';
@@ -150,6 +160,30 @@ export async function syncLocalDexieToFirestore(businessId: string): Promise<{ s
   }
 
   return { success: true, stats };
+}
+
+/**
+ * Step 3 outbox: writes these records of one table (through the contract) and deletes
+ * `deleteIds`, in batches of 450. The shop document itself is `businesses/{bizId}`.
+ */
+export async function writeRecordsToFirestore(
+  bizId: string,
+  table: CloudTable,
+  rows: Record<string, any>[],
+  deleteIds: string[]
+): Promise<void> {
+  const firestore = getFirestoreDb();
+  if (!firestore) throw new Error('Firestore is not configured.');
+  if (table === 'businesses') {
+    for (const row of rows) await setDoc(doc(firestore, 'businesses', bizId), sanitizeForFirestore(toCloud('businesses', row, { bizId })), { merge: true });
+    return;
+  }
+  await commitBatchInChunks(firestore, table, rows, bizId);
+  for (let i = 0; i < deleteIds.length; i += 450) {
+    const batch = writeBatch(firestore);
+    for (const id of deleteIds.slice(i, i + 450)) batch.delete(doc(firestore, `businesses/${bizId}/${table}/${id}`));
+    await batch.commit();
+  }
 }
 
 /**

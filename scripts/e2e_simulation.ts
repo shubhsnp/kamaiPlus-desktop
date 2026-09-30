@@ -104,6 +104,8 @@ import { customerListHtmlBody, customerSheetRows, sortCustomers } from '../src/l
 import { BACKUP_TABLES, checkBackupPayload } from '../src/lib/backup/cloudBackupService';
 import { CLOUD_TABLES, fromCloud, normalizeUnit, tableForCloudPath, toCloud } from '../src/lib/cloud/cloudContract';
 import { cloudBizId, parseCloudAccount } from '../src/lib/cloud/cloudAccount';
+import { clearOutbox, cloudOutboxMiddleware, emptyOutbox, noteChange, parseOutbox, peekOutbox, setOutboxRecording, withoutSent } from '../src/lib/cloud/cloudOutbox';
+import { splitOutbox } from '../src/lib/cloud/cloudPush';
 import { autoBackupDecision, MAX_WAIT_MS, QUIET_FOR_MS, REFRESH_EVERY_MS } from '../src/lib/backup/backupSchedule';
 import { backupChangeMiddleware, clearDataChanged, dataChangedSinceBackup } from '../src/lib/backup/backupChanges';
 import { breakupSales } from '../src/lib/tally/saleBreakup';
@@ -2365,6 +2367,63 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     && /signInWithCredential\(auth, GoogleAuthProvider\.credential\(res\.idToken\)\)/.test(acctSrc) && !/^import .*firebase/m.test(acctSrc)
     && /<CloudAccountCard \/>/.test(readSource('app/cloud-backup/page.tsx')),
     'Google account: Firebase sign-in with the Google ID token (Firebase loaded only when connecting, session in IndexedDB); a shop set up earlier connects on the Backup page');
+}
+
+// (u) Step 3 — Desktop → cloud, one way (v4.85.0). Off by default (a "beta" switch per computer until the
+// privacy policy covers the desktop app). An outbox middleware notes every changed record; the first send
+// for a Google account is everything, then only the outbox. A cloud tombstone never wipes this computer.
+{
+  const RES = (results: unknown[]) => ({ numFailures: 0, failures: {}, results });
+  const fakeTable = (name: string) => ({
+    name,
+    schema: { primaryKey: { keyPath: 'id' } },
+    get: () => undefined,
+    mutate: (req: any) => ({ then: (f: (r: unknown) => unknown) => f(RES(req.values ? req.values.map((v: any) => v.id) : [])) }),
+  });
+  const tables: Record<string, any> = { products: fakeTable('products'), sales: fakeTable('sales'), customers: fakeTable('customers'), foo: fakeTable('foo') };
+  const core = (cloudOutboxMiddleware.create as any)({ stack: 'dbcore', table: (n: string) => tables[n], tables: [] });
+
+  clearOutbox();
+  setOutboxRecording(false);
+  core.table('products').mutate({ type: 'put', values: [{ id: 'p0' }] });
+  const offNothing = JSON.stringify(peekOutbox()) === JSON.stringify(emptyOutbox());
+  setOutboxRecording(true);
+  core.table('products').mutate({ type: 'put', values: [{ id: 'p1' }, { id: 'p2' }] });
+  core.table('sales').mutate({ type: 'add', values: [{ id: 's9' }] });
+  core.table('products').mutate({ type: 'delete', keys: ['p2'] });
+  core.table('customers').mutate({ type: 'deleteRange', range: {} });
+  const box = peekOutbox();
+  setOutboxRecording(false);
+  clearOutbox();
+  assert(offNothing && box.items.products?.p1 === 'put' && box.items.products?.p2 === 'del' && box.items.sales?.s9 === 'put' && box.full.join() === 'customers'
+    && core.table('foo') === tables.foo,
+    'Cloud send: every write is noted (put / add / delete; a cleared table goes in full), a later write of the same record wins; nothing is noted while sending is off; other tables pass by');
+
+  const sentBox = noteChange(noteChange(emptyOutbox(), 'products', 'put', ['a', 'b']), 'products', 'del', ['c']);
+  const afterWrite = noteChange(sentBox, 'products', 'del', ['a']); // 'a' deleted while the send was running
+  const left = withoutSent(afterWrite, sentBox);
+  assert(JSON.stringify(left.items) === JSON.stringify({ products: { a: 'del' } }) && withoutSent(sentBox, sentBox).full.length === 0
+    && Object.keys(withoutSent(sentBox, sentBox).items).length === 0,
+    'Cloud send: what went out leaves the outbox; a record changed again during the send stays for the next round');
+  assert(JSON.stringify(parseOutbox('{"items":{"products":{"x":"put","y":"weird"},"nope":{"z":"put"}},"full":["sales","nope"]}'))
+    === JSON.stringify({ items: { products: { x: 'put' } }, full: ['sales'] }) && JSON.stringify(parseOutbox('garbage')) === JSON.stringify(emptyOutbox()),
+    'Cloud send: a stored outbox is read back safely — unknown tables / ops dropped, a broken one = empty');
+  const plan = splitOutbox({ items: { products: { a: 'put', b: 'del' }, sales: { s1: 'put' } }, full: ['sales'] });
+  assert(JSON.stringify(plan) === JSON.stringify({ full: ['sales'], tables: [{ table: 'products', putIds: ['a'], delIds: ['b'] }] }),
+    'Cloud send: per table, records to write and to delete; a table going in full is not sent twice');
+
+  const pushSrc = readSource('lib/cloud/cloudPush.ts');
+  assert(/return read\(CLOUD_SEND_KEY\) === '1';/.test(pushSrc) && /return Boolean\(a && !a\.stub\);/.test(pushSrc) && /await auth\.authStateReady\(\);/.test(pushSrc)
+    && /if \(auth\.currentUser\?\.uid !== account\.uid\) throw new Error\('signed_out'\);/.test(pushSrc) && /onTombstone: 'stop'/.test(pushSrc) && !/^import .*firebase/m.test(pushSrc),
+    'Cloud send: off unless switched on, never with the test stand-in, only as the linked Google account, Firebase loaded only when sending, a cloud tombstone stops it');
+  const syncSrc2 = readSource('lib/firebase/firestoreSync.ts');
+  assert(/if \(tombSnap\?\.exists\(\) && opts\.onTombstone === 'stop'\) \{\s*return \{ success: false, stats, error: 'deleted_in_cloud' \};/.test(syncSrc2)
+    && syncSrc2.indexOf("opts.onTombstone === 'stop'") < syncSrc2.indexOf('purgeLocalDeviceData'),
+    'Cloud send: a shop marked deleted in the cloud stops the send before anything on this computer could be wiped');
+  const dbSrc2 = readSource('lib/db/index.ts');
+  assert(/db\.use\(backupChangeMiddleware\);[\s\S]{0,300}?db\.use\(cloudOutboxMiddleware\);/.test(dbSrc2) && /<CloudSyncScheduler \/>/.test(readSource('components/layout/AppShell.tsx'))
+    && /\{account && !account\.stub && \(/.test(readSource('components/backup/CloudAccountCard.tsx')),
+    'Cloud send: the outbox is registered with the database (before it opens), the scheduler runs in the shell, the switch shows only for a real Google account');
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.
