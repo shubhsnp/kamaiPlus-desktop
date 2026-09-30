@@ -118,13 +118,13 @@ Order zaroori hai — pehle nayi site, phir purani cheezein band.
 Order zaroori hai: **pehle data surakshit → phir data ka ek format → phir login → phir sync.** Har step alag version + test + commit. Sync tab tak band (`CLOUD_SYNC_ENABLED = false`) jab tak Step 4 na aaye. Firestore rules Android repo mein hain — rule badle to wahin se deploy.
 
 - [x] **Step 0 — Local backup har ghante (K-D18).** ✅ v4.82.0. Firebase se alag, abhi ka khatra. `AutoBackupScheduler.tsx` / `lib/backup/autoBackup.ts`: din ki file har ghante (ya N bill ke baad) idle time par overwrite, 30 din wala niyam wahi. Size S (andaza 1 din).
-- [ ] **Step 1 — Cloud data contract (K-P15).** ⏳ Contract **v1.0 OK** (D1 haan, D2 na, D3 jodo — 2026-09-30). **Desktop hissa ✅ v4.83.0** (`lib/cloud/cloudContract.ts`, test §9j(s)). **Android hissa baaki** (C6–C10, C13, C15, C16 — contract §7). Code likhne se pehle kaagaz par:
+- [x] **Step 1 — Cloud data contract (K-P15).** Contract **v1.0 OK** (D1 haan, D2 na, D3 jodo — 2026-09-30). **Desktop ✅ v4.83.0** (`lib/cloud/cloudContract.ts`, test §9j(s)). **Android ✅** branch `feat/cloud-data-contract` (`lib/services/cloud_contract.dart` + `lib/core/utils/bill_math.dart`; C6–C10, C13, C15, C16, C17) — **local commits, push / Play Store build Rahul ke OK par**. Baaki: C1 poora (Step 2), C11 / C12 (Step 4). Jo kaagaz par tay hua tha:
   - Android `firestore_sync_service.dart` jo field likhta / padhta hai (products, categories, customers, sales, inward_orders, business doc) + Desktop `firestoreSync.ts` / Dexie tables ki list.
   - Ek table: cloud field → Desktop field → Android field. Paisa hamesha `*_paise` (integer), dukaan ID `biz_<uid>`, tareekh ka format, id ka format.
   - Jo sirf Desktop cloud mein bhejta hai (`suppliers`, `ledger_transactions`, `cash_expenses`) — Android khata ledger cloud mein nahi bhejta (sirf customer balance); tay karo dono kya karenge.
   - Same file dono repo mein: `docs/CLOUD_DATA_CONTRACT.md`. Rahul OK kare.
   - Desktop mein `toCloud` / `fromCloud` mapping + Suite 9 test (₹100 bill → `subtotal_paise = 10000`; Android wala doc padh kar sahi rakam). Size M (andaza 2–3 din).
-- [ ] **Step 2 — Desktop par Google login (Firebase Auth).** Faisla pehle: sirf Google (Android jaisa) ya OTP bhi.
+- [ ] **Step 2 — Desktop par Google login (Firebase Auth).** Faisla pehle: sirf Google (Android jaisa) ya OTP bhi. ⏸️ **Rahul se chahiye (2026-09-30):** (1) sirf Google — haan / na; (2) Google Cloud Console (project `kamaiplus`) → APIs & Services → Credentials → Create OAuth client ID → type **Desktop app** → Client ID + secret; (3) OAuth consent screen "In production" hai ya "Testing" (Testing mein sirf test users login kar sakte).
   - Google Cloud Console → Credentials → "Desktop app" OAuth client (project `kamaiplus`).
   - Electron: system browser mein Google login, `127.0.0.1` loopback par jawab, phir `signInWithCredential` (app ke andar wali window mein Google login block karta hai). Desktop mein aaj koi OAuth code nahi.
   - Onboarding: dukaan ID `biz_<uid>` (aaj `biz_<8 akshar>_<time>`, `app/onboarding/page.tsx:101`; Dexie mein `business_id` har record par — test installs ka data migrate ya reset).
@@ -138,7 +138,7 @@ Order zaroori hai: **pehle data surakshit → phir data ka ek format → phir lo
 
 ## 4. Kamiyan (count)
 
-**Total: 52** — Platform 15 · Android 13 · Desktop 24. **Open 46 · Done 6.**
+**Total: 54** — Platform 15 · Android 15 · Desktop 24. **Open 46 · Done 8.**
 🔴 = paisa / data / security / Play Store risk · 🟠 = galat ya adhoora behaviour · 🟢 = chhota / feature gap
 
 ### Platform / website (K-P)
@@ -176,7 +176,9 @@ Order zaroori hai: **pehle data surakshit → phir data ka ek format → phir lo
 | K-A09 | English mein type karke Hindi naam wala item nahi milta | 🟢 | Open |
 | K-A10 | `showQuotationEstimate` flag bana, estimate / quotation feature nahi | 🟢 | Open |
 | K-A11 | `DESKTOP_FIXES_ANDROID_CHECK.md` ka audit (double-tap = do bill, cash leak, short cash udhar, split excess, GSTR-1 JSON …) abhi tak hua hi nahi | 🔴 | Open |
-| K-A13 | Bill-discount GST kam nahi karta — `processPosBill` GST chhoot se pehle ki rakam par lagata, `total = grand − discount` (GST report mein zyada tax); `subtotal` mein inclusive / exclusive lines mili. Desktop ne ye `saleMath.allocateBillDiscount` se theek kiya tha (contract C16) | 🔴 | Open |
+| K-A13 | Bill-discount GST kam nahi karta — `processPosBill` GST chhoot se pehle ki rakam par lagata, `total = grand − discount` (GST report mein zyada tax); `subtotal` mein inclusive / exclusive lines mili. Desktop ne ye `saleMath.allocateBillDiscount` se theek kiya tha (contract C16) | 🔴 | ✅ Done (branch `feat/cloud-data-contract`, abhi Play Store build mein nahi) — `BillMath`, `test/bill_math_test.dart` |
+| K-A14 | Checkout / cart / payment modal ka total GST-exclusive item ka GST nahi jodta (saved bill jodta — cash chips, UPI QR, split kam rakam maangte); GST "5% andaza" (`grandTotal × 0.05`) dikhta; invoice PDF `is_tax_inclusive != false` se `0` ko inclusive maanta (exclusive line ka GST galat chhapta); GST export bill-discount se pehle ki rakam par GST (contract C17) | 🔴 | ✅ Done (branch `feat/cloud-data-contract`, abhi Play Store build mein nahi) — sab screens `cartBillTotals` se |
+| K-A15 | Poora `flutter test` ek saath chalane par DB wale tests (advanced_sales_report, customer_edit_crud, inventory_inward_service, referral) 30 s timeout — akele (`--concurrency=1`) sab pass. Test timeout / DB setup sudharna hai | 🟢 | Open |
 | K-A12 | Account delete karne ka koi tarika nahi (app mein bhi nahi, web par bhi nahi). Google Sign-In se account banta hai, to Play policy dono maangti hai (Data safety → "Delete account URL") | 🔴 | Open |
 
 ### Desktop (K-D)
@@ -229,3 +231,4 @@ Order zaroori hai: **pehle data surakshit → phir data ka ek format → phir lo
 | 2026-09-30 | **Desktop v4.82.0 — Step 0 / K-D18: backup har ghante.** Din ki file data badalne par har ghante nayi (counter 30 s khaali ho; rush mein bhi max 2 ghante). "Data badla" = Dexie DBCore middleware (har write). Test §9j(r), suite 621/621; asli Dexie (fake-indexeddb, scratchpad) 9/9; Electron E2E 70/71 phir 71/71 (drawer check flaky → K-D24). Installer publish **nahi** kiya. | Desktop |
 | 2026-09-30 | Step 1 shuru: Android `firestore_sync_service.dart` + `models.dart` aur Desktop `firestoreSync.ts` + types field-by-field padhe. **Contract draft v0.1** (`docs/CLOUD_DATA_CONTRACT.md`): niyam R1–R10, 15 galtiyan C1–C15 (Desktop 6, Android 8, dono 1) — sab K-P15 ke andar. Naye: Android ke products Desktop par ₹0 / stock 0; Android customer save Desktop ka opening balance 0 kar deta; Android `updated_at` server Timestamp; Android bill push mein split / GSTIN nahi; Android categories cloud mein nahi. Faisle D1–D3 Rahul se. | `docs/CLOUD_DATA_CONTRACT.md` |
 | 2026-09-30 | Rahul ke faisle: **D1** Desktop sab bheje, **D2** Android ke asli users nahi → seedha naya format, **D3** "jo theek lage" → `bottle` / `can` / `bag` Desktop mein. Contract **v1.0**. **Desktop v4.83.0:** `lib/cloud/cloudContract.ts` + `cloudFormat.ts` (14 tables, `toCloud` / `fromCloud`), `firestoreSync.ts` table-driven (515 → ~270 lines), `cloudMerge` + onboarding bhi contract se (onboarding ka `subscription_tier: 'free'` hata). Chhoot ka matlab tay (bill vs line, GST-sahi) — Android ki GST galti mili: **K-A13**. Test §9j(s), suite 643/643. Sync abhi bhi band. `next build` ✔; Electron E2E 70/71 (drawer) → test ko intezaar wala banaya (K-D24) → 71/71. | Desktop |
+| 2026-09-30 | **Step 1 Android hissa** — branch `feat/cloud-data-contract` (local, push nahi): `2b1598c` sync boundary (`cloud_contract.dart`; C6–C10, C13, C15; card / bank bill = digital) + `91d286d` `BillMath` (C16 + C17 — naya mila **K-A14**: checkout total exclusive GST chhodta, GST 5% andaza, PDF `0` ko inclusive maanta). Desktop ke asli `toCloud()` output se test; Android `BillMath` Desktop ke test bill par paise-paise same (17159 / 1942 / 19101). Suite 359/359 serial; parallel mein DB tests timeout → **K-A15**. Contract dono repo mein ek jaisa. **Step 1 poora.** Step 2 ke liye Rahul se OAuth client chahiye (§3b). | Android + docs |

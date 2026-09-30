@@ -101,7 +101,7 @@ Kolum: **Cloud** · **Type** · **Desktop** (Dexie) · **Android** (model / aaj 
 | `opening_balance_paise` | int | `opening_balance` | — | ⚠ C9 |
 | `credit_limit_paise` | int | — (K-D03; saath rakhta) | `creditLimitPaise` | |
 | `is_vip` | bool | `customer_type === 'vip'` | `isVip` | |
-| `customer_type` | string | same | same (purana) | |
+| `customer_type` | string | same | — (Android sirf `is_vip` bhejta; iska banaya type Desktop ke `new` / `inactive` mita deta) | |
 | `birthday` | `MM-DD` | `date_of_birth` se (saal Desktop apne paas + `date_of_birth` bhi bhejta) | `birthday` | |
 | Desktop-only: `date_of_birth`, `anniversary_date`, `email`, `loyalty_points`, `total_spent_paise`, `total_visits`, `last_visit_date`, `notes` | | same (`total_spent`) | — | |
 | `created_at`, `updated_at` | ISO | same | ⚠ C6 | |
@@ -184,17 +184,18 @@ mein v4.83.0 se.) Desktop padhte waqt `pcs` / `pc` / `nos` → `piece`, `pkt` �
 | C3 | Stock `current_stock` naam se (Android par 0) | Desktop | ✅ v4.83.0 |
 | C4 | Dukaan ki row / onboarding mein plan fields (rules poora save rokte) | Desktop | ✅ v4.83.0 |
 | C5 | Cloud doc seedha Dexie row maan kar save | Desktop | ✅ v4.83.0 (`fromCloud`) |
-| C6 | `updated_at` = server Timestamp | Android | Android baaki (Desktop padh leta hai) |
-| C7 | `created_at` bina timezone | Android | Android baaki (Desktop local time maanta hai) |
-| C8 | Bill push mein `customer_gstin`, `place_of_supply`, split nahi | Android | Android baaki |
-| C9 | Customer push mein hamesha `opening_balance: 0` | Android | Desktop par asar nahi (R2) ✅; Android band kare |
-| C10 | `is_loose_item` padhte waqt chhoot jaata | Android | Android baaki |
+| C6 | `updated_at` = server Timestamp | Android | ✅ Android branch `feat/cloud-data-contract` (2026-09-30) |
+| C7 | `created_at` bina timezone | Android | ✅ Android branch `feat/cloud-data-contract` (2026-09-30) |
+| C8 | Bill push mein `customer_gstin`, `place_of_supply`, split nahi | Android | ✅ Android branch `feat/cloud-data-contract` (2026-09-30) |
+| C9 | Customer push mein hamesha `opening_balance: 0` | Android | ✅ Android branch `feat/cloud-data-contract` (2026-09-30) (`customer_type` bhi nahi) |
+| C10 | `is_loose_item` padhte waqt chhoot jaata | Android | ✅ Android branch `feat/cloud-data-contract` (2026-09-30) |
 | C11 | Bill par stock `increment` **aur** product save par poora overwrite | Android | Step 4 |
 | C12 | ID `sale_<ms>` / `ledg_<ms>` / `mov_<ms>` | Desktop | Step 4 |
-| C13 | Dukaan ke doc mein `city` = pincode | Android | Android baaki |
+| C13 | Dukaan ke doc mein `city` = pincode | Android | ✅ Android branch `feat/cloud-data-contract` (2026-09-30) |
 | C14 | Chhoot ka matlab alag | Dono | ✅ tay (§3.5, §3.6); Desktop lagu |
-| C15 | Categories cloud mein nahi | Android | Android baaki |
-| C16 | **Android ka bill-discount GST kam nahi karta** (GST chhoot se pehle ki rakam par — GST report mein zyada tax); `subtotal` mein inclusive (GST andar) aur exclusive (GST bahar) lines mili | Android | Android baaki — Desktop jaisa `allocateBillDiscount` (K-A13) |
+| C15 | Categories cloud mein nahi | Android | ✅ Android branch `feat/cloud-data-contract` (2026-09-30) |
+| C17 | **Android checkout / cart / payment screen ka total GST-exclusive item ka GST nahi jodta**, aur GST "5% andaza" dikhata — jabki save hua bill GST jodta (cash chips, UPI QR, split sab kam rakam maangte) | Android | ✅ Android branch `feat/cloud-data-contract` — `BillMath` / `cartBillTotals` (K-A14) |
+| C16 | **Android ka bill-discount GST kam nahi karta** (GST chhoot se pehle ki rakam par — GST report mein zyada tax); `subtotal` mein inclusive (GST andar) aur exclusive (GST bahar) lines mili | Android | ✅ Android branch `feat/cloud-data-contract` — `lib/core/utils/bill_math.dart`, Desktop ke test bill par paise-paise same (K-A13) |
 
 ---
 
@@ -211,7 +212,7 @@ mein v4.83.0 se.) Desktop padhte waqt `pcs` / `pc` / `nos` → `piece`, `pkt` �
 1. ✅ **Desktop (v4.83.0):** `toCloud()` / `fromCloud()` har table ke liye; `firestoreSync.ts`, `cloudMerge`, onboarding
    inhi se likhte / padhte. Test: ₹100 bill = 10000 paise; phone ke asli format ka product / customer / bill Desktop par
    sahi; har table round-trip exact; plan fields kabhi nahi.
-2. **Android (alag branch, apna test):** C6, C7, C8, C9, C10, C13, C15, C16; §3.5 / §3.6 ke naye field; §4 ke shabd.
+2. **Android:** ✅ C6–C10, C13, C15, §3.5 / §3.6 ke field, §4 ke shabd — `lib/services/cloud_contract.dart`, `test/cloud_contract_test.dart` (branch `feat/cloud-data-contract`). ✅ C16 + C17 (`BillMath`, `test/bill_math_test.dart`).
 3. Step 2: Desktop Google login → local dukaan ID `biz_<uid>` (C1 poora).
 4. Step 4: C11, C12 (stock takraav, har counter ki bill series, uuid ID).
 5. Koi field badle to **ye file dono repo mein ek saath** badle.
