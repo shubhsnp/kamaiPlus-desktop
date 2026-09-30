@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth, initializeAuth, indexedDBLocalPersistence, Auth } from 'firebase/auth';
-import { initializeFirestore, getFirestore, Firestore, setLogLevel } from 'firebase/firestore';
+import { getAuth, initializeAuth, indexedDBLocalPersistence, Auth, connectAuthEmulator } from 'firebase/auth';
+import { initializeFirestore, getFirestore, Firestore, setLogLevel, connectFirestoreEmulator } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 import { getRemoteConfig, RemoteConfig } from 'firebase/remote-config';
 
@@ -19,6 +19,10 @@ const firebaseConfig = {
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '',
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '',
 };
+
+// Local Firebase emulators (tests only — the cloud sync integration test sets these; a build never does).
+const FIRESTORE_EMULATOR = process.env.NEXT_PUBLIC_FIRESTORE_EMULATOR || '';
+const AUTH_EMULATOR = process.env.NEXT_PUBLIC_AUTH_EMULATOR || '';
 
 let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
@@ -54,6 +58,7 @@ export function getFirebaseAuth(): Auth | null {
     } catch {
       auth = getAuth(firebaseApp);
     }
+    if (AUTH_EMULATOR) connectAuthEmulator(auth, AUTH_EMULATOR, { disableWarnings: true });
   }
   return auth;
 }
@@ -68,6 +73,10 @@ export function getFirestoreDb(): Firestore | null {
       });
     } catch {
       db = getFirestore(firebaseApp);
+    }
+    if (FIRESTORE_EMULATOR) {
+      const [host, port] = FIRESTORE_EMULATOR.split(':');
+      connectFirestoreEmulator(db, host, Number(port));
     }
   }
   return db;

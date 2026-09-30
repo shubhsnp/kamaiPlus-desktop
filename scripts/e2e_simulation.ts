@@ -73,7 +73,7 @@ import { buildBillCustomer, cleanCustomerNameInput, cleanMobileInput, isDraftEmp
 import { DEFAULT_FEATURE_SWITCHES, FEATURES, featureForPath, isPathEnabled, parseFeatureSwitches, showSellingPriceField } from '../src/lib/features/featureSwitches';
 import { matchesProductDetails } from '../src/lib/products/detailSearch';
 import { buildImportRows, buildItemName, findHeaderRow, guessColumnRoles, mapUnit, parseAmount, planImport } from '../src/lib/import/catalogImport';
-import { ean13CheckDigit, isValidEan13, nextStoreBarcodes } from '../src/lib/barcode/storeBarcodes';
+import { DESKTOP_STORE_CODE_RANGES, ean13CheckDigit, isValidEan13, nextStoreBarcodes } from '../src/lib/barcode/storeBarcodes';
 import type { CartItem, Product } from '../src/types';
 import { barcodeSymbol } from '../src/lib/barcode/barcodeGenerator';
 import { CUSTOM_LIMITS, DEFAULT_LABEL_SETTINGS, LABEL_STOCKS, labelPageMm, labelsPerPage, MAX_SETUP_COPIES, parseLabelSettings, stockFor } from '../src/lib/labels/labelSettings';
@@ -104,7 +104,9 @@ import { customerListHtmlBody, customerSheetRows, sortCustomers } from '../src/l
 import { BACKUP_TABLES, checkBackupPayload } from '../src/lib/backup/cloudBackupService';
 import { CLOUD_TABLES, fromCloud, normalizeUnit, tableForCloudPath, toCloud } from '../src/lib/cloud/cloudContract';
 import { cloudBizId, parseCloudAccount } from '../src/lib/cloud/cloudAccount';
-import { clearOutbox, cloudOutboxMiddleware, emptyOutbox, noteChange, parseOutbox, peekOutbox, setOutboxRecording, withoutSent } from '../src/lib/cloud/cloudOutbox';
+import { clearOutbox, cloudOutboxMiddleware, emptyOutbox, markFromCloud, noteChange, noteDelta, parseOutbox, peekOutbox, setOutboxRecording, withoutSent } from '../src/lib/cloud/cloudOutbox';
+import { mergedRow } from '../src/lib/cloud/cloudPull';
+import { newId } from '../src/lib/ids';
 import { splitOutbox } from '../src/lib/cloud/cloudPush';
 import { autoBackupDecision, MAX_WAIT_MS, QUIET_FOR_MS, REFRESH_EVERY_MS } from '../src/lib/backup/backupSchedule';
 import { backupChangeMiddleware, clearDataChanged, dataChangedSinceBackup } from '../src/lib/backup/backupChanges';
@@ -2476,61 +2478,120 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     'Licence gate: an ended licence shows only the "licence has ended" screen with "Check again"; a week before the end a closable note shows');
 }
 
-// (u) Step 3 — Desktop → cloud, one way (v4.85.0). Off by default (a "beta" switch per computer until the
-// privacy policy covers the desktop app). An outbox middleware notes every changed record; the first send
-// for a Google account is everything, then only the outbox. A cloud tombstone never wipes this computer.
+// (u) Step 3 + 4 — cloud sync both ways (v4.85.0 one way, v4.86.0 both ways). Off by default (a "beta"
+// switch per computer). An outbox middleware notes every changed record — and for stock / udhar the CHANGE,
+// sent as a Firestore increment exactly once; the phone's changes merge in echo-free. The full flow runs on
+// the real Firestore + Auth emulators with the shop's rules: `npm run test:cloud` (scripts/cloud_sync_emulator.ts).
 {
   const RES = (results: unknown[]) => ({ numFailures: 0, failures: {}, results });
+  const rows: Record<string, Record<string, any>> = {};
   const fakeTable = (name: string) => ({
     name,
     schema: { primaryKey: { keyPath: 'id' } },
-    get: () => undefined,
-    mutate: (req: any) => ({ then: (f: (r: unknown) => unknown) => f(RES(req.values ? req.values.map((v: any) => v.id) : [])) }),
+    getMany: (req: any) => Promise.resolve(req.keys.map((k: string) => rows[`${name}/${k}`])),
+    mutate: (req: any) => {
+      for (const v of req.values || []) rows[`${name}/${v.id}`] = v;
+      return Promise.resolve(RES(req.values ? req.values.map((v: any) => v.id) : []));
+    },
   });
   const tables: Record<string, any> = { products: fakeTable('products'), sales: fakeTable('sales'), customers: fakeTable('customers'), foo: fakeTable('foo') };
   const core = (cloudOutboxMiddleware.create as any)({ stack: 'dbcore', table: (n: string) => tables[n], tables: [] });
 
-  clearOutbox();
-  setOutboxRecording(false);
-  core.table('products').mutate({ type: 'put', values: [{ id: 'p0' }] });
-  const offNothing = JSON.stringify(peekOutbox()) === JSON.stringify(emptyOutbox());
-  setOutboxRecording(true);
-  core.table('products').mutate({ type: 'put', values: [{ id: 'p1' }, { id: 'p2' }] });
-  core.table('sales').mutate({ type: 'add', values: [{ id: 's9' }] });
-  core.table('products').mutate({ type: 'delete', keys: ['p2'] });
-  core.table('customers').mutate({ type: 'deleteRange', range: {} });
-  const box = peekOutbox();
-  setOutboxRecording(false);
-  clearOutbox();
-  assert(offNothing && box.items.products?.p1 === 'put' && box.items.products?.p2 === 'del' && box.items.sales?.s9 === 'put' && box.full.join() === 'customers'
-    && core.table('foo') === tables.foo,
-    'Cloud send: every write is noted (put / add / delete; a cleared table goes in full), a later write of the same record wins; nothing is noted while sending is off; other tables pass by');
+  pendingAsyncChecks.push((async () => {
+    clearOutbox();
+    setOutboxRecording(false);
+    await core.table('products').mutate({ type: 'put', values: [{ id: 'p0', current_stock: 3 }] });
+    const offNothing = JSON.stringify(peekOutbox()) === JSON.stringify(emptyOutbox());
+    setOutboxRecording(true);
+    rows['products/p1'] = { id: 'p1', current_stock: 10 };
+    await core.table('products').mutate({ type: 'put', values: [{ id: 'p1', current_stock: 8 }, { id: 'p2', current_stock: 5 }] });
+    await core.table('products').mutate({ type: 'put', values: [{ id: 'p1', current_stock: 7.5 }] });
+    await core.table('sales').mutate({ type: 'add', values: [{ id: 's9' }] });
+    await core.table('products').mutate({ type: 'delete', keys: ['p2'] });
+    await core.table('customers').mutate({ type: 'deleteRange', range: {} });
+    rows['customers/c1'] = { id: 'c1', current_balance: 0 };
+    await core.table('customers').mutate({ type: 'put', values: [{ id: 'c1', current_balance: 50000 }] });
+    // A write the CLOUD sent (cloudPull, marked transaction) is not noted — no echo.
+    const fromCloudTrans = {};
+    markFromCloud(fromCloudTrans);
+    await core.table('products').mutate({ type: 'put', trans: fromCloudTrans, values: [{ id: 'p9', current_stock: 99 }] });
+    const box = peekOutbox();
+    setOutboxRecording(false);
+    clearOutbox();
+    assert(offNothing && box.items.products?.p1 === 'put' && box.items.products?.p2 === 'del' && box.items.sales?.s9 === 'put' && box.full.join() === 'customers'
+      && !box.items.products?.p9 && core.table('foo') === tables.foo,
+      'Cloud sync: every write is noted (put / add / delete; a cleared table goes in full); nothing while off; a row the cloud sent is not noted (no echo); other tables pass by');
+    assert(box.deltas.products?.p1 === -2.5 && box.deltas.products?.p2 === 5 && box.deltas.customers?.c1 === 50000 && !box.deltas.products?.p9,
+      'Cloud sync: stock / udhar are noted as CHANGES read against the row before the write (10 → 8 → 7.5 = −2.5; a new item +5; udhar +₹500), never as values');
+  })());
 
   const sentBox = noteChange(noteChange(emptyOutbox(), 'products', 'put', ['a', 'b']), 'products', 'del', ['c']);
   const afterWrite = noteChange(sentBox, 'products', 'del', ['a']); // 'a' deleted while the send was running
   const left = withoutSent(afterWrite, sentBox);
   assert(JSON.stringify(left.items) === JSON.stringify({ products: { a: 'del' } }) && withoutSent(sentBox, sentBox).full.length === 0
     && Object.keys(withoutSent(sentBox, sentBox).items).length === 0,
-    'Cloud send: what went out leaves the outbox; a record changed again during the send stays for the next round');
-  assert(JSON.stringify(parseOutbox('{"items":{"products":{"x":"put","y":"weird"},"nope":{"z":"put"}},"full":["sales","nope"]}'))
-    === JSON.stringify({ items: { products: { x: 'put' } }, full: ['sales'] }) && JSON.stringify(parseOutbox('garbage')) === JSON.stringify(emptyOutbox()),
-    'Cloud send: a stored outbox is read back safely — unknown tables / ops dropped, a broken one = empty');
-  const plan = splitOutbox({ items: { products: { a: 'put', b: 'del' }, sales: { s1: 'put' } }, full: ['sales'] });
-  assert(JSON.stringify(plan) === JSON.stringify({ full: ['sales'], tables: [{ table: 'products', putIds: ['a'], delIds: ['b'] }] }),
-    'Cloud send: per table, records to write and to delete; a table going in full is not sent twice');
+    'Cloud sync: what went out leaves the outbox; a record changed again during the send stays for the next round');
+  const d1 = noteDelta(noteDelta(emptyOutbox(), 'products', 'x', -2), 'products', 'x', -1);
+  const d2 = withoutSent(noteDelta(d1, 'products', 'x', -4), d1); // −4 more while −3 was going out
+  assert(d1.deltas.products?.x === -3 && d2.deltas.products?.x === -4 && noteDelta(d1, 'products', 'x', 3).deltas.products?.x === undefined
+    && noteDelta(emptyOutbox(), 'products', 'y', 0.1 + 0.2).deltas.products?.y === 0.3,
+    'Cloud sync: stock changes add up until sent; what went out is taken off, a later change stays; back to 0 = nothing to send; no float noise');
+  assert(JSON.stringify(parseOutbox('{"items":{"products":{"x":"put","y":"weird"},"nope":{"z":"put"}},"full":["sales","nope"],"deltas":{"products":{"x":-2,"y":"bad"},"sales":{"s":1}}}'))
+    === JSON.stringify({ items: { products: { x: 'put' } }, full: ['sales'], deltas: { products: { x: -2 } } }) && JSON.stringify(parseOutbox('garbage')) === JSON.stringify(emptyOutbox()),
+    'Cloud sync: a stored outbox is read back safely — unknown tables / ops / non-numbers dropped, a broken one = empty');
+  const plan = splitOutbox({ items: { products: { a: 'put', b: 'del' }, sales: { s1: 'put' }, businesses: { biz: 'put' } }, full: ['sales'], deltas: {} });
+  assert(JSON.stringify(plan) === JSON.stringify({ full: ['sales'], tables: [{ table: 'businesses', putIds: ['biz'], delIds: [] }, { table: 'products', putIds: ['a'], delIds: ['b'] }] }),
+    'Cloud sync: per table, records to write and to delete; the shop document first; a table going in full is not sent twice');
+
+  // Merge rules (pure): stock = cloud + this computer's unsent change; newer-wins for the rest; our shop id.
+  const ctx = { bizId: 'biz_u1', localBizId: 'biz_local' };
+  const local = { id: 'p1', business_id: 'biz_local', name: 'Rocket', selling_price: 2500, current_stock: 8, updated_at: '2026-10-01T10:00:00.000Z' };
+  const olderCloud = { id: 'p1', name: 'Rocket (old)', selling_price_paise: 2000, stock_quantity: 7, updated_at: '2026-10-01T09:00:00.000Z' };
+  const m1 = mergedRow('products', olderCloud, local, ctx, true, -2);
+  const m2 = mergedRow('products', { ...olderCloud, name: 'Rocket 10', updated_at: '2026-10-01T11:00:00.000Z' }, local, ctx, true, 0);
+  const fresh = mergedRow('products', { id: 'p2', name: 'Maggi', selling_price_paise: 1400, stock_quantity: 24, updated_at: '2026-10-01T11:00:00.000Z' }, undefined, ctx, true);
+  const noStock = mergedRow('products', { id: 'p1', name: 'Rocket 10', updated_at: '2026-10-01T11:00:00.000Z' }, local, ctx, true);
+  assert(m1?.name === 'Rocket' && m1?.current_stock === 5 && m2?.name === 'Rocket 10' && m2?.current_stock === 7 && m2?.selling_price === 2000
+    && fresh?.business_id === 'biz_local' && fresh?.current_stock === 24 && noStock?.current_stock === 8
+    && mergedRow('products', { ...olderCloud, stock_quantity: 8 }, local, ctx, true, 0) === null,
+    "Cloud → here: stock = the cloud's value + this computer's unsent change (7 − 2 = 5) even when the rest is older; a newer edit wins; a new item gets THIS computer's shop id; an unchanged row is not rewritten");
 
   const pushSrc = readSource('lib/cloud/cloudPush.ts');
   assert(/return read\(CLOUD_SEND_KEY\) === '1';/.test(pushSrc) && /return Boolean\(a && !a\.stub\);/.test(pushSrc) && /await auth\.authStateReady\(\);/.test(pushSrc)
-    && /if \(auth\.currentUser\?\.uid !== account\.uid\) throw new Error\('signed_out'\);/.test(pushSrc) && /onTombstone: 'stop'/.test(pushSrc) && !/^import .*firebase/m.test(pushSrc),
-    'Cloud send: off unless switched on, never with the test stand-in, only as the linked Google account, Firebase loaded only when sending, a cloud tombstone stops it');
-  const syncSrc2 = readSource('lib/firebase/firestoreSync.ts');
-  assert(/if \(tombSnap\?\.exists\(\) && opts\.onTombstone === 'stop'\) \{\s*return \{ success: false, stats, error: 'deleted_in_cloud' \};/.test(syncSrc2)
-    && syncSrc2.indexOf("opts.onTombstone === 'stop'") < syncSrc2.indexOf('purgeLocalDeviceData'),
-    'Cloud send: a shop marked deleted in the cloud stops the send before anything on this computer could be wiped');
+    && /if \(auth\.currentUser\?\.uid !== account\.uid\) throw new Error\('signed_out'\);/.test(pushSrc) && /if \(shop\.deleted\) throw new Error\('deleted_in_cloud'\);/.test(pushSrc)
+    && !/^import .*firebase/m.test(pushSrc) && !/purgeLocalDeviceData/.test(pushSrc),
+    'Cloud sync: off unless switched on, never with the test stand-in, only as the linked Google account, Firebase loaded only when syncing, a shop deleted in the cloud stops it (nothing here is wiped)');
+  assert(/if \(shop\.exists\) await pull\.pullEverything\(ctx\);/.test(pushSrc) && /await db\.transaction\('r', tables\.map/.test(pushSrc)
+    && /markSent\(snapshot\.box\)/.test(pushSrc) && /takeDeltasForSend\(newId\('round'\)\)/.test(pushSrc) && /finishInflight\(\);\s*sent \+= r\.applied;\s*await realign\(ctx, round\.deltas\);/.test(pushSrc),
+    "Cloud sync: first time the phone's shop comes in, then everything goes up from ONE read with the outbox; counters go as a round (same id on a retry) and this computer then takes the cloud's value");
+  const writeSrc = readSource('lib/cloud/cloudWrite.ts');
+  assert(/if \(\(await tx\.get\(opRef\)\)\.exists\(\)\) return -1;/.test(writeSrc) && /if \(!s\.exists\(\)\) return;/.test(writeSrc) && /increment\(part\[k\]\.d\)/.test(writeSrc)
+    && /if \(counter && !absolute\) delete out\[counter\.cloud\];/.test(writeSrc) && /synced_at: serverTimestamp\(\)/.test(writeSrc),
+    'Cloud write: a counter round is applied once (sync_ops) and never makes a half-empty document; rows go without stock / udhar values after the first send; every write carries synced_at');
+  const pullSrc = readSource('lib/cloud/cloudPull.ts');
+  assert(/markFromCloud\(tx\.idbtrans\);/.test(pullSrc) && /if \(c\.doc\.metadata\.hasPendingWrites\) continue;/.test(pullSrc) && /row\.id = ctx\.localBizId;/.test(pullSrc)
+    && /where\('synced_at', '>=', Timestamp\.fromMillis\(since\)\)/.test(pullSrc),
+    "Cloud → here: written in a marked transaction (no echo), our own unconfirmed writes skipped, the shop document onto this computer's shop row, big tables read from their last change only");
   const dbSrc2 = readSource('lib/db/index.ts');
+  const schedSrc = readSource('components/layout/CloudSyncScheduler.tsx');
   assert(/db\.use\(backupChangeMiddleware\);[\s\S]{0,300}?db\.use\(cloudOutboxMiddleware\);/.test(dbSrc2) && /<CloudSyncScheduler \/>/.test(readSource('components/layout/AppShell.tsx'))
-    && /\{account && !account\.stub && \(/.test(readSource('components/backup/CloudAccountCard.tsx')),
-    'Cloud send: the outbox is registered with the database (before it opens), the scheduler runs in the shell, the switch shows only for a real Google account');
+    && /\{account && !account\.stub && \(/.test(readSource('components/backup/CloudAccountCard.tsx')) && /cloudSendActive\(\) && account && !needsFullPush\(\)/.test(schedSrc)
+    && /stopListening\?\.\(\);/.test(schedSrc) && !/^import .*firebase/m.test(schedSrc),
+    'Cloud sync: the outbox is registered before the database opens, the scheduler runs in the shell (listens only after the first sync, stops when switched off), the switch shows only for a real Google account');
+  assert((pkgJson.scripts || {})['test:cloud'] === 'node scripts/run_cloud_test.mjs' && fs.existsSync(path.join(__dirname, 'cloud_sync_emulator.ts'))
+    && /project demo-kamaiplus/.test(fs.readFileSync(path.join(__dirname, 'run_cloud_test.mjs'), 'utf8')),
+    'Cloud sync: the emulator test exists (npm run test:cloud, demo project — never the live one)');
+  // S6 — store codes: the Desktop 1–49,999 (then 100,000+), the phone 50,000–99,999: never the same code.
+  const phoneCodes = ['2000000500003', '2000000500010'];
+  const afterPhone = nextStoreBarcodes(['2000000000022', ...phoneCodes], 1)[0];
+  const lastDesk = `200${String(49999).padStart(9, '0')}`;
+  assert(afterPhone === '2000000000039' && Number(nextStoreBarcodes([lastDesk + ean13CheckDigit(lastDesk)], 1)[0].slice(3, 12)) === 100000
+    && DESKTOP_STORE_CODE_RANGES[0][1] === 49999,
+    "Store codes: the phone's codes (50,000+) do not move this computer's numbering (next after 2 is 3, not 50,002); a full range goes on at 100,000");
+  const idsSrc = readSource('lib/ids.ts');
+  const ms = ALL_SOURCE.filter((f) => !/[\\/]lib[\\/]ids\.ts$/.test(f) &&/`(sale|ledg|mov|prod|cust|cat|exp|shift)_\$\{Date\.now\(\)\}`/.test(fs.readFileSync(f, 'utf8')));
+  assert(/return `\$\{prefix\}_\$\{stamp\}_\$\{rand\}`;/.test(idsSrc) && ms.length === 0 && newId('sale') !== newId('sale') && /^sale_\d{13}_[a-z0-9]{8}$/.test(newId('sale')),
+    `C12: new record ids are time + 8 random characters — two counters in the same millisecond never share one (ms-only ids left: ${ms.map((f) => path.relative(SRC_ROOT, f)).join(', ') || 'none'})`);
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.

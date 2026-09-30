@@ -363,28 +363,55 @@ is `businesses/biz_<uid>` (`docs/CLOUD_DATA_CONTRACT.md` R1). Cloud sync stays o
   `kamaiplus.web.app` must be verified in Search Console first (tracker K-P16). Sign-in works
   without it (only basic scopes).
 
-### 2.7 Desktop → cloud, one way (v4.85.0, Step 3)
+### 2.7 Cloud sync — Desktop ↔ phone (Step 3 v4.85.0 one way, Step 4 v4.86.0 both ways)
 
-Off by default, per computer: Backup → Google Account → **"Send this shop to the cloud
-(beta — for testing)"** (`kamai_cloud_sync_on`), only with a real (non-stub) Google account —
-until the privacy policy covers the desktop app (tracker K-P13). The old per-screen mirrors
-(`cloudMerge` / `cloudSyncSoon` / `backgroundSync`) stay behind `CLOUD_SYNC_ENABLED = false`.
+Off by default, per computer: Backup → Google Account → **"Sync this shop with the mobile app
+(cloud) (beta)"** (`kamai_cloud_sync_on`), only with a real (non-stub) Google account. The old
+per-screen mirrors (`cloudMerge` / `cloudSyncSoon` / `backgroundSync`, `syncLocalDexieToFirestore`,
+`subscribeToMultiDeviceSync`) stay behind `CLOUD_SYNC_ENABLED = false` — never use them for this.
 
 - **Outbox** `lib/cloud/cloudOutbox.ts`: a pass-through DBCore middleware (`db.use(cloudOutboxMiddleware)`
   in `lib/db/index.ts`, after the backup one) notes `table → id → put | del` for every write to a
-  `CLOUD_TABLES` table — `clear` / `deleteRange` = that table in full. Only while sending is on;
-  kept in localStorage `kamai_cloud_outbox` (survives offline / a restart).
+  `CLOUD_TABLES` table — `clear` / `deleteRange` = that table in full. **Counters** (`COUNTER_FIELDS`:
+  products `current_stock` ↔ `stock_quantity`, customers `current_balance` ↔ `current_balance_paise`):
+  the middleware reads the row first (same transaction) and notes the **change** in `deltas` — never
+  the value. Rows written because the cloud changed run in a transaction marked `markFromCloud(tx.idbtrans)`
+  and are not noted (**no echo**). Only while sync is on; localStorage `kamai_cloud_outbox`.
 - **Sender** `lib/cloud/cloudPush.ts` `sendToCloudNow()` (single-flight, Firebase by dynamic import):
-  waits for the Firebase session (`authStateReady`), must be the linked uid; the **first** time for an
-  account (`kamai_cloud_full_push` ≠ `bizId`) sends everything with
-  `syncLocalDexieToFirestore(bizId, {localBusinessId, onTombstone: 'stop'})` — a cloud tombstone
-  only stops it, never wipes this PC; then only the outbox via `writeRecordsToFirestore` (a noted
-  record that is gone = delete in the cloud). `markSent` keeps anything written again meanwhile.
-  Status in `kamai_cloud_sync_status` → the card (last sent, waiting, error, Send now).
-- **Scheduler** `components/layout/CloudSyncScheduler.tsx` (AppShell): 20 s after opening, every
-  minute on idle, and on `online`.
-- The phone reads it (Android `feat/cloud-data-contract`): products / customers live, categories and
-  the last 100 bills when it starts. Phone → Desktop is Step 4.
+  waits for the Firebase session, must be the linked uid; a cloud tombstone (`deleted_businesses`) only
+  stops it. **First time** for an account (`kamai_cloud_full_push` ≠ `bizId`): the cloud shop comes IN
+  first (`cloudPull.pullEverything`), then every table is read in ONE Dexie read transaction together
+  with the outbox and written up with counters as values (`cloudWrite.writeRows(..., absolute)`); the
+  shop document is new → `business_type: 'grocery'`, existing → the phone's type is kept. **After that**:
+  outbox rows WITHOUT counter fields, deletions, then the counter changes as one **round**
+  (`takeDeltasForSend` → `kamai_cloud_inflight`, `cloudWrite.applyCounterDeltas`: a transaction per 150
+  that skips a round id already in `businesses/{biz}/sync_ops/` and never creates a half document),
+  then `realign` reads those documents back (stock = cloud + unsent change). Every write carries
+  `synced_at: serverTimestamp()`.
+- **Receiver** `lib/cloud/cloudPull.ts` (Step 4): `listenToCloud` — the shop document (onto THIS
+  computer's shop row; `account_disabled` → `account_frozen` like the phone), products / customers /
+  categories / suppliers whole (the phone changes stock by `increment` without `synced_at`), every other
+  table from its cursor (`synced_at ≥ kamai_cloud_pull_cursor − 10 min`); own unconfirmed writes
+  (`hasPendingWrites`) skipped. `mergedRow`: newer `updated_at` wins for products / customers / suppliers /
+  sales; **counter = cloud value + `pendingDelta`**; a new row gets `business_id = localBizId`; an
+  unchanged row is not rewritten; a product / customer / category / supplier deleted on the phone is
+  deleted here.
+- **Scheduler** `components/layout/CloudSyncScheduler.tsx` (AppShell): sends 20 s after opening,
+  5 s after a noted change (`kamai_cloud_outbox_changed`), every minute, on `online`; listens only after
+  the first sync, stops when switched off. Status `kamai_cloud_sync_status` (last sent, last from the
+  phone, waiting, error) → the card. Device id `kamai_cloud_device_id` (in `sync_ops`).
+- **Ids (C12)**: `lib/ids.ts` `newId(prefix)` = `prefix_<ms>_<8 random>` for sales, ledger, movements,
+  products, customers, categories, expenses, shifts.
+- **The phone** (Android `feat/cloud-data-contract`, `lib/services/cloud_counters.dart`): product /
+  customer saves send stock / udhar as `increment` from the value it last saw in the cloud (C11), its
+  bill's own `increment(-qty)` is remembered; live bills (latest 100) and categories from the Desktop.
+- **Tested** on the real Firestore + Auth emulators with the shop's rules: `npm run test:cloud`
+  (`scripts/run_cloud_test.mjs` → `scripts/cloud_sync_emulator.ts`, project `demo-kamaiplus`, needs
+  Java 21+): first sync both ways, a bill here + a bill on the phone at once (stock adds up), udhar,
+  a retried round skipped, live changes / deletes from the phone, no echo, rules refuse another
+  account, offline. Suite 9 §(u) covers the pure parts.
+- **Not yet** (tracker): two shops with SEPARATE catalogues (phone + PC each typed the same items)
+  are not de-duplicated — they show twice; start the second device from the first one's data.
 
 ## 3. Directory map
 
@@ -765,7 +792,7 @@ There is no global state library. Modules talk through window events:
 `kamai_thermal_paper_width` · `kamai_silent_print` · `kamai_print_upi_qr` ·
 `kamai_cash_drawer_enabled` · `kamai_saved_bt_printer_mac` ·
 `kamai_soundbox_lang` · `kamai_soundbox_vol` · `kamai_last_backup_time` ·
-`kamai_last_backup_type` · `kamai_last_restore_time` · `kamai_cloud_account` · `kamai_cloud_sync_on` · `kamai_cloud_outbox` · `kamai_cloud_full_push` · `kamai_cloud_sync_status` · `kamai_app_installed` ·
+`kamai_last_backup_type` · `kamai_last_restore_time` · `kamai_cloud_account` · `kamai_cloud_sync_on` · `kamai_cloud_outbox` · `kamai_cloud_full_push` · `kamai_cloud_sync_status` · `kamai_cloud_inflight` · `kamai_cloud_pull_cursor` · `kamai_cloud_device_id` · `kamai_app_installed` ·
 `kamai_pwa_banner_dismissed` · `kamai_cashier_owner_pin` · `kamai_cashier_privacy_locked` ·
 `kamai_print_settings` (bill printers) · `kamai_label_settings` · `kamai_last_import_ids` ·
 `kamai_label_handoff` (Purchases → Barcode Studio labels) · `kamai_stock_entry_draft` (typed "New stock" rows) ·

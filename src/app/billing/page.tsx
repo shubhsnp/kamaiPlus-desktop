@@ -69,6 +69,7 @@ import { cloudMerge, cloudSyncSoon, cloudTrackInvoice, prewarmCloud } from '@/li
 import { getDesktopApi } from '@/lib/desktop/desktopBridge';
 import { resolveInvoiceConfig } from '@/lib/invoices/themeDefaults';
 import { getPrintSettings, printerForFormat } from '@/lib/hardware/printSettings';
+import { newId } from '@/lib/ids';
 
 // Lazy-load non-critical heavy modals
 const InvoiceModal = dynamic(
@@ -951,7 +952,7 @@ export default function BillingPage() {
       // 0. Save the customer typed on the counter row (someone new, or a missing mobile filled in).
       const custNow = new Date().toISOString();
       if (newCustomer) {
-        targetCustomer = buildBillCustomer(`cust_${Date.now()}`, businessId, newCustomer.name, newCustomer.phone, custNow);
+        targetCustomer = buildBillCustomer(newId('cust'), businessId, newCustomer.name, newCustomer.phone, custNow);
         await db.customers.put(targetCustomer);
       } else if (targetCustomer && typed?.kind === 'existing' && typed.addPhone) {
         await db.customers.update(targetCustomer.id, { phone: typed.addPhone, updated_at: custNow });
@@ -1000,7 +1001,7 @@ export default function BillingPage() {
         changeReturnedPaise = !isCredit && receivedPaise > grandTotalPaise ? receivedPaise - grandTotalPaise : 0;
       }
 
-      const saleId = `sale_${Date.now()}`;
+      const saleId = newId('sale');
 
       const newSale: Sale = {
         id: saleId,
@@ -1112,7 +1113,7 @@ export default function BillingPage() {
 
         const itemsSummary = cart.map((i) => `${i.quantity}x ${i.product_name}`).join(', ');
 
-        const ledgerTxId = `ledg_${Date.now()}`;
+        const ledgerTxId = newId('ledg');
         const newLedgerTx: LedgerTransaction = {
           id: ledgerTxId,
           business_id: businessId,

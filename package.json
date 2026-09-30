@@ -1,6 +1,6 @@
 {
   "name": "kamai-plus-desktop",
-  "version": "4.85.0",
+  "version": "4.86.0",
   "private": true,
   "description": "KamaiPlus Desktop Application",
   "scripts": {
@@ -18,7 +18,8 @@
     "release:desktop": "next build && electron-builder --win && node scripts/prepare_release.js",
     "release:publish": "firebase deploy --only hosting:updates",
     "release:beta": "next build && electron-builder --win && node scripts/prepare_release.js --beta",
-    "release:promote": "node scripts/prepare_release.js --promote"
+    "release:promote": "node scripts/prepare_release.js --promote",
+    "test:cloud": "node scripts/run_cloud_test.mjs"
   },
   "dependencies": {
     "@capacitor/core": "^8.5.2",
@@ -40,6 +41,7 @@
     "dexie-react-hooks": "^1.1.7",
     "electron": "^44.4.3",
     "electron-builder": "^26.15.3",
+    "fake-indexeddb": "^6.2.5",
     "firebase": "^12.18.0",
     "html2canvas": "^1.4.1",
     "html5-qrcode": "^2.3.8",

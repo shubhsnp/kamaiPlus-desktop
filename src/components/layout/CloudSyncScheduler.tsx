@@ -1,43 +1,96 @@
 'use client';
 
 import { useEffect } from 'react';
-import { CLOUD_ACCOUNT_EVENT } from '@/lib/cloud/cloudAccount';
-import { outboxSize, setOutboxRecording } from '@/lib/cloud/cloudOutbox';
-import { CLOUD_STATUS_EVENT, cloudSendActive, needsFullPush, sendToCloudNow } from '@/lib/cloud/cloudPush';
+import { CLOUD_ACCOUNT_EVENT, getCloudAccount } from '@/lib/cloud/cloudAccount';
+import { OUTBOX_EVENT, outboxSize, setOutboxRecording } from '@/lib/cloud/cloudOutbox';
+import { CLOUD_STATUS_EVENT, cloudSendActive, needsFullPush, sendToCloudNow, setCloudStatus } from '@/lib/cloud/cloudPush';
 
 const FIRST_RUN_MS = 20 * 1000;
 const CHECK_EVERY_MS = 60 * 1000;
+/** A change made here goes up this soon after the counter is idle (not only on the minute). */
+const SOON_MS = 5 * 1000;
 
 /**
- * Step 3 (v4.85.0): while "Send this shop to the cloud" is on (Backup → Google Account),
- * notes every change (cloudOutbox) and sends what is waiting — 20 s after the app opens,
- * then every minute on idle, and again as soon as the internet comes back. Off = no notes,
- * no network. Never blocks the counter: cloudPush is single-flight and runs on idle.
+ * Cloud sync (Step 3 v4.85.0, Step 4 v4.86.0): while "Sync this shop with the cloud" is on
+ * (Backup → Google Account) —
+ * - notes every change (cloudOutbox) and sends what is waiting: 20 s after the app opens, a
+ *   few seconds after a change, every minute, and as soon as the internet comes back;
+ * - after the first sync, listens to the cloud (cloudPull.listenToCloud) so the phone's
+ *   bills, items, stock and udhar show here within seconds.
+ * Off = no notes, no listeners, no network. Never blocks the counter: sending is
+ * single-flight and runs on idle; Firebase is loaded only when on.
  */
 export function CloudSyncScheduler() {
   useEffect(() => {
-    const applyRecording = () => setOutboxRecording(cloudSendActive());
-    applyRecording();
+    let stopListening: (() => void) | null = null;
+    let listeningFor = '';
+    let soon: number | undefined;
 
-    const tick = () => {
-      applyRecording();
-      if (!cloudSendActive() || (outboxSize() === 0 && !needsFullPush())) return;
+    const idle = (go: () => void) => {
       const ric = (window as any).requestIdleCallback as ((cb: () => void, o?: { timeout: number }) => number) | undefined;
-      const go = () => { void sendToCloudNow(); };
       if (ric) ric(go, { timeout: 10000 });
       else go();
     };
+
+    const syncListeners = async () => {
+      const account = getCloudAccount();
+      const want = cloudSendActive() && account && !needsFullPush() ? account.bizId : '';
+      if (want === listeningFor) return;
+      stopListening?.();
+      stopListening = null;
+      listeningFor = want;
+      if (!want) return;
+      try {
+        const [{ listenToCloud }, { db }] = await Promise.all([import('@/lib/cloud/cloudPull'), import('@/lib/db')]);
+        const local = await db.businesses.toCollection().first();
+        if (!local || listeningFor !== want) return;
+        stopListening = listenToCloud({ bizId: want, localBizId: local.id }, {
+          onChange: () => setCloudStatus({ lastPulledAt: new Date().toISOString() }),
+          onShop: (data) => {
+            // The Admin Console's switch, as on the phone.
+            window.dispatchEvent(data.account_disabled === true ? new CustomEvent('account_frozen', { detail: { message: 'Your store has been blocked by the platform administrator.' } }) : new Event('account_unfrozen'));
+          },
+          onError: (e) => console.warn('Cloud listen notice:', e?.message),
+        });
+      } catch (e) {
+        listeningFor = '';
+        console.warn('Cloud listen could not start:', e);
+      }
+    };
+
+    const tick = () => {
+      setOutboxRecording(cloudSendActive());
+      void syncListeners();
+      if (!cloudSendActive() || (outboxSize() === 0 && !needsFullPush())) return;
+      idle(() => {
+        void sendToCloudNow().then(() => syncListeners());
+      });
+    };
+
+    // A write noted in the outbox: send it a few seconds later (debounced).
+    const onLocalChange = () => {
+      if (!cloudSendActive()) return;
+      window.clearTimeout(soon);
+      soon = window.setTimeout(tick, SOON_MS);
+    };
+
+    setOutboxRecording(cloudSendActive());
     const first = window.setTimeout(tick, FIRST_RUN_MS);
     const every = window.setInterval(tick, CHECK_EVERY_MS);
     window.addEventListener('online', tick);
-    window.addEventListener(CLOUD_ACCOUNT_EVENT, applyRecording);
+    window.addEventListener(CLOUD_ACCOUNT_EVENT, tick);
+    const applyRecording = () => setOutboxRecording(cloudSendActive());
     window.addEventListener(CLOUD_STATUS_EVENT, applyRecording);
+    window.addEventListener(OUTBOX_EVENT, onLocalChange);
     return () => {
       window.clearTimeout(first);
+      window.clearTimeout(soon);
       window.clearInterval(every);
       window.removeEventListener('online', tick);
-      window.removeEventListener(CLOUD_ACCOUNT_EVENT, applyRecording);
+      window.removeEventListener(CLOUD_ACCOUNT_EVENT, tick);
       window.removeEventListener(CLOUD_STATUS_EVENT, applyRecording);
+      window.removeEventListener(OUTBOX_EVENT, onLocalChange);
+      stopListening?.();
     };
   }, []);
 

@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import { tr } from '@/lib/i18n/core';
 import { makeProductQuery, productSearchScore } from '@/lib/search/productSearch';
+import { newId } from '@/lib/ids';
 
 interface EditInvoiceModalProps {
   isOpen: boolean;
@@ -302,7 +303,7 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
           });
 
           await db.ledger_transactions.put({
-            id: `ledg_${Date.now()}`,
+            id: newId('ledg'),
             business_id: sale.business_id,
             party_type: 'customer',
             party_id: cust.id,

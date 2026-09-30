@@ -1,4 +1,5 @@
 import { db } from '@/lib/db';
+import { newId } from '@/lib/ids';
 import { Category } from '@/types';
 
 /*
@@ -21,7 +22,7 @@ export async function findOrCreateCategory(name: string, businessId: string): Pr
   return db.transaction('rw', db.categories, async () => {
     const existing = findCategoryByName(await db.categories.toArray(), clean) as Category | undefined;
     if (existing) return { category: existing, created: false };
-    const category: Category = { id: `cat_${Date.now()}`, business_id: businessId, name: clean, created_at: new Date().toISOString() };
+    const category: Category = { id: newId('cat'), business_id: businessId, name: clean, created_at: new Date().toISOString() };
     await db.categories.put(category);
     return { category, created: true };
   });

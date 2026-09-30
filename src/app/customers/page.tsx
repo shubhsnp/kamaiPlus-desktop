@@ -19,6 +19,7 @@ import { CustomerTableView } from '@/components/customers/CustomerTableView';
 import { CustomerListControls } from '@/components/customers/CustomerListControls';
 import { CUSTOMER_VIEW_KEY, CustomerSort, CustomerView, sortCustomers } from '@/lib/customers/customerDirectory';
 import { tr } from '@/lib/i18n/core';
+import { newId } from '@/lib/ids';
 
 // Printed on the PDF list, which stays English like every saved document.
 const FILTER_LABEL: Record<CustomerCategoryFilter, string> = { all: 'All customers', credit: 'Udhar due', vip: 'VIP', regular: 'Regular' };
@@ -135,7 +136,7 @@ export default function CustomersPage() {
       }
       showCustToast(tr('✅ Updated customer: {name}', { name: updated.name }), 'success');
     } else {
-      const custId = `cust_${Date.now()}`;
+      const custId = newId('cust');
       const newCustomer: Customer = {
         id: custId,
         business_id: business?.id || 'biz_default',
@@ -151,7 +152,7 @@ export default function CustomersPage() {
 
       if (data.opening_balance > 0) {
         await db.ledger_transactions.put({
-          id: `ledg_${Date.now()}`,
+          id: newId('ledg'),
           business_id: business?.id || 'biz_default',
           party_type: 'customer',
           party_id: custId,

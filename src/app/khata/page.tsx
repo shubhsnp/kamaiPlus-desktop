@@ -46,6 +46,7 @@ import { generateBulkMonthEndStatementPDF } from '@/lib/reports/bulkMonthEndStat
 import { tr } from '@/lib/i18n/core';
 import { useFeatureSwitches } from '@/lib/features/featureSwitches';
 import { WhatsAppButton } from '@/components/whatsapp/WhatsAppButton';
+import { newId } from '@/lib/ids';
 
 const InvoiceModal = dynamic(
   () => import('@/components/invoices/InvoiceModal').then((m) => m.InvoiceModal),
@@ -301,7 +302,7 @@ function KhataContent() {
       : undefined;
 
     const newTx: LedgerTransaction = {
-      id: `ledg_${Date.now()}`,
+      id: newId('ledg'),
       business_id: business?.id || 'biz_default',
       party_type: 'customer',
       party_id: selectedCustomer.id,
@@ -348,7 +349,7 @@ function KhataContent() {
 
     const opBalPaise = newCustOpeningBalance ? Math.round(parseFloat(newCustOpeningBalance) * 100) : 0;
     const now = new Date().toISOString();
-    const custId = `cust_${Date.now()}`;
+    const custId = newId('cust');
 
     const newCustomer: Customer = {
       id: custId,
@@ -371,7 +372,7 @@ function KhataContent() {
 
     if (opBalPaise > 0) {
       await db.ledger_transactions.put({
-        id: `ledg_${Date.now()}`,
+        id: newId('ledg'),
         business_id: business?.id || 'biz_default',
         party_type: 'customer',
         party_id: custId,

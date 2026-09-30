@@ -33,6 +33,7 @@ import { createProductWithVariants, DEFAULT_COUNTED_STOCK, deleteProductAndVaria
 import { tr } from '@/lib/i18n/core';
 import { makeProductQuery, productSearchScore } from '@/lib/search/productSearch';
 import { matchesProductDetails } from '@/lib/products/detailSearch';
+import { newId } from '@/lib/ids';
 
 const VariantsManagerModal = dynamic(
   () => import('@/components/products/VariantsManagerModal').then((m) => m.VariantsManagerModal),
@@ -327,7 +328,7 @@ export default function ProductsPage() {
         await db.products.put(saved);
       } else if (useVariants) {
         await createProductWithVariants(
-          { ...productPayload, id: `prod_${Date.now()}` },
+          { ...productPayload, id: newId('prod') },
           variantRows.map((r) => ({
             label: r.label,
             sellingPricePaise: parseRupeesToPaise(r.price || '0'),
@@ -337,15 +338,15 @@ export default function ProductsPage() {
           }))
         );
       } else {
-        const newId = `prod_${Date.now()}`;
-        saved = { ...productPayload, id: newId };
+        const newProdId = newId('prod');
+        saved = { ...productPayload, id: newProdId };
         await db.products.put(saved);
 
         // Opening-stock entry in the stock history (an unlimited item has no count to record)
         if (!formIsUnlimitedStock) await db.inventory_movements.put({
-          id: `mov_${Date.now()}`,
+          id: newId('mov'),
           business_id: business?.id || 'biz_default',
-          product_id: newId,
+          product_id: newProdId,
           product_name: formName.trim(),
           movement_type: 'ADJUSTMENT',
           quantity: stockNum,
@@ -396,7 +397,7 @@ export default function ProductsPage() {
     });
 
     await db.inventory_movements.put({
-      id: `mov_${Date.now()}`,
+      id: newId('mov'),
       business_id: business?.id || 'biz_default',
       product_id: p.id,
       product_name: p.name,
@@ -443,15 +444,15 @@ export default function ProductsPage() {
   const handleCreateCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCatName.trim()) return;
-    const newId = `cat_${Date.now()}`;
+    const newCatId = newId('cat');
     await db.categories.put({
-      id: newId,
+      id: newCatId,
       business_id: business?.id || 'biz_default',
       name: newCatName.trim(),
       created_at: new Date().toISOString(),
     });
-    setFormCategory(newId);
-    setSelectedCategory(newId);
+    setFormCategory(newCatId);
+    setSelectedCategory(newCatId);
     setNewCatName('');
     setIsAddCategoryModalOpen(false);
   };

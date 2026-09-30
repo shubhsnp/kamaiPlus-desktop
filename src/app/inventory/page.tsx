@@ -16,6 +16,7 @@ import { InventoryNavTabs, InventoryTabType } from '@/components/inventory/Inven
 import { ReorderAlertsList } from '@/components/inventory/ReorderAlertsList';
 import { StockMovementsList } from '@/components/inventory/StockMovementsList';
 import { tr } from '@/lib/i18n/core';
+import { newId } from '@/lib/ids';
 
 // Lazy-load heavy modals
 const CatalogImportModal = dynamic(
@@ -66,7 +67,7 @@ export default function InventoryPage() {
     });
 
     await db.inventory_movements.put({
-      id: `mov_${Date.now()}`,
+      id: newId('mov'),
       business_id: business?.id || 'biz_default',
       product_id: product.id,
       product_name: product.name,

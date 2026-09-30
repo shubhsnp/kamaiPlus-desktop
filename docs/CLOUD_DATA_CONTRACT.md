@@ -189,8 +189,8 @@ mein v4.83.0 se.) Desktop padhte waqt `pcs` / `pc` / `nos` → `piece`, `pkt` �
 | C8 | Bill push mein `customer_gstin`, `place_of_supply`, split nahi | Android | ✅ Android branch `feat/cloud-data-contract` (2026-09-30) |
 | C9 | Customer push mein hamesha `opening_balance: 0` | Android | ✅ Android branch `feat/cloud-data-contract` (2026-09-30) (`customer_type` bhi nahi) |
 | C10 | `is_loose_item` padhte waqt chhoot jaata | Android | ✅ Android branch `feat/cloud-data-contract` (2026-09-30) |
-| C11 | Bill par stock `increment` **aur** product save par poora overwrite | Android | Step 4 |
-| C12 | ID `sale_<ms>` / `ledg_<ms>` / `mov_<ms>` | Desktop | Step 4 |
+| C11 | Bill par stock `increment` **aur** product save par poora overwrite | Android | ✅ Step 4 (2026-10-01): stock / udhar sirf badlav (`increment`) — Android `cloud_counters.dart`, Desktop `cloudOutbox` deltas + `applyCounterDeltas` (§8) |
+| C12 | ID `sale_<ms>` / `ledg_<ms>` / `mov_<ms>` | Desktop | ✅ Desktop v4.86.0 — `newId()` = `<prefix>_<ms>_<8 random>` (Android pehle se uuid) |
 | C13 | Dukaan ke doc mein `city` = pincode | Android | ✅ Android branch `feat/cloud-data-contract` (2026-09-30) |
 | C14 | Chhoot ka matlab alag | Dono | ✅ tay (§3.5, §3.6); Desktop lagu |
 | C15 | Categories cloud mein nahi | Android | ✅ Android branch `feat/cloud-data-contract` (2026-09-30) |
@@ -214,5 +214,28 @@ mein v4.83.0 se.) Desktop padhte waqt `pcs` / `pc` / `nos` → `piece`, `pkt` �
    sahi; har table round-trip exact; plan fields kabhi nahi.
 2. **Android:** ✅ C6–C10, C13, C15, §3.5 / §3.6 ke field, §4 ke shabd — `lib/services/cloud_contract.dart`, `test/cloud_contract_test.dart` (branch `feat/cloud-data-contract`). ✅ C16 + C17 (`BillMath`, `test/bill_math_test.dart`).
 3. Step 2: Desktop Google login → local dukaan ID `biz_<uid>` (C1 poora).
-4. Step 4: C11, C12 (stock takraav, har counter ki bill series, uuid ID).
+4. ✅ Step 4: C11, C12 — §8.
 5. Koi field badle to **ye file dono repo mein ek saath** badle.
+
+---
+
+## 8. Dono taraf sync ke niyam (Step 4, 2026-10-01)
+
+- **S1 — Stock (`stock_quantity`) aur udhar (`current_balance_paise`) kabhi poori value se overwrite nahi.** Har app
+  jo value cloud mein aakhri baar dekhi thi, usse farq `FieldValue.increment(farq)` se bhejti hai. Poori value sirf
+  naye record par (cloud mein pehli baar). Desktop: `cloudOutbox` (write se pehle row padh kar farq), ek "round" ek hi
+  baar lagta hai (`businesses/{biz}/sync_ops/{round}_{n}`). Android: `CloudCounters` (listener / restore / apna
+  bill ka `increment` yaad).
+- **S2 — Har write par `synced_at: serverTimestamp()`.** Desktop badi tables (bills, khata, kharche…) `synced_at` se
+  aage padhta hai; products / customers / categories / suppliers poore sunta hai (phone ka `increment` `synced_at`
+  nahi badalta).
+- **S3 — Jo cloud se aaya woh wapas nahi bheja jaata** (Desktop: `markFromCloud` transaction; apne unconfirmed
+  writes `hasPendingWrites` chhod do).
+- **S4 — Desktop apni dukaan ID rakhta hai:** cloud `biz_<uid>`, Desktop row par apna `business_id`; dukaan ka doc
+  Desktop ki apni row par milta hai.
+- **S5 — Delete:** product / customer / category / supplier ek taraf delete = doosri taraf delete.
+- **S6 — Store barcode (`200…`) ke number bante hain:** Desktop 1–49,999 phir 100,000–549,999; phone 50,000–99,999
+  phir 550,000+. (Loose-pack `29…` code mein 99,999 tak aata hai.)
+- **S7 — Bill number har device ka apna** (R10): Desktop `INV-…`, phone apna — ek hi series nahi.
+- **Test:** Desktop `npm run test:cloud` — asli Firestore + Auth emulator, isi repo ke rules, ek "phone" jo
+  Android jaisa likhta hai.

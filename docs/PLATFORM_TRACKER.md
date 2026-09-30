@@ -130,15 +130,15 @@ Order zaroori hai: **pehle data surakshit → phir data ka ek format → phir lo
   - Onboarding: dukaan ID `biz_<uid>` (aaj `biz_<8 akshar>_<time>`, `app/onboarding/page.tsx:101`; Dexie mein `business_id` har record par — test installs ka data migrate ya reset).
   - Master password PC lock ki tarah rahe; pehli baar ke baad login bina internet chale.
   - Size L (andaza 1 hafta).
-- [ ] **Step 3 — Sirf Desktop → cloud (one-way backup).** ⏸️ Branch `feat/step3-cloud-send` (push hua, main par nahi) — Rahul ne 4.85.0 ke kaam ke liye roka, ab wahin se aage. Pehle test Google account par. Check: Android par same account → Desktop ke bill / product sahi rakam ke saath; naye PC par login → data wapas. Firebase usage (kharcha) ek hafta dekho. Privacy policy (K-P13) isse pehle.
-- [ ] **Step 4 — Dono taraf sync.** Niyam tay: stock "-N / +N" entries (overwrite nahi), har counter ki alag bill series, licence = ek dukaan kai PC (`desktop_licences`, `desktopLicence` function). Pilot dukaan par.
-- [ ] **Step 5 — Features ek jaise (lagatar).** Ek-ek karke: batch / expiry Desktop mein (K-D20, Android mein field hai), label print Android mein (K-A01), khata edit Android mein (K-A05) … Naya feature dono mein.
+- [x] **Step 3 — Desktop → cloud.** ✅ v4.85.0 code (outbox + sender), v4.86.0 main par (branch `feat/step3-cloud-send` merge). Per PC switch, default off (Backup → Google Account). Privacy policy (K-P13) asli dukaanon se pehle.
+- [x] **Step 4 — Dono taraf sync.** ✅ Desktop v4.86.0 + Android branch `feat/cloud-data-contract`. Stock / udhar sirf `increment` (C11, dono apps), phone ke badlav Desktop par live (`cloudPull`), echo nahi, ID uuid-jaisi (C12), store barcode ki alag range (S6). **Test:** Desktop `npm run test:cloud` — asli Firestore + Auth emulator + rules, 17/17. Contract §8 (S1–S7). Baaki: ek dukaan kai PC ka licence niyam; pehle se alag-alag typed catalogue ka dedupe (K-D28).
+- [ ] **Step 5 — Features ek jaise (lagatar).** Pehla batch ✅ (2026-10-01): K-A09 English → Hindi search (Desktop ke hi niyam, fixture se bit-by-bit same), K-A08 phone par store barcode, K-A16 checkout cash box. Agle: K-D20 batch / expiry Desktop mein, K-A01 / K-A02 label print Android, K-A05 khata edit Android, K-A07 auto backup Android, K-A06 bill edit Android, K-A10 / K-D07 estimate.
 
 ---
 
 ## 4. Kamiyan (count)
 
-**Total: 60** — Platform 17 · Android 16 · Desktop 27. **Open 49 · Done 11.**
+**Total: 61** — Platform 17 · Android 16 · Desktop 28. **Open 46 · Done 15.**
 🔴 = paisa / data / security / Play Store risk · 🟠 = galat ya adhoora behaviour · 🟢 = chhota / feature gap
 
 ### Platform / website (K-P)
@@ -174,14 +174,14 @@ Order zaroori hai: **pehle data surakshit → phir data ka ek format → phir lo
 | K-A05 | Khata entry edit / delete nahi | 🟠 | Open |
 | K-A06 | Bana hua bill edit nahi | 🟢 | Open |
 | K-A07 | Automatic (rozana) backup nahi — sirf haath se / Drive (Pro) | 🟠 | Open |
-| K-A08 | Bina barcode wale item ka apna barcode nahi banta | 🟠 | Open |
-| K-A09 | English mein type karke Hindi naam wala item nahi milta | 🟢 | Open |
+| K-A08 | Bina barcode wale item ka apna barcode nahi banta | 🟠 | ✅ Done (branch `feat/cloud-data-contract`) — `lib/core/utils/store_barcodes.dart`, phone ki range 50,000–99,999 (Desktop 1–49,999) |
+| K-A09 | English mein type karke Hindi naam wala item nahi milta | 🟢 | ✅ Done (branch) — `lib/core/utils/sound_search.dart`, Desktop ke `productSearch.ts` jaisa; test fixture Desktop ka asli output |
 | K-A10 | `showQuotationEstimate` flag bana, estimate / quotation feature nahi | 🟢 | Open |
 | K-A11 | `DESKTOP_FIXES_ANDROID_CHECK.md` ka audit (double-tap = do bill, cash leak, short cash udhar, split excess, GSTR-1 JSON …) abhi tak hua hi nahi | 🔴 | Open |
 | K-A13 | Bill-discount GST kam nahi karta — `processPosBill` GST chhoot se pehle ki rakam par lagata, `total = grand − discount` (GST report mein zyada tax); `subtotal` mein inclusive / exclusive lines mili. Desktop ne ye `saleMath.allocateBillDiscount` se theek kiya tha (contract C16) | 🔴 | ✅ Done (branch `feat/cloud-data-contract`, abhi Play Store build mein nahi) — `BillMath`, `test/bill_math_test.dart` |
 | K-A14 | Checkout / cart / payment modal ka total GST-exclusive item ka GST nahi jodta (saved bill jodta — cash chips, UPI QR, split kam rakam maangte); GST "5% andaza" (`grandTotal × 0.05`) dikhta; invoice PDF `is_tax_inclusive != false` se `0` ko inclusive maanta (exclusive line ka GST galat chhapta); GST export bill-discount se pehle ki rakam par GST (contract C17) | 🔴 | ✅ Done (branch `feat/cloud-data-contract`, abhi Play Store build mein nahi) — sab screens `cartBillTotals` se |
 | K-A15 | Poora `flutter test` ek saath chalane par DB wale tests (advanced_sales_report, customer_edit_crud, inventory_inward_service, referral) 30 s timeout — akele (`--concurrency=1`) sab pass. Test timeout / DB setup sudharna hai | 🟢 | Open |
-| K-A16 | Checkout mein cart badalne (item hatane) par "Cash Tendered" purani rakam par atka rehta — ₹517 likha raha jab bill ₹118 ho gaya, "Return Change ₹399" dikha (phone par dekha, 2026-09-30) | 🟢 | Open |
+| K-A16 | Checkout mein cart badalne (item hatane) par "Cash Tendered" purani rakam par atka rehta — ₹517 likha raha jab bill ₹118 ho gaya, "Return Change ₹399" dikha (phone par dekha, 2026-09-30) | 🟢 | ✅ Done (branch) — box bill ke saath chalta hai jab tak cashier khud rakam na likhe |
 | K-A12 | Account delete karne ka koi tarika nahi (app mein bhi nahi, web par bhi nahi). Google Sign-In se account banta hai, to Play policy dono maangti hai (Data safety → "Delete account URL") | 🔴 | Open |
 
 ### Desktop (K-D)
@@ -196,7 +196,7 @@ Order zaroori hai: **pehle data surakshit → phir data ka ek format → phir lo
 | K-D06 | Favourite (star) items POS mein upar nahi aate | 🟢 | Open |
 | K-D07 | Estimate / quotation bana nahi sakte (sirf pehchaanta hai) | 🟢 | Open |
 | K-D08 | Installer unsigned — Windows "protected your PC" warning (certificate chahiye, Bible §2.2) | 🟠 | Open |
-| K-D09 | Cloud sync band — ek dukaan mein 2 counter / 2 PC ek data nahi | 🟠 | Open |
+| K-D09 | Cloud sync band — ek dukaan mein 2 counter / 2 PC ek data nahi | 🟠 | ✅ Done v4.86.0 — dono taraf sync (beta switch); Step 4 |
 | K-D10 | TSC par "plug wapas = green" aur calibrate ke baad frame photo check baaki (installer wala hissa ho gaya — 4.80.0 live tha, 4.81.0 2026-09-30 ko publish) | 🟠 | Open |
 | K-D11 | Tally XML asli Tally company mein import karke test nahi hua | 🟠 | Open |
 | K-D12 | Route guard 8 aise pages ka naam leta hai jo hain hi nahi (Bible §12 #3) | 🟢 | Open |
@@ -214,6 +214,7 @@ Order zaroori hai: **pehle data surakshit → phir data ka ek format → phir lo
 | K-D25 | Barcode Studio mein preview tab tak dikhta hi nahi tha jab tak item na jode (khaali list = grey dabba + ek line) — size / "On the label" badlo to asar nahi dikhta | 🟠 | ✅ Done v4.85.0 — khaali list par sample label, preview sticky, frame labels jitna uncha (Bible §9, §10 #36) |
 | K-D26 | Custom roll size box mein "38" type nahi hota tha — "3" par hi 50 ho jaata (save + settings event); "Copies for all" koi bhi number le leta (50,000 labels) | 🟠 | ✅ Done v4.85.0 — draft value, sirf sahi size save (`CUSTOM_LIMITS`); copies 1…999 |
 | K-D27 | Admin Console se chalti Desktop par control nahi — licence ki validity (end date) nahi, block / move sirf nayi activation rokta tha | 🟠 | ✅ Done v4.85.0 — Desktop `licence.js` end date + online check-in; `desktopLicence` function + Admin Console deploy 2026-09-30 (Android branch `feat/desktop-licence-validity`) |
+| K-D28 | Phone aur PC par **pehle se alag-alag** type kiye gaye same items sync ke baad dohre dikhte (alag ID) — dedupe (barcode / naam) nahi. Abhi: doosra device pehle wale ke data se shuru karo | 🟢 | Open |
 | K-D23 | 16 files 400 line ke niyam se badi — `billing/page.tsx` **2,254**, `khata/page.tsx` 1,175, `products/page.tsx` 655 … Sabse zaroori screen mein har badlav sabse risky (FS-04, FS-15) | 🟠 | Open |
 
 ---
@@ -245,3 +246,5 @@ Order zaroori hai: **pehle data surakshit → phir data ka ek format → phir lo
 | 2026-09-30 | **Desktop v4.85.0 (Rahul ki list, Step 3 roka):** (1) billing customer — naam box mein sirf naam (Hindi / Marathi bhi), number box mein sirf 10 digit (+91 paste = aakhri 10), dono zaroori nahi; (2) **F2 = agla bill** (ek hi bill ho to naya bill, "+ New Bill" jaisa), search ab `/`; (3) F4 / F8 / F9 Settings → Features → "Payment keys" switch ke peeche, **default off**; (4) Barcode Studio: preview hamesha (sample label), sticky, custom size typing, copies 999, Bluetooth price, "Print 1 label" (K-D25, K-D26); (5) Google pehli baar optional; (6) licence validity + online check-in (K-D27). Test §9j(v)(w)(x), Electron E2E §1b. | Desktop |
 | 2026-09-30 | **Admin Console + desktopLicence (Android branch `feat/desktop-licence-validity`, `2f6889d`, push hua):** key par end date ("Set validity / renew": lifetime, +1/3/6/12/24 mahine, ya tareekh), "Ending in 30 days" / "Validity ended" ginti, "Last online"; function action `refresh` (check-in). Functions test 82/82, admin test 3/3, analyze saaf. **Deploy nahi hua** — auto-mode ne production deploy roka; Rahul chalaye: `firebase deploy --only functions:desktopLicence` aur admin build + `firebase deploy --only hosting:admin` (Android repo). Tab tak 4.85.0 par kuch nahi toot-ta (check-in ka jawab "unknown action" = koi badlav nahi). Naya K-P17 (Node 20). | Android |
 | 2026-09-30 | **Sab live (Rahul: "online upload kardo, sab taraf, public kardo"):** `desktopLicence` function deploy (live check: action `refresh` samajhta hai) · Admin Console build + `hosting:admin` deploy (kamaiplus-admin.web.app — Desktop Licences mein "Set validity / renew") · **Desktop v4.85.0 publish sabke liye**: live `latest.yml` + `beta.yml` = 4.85.0, installer 115,468,804 bytes, live sha512 = `latest.yml` ✔, 4.84.0 installer hata (404); asar mein naya `licence.js` ✔. Installer unsigned (K-D08). | Firebase + kamaiplus-desktop.web.app |
+| 2026-10-01 | **Rahul: "step 3 and baki ke steps complete karo".** Step 3 branch main par merge. **Step 4 (dono taraf):** Desktop `cloudOutbox` stock / udhar ka farq (write se pehle row padh kar), `cloudWrite` (rows bina counter, `increment` round ek hi baar — `sync_ops`), `cloudPull` (phone → Desktop live, newer-wins, stock = cloud + apna baaki, apni dukaan ID, delete bhi, echo nahi), scheduler 5 s mein bhejta. C12 `newId()`. Android: `CloudCounters` (product / customer save = `increment`), live bills + categories. **Emulator test** `npm run test:cloud` 17/17 (Java 21+ chahiye — JDK 26 mila). | Desktop + Android |
+| 2026-10-01 | **Step 5 pehla batch** (Android branch): K-A09 search (Desktop ke niyam Dart mein, Desktop ke output se fixture), K-A08 store barcode (range S6 — Desktop bhi range ke andar), K-A16 checkout. Naya K-D28 (catalogue dedupe). | Android + Desktop |

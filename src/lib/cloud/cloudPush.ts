@@ -1,31 +1,36 @@
-import { CloudTable } from '@/lib/cloud/cloudContract';
+import { CLOUD_TABLES, CloudTable } from '@/lib/cloud/cloudContract';
 import { getCloudAccount } from '@/lib/cloud/cloudAccount';
-import { markSent, Outbox, OutboxOp, outboxSize, peekOutbox, setOutboxRecording } from '@/lib/cloud/cloudOutbox';
+import { finishInflight, markSent, Outbox, OutboxOp, outboxSize, peekOutbox, setOutboxRecording, takeDeltasForSend } from '@/lib/cloud/cloudOutbox';
+import { newId } from '@/lib/ids';
 import { tr } from '@/lib/i18n/core';
 
 /**
- * Step 3 — the Desktop sends its shop to the cloud (one way), v4.85.0.
+ * Cloud sync of this shop — Step 3 (Desktop → cloud, v4.85.0) + Step 4 (both ways, v4.86.0).
  *
- * The first time for a Google account everything goes (the same full push as
- * firestoreSync.syncLocalDexieToFirestore, through the cloud data contract); after that
- * only what the outbox noted (cloudOutbox.ts). Nothing here ever blocks billing: it runs
- * from CloudSyncScheduler on idle, is single-flight, and an offline or failed send keeps
- * the outbox for the next try. Firebase is loaded only when sending (dynamic import).
+ * The first time for a Google account: whatever the cloud shop already has (the phone's
+ * items, bills, customers) comes here first (cloudPull.pullEverything), then everything
+ * this computer has goes up in one consistent read. After that only what the outbox noted
+ * (cloudOutbox.ts) goes up, stock / udhar as increments (cloudWrite.applyCounterDeltas),
+ * and CloudSyncScheduler keeps listening for the phone's changes (cloudPull.listenToCloud).
+ * Nothing here ever blocks billing: single-flight, on idle; offline or a failure keeps the
+ * outbox for the next try. Firebase is loaded only when syncing (dynamic import).
  *
- * Switched on per computer (Backup → Google Account → "Send this shop to the cloud"),
- * default OFF, and only with a real Google account — until the privacy policy covers the
- * desktop app (tracker K-P13) it is for test shops only.
+ * Switched on per computer (Backup → Google Account), default OFF, and only with a real
+ * Google account.
  */
 
 export const CLOUD_SEND_KEY = 'kamai_cloud_sync_on';
 export const CLOUD_FULL_PUSH_KEY = 'kamai_cloud_full_push';
 export const CLOUD_STATUS_KEY = 'kamai_cloud_sync_status';
 export const CLOUD_STATUS_EVENT = 'cloud_sync_status';
+export const CLOUD_DEVICE_KEY = 'kamai_cloud_device_id';
 
 export interface CloudSendStatus {
   lastSentAt: string | null;
   lastError: string | null;
   sending: boolean;
+  /** Last time something from the phone / another counter was merged here. */
+  lastPulledAt?: string | null;
 }
 
 const read = (key: string): string | null => {
@@ -42,7 +47,17 @@ const write = (key: string, value: string | null) => {
   } catch {}
 };
 
-/** A real Google account is connected (the Electron E2E stand-in never sends). */
+/** This computer's name in the cloud's sync log (sync_ops). */
+export function deviceId(): string {
+  let id = read(CLOUD_DEVICE_KEY);
+  if (!id) {
+    id = newId('desk');
+    write(CLOUD_DEVICE_KEY, id);
+  }
+  return id;
+}
+
+/** A real Google account is connected (the Electron E2E stand-in never syncs). */
 export function canSendToCloud(): boolean {
   const a = getCloudAccount();
   return Boolean(a && !a.stub);
@@ -56,7 +71,7 @@ export function cloudSendActive(): boolean {
   return isCloudSendOn() && canSendToCloud();
 }
 
-/** The first send for this account (everything) has not happened yet. */
+/** The first sync (cloud in, then everything up) for this account has not happened yet. */
 export function needsFullPush(): boolean {
   const a = getCloudAccount();
   return Boolean(a) && read(CLOUD_FULL_PUSH_KEY) !== a!.bizId;
@@ -67,20 +82,20 @@ export function getCloudSendStatus(): CloudSendStatus & { pending: number } {
   try {
     s = JSON.parse(read(CLOUD_STATUS_KEY) || '{}');
   } catch {}
-  return { lastSentAt: s.lastSentAt ?? null, lastError: s.lastError ?? null, sending: Boolean(s.sending), pending: outboxSize() };
+  return { lastSentAt: s.lastSentAt ?? null, lastError: s.lastError ?? null, sending: Boolean(s.sending), lastPulledAt: s.lastPulledAt ?? null, pending: outboxSize() };
 }
 
-function setStatus(patch: Partial<CloudSendStatus>): void {
+export function setCloudStatus(patch: Partial<CloudSendStatus>): void {
   const { pending: _p, ...now } = getCloudSendStatus();
   void _p;
   write(CLOUD_STATUS_KEY, JSON.stringify({ ...now, ...patch }));
-  window.dispatchEvent(new Event(CLOUD_STATUS_EVENT));
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(CLOUD_STATUS_EVENT));
 }
 
 export function setCloudSendOn(on: boolean): void {
   write(CLOUD_SEND_KEY, on ? '1' : null);
   setOutboxRecording(on && canSendToCloud());
-  setStatus({ lastError: null });
+  setCloudStatus({ lastError: null });
 }
 
 /** Pure: per table, which records to write and which to delete; tables to send in full. */
@@ -93,6 +108,8 @@ export function splitOutbox(box: Outbox): { full: CloudTable[]; tables: { table:
       delIds: Object.keys(recs).filter((id) => recs[id] === 'del'),
     }))
     .filter((t) => t.putIds.length + t.delIds.length > 0);
+  // The shop document first: a new cloud shop must exist before its rows.
+  tables.sort((a, b) => (a.table === 'businesses' ? -1 : b.table === 'businesses' ? 1 : 0));
   return { full: [...box.full], tables };
 }
 
@@ -104,10 +121,11 @@ export function cloudSendMessage(code: string): string {
   return tr('Could not send to the cloud ({code}). It will try again.', { code });
 }
 
-let running: Promise<{ ok: boolean; sent: number; error?: string }> | null = null;
+type SendResult = { ok: boolean; sent: number; error?: string };
+let running: Promise<SendResult> | null = null;
 
-/** Sends what is waiting now (single-flight). */
-export function sendToCloudNow(): Promise<{ ok: boolean; sent: number; error?: string }> {
+/** Syncs what is waiting now (single-flight). */
+export function sendToCloudNow(): Promise<SendResult> {
   if (running) return running;
   running = doSend().finally(() => {
     running = null;
@@ -115,19 +133,20 @@ export function sendToCloudNow(): Promise<{ ok: boolean; sent: number; error?: s
   return running;
 }
 
-async function doSend(): Promise<{ ok: boolean; sent: number; error?: string }> {
+async function doSend(): Promise<SendResult> {
   const account = getCloudAccount();
   if (!cloudSendActive() || !account) return { ok: false, sent: 0, error: 'off' };
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-    setStatus({ lastError: cloudSendMessage('offline') });
+    setCloudStatus({ lastError: cloudSendMessage('offline') });
     return { ok: false, sent: 0, error: 'offline' };
   }
-  setStatus({ sending: true });
+  setCloudStatus({ sending: true });
   let sent = 0;
   try {
-    const [{ getFirebaseAuth }, fsync, { db }] = await Promise.all([
+    const [{ getFirebaseAuth }, cw, pull, { db }] = await Promise.all([
       import('@/lib/firebase/config'),
-      import('@/lib/firebase/firestoreSync'),
+      import('@/lib/cloud/cloudWrite'),
+      import('@/lib/cloud/cloudPull'),
       import('@/lib/db'),
     ]);
     const auth = getFirebaseAuth();
@@ -135,37 +154,88 @@ async function doSend(): Promise<{ ok: boolean; sent: number; error?: string }> 
     await auth.authStateReady();
     if (auth.currentUser?.uid !== account.uid) throw new Error('signed_out');
 
+    const localBiz = await db.businesses.toCollection().first();
+    if (!localBiz) throw new Error('no_shop');
+    const ctx = { bizId: account.bizId, localBizId: localBiz.id };
+    const shop = await cw.cloudShopState(account.bizId);
+    if (shop.deleted) throw new Error('deleted_in_cloud');
+
     if (needsFullPush()) {
-      const before = peekOutbox();
-      const localBiz = await db.businesses.toCollection().first();
-      const r = await fsync.syncLocalDexieToFirestore(account.bizId, { localBusinessId: localBiz?.id, onTombstone: 'stop' });
-      if (!r.success) throw new Error(r.error || 'full_push_failed');
+      // 1. The phone's shop comes here first (echo-free), 2. then everything goes up — read in
+      //    ONE transaction together with the outbox, so no change is lost or counted twice.
+      if (shop.exists) await pull.pullEverything(ctx);
+      const tables = CLOUD_TABLES.filter((t) => t !== 'businesses');
+      const snapshot: { box: Outbox; rows: Record<string, Record<string, any>[]> } = { box: peekOutbox(), rows: {} };
+      await db.transaction('r', tables.map((t) => db.table(t)), async () => {
+        for (const t of tables) snapshot.rows[t] = (await db.table(t).toArray()) as Record<string, any>[];
+        snapshot.box = peekOutbox();
+      });
+      await cw.writeShopDoc(account.bizId, (await db.businesses.get(localBiz.id)) as Record<string, any>, !shop.exists);
+      for (const t of tables) sent += await cw.writeRows(account.bizId, t, snapshot.rows[t], true);
       write(CLOUD_FULL_PUSH_KEY, account.bizId);
-      markSent(before); // what changed during the full push stays for the next round
-      sent += Object.values(r.stats).reduce((a, b) => a + b, 0);
+      markSent(snapshot.box); // later changes (and their stock / udhar deltas) stay for the next round
+      finishInflight();
     }
 
+    // 3. What changed since: rows (counters left out), deletions, tables emptied in one go.
     const box = peekOutbox();
     const plan = splitOutbox(box);
     for (const table of plan.full) {
       const rows = (await db.table(table).toArray()) as Record<string, any>[];
-      await fsync.writeRecordsToFirestore(account.bizId, table, rows, []);
-      sent += rows.length;
+      sent += await cw.writeRows(account.bizId, table, rows, false);
     }
     for (const { table, putIds, delIds } of plan.tables) {
+      if (table === 'businesses') {
+        const row = await db.businesses.get(localBiz.id);
+        if (row) await cw.writeShopDoc(account.bizId, row as Record<string, any>, false);
+        sent++;
+        continue;
+      }
       const found = (await db.table(table).bulkGet(putIds)) as (Record<string, any> | undefined)[];
       const rows = found.filter((r): r is Record<string, any> => Boolean(r));
       // A record noted as written but no longer here was deleted since: delete it in the cloud too.
       const gone = putIds.filter((_id, i) => !found[i]);
-      await fsync.writeRecordsToFirestore(account.bizId, table, rows, [...delIds, ...gone]);
-      sent += rows.length + delIds.length + gone.length;
+      sent += await cw.writeRows(account.bizId, table, rows, false);
+      if (delIds.length + gone.length) await cw.deleteRows(account.bizId, table, [...delIds, ...gone]);
+      sent += delIds.length + gone.length;
     }
-    markSent(box);
-    setStatus({ sending: false, lastSentAt: new Date().toISOString(), lastError: null });
+    markSent({ ...box, deltas: {} });
+
+    // 4. Stock / udhar changes: one round, applied at most once, then this computer takes the
+    //    cloud's new value (+ anything changed meanwhile) so it matches the phone exactly.
+    const round = takeDeltasForSend(newId('round'));
+    if (round) {
+      const r = await cw.applyCounterDeltas(account.bizId, round.id, round.deltas, deviceId());
+      finishInflight();
+      sent += r.applied;
+      await realign(ctx, round.deltas);
+    }
+
+    setCloudStatus({ sending: false, lastSentAt: new Date().toISOString(), lastError: null });
     return { ok: true, sent };
   } catch (e: any) {
     const code = String(e?.code || e?.message || 'error');
-    setStatus({ sending: false, lastError: cloudSendMessage(code) });
+    setCloudStatus({ sending: false, lastError: cloudSendMessage(code) });
     return { ok: false, sent, error: code };
+  }
+}
+
+/** After counter increments: read those documents back and merge them (stock = cloud + pending). */
+async function realign(ctx: { bizId: string; localBizId: string }, deltas: Outbox['deltas']): Promise<void> {
+  const [{ doc, getDoc }, { getFirestoreDb }, { mergeCloudDocs }] = await Promise.all([
+    import('firebase/firestore'),
+    import('@/lib/firebase/config'),
+    import('@/lib/cloud/cloudPull'),
+  ]);
+  const fs = getFirestoreDb();
+  if (!fs) return;
+  for (const [table, recs] of Object.entries(deltas) as [CloudTable, Record<string, number>][]) {
+    const ids = Object.keys(recs || {});
+    const docs: Record<string, any>[] = [];
+    for (const id of ids) {
+      const snap = await getDoc(doc(fs, `businesses/${ctx.bizId}/${table}/${id}`)).catch(() => null);
+      if (snap?.exists()) docs.push({ ...snap.data(), id });
+    }
+    if (docs.length) await mergeCloudDocs(table, docs, ctx, [], false);
   }
 }

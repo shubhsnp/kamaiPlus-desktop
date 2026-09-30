@@ -20,6 +20,7 @@ import {
   AlertCircle 
 } from 'lucide-react';
 import { tr } from '@/lib/i18n/core';
+import { newId } from '@/lib/ids';
 
 interface SettleInvoicesModalProps {
   isOpen: boolean;
@@ -127,7 +128,7 @@ export function SettleInvoicesModal({
 
       // 3. Create Ledger Transaction for Payment Received
       const invoiceNums = selectedSales.map((s) => `#${s.invoice_number}`).join(', ');
-      const ledgerTxId = `ledg_${Date.now()}`;
+      const ledgerTxId = newId('ledg');
       const noteDetails = `Settled ${selectedSales.length} Bill(s): ${invoiceNums}${
         enteredDiscPaise > 0 ? ` (Incl ₹${(enteredDiscPaise / 100).toFixed(2)} discount)` : ''
       }${notes.trim() ? ` • ${notes.trim()}` : ''}`;

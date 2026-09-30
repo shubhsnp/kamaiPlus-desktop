@@ -1,5 +1,6 @@
 'use client';
 import { showConfirm } from '@/lib/ui/dialogs';
+import { newId } from '@/lib/ids';
 
 import dynamic from 'next/dynamic';
 
@@ -101,7 +102,7 @@ export default function CashRegisterPage() {
     const now = new Date().toISOString();
 
     const newShift: CashRegister = {
-      id: `shift_${Date.now()}`,
+      id: newId('shift'),
       business_id: business?.id || 'biz_default',
       opened_by: business?.owner_name || 'Store Owner',
       opening_cash: openingAmountPaise,
@@ -128,7 +129,7 @@ export default function CashRegisterPage() {
   }) => {
     const now = new Date().toISOString();
     const newExpense: CashExpense = {
-      id: `exp_${Date.now()}`,
+      id: newId('exp'),
       business_id: business?.id || 'biz_default',
       category: data.category as any,
       amount: data.amountPaise,

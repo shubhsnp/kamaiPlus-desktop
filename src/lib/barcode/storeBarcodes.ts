@@ -22,22 +22,39 @@ export function isValidEan13(code: string): boolean {
   return /^\d{13}$/.test(code) && ean13CheckDigit(code.slice(0, 12)) === Number(code[12]);
 }
 
-/** `count` new store codes, after the highest one in use, skipping any code already taken. */
-export function nextStoreBarcodes(existing: Iterable<string>, count: number): string[] {
+/**
+ * Which store-code numbers each app hands out (v4.86.0, Step 5). With cloud sync the phone
+ * makes store codes too; "after the highest in use" on both would give two items the same
+ * code before they had synced. So the Desktop keeps 1–49,999 (the numbers a loose-pack code
+ * can carry, up to 99,999) and 100,000–549,999 after that; the phone (KamaiPlus Android
+ * `store_barcodes.dart`) 50,000–99,999, then 550,000 and up.
+ */
+export const DESKTOP_STORE_CODE_RANGES: [number, number][] = [[1, 49_999], [100_000, 549_999]];
+
+/** `count` new store codes, after the highest one in use in this computer's ranges, skipping any code already taken. */
+export function nextStoreBarcodes(existing: Iterable<string>, count: number, ranges: [number, number][] = DESKTOP_STORE_CODE_RANGES): string[] {
   const used = new Set<string>();
-  let seq = 0;
+  const high = ranges.map(([lo]) => lo - 1);
   for (const raw of Array.from(existing)) {
     const code = String(raw || '').trim();
     if (!code) continue;
     used.add(code);
     if (code.length === 13 && code.startsWith(STORE_BARCODE_PREFIX) && /^\d+$/.test(code)) {
-      seq = Math.max(seq, Number(code.slice(3, 12)));
+      const n = Number(code.slice(3, 12));
+      ranges.forEach(([lo, hi], r) => { if (n >= lo && n <= hi) high[r] = Math.max(high[r], n); });
     }
   }
+  let r = 0;
+  while (r < ranges.length - 1 && high[r] >= ranges[r][1]) r++;
+  let seq = high[r];
   const out: string[] = [];
   while (out.length < count) {
     seq += 1;
-    if (seq > 999_999_999) throw new Error('No store barcodes left');
+    if (seq > ranges[r][1]) {
+      if (r === ranges.length - 1) throw new Error('No store barcodes left');
+      r += 1;
+      seq = Math.max(high[r] + 1, ranges[r][0]);
+    }
     const first12 = STORE_BARCODE_PREFIX + String(seq).padStart(9, '0');
     const code = first12 + ean13CheckDigit(first12);
     if (!used.has(code)) {
