@@ -166,7 +166,7 @@ Order zaroori hai — pehle nayi site, phir purani cheezein band.
 | K-D07 | Estimate / quotation bana nahi sakte (sirf pehchaanta hai) | 🟢 | Open |
 | K-D08 | Installer unsigned — Windows "protected your PC" warning (certificate chahiye, Bible §2.2) | 🟠 | Open |
 | K-D09 | Cloud sync band — ek dukaan mein 2 counter / 2 PC ek data nahi | 🟠 | Open |
-| K-D10 | v4.80.0 installer publish nahi hua; TSC par "plug wapas = green" aur calibrate ke baad frame photo check baaki | 🟠 | Open |
+| K-D10 | TSC par "plug wapas = green" aur calibrate ke baad frame photo check baaki (installer wala hissa ho gaya — 4.80.0 live tha, 4.81.0 2026-09-30 ko publish) | 🟠 | Open |
 | K-D11 | Tally XML asli Tally company mein import karke test nahi hua | 🟠 | Open |
 | K-D12 | Route guard 8 aise pages ka naam leta hai jo hain hi nahi (Bible §12 #3) | 🟢 | Open |
 | K-D13 | Products toolbar ka camera "Scan" kuch nahi karta tha (code band form mein jaata tha) | 🟠 | ✅ Done v4.81.0 — camera scanner hataya (Bible §9.12) |
@@ -188,4 +188,5 @@ Order zaroori hai — pehle nayi site, phir purani cheezein band.
 | 2026-09-30 | Website / web app ka kaam Rahul ne roka — pending sawaal §1b mein. Ab Desktop app ke changes. | — |
 | 2026-09-30 | Desktop v4.81.0 — Products toolbar: camera Scan hataya, gun Enter fix, search HSN / size / colour, category chips wrap. Test §9j(p), suite 601/601. K-D13…K-D16. | Desktop |
 | 2026-09-30 | Rahul ke PC ke Feature switches padhe (`app://kamaiplus` localStorage): 11 ke 11 **off** (profit privacy bhi). Naye switches default **on** rahenge (jo screens aaj dikhti hain). | — |
+| 2026-09-30 | **Desktop v4.81.0 publish — sabke liye** (`release:desktop` → `release:publish`). Live `latest.yml` + `beta.yml` = 4.81.0; installer 115,456,076 bytes, live file ka sha512 = `latest.yml` ✔; 4.80.0 installer hosting se hata. Installed PCs 60 s baad / har 4 ghante mein khud update lenge ("Restart & Update"). Installer abhi bhi unsigned (K-D08). | kamaiplus-desktop.web.app |
 | 2026-09-30 | Desktop v4.81.0 — Settings → Features mein 7 naye switch (Khata, Customers, Inventory, Barcode Studio & Labels, Sales Analytics, Invoice Themes, WhatsApp), sab default on. Khata off = counter par udhar bhi band. Test §9j(q), suite 613/613; Electron E2E mein Khata-off check. | Desktop |
