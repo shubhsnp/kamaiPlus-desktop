@@ -363,6 +363,29 @@ is `businesses/biz_<uid>` (`docs/CLOUD_DATA_CONTRACT.md` R1). Cloud sync stays o
   `kamaiplus.web.app` must be verified in Search Console first (tracker K-P16). Sign-in works
   without it (only basic scopes).
 
+### 2.7 Desktop → cloud, one way (v4.85.0, Step 3)
+
+Off by default, per computer: Backup → Google Account → **"Send this shop to the cloud
+(beta — for testing)"** (`kamai_cloud_sync_on`), only with a real (non-stub) Google account —
+until the privacy policy covers the desktop app (tracker K-P13). The old per-screen mirrors
+(`cloudMerge` / `cloudSyncSoon` / `backgroundSync`) stay behind `CLOUD_SYNC_ENABLED = false`.
+
+- **Outbox** `lib/cloud/cloudOutbox.ts`: a pass-through DBCore middleware (`db.use(cloudOutboxMiddleware)`
+  in `lib/db/index.ts`, after the backup one) notes `table → id → put | del` for every write to a
+  `CLOUD_TABLES` table — `clear` / `deleteRange` = that table in full. Only while sending is on;
+  kept in localStorage `kamai_cloud_outbox` (survives offline / a restart).
+- **Sender** `lib/cloud/cloudPush.ts` `sendToCloudNow()` (single-flight, Firebase by dynamic import):
+  waits for the Firebase session (`authStateReady`), must be the linked uid; the **first** time for an
+  account (`kamai_cloud_full_push` ≠ `bizId`) sends everything with
+  `syncLocalDexieToFirestore(bizId, {localBusinessId, onTombstone: 'stop'})` — a cloud tombstone
+  only stops it, never wipes this PC; then only the outbox via `writeRecordsToFirestore` (a noted
+  record that is gone = delete in the cloud). `markSent` keeps anything written again meanwhile.
+  Status in `kamai_cloud_sync_status` → the card (last sent, waiting, error, Send now).
+- **Scheduler** `components/layout/CloudSyncScheduler.tsx` (AppShell): 20 s after opening, every
+  minute on idle, and on `online`.
+- The phone reads it (Android `feat/cloud-data-contract`): products / customers live, categories and
+  the last 100 bills when it starts. Phone → Desktop is Step 4.
+
 ## 3. Directory map
 
 ```
@@ -413,6 +436,7 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 | `hardware/barcodeScannerListener.ts` | USB/HID scanner keystroke capture when **no** text box owns the scan (key timing by `e.timeStamp`; `ignore` lets the POS search box read scans itself) — §9.5 |
 | `firebase/lazyCloud.ts` | **The only way billing touches the cloud.** §6.4 |
 | `firebase/firestoreSync.ts` | Full push/pull sync of all 14 tables + live listeners + `sanitizeForFirestore` — only through `toCloud` / `fromCloud` |
+| `cloud/cloudOutbox.ts` · `cloudPush.ts` | Step 3 (§2.7): outbox middleware + sender (first send everything, then only changes); `CloudSyncScheduler` runs it |
 | `cloud/cloudAccount.ts` | The shop's Google account (§2.6): `connectGoogleAccount` (IPC sign-in → Firebase `signInWithCredential`), `getCloudAccount` (localStorage `kamai_cloud_account`), `bizId = biz_<uid>` |
 | `cloud/cloudContract.ts` · `cloudFormat.ts` | **Cloud data contract** (`docs/CLOUD_DATA_CONTRACT.md`, v4.83.0): Dexie row ↔ Firestore doc per table — money `*_paise`, `stock_quantity`, split flat, `biz_<uid>`, plan fields never; `CLOUD_TABLES` = backup tables. Pure (no Firebase / Dexie) |
 | `backup/cloudBackupService.ts` | Local JSON backup/restore of every table (`BACKUP_TABLES`), `checkBackupPayload`, one-transaction restore, "add missing" merge, settings (§2.3, v4.78.0) |
@@ -741,7 +765,7 @@ There is no global state library. Modules talk through window events:
 `kamai_thermal_paper_width` · `kamai_silent_print` · `kamai_print_upi_qr` ·
 `kamai_cash_drawer_enabled` · `kamai_saved_bt_printer_mac` ·
 `kamai_soundbox_lang` · `kamai_soundbox_vol` · `kamai_last_backup_time` ·
-`kamai_last_backup_type` · `kamai_last_restore_time` · `kamai_cloud_account` · `kamai_app_installed` ·
+`kamai_last_backup_type` · `kamai_last_restore_time` · `kamai_cloud_account` · `kamai_cloud_sync_on` · `kamai_cloud_outbox` · `kamai_cloud_full_push` · `kamai_cloud_sync_status` · `kamai_app_installed` ·
 `kamai_pwa_banner_dismissed` · `kamai_cashier_owner_pin` · `kamai_cashier_privacy_locked` ·
 `kamai_print_settings` (bill printers) · `kamai_label_settings` · `kamai_last_import_ids` ·
 `kamai_label_handoff` (Purchases → Barcode Studio labels) · `kamai_stock_entry_draft` (typed "New stock" rows) ·

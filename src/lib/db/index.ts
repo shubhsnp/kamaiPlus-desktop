@@ -19,6 +19,7 @@ import {
 import { STARTER_CATEGORIES } from '@/lib/constants/storeProfiles';
 import { seedCategoryDefaultProducts } from '@/lib/constants/defaultProducts';
 import { backupChangeMiddleware } from '@/lib/backup/backupChanges';
+import { cloudOutboxMiddleware } from '@/lib/cloud/cloudOutbox';
 
 export class VyaparSetuDatabase extends Dexie {
   businesses!: Table<Business, string>;
@@ -80,6 +81,9 @@ export const db = new VyaparSetuDatabase();
 // Tells the hourly automatic backup that data changed (lib/backup/backupChanges.ts).
 // Must be registered before the database opens; it passes every write on unchanged.
 db.use(backupChangeMiddleware);
+// Notes which records changed for the cloud (lib/cloud/cloudOutbox.ts) — only while the
+// shop has "Send this shop to the cloud" on. Same rule: registered before open, pass-through.
+db.use(cloudOutboxMiddleware);
 
 import { getStoredUser } from '@/lib/auth';
 

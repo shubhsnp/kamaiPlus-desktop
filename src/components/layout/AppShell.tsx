@@ -18,6 +18,7 @@ import { BusinessProvider } from './BusinessProvider';
 import { UpdateReadyBanner } from './UpdateReadyBanner';
 import { FeatureGate } from '@/components/features/FeatureGate';
 import { AutoBackupScheduler } from './AutoBackupScheduler';
+import { CloudSyncScheduler } from './CloudSyncScheduler';
 import { tr } from '@/lib/i18n/core';
 import { SupportContactLine } from '@/components/support/SupportContact';
 import { supportGreeting } from '@/lib/support/contact';
@@ -262,6 +263,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       <GlobalDrawers />
       <UpdateReadyBanner />
       <AutoBackupScheduler />
+      <CloudSyncScheduler />
       <IdleLock />
       <WhatsNewModal />
     </div>
