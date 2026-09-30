@@ -1,6 +1,6 @@
 {
   "name": "kamai-plus-desktop",
-  "version": "4.83.0",
+  "version": "4.84.0",
   "private": true,
   "description": "KamaiPlus Desktop Application",
   "scripts": {
@@ -78,6 +78,7 @@
       "printers.js",
       "whatsapp.js",
       "labelCalibrate.js",
+      "googleSignIn.js",
       "preload.js",
       "out/**/*"
     ],

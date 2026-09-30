@@ -45,6 +45,10 @@ export interface UpdateStatus {
   lastCheck?: { at: string; result: 'up-to-date' | 'downloading' | 'error'; version?: string; error?: string } | null;
 }
 
+export type GoogleSignInResult =
+  | { ok: true; idToken: string | null; email: string | null; name: string | null; picture: string | null; stub?: boolean }
+  | { ok: false; error: string };
+
 /** Automatic local backup state from `backup.js` in the Electron main process. */
 export interface BackupInfo {
   folder: string;
@@ -83,6 +87,8 @@ export interface KamaiDesktopApi {
   activateLicence(key: string): Promise<LicenceActivationResult>;
   /** Master-password recovery: is this the key of the licence activated on this PC? */
   verifyLicenceKey(key: string): Promise<{ ok: boolean; error?: string }>;
+  /** Google sign-in in the shop's browser (googleSignIn.js). `stub` only in the Electron E2E. */
+  googleSignIn(opts: { clientId: string; clientSecret: string }): Promise<GoogleSignInResult>;
   logError(entry: { source: string; message: string; stack?: string; detail?: string }): Promise<{ ok: boolean }>;
   getErrorReport(): Promise<{ text: string; count: number }>;
   openLogFolder(): Promise<DesktopResult>;

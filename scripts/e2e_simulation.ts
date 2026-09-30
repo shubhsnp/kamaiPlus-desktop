@@ -103,6 +103,7 @@ import { scanIntoRows, splitTrailingCode } from '../src/lib/inward/fastInward';
 import { customerListHtmlBody, customerSheetRows, sortCustomers } from '../src/lib/customers/customerDirectory';
 import { BACKUP_TABLES, checkBackupPayload } from '../src/lib/backup/cloudBackupService';
 import { CLOUD_TABLES, fromCloud, normalizeUnit, tableForCloudPath, toCloud } from '../src/lib/cloud/cloudContract';
+import { cloudBizId, parseCloudAccount } from '../src/lib/cloud/cloudAccount';
 import { autoBackupDecision, MAX_WAIT_MS, QUIET_FOR_MS, REFRESH_EVERY_MS } from '../src/lib/backup/backupSchedule';
 import { backupChangeMiddleware, clearDataChanged, dataChangedSinceBackup } from '../src/lib/backup/backupChanges';
 import { breakupSales } from '../src/lib/tally/saleBreakup';
@@ -128,6 +129,8 @@ import { APP_VERSION } from '../src/lib/constants/version';
 let totalTests = 0;
 let passedTests = 0;
 let failedTests = 0;
+/** Checks that need a real round trip (e.g. a local HTTP server); awaited before the summary. */
+const pendingAsyncChecks: Promise<unknown>[] = [];
 
 function assert(condition: boolean, testName: string, detail?: string) {
   totalTests++;
@@ -2299,6 +2302,71 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(!/from '(firebase|@\/lib\/db|@\/lib\/firebase)/.test(contractSrc), 'Cloud contract: the mapping is pure (no Firebase, no Dexie) — tested here, safe to load anywhere');
 }
 
+// (t) Google sign-in (v4.84.0, Step 2 — Rahul: Google the very first time, then the master password).
+// Google blocks sign-in inside an app window, so googleSignIn.js (main process) opens the browser and
+// takes the answer on a one-time 127.0.0.1 server with PKCE + state; the page signs in to Firebase
+// with the ID token and keeps the shop's cloud id biz_<uid> (the Android app's).
+{
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const gs = require(path.join(__dirname, '..', 'googleSignIn.js'));
+  const pk = gs.createPkce('dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk'); // RFC 7636 Appendix B
+  assert(pk.challenge === 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM' && gs.createPkce().verifier.length >= 43,
+    'Google sign-in: the PKCE S256 challenge matches RFC 7636, and a fresh verifier is long enough');
+  const u = new URL(gs.buildAuthUrl({ clientId: 'cid', redirectUri: 'http://127.0.0.1:5555', challenge: 'ch', state: 'st' }));
+  assert(u.origin + u.pathname === 'https://accounts.google.com/o/oauth2/v2/auth' && u.searchParams.get('response_type') === 'code' && u.searchParams.get('code_challenge_method') === 'S256'
+    && u.searchParams.get('scope') === 'openid email profile' && u.searchParams.get('redirect_uri') === 'http://127.0.0.1:5555' && u.searchParams.get('state') === 'st' && u.searchParams.get('prompt') === 'select_account',
+    'Google sign-in: asks only for name + email (openid email profile), code flow with PKCE and state, back to 127.0.0.1, account picker shown');
+  assert(gs.parseCallback('/?code=abc&state=st', 'st').code === 'abc' && gs.parseCallback('/?code=abc&state=other', 'st').error === 'state_mismatch'
+    && gs.parseCallback('/?error=access_denied&state=st', 'st').error === 'access_denied' && gs.parseCallback('/?state=st', 'st').error === 'no_code',
+    'Google sign-in: an answer with another state is refused; a cancel is reported, never taken as a sign-in');
+  const fakeToken = ['x', Buffer.from(JSON.stringify({ email: 'owner@gmail.com', name: 'Owner', sub: '123' })).toString('base64url'), 'sig'].join('.');
+  assert(gs.decodeIdToken(fakeToken).email === 'owner@gmail.com' && JSON.stringify(gs.decodeIdToken('garbage')) === '{}',
+    "Google sign-in: the ID token's name / email are read; a broken token gives nothing");
+
+  // The whole loop: a stand-in browser follows the link back to 127.0.0.1, a stand-in Google swaps the code.
+  let tokenBody = '';
+  const fakeFetch = async (_url: string, init: any) => {
+    tokenBody = String(init.body);
+    return { ok: true, status: 200, json: async () => ({ id_token: fakeToken }) };
+  };
+  const fakeShell = {
+    openExternal: async (link: string) => {
+      const a = new URL(link);
+      await fetch(`${a.searchParams.get('redirect_uri')}/?code=THECODE&state=${a.searchParams.get('state')}`).then((r) => r.text());
+    },
+  };
+  pendingAsyncChecks.push(gs.signIn({ shell: fakeShell, clientId: 'cid', clientSecret: 'sec', fetchImpl: fakeFetch }).then((res: any) => {
+    const body = new URLSearchParams(tokenBody);
+    assert(res.ok && res.idToken === fakeToken && res.email === 'owner@gmail.com' && body.get('code') === 'THECODE' && body.get('grant_type') === 'authorization_code'
+      && (body.get('code_verifier') || '').length >= 43 && /^http:\/\/127\.0\.0\.1:\d+$/.test(body.get('redirect_uri') || '') && body.get('client_secret') === 'sec',
+      'Google sign-in: the whole loop works — browser → 127.0.0.1 → code + PKCE verifier swapped for the ID token');
+  }));
+  pendingAsyncChecks.push(gs.signIn({ shell: { openExternal: async () => {} }, clientId: 'cid', clientSecret: 'sec', fetchImpl: fakeFetch, timeoutMs: 300 })
+    .then((res: any) => assert(!res.ok && res.error === 'timeout', 'Google sign-in: no answer from the browser → times out and says so (the one-time server closes)')));
+  pendingAsyncChecks.push(gs.signIn({ shell: fakeShell, clientId: '', clientSecret: '' })
+    .then((res: any) => assert(!res.ok && res.error === 'not_configured', 'Google sign-in: a build without the OAuth client says so instead of opening the browser')));
+
+  const acct = { uid: 'u1', email: 'a@b.c', name: 'A', photoURL: null, bizId: 'biz_u1', linkedAt: '2026-09-30T00:00:00.000Z' };
+  assert(parseCloudAccount(JSON.stringify(acct))?.bizId === 'biz_u1' && parseCloudAccount(JSON.stringify({ ...acct, bizId: 'biz_other' })) === null
+    && parseCloudAccount('nope') === null && parseCloudAccount(null) === null && cloudBizId('u1') === 'biz_u1',
+    "Google account: kept as biz_<uid> (the Android app's shop id); a mismatched or broken record is ignored");
+
+  const mainSrc = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+  const gsSrc = fs.readFileSync(path.join(__dirname, '..', 'googleSignIn.js'), 'utf8');
+  assert((pkgJson.build?.files || []).includes('googleSignIn.js') && /server\.listen\(0, '127\.0\.0\.1'/.test(gsSrc)
+    && /process\.env\.KAMAI_E2E_GOOGLE_STUB === '1' && !app\.isPackaged\) \{/.test(mainSrc) && (mainSrc.match(/KAMAI_E2E_GOOGLE_STUB/g) || []).length === 1,
+    'Google sign-in: packaged into the installer; the one-time server listens on 127.0.0.1 only; the test stand-in exists only in an unpackaged run');
+  const authSrc = readSource('components/auth/AuthForm.tsx');
+  assert(/const googleStepPending = isDesktop && !account;/.test(authSrc) && /if \(googleStepPending\) \{\s*throw new Error/.test(authSrc)
+    && /disabled=\{loading \|\| !password \|\| !confirmPassword \|\| googleStepPending\}/.test(authSrc),
+    'First run: in the desktop app the master password cannot be set before the Google account is connected (Google first, then password)');
+  const acctSrc = readSource('lib/cloud/cloudAccount.ts');
+  assert(/initializeAuth\(firebaseApp, \{ persistence: indexedDBLocalPersistence \}\)/.test(readSource('lib/firebase/config.ts'))
+    && /signInWithCredential\(auth, GoogleAuthProvider\.credential\(res\.idToken\)\)/.test(acctSrc) && !/^import .*firebase/m.test(acctSrc)
+    && /<CloudAccountCard \/>/.test(readSource('app/cloud-backup/page.tsx')),
+    'Google account: Firebase sign-in with the Google ID token (Firebase loaded only when connecting, session in IndexedDB); a shop set up earlier connects on the Backup page');
+}
+
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.
 const PRO_OR_AI = /useProSubscription|requirePro|UpgradeModal|ProFeatureBadge|subscriptionService|razorpay|generativelanguage\.googleapis|gemini/i;
 // The one exception: the cloud contract's list of plan fields the Desktop must NEVER write (R9,
@@ -2874,13 +2942,12 @@ assert(simulateCleanProducts() === 3 && localProducts.length === 0, 'Clean produ
 assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean product data marks manual clear flag to prevent unauthorized re-seeding');
 
 
-console.log('');
-console.log('================================================================');
-console.log(`📊 SIMULATION COMPLETE: ${passedTests}/${totalTests} TESTS PASSED (${failedTests} failures)`);
-console.log('================================================================');
-
-if (failedTests > 0) {
-  process.exit(1);
-} else {
-  process.exit(0);
-}
+// Checks that need a real round trip (a local HTTP server) finish here, before the summary.
+Promise.allSettled(pendingAsyncChecks).then((results) => {
+  for (const r of results) if (r.status === 'rejected') assert(false, 'An async check threw', String(r.reason));
+  console.log('');
+  console.log('================================================================');
+  console.log(`📊 SIMULATION COMPLETE: ${passedTests}/${totalTests} TESTS PASSED (${failedTests} failures)`);
+  console.log('================================================================');
+  process.exit(failedTests > 0 ? 1 : 0);
+});

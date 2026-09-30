@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('kamaiDesktop', {
   getLicenceStatus: () => ipcRenderer.invoke('kp:licence-status'),
   activateLicence: (key) => ipcRenderer.invoke('kp:licence-activate', key),
   verifyLicenceKey: (key) => ipcRenderer.invoke('kp:licence-verify-key', key),
+  googleSignIn: (opts) => ipcRenderer.invoke('kp:google-signin', opts),
   logError: (entry) => ipcRenderer.invoke('kp:log-error', entry),
   getErrorReport: () => ipcRenderer.invoke('kp:error-report'),
   openLogFolder: () => ipcRenderer.invoke('kp:open-logs'),

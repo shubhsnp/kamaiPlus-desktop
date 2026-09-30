@@ -39,7 +39,9 @@ function check(ok, label) {
 }
 
 async function launch(dataDir) {
-  const env = { ...process.env, KAMAI_E2E_DIR: dataDir };
+  // KAMAI_E2E_GOOGLE_STUB: the test cannot sign in to Google — main.js answers kp:google-signin
+  // with a stand-in (only in an unpackaged run — an installed app never).
+  const env = { ...process.env, KAMAI_E2E_DIR: dataDir, KAMAI_E2E_GOOGLE_STUB: '1' };
   // VS Code terminals set this; it makes electron.exe behave as plain Node.
   delete env.ELECTRON_RUN_AS_NODE;
   const app = await electron.launch({ executablePath: electronPath, args: [APP_DIR], cwd: APP_DIR, env, timeout: 60000 });
@@ -148,7 +150,14 @@ async function run() {
       check(await textVisible(page, 'Set Master Password'), 'A signed licence for this computer is accepted (master password setup shown)');
       await page.getByPlaceholder('Enter new password').fill(PASSWORD);
       await page.getByPlaceholder('Re-enter password').fill(PASSWORD);
-      await page.getByRole('button', { name: /Set Password & Start/i }).click();
+      // v4.84.0 — first time: Google account (step 1) before the password (step 2).
+      const setBtn = page.getByRole('button', { name: /Set Password & Start/i });
+      const blockedBeforeGoogle = await setBtn.isDisabled();
+      await page.getByRole('button', { name: /Continue with Google/i }).click();
+      const connected = await textVisible(page, 'e2e.owner@example.com', 10000);
+      check(blockedBeforeGoogle && connected && (await setBtn.isEnabled()),
+        `First run asks for the Google account before the password (button off before: ${blockedBeforeGoogle}, connected: ${connected})`);
+      await setBtn.click();
 
       step = 'onboarding';
       check(await textVisible(page, 'Setup Your Store Profile'), 'After the password, a new shop goes to store setup');

@@ -9,6 +9,7 @@ import { BackupCheck, checkBackupPayload, downloadBackupJSON } from '@/lib/backu
 import { Download, Upload, CheckCircle2, HardDrive, FileDown } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { AutoBackupCard } from '@/components/backup/AutoBackupCard';
+import { CloudAccountCard } from '@/components/backup/CloudAccountCard';
 import { RestoreBackupModal } from '@/components/backup/RestoreBackupModal';
 import { AccountingExportsCard } from '@/components/backup/AccountingExportsCard';
 import { tr } from '@/lib/i18n/core';
@@ -136,6 +137,7 @@ export default function CloudBackupPage() {
       <div className="space-y-3">
         <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">{tr('Store Data Backup & Restore')}</h2>
         <AutoBackupCard />
+        <CloudAccountCard />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="p-3.5 bg-white border border-slate-200 rounded-xl shadow-2xs flex items-center justify-between gap-3 hover:border-slate-300 transition-all">
             <div className="flex items-center gap-2.5 min-w-0">

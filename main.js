@@ -11,6 +11,7 @@ const errorlog = require('./errorlog');
 const printers = require('./printers');
 const whatsapp = require('./whatsapp');
 const labelCalibrate = require('./labelCalibrate');
+const googleSignIn = require('./googleSignIn');
 
 // Main-process failures are logged instead of vanishing (errorlog.js).
 process.on('uncaughtException', (err) => {
@@ -484,6 +485,26 @@ ipcMain.handle('kp:licence-activate', async (_event, key) =>
     fetchImpl: (url, opts) => net.fetch(url, opts),
   })
 );
+
+// Google sign-in (googleSignIn.js): the shop's browser, answer on 127.0.0.1, PKCE.
+// The Electron E2E cannot sign in to Google; only an unpackaged test run gets a stand-in
+// (an installed app is always packaged, whatever its environment says).
+ipcMain.handle('kp:google-signin', async (_event, opts) => {
+  if (process.env.KAMAI_E2E_GOOGLE_STUB === '1' && !app.isPackaged) {
+    return { ok: true, stub: true, idToken: null, email: 'e2e.owner@example.com', name: 'E2E Owner', picture: null };
+  }
+  const result = await googleSignIn.signIn({
+    shell,
+    clientId: String(opts?.clientId || ''),
+    clientSecret: String(opts?.clientSecret || ''),
+    fetchImpl: (url, init) => net.fetch(url, init),
+  });
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+  }
+  return result;
+});
 
 // ---------------------------------------------------------------------------
 // Lifecycle — one instance only, so two windows never fight over the local database.

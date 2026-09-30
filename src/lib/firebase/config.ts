@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth, Auth } from 'firebase/auth';
+import { getAuth, initializeAuth, indexedDBLocalPersistence, Auth } from 'firebase/auth';
 import { initializeFirestore, getFirestore, Firestore, setLogLevel } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 import { getRemoteConfig, RemoteConfig } from 'firebase/remote-config';
@@ -47,7 +47,13 @@ export function getFirebaseAuth(): Auth | null {
   const firebaseApp = getFirebaseApp();
   if (!firebaseApp) return null;
   if (!auth) {
-    auth = getAuth(firebaseApp);
+    // The desktop app signs in with a Google ID token (lib/cloud/cloudAccount.ts), never a
+    // popup / redirect — so no popup resolver; the session is kept in IndexedDB.
+    try {
+      auth = initializeAuth(firebaseApp, { persistence: indexedDBLocalPersistence });
+    } catch {
+      auth = getAuth(firebaseApp);
+    }
   }
   return auth;
 }

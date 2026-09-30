@@ -6,6 +6,7 @@ import { getStoredUser, setStoredUser, AuthUser } from '@/lib/auth';
 import { db as localDb } from '@/lib/db';
 import { clearMasterPasswordAfterRecovery, hasMasterPassword, markUnlocked, setMasterPassword, unlockDestination, verifyMasterPassword } from '@/lib/auth/masterPassword';
 import { getDesktopApi } from '@/lib/desktop/desktopBridge';
+import { CloudAccount, connectGoogleAccount, getCloudAccount } from '@/lib/cloud/cloudAccount';
 import { 
   CheckCircle2, 
   AlertCircle, 
@@ -58,10 +59,29 @@ export const AuthForm: React.FC = () => {
     setNotice(tr('Licence key verified. Set a new password — all your bills and data are safe.'));
   };
 
+  // First time on this computer: Google sign-in comes before the master password
+  // (Rahul, 2026-09-30 — the shop's cloud and the Android app use that account).
+  const [account, setAccount] = useState<CloudAccount | null>(null);
+  const [googleBusy, setGoogleBusy] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
+
   // Check if a master password already exists
   useEffect(() => {
     setHasPassword(hasMasterPassword());
+    setAccount(getCloudAccount());
+    setIsDesktop(Boolean(getDesktopApi()));
   }, []);
+
+  const handleGoogle = async () => {
+    setError('');
+    setGoogleBusy(true);
+    const res = await connectGoogleAccount();
+    setGoogleBusy(false);
+    if (res.ok) setAccount(res.account);
+    else setError(res.error);
+  };
+
+  const googleStepPending = isDesktop && !account;
 
   const handleUnlock = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,6 +112,9 @@ export const AuthForm: React.FC = () => {
     setLoading(true);
 
     try {
+      if (googleStepPending) {
+        throw new Error(tr('First connect your Google account (step 1).'));
+      }
       if (password.length < 4) {
         throw new Error(tr('Password must be at least 4 characters long.'));
       }
@@ -132,10 +155,13 @@ export const AuthForm: React.FC = () => {
     let bizId = localBiz?.id || 'biz_pending';
     let bizName = localBiz?.name || 'My Offline Store';
 
+    const linked = getCloudAccount();
     const localUser: AuthUser = {
       uid: 'local_admin',
       id: 'local_admin',
-      name: 'Store Owner',
+      name: linked?.name || 'Store Owner',
+      email: linked?.email || null,
+      photoURL: linked?.photoURL || null,
       role: 'admin',
       business_id: bizId,
       business_name: bizName,
@@ -270,6 +296,35 @@ export const AuthForm: React.FC = () => {
         </form>
       ) : (
         <form onSubmit={handleSetPassword} className="space-y-4">
+          {isDesktop && (
+            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2.5" data-google-step>
+              <div className="text-[10.5px] font-black text-amber-400 uppercase tracking-wider">{tr('Step 1 of 2 — Google account')}</div>
+              {account ? (
+                <div className="flex items-center gap-2 text-xs text-emerald-300">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>{tr('Google account connected:')} <span className="font-bold text-white">{account.email || account.name}</span></span>
+                </div>
+              ) : (
+                <>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    {tr('Connect your Google account once — the same one as the KamaiPlus mobile app. After this, the app opens with your password.')}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleGoogle}
+                    disabled={googleBusy}
+                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-white hover:bg-slate-100 text-slate-900 font-black text-sm disabled:opacity-70 cursor-pointer"
+                  >
+                    {googleBusy ? <RefreshCw className="w-4 h-4 animate-spin" /> : <span className="font-black text-base leading-none text-blue-600">G</span>}
+                    <span>{googleBusy ? tr('Finish signing in in your browser…') : tr('Continue with Google')}</span>
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+          {isDesktop && (
+            <div className="text-[10.5px] font-black text-amber-400 uppercase tracking-wider ml-1">{tr('Step 2 of 2 — Password for this computer')}</div>
+          )}
           <div>
             <label className="block text-xs font-semibold text-slate-400 mb-1.5 ml-1">{tr('Create Password / PIN')}</label>
             <div className="relative">
@@ -305,7 +360,7 @@ export const AuthForm: React.FC = () => {
           </div>
           <button
             type="submit"
-            disabled={loading || !password || !confirmPassword}
+            disabled={loading || !password || !confirmPassword || googleStepPending}
             className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm shadow-xl hover:shadow-amber-500/20 transition-all duration-200 active:scale-[0.99] disabled:opacity-60 disabled:pointer-events-none"
           >
             {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}

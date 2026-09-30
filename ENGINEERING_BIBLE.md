@@ -116,6 +116,7 @@ Defined in `main.js` (`ipcMain.handle`), exposed in `preload.js`, typed in
 | `kp:licence-status` | `getLicenceStatus()` | Offline licence check (§2.1) → `{state:'active',…}` or `{state:'required', machineName, reason?}` |
 | `kp:licence-activate` | `activateLicence(key)` | One-time online activation (§2.1) → `{ok, status}` or `{ok:false, error}` |
 | `kp:licence-verify-key` | `verifyLicenceKey(key)` | Forgot master password: `{ok}` only if `key` is the key of the signed licence on THIS PC (offline). The login screen then clears the password so a new one can be set — data untouched. |
+| `kp:google-signin` | `googleSignIn({clientId, clientSecret})` | Google sign-in (§2.6): `googleSignIn.js` opens the shop's browser, takes the answer on a one-time `127.0.0.1` server (PKCE S256 + `state`), swaps the code for an ID token → `{ok, idToken, email, name, picture}`. The Electron E2E (unpackaged + `KAMAI_E2E_GOOGLE_STUB=1`) gets a stand-in `{stub: true}`. |
 | `kp:log-error` | `logError(entry)` | Page error → `<userData>/logs/errors.log` (§2.4) |
 | `kp:error-report` | `getErrorReport()` | Support report text: version, Windows, masked licence, last 30 errors (§2.4) |
 | `kp:open-logs` | `openLogFolder()` | Opens the log folder (§2.4) |
@@ -316,6 +317,34 @@ Cloud sync is off (§12 #7), so the shop's own disk is the only safety net.
 
 ---
 
+### 2.6 Google sign-in — the shop's cloud account (v4.84.0, Step 2)
+
+Rahul (2026-09-30): the desktop app signs in with **Google the very first time**, then the
+**master password** opens it every day. Same account as the Android app, so the shop's cloud
+is `businesses/biz_<uid>` (`docs/CLOUD_DATA_CONTRACT.md` R1). Cloud sync stays off (§12 #7).
+
+- **Main process** `googleSignIn.js`: Google blocks its sign-in page inside an app window, so
+  it opens the shop's browser (`shell.openExternal`), listens once on `127.0.0.1:<free port>`
+  (any loopback port is allowed for a *Desktop app* OAuth client), checks `state`, swaps the
+  code with the **PKCE** verifier (S256) at `oauth2.googleapis.com/token` → ID token; 3 min
+  timeout; the browser tab says "Signed in — go back to the app"; the window is focused.
+- **OAuth client**: Google Cloud → Google Auth Platform → Clients → "KamaiPlus Desktop"
+  (Desktop app), in `.env.local` as `NEXT_PUBLIC_GOOGLE_DESKTOP_CLIENT_ID` / `…_SECRET` —
+  an installed-app secret ships in the app (RFC 8252), so it is inlined at build time.
+- **Page** `lib/cloud/cloudAccount.ts` `connectGoogleAccount()`: IPC → Firebase
+  `signInWithCredential(GoogleAuthProvider.credential(idToken))` (Firebase loaded by dynamic
+  import; `getFirebaseAuth()` uses `initializeAuth` + IndexedDB persistence, no popup
+  resolver) → `kamai_cloud_account` {uid, email, name, photoURL, bizId: `biz_<uid>`}. This
+  computer's own business id is **not** changed — the contract maps `business_id` to `bizId`.
+- **AuthForm**: in the desktop app, "Set Master Password" is step 2; step 1 "Continue with
+  Google" must be done first (the button stays disabled). A shop set up before v4.84.0
+  connects on Backup → **Google Account** (`CloudAccountCard`).
+- **Electron E2E**: `KAMAI_E2E_GOOGLE_STUB=1` (only in an unpackaged run — an installed app never) →
+  `kp:google-signin` answers `{stub: true}`, no Firebase call.
+- Branding verification (app name / logo on the Google screen) is pending: the home page
+  `kamaiplus.web.app` must be verified in Search Console first (tracker K-P16). Sign-in works
+  without it (only basic scopes).
+
 ## 3. Directory map
 
 ```
@@ -323,6 +352,7 @@ main.js / preload.js        Electron shell + IPC bridge
 licence.js                  Licence check + one-time activation (main process, §2.1)
 updater.js                  Auto-update from kamaiplus-desktop.web.app (main process, §2.2)
 backup.js                   Daily automatic backup files (main process, §2.3)
+googleSignIn.js             Google sign-in in the browser, loopback + PKCE (main process, §2.6) — must stay in build.files
 printers.js                 Windows printer facts via Get-Printer (main process, §9.10) — must stay in build.files
 whatsapp.js                 Opens WhatsApp Desktop / wa.me (main process, §9.11) — must stay in build.files
 scripts/prepare_release.js  dist/ → release/ for the update site (§2.2)
@@ -365,6 +395,7 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 | `hardware/barcodeScannerListener.ts` | USB/HID scanner keystroke capture when **no** text box owns the scan (key timing by `e.timeStamp`; `ignore` lets the POS search box read scans itself) — §9.5 |
 | `firebase/lazyCloud.ts` | **The only way billing touches the cloud.** §6.4 |
 | `firebase/firestoreSync.ts` | Full push/pull sync of all 14 tables + live listeners + `sanitizeForFirestore` — only through `toCloud` / `fromCloud` |
+| `cloud/cloudAccount.ts` | The shop's Google account (§2.6): `connectGoogleAccount` (IPC sign-in → Firebase `signInWithCredential`), `getCloudAccount` (localStorage `kamai_cloud_account`), `bizId = biz_<uid>` |
 | `cloud/cloudContract.ts` · `cloudFormat.ts` | **Cloud data contract** (`docs/CLOUD_DATA_CONTRACT.md`, v4.83.0): Dexie row ↔ Firestore doc per table — money `*_paise`, `stock_quantity`, split flat, `biz_<uid>`, plan fields never; `CLOUD_TABLES` = backup tables. Pure (no Firebase / Dexie) |
 | `backup/cloudBackupService.ts` | Local JSON backup/restore of every table (`BACKUP_TABLES`), `checkBackupPayload`, one-transaction restore, "add missing" merge, settings (§2.3, v4.78.0) |
 | `backup/autoBackup.ts` · `backupSchedule.ts` · `backupChanges.ts` | Automatic backup: run it / when (hourly while data changes, counter free) / "data changed" DBCore middleware registered in `db/index.ts` (§2.3, v4.82.0) |
@@ -688,7 +719,7 @@ There is no global state library. Modules talk through window events:
 `kamai_thermal_paper_width` · `kamai_silent_print` · `kamai_print_upi_qr` ·
 `kamai_cash_drawer_enabled` · `kamai_saved_bt_printer_mac` ·
 `kamai_soundbox_lang` · `kamai_soundbox_vol` · `kamai_last_backup_time` ·
-`kamai_last_backup_type` · `kamai_last_restore_time` · `kamai_app_installed` ·
+`kamai_last_backup_type` · `kamai_last_restore_time` · `kamai_cloud_account` · `kamai_app_installed` ·
 `kamai_pwa_banner_dismissed` · `kamai_cashier_owner_pin` · `kamai_cashier_privacy_locked` ·
 `kamai_print_settings` (bill printers) · `kamai_label_settings` · `kamai_last_import_ids` ·
 `kamai_label_handoff` (Purchases → Barcode Studio labels) · `kamai_stock_entry_draft` (typed "New stock" rows) ·
