@@ -57,6 +57,7 @@ import { useHardwareBarcodeScanner } from '@/lib/hardware/barcodeScannerListener
 
 import { focusPosCustomerName, PosCustomerRow } from '@/components/billing/PosCustomerRow';
 import { PosPriceModeToggle } from '@/components/billing/PosPriceModeToggle';
+import { quickRestockProduct } from '@/lib/inventory/quickRestock';
 import { modeForCustomer, PriceMode, repriceCart, unitPriceFor } from '@/lib/billing/priceMode';
 import { searchEnterAction } from '@/lib/billing/scanInput';
 import { parseWeighedBarcode, weighedQuantity } from '@/lib/barcode/weighedBarcode';
@@ -476,39 +477,7 @@ export default function BillingPage() {
   // Instant POS Quick Restock and Add to Cart
   const handleRestockAndAddToCart = async (product: Product, restockQty: number = 10, billQty: number = 1) => {
     try {
-      const now = new Date().toISOString();
-      const current = Number(product.current_stock ?? 0);
-      const newStock = current + restockQty;
-
-      const updatedProduct: Product = {
-        ...product,
-        current_stock: newStock,
-        updated_at: now,
-      };
-
-      await db.products.put(updatedProduct);
-
-      await db.inventory_movements.put({
-        id: `mov_pos_restock_${Date.now()}_${product.id}`,
-        business_id: product.business_id || business?.id || 'biz_default',
-        product_id: product.id,
-        product_name: product.name,
-        movement_type: 'PURCHASE',
-        quantity: restockQty,
-        previous_stock: current,
-        new_stock: newStock,
-        reason: `POS Quick Restock (+${restockQty} ${product.unit || 'units'}) during billing`,
-        created_by: 'cashier',
-        created_at: now,
-      });
-
-      // Direct cloud sync to prevent stale overwrite (never blocks the cart)
-      const bizId = product.business_id || business?.id;
-      if (bizId && bizId !== 'biz_default') {
-        void cloudMerge(`businesses/${bizId}/products/${product.id}`, updatedProduct);
-      }
-
-      addToCart(updatedProduct, billQty);
+      addToCart(await quickRestockProduct(product, restockQty, business?.id), billQty);
     } catch (err) {
       console.error('Failed to quick restock from POS:', err);
       showAlert(tr('Failed to restock item. Please check inventory.'));
@@ -543,6 +512,14 @@ export default function BillingPage() {
       }
     }
 
+    // No price yet (v4.87.0): it goes in the cart and the price box opens at once.
+    const needsPrice = !product.has_variants && !(unitPriceFor(product, 'retail') > 0) && !cart.some((line) => line.product_id === product.id);
+    if (needsPrice) {
+      window.setTimeout(() => {
+        showBillingToast(tr('"{name}" has no price yet — enter it.', { name: product.name }), 'info');
+        handleOpenEditItem({ product_id: product.id, product_name: product.name, quantity: quantityToAdd, unit: product.unit, unit_price: 0, discount_amount: 0, tax_rate: product.tax_rate || 0, tax_amount: 0, total_amount: 0, is_tax_inclusive: product.is_tax_inclusive } as CartItem);
+      }, 0);
+    }
     playBeepSound('success');
     setCart((prev) => {
       const existing = prev.find((item) => item.product_id === product.id);
@@ -891,6 +868,14 @@ export default function BillingPage() {
 
   const handleCompleteSale = async () => {
     if (cart.length === 0) return;
+    // An item without a price (imported without one, v4.87.0) is never billed at ₹0: ask for it.
+    const unpriced = cart.find((line) => !(line.unit_price > 0));
+    if (unpriced) {
+      playBeepSound('alert');
+      showBillingToast(tr('Enter the price of "{name}" — it has no price yet.', { name: unpriced.product_name }), 'error');
+      handleOpenEditItem(unpriced);
+      return;
+    }
     // A double Enter / double click must never save the same cart twice
     // (two bills, stock deducted twice, same invoice number).
     if (completingSaleRef.current) return;

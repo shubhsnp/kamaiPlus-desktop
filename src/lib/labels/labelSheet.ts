@@ -31,8 +31,10 @@ function labelHtml(l: LabelData, content: LabelContent, shopName: string, dateTe
   parts.push(qrUrl ? `<div class="bars qr"><img src="${qrUrl}" alt=""></div>` : `<div class="bars">${barcodeSVG(l.barcode, { showText: false, height: 60 })}</div>`);
   if (content.code) parts.push(`<div class="code">${esc(l.barcode)}</div>`);
   const prices: string[] = [];
-  if (content.mrp && l.mrpPaise && l.mrpPaise > l.pricePaise) prices.push(`<span class="mrp">MRP ${esc(formatINR(l.mrpPaise))}</span>`);
-  if (content.price) prices.push(`<span class="price">${esc(formatINR(l.pricePaise))}</span>`);
+  // An item with no price yet (₹0, e.g. imported without one — v4.87.0): no price on the label.
+  const priced = l.pricePaise > 0;
+  if (priced && content.mrp && l.mrpPaise && l.mrpPaise > l.pricePaise) prices.push(`<span class="mrp">MRP ${esc(formatINR(l.mrpPaise))}</span>`);
+  if (priced && content.price) prices.push(`<span class="price">${esc(formatINR(l.pricePaise))}</span>`);
   const cost = content.costCode ? encodeCostCode(l.costPaise, costCodeWord) : '';
   if (cost) prices.push(`<span class="cc">${esc(cost)}</span>`);
   if (prices.length) parts.push(`<div class="prices">${prices.join('')}</div>`);

@@ -132,7 +132,7 @@ export function LabelQueuePanel({ queue, onChange, products, categories, onAdd, 
             <div key={q.id} className="py-1.5 flex items-center gap-2">
               <div className="min-w-0 flex-1">
                 <div className="font-bold text-slate-900 truncate">{q.name}</div>
-                <div className="text-[10px] text-slate-500 font-mono">{q.barcode} • {formatINR(q.pricePaise)}</div>
+                <div className="text-[10px] text-slate-500 font-mono">{q.barcode} • {q.pricePaise > 0 ? formatINR(q.pricePaise) : tr('no price')}</div>
               </div>
               <button type="button" onClick={() => setCopies(q.id, q.copies - 1)} className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 font-bold cursor-pointer">−</button>
               <input type="number" min="1" max="999" value={q.copies} onChange={(e) => setCopies(q.id, Number(e.target.value))} className="w-12 h-6 text-center rounded border border-slate-200 font-mono font-bold" aria-label={tr('Copies')} />

@@ -120,6 +120,7 @@ export const PosItemEditModal: React.FC<PosItemEditModalProps> = ({
             step="0.01"
             value={editItemPrice}
             onChange={(e) => setEditItemPrice(e.target.value)}
+            data-edit-price
           />
           {/* The amount follows the quantity: ½ box at ₹400 a box = ₹200. */}
           {qtyNow > 0 && ratePaise > 0 && (

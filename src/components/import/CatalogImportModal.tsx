@@ -40,6 +40,8 @@ const SAMPLE_ROWS = [
  */
 export function CatalogImportModal({ onClose, businessId, onImportComplete }: CatalogImportModalProps) {
   const switches = useFeatureSwitches();
+  // New items from rows without a price (saved at ₹0, v4.87.0).
+  const [unpricedCount, setUnpricedCount] = useState(0);
   const labelsOn = switches.barcode_studio; // Settings → Features: no "Print labels" when off
   const [step, setStep] = useState<'pick' | 'map' | 'preview' | 'done'>('pick');
   const [busy, setBusy] = useState(false);
@@ -120,6 +122,7 @@ export function CatalogImportModal({ onClose, businessId, onImportComplete }: Ca
         giveBarcodes,
       });
       setResult(res);
+      setUnpricedCount(plan.creates.filter((r) => r.pricePaise === null).length);
       // A sheet with wholesale prices: the Retail / Wholesale switch comes on by itself (v4.87.0).
       if (roles.includes('wholesale') && plan.creates.concat(plan.updates.map((u) => u.row)).some((r) => r.wholesalePaise)) setFeatureSwitch('wholesale_price', true);
       // New and re-priced items: Barcode Studio offers their labels ("Last Excel import").
@@ -248,6 +251,11 @@ export function CatalogImportModal({ onClose, businessId, onImportComplete }: Ca
               {tr('{created} new items, {updated} updated, {unchanged} unchanged, {skipped} skipped.', { created: result.created, updated: result.updated, unchanged: result.unchanged, skipped: result.skipped })}
               {result.barcodesGiven > 0 && <> {tr('{count} items got a new barcode.', { count: result.barcodesGiven })}</>}
             </p>
+            {unpricedCount > 0 && (
+              <p className="text-xs font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 inline-block" data-import-unpriced>
+                {tr('{count} items have no price yet: their labels print without a price, and the counter asks for the price when they are billed.', { count: unpricedCount })}
+              </p>
+            )}
           </div>
         )}
 

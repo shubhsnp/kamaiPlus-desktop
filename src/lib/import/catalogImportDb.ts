@@ -69,7 +69,8 @@ export async function applyImportPlan(plan: ImportPlan, ctx: ImportContext): Pro
     const creates: Product[] = plan.creates.map((r, i) => {
       const cat = categoryFor(ctx.mapped.category ? r.category : '');
       const counted = ctx.mapped.stock && r.stock !== null;
-      const price = r.pricePaise!;
+      // No price in the sheet → ₹0 for now (the counter asks for it; the label prints without one).
+      const price = r.pricePaise ?? 0;
       return {
         id: `prod_imp_${stamp}_${i}`,
         business_id: ctx.businessId,
@@ -99,11 +100,12 @@ export async function applyImportPlan(plan: ImportPlan, ctx: ImportContext): Pro
     });
 
     const updates: Product[] = plan.updates.map(({ row, product }) => {
-      const price = row.pricePaise!;
+      const price = row.pricePaise;
       const next: Product = {
         ...product,
-        selling_price: price,
-        mrp: ctx.mapped.mrp && row.mrpPaise ? row.mrpPaise : price,
+        // A blank price cell never wipes the saved price.
+        selling_price: price ?? product.selling_price,
+        mrp: price === null ? product.mrp : ctx.mapped.mrp && row.mrpPaise ? row.mrpPaise : price,
         is_active: true,
         updated_at: now,
       };

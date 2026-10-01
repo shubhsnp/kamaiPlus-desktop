@@ -1170,7 +1170,8 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   const byRow = (n: number) => rows.find((r) => r.rowNumber === n)!;
   assert(rows.length === 6 && byRow(2).pricePaise === 32000 && byRow(2).unit === 'box' && byRow(3).name === 'Helicopter (5 Piece) – Fancy Item Fathers' && byRow(4).name === 'Helicopter (5 Piece) – Fancy Item Royal',
     'Sheet rows: prices in paise, blank lines ignored, two brands\' "Helicopter" told apart by their section');
-  assert(byRow(5).skip === 'No price' && /twice/.test(byRow(8).skip || '') && !byRow(7).skip, 'A row without a price, and the same item twice, are skipped with the reason shown');
+  assert(!byRow(5).skip && byRow(5).pricePaise === null && /twice/.test(byRow(8).skip || '') && !byRow(7).skip,
+    'A row without a price is kept (v4.87.0 — saved at ₹0, its label prints without a price); the same item twice is skipped with the reason shown');
   assert(buildImportRows(grid, 0, roles, opt).map((r) => r.name).join('|') === rows.map((r) => r.name).join('|'), 'The same sheet always gives the same names (re-uploading finds the saved items)');
 
   // (c) Re-upload: saved items are updated (by barcode, else by name), unchanged ones left alone.
@@ -1179,8 +1180,23 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   const A = saved('pA', 'चौरसा 8 वाला – अतिसिया (100 नग)', 30000, 'चौरसा', '2000000000015');
   const B = saved('pB', 'Helicopter (5 Piece) – Fancy Item Fathers', 8500, 'Fancy Item Fathers');
   const plan = planImport(rows, [A, B], false);
-  assert(plan.creates.length === 2 && plan.updates.length === 1 && plan.updates[0].product.id === 'pA' && plan.updates[0].changes.includes('price') && plan.unchanged.length === 1 && plan.skipped.length === 2,
-    'Upload again with a new price: 1 price updated, 1 unchanged, 2 new, 2 skipped — nothing added twice');
+  assert(plan.creates.length === 3 && plan.updates.length === 1 && plan.updates[0].product.id === 'pA' && plan.updates[0].changes.includes('price') && plan.unchanged.length === 1 && plan.skipped.length === 1,
+    'Upload again with a new price: 1 price updated, 1 unchanged, 3 new (one without a price), 1 skipped — nothing added twice');
+  const blankRow = { rowNumber: 9, name: A.name, category: '', pricePaise: null, mrpPaise: null, costPaise: null, wholesalePaise: null, unit: null, stock: null, barcode: '', gstRate: null, hsn: '' };
+  const blankPrice = planImport([blankRow], [A, B], false);
+  assert(blankPrice.updates.length === 0 && blankPrice.unchanged.length === 1,
+    'A saved item with a blank price cell keeps its saved price (a blank never wipes a price)');
+  const importDb2 = readSource('lib/import/catalogImportDb.ts');
+  assert(importDb2.includes('const price = r.pricePaise ?? 0;') && importDb2.includes('selling_price: price ?? product.selling_price,'),
+    'Import writes a new item without a price at ₹0 and never overwrites a saved price with a blank');
+  const noPriceLabel = buildLabelHtml([{ name: 'Saddam', barcode: '2000000000015', pricePaise: 0, mrpPaise: 0 }], LABEL_STOCKS[0], DEFAULT_LABEL_SETTINGS.content);
+  const pricedLabel = buildLabelHtml([{ name: 'Anar', barcode: '2000000000022', pricePaise: 59000 }], LABEL_STOCKS[0], DEFAULT_LABEL_SETTINGS.content);
+  assert(!/class="price"/.test(noPriceLabel) && /class="bars"/.test(noPriceLabel) && /class="price"/.test(pricedLabel),
+    'A label for an item without a price prints the name and barcode but no ₹0 price');
+  const posNoPrice = readSource('app/billing/page.tsx');
+  assert(posNoPrice.includes('const unpriced = cart.find((line) => !(line.unit_price > 0));') && posNoPrice.includes('handleOpenEditItem(unpriced);')
+    && posNoPrice.includes("const needsPrice = !product.has_variants && !(unitPriceFor(product, 'retail') > 0)"),
+    'Counter: an item without a price opens the price box when added, and a bill never completes with a ₹0 line');
   const byCode = planImport([{ ...byRow(7), barcode: '2000000000015' }], [A, B], false);
   assert(byCode.updates.length === 1 && byCode.updates[0].product.id === 'pA', 'A barcode in the sheet finds the saved item even if its name changed');
 

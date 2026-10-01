@@ -397,13 +397,17 @@ async function run() {
       let listed = (await readStore(page, 'products')).filter((p) => p.id.startsWith('prod_imp_'));
       const chaurasa = listed.find((p) => p.name === 'चौरसा 8 वाला – अतिसिया (100 नग)');
       const validEan = (c) => /^200\d{10}$/.test(c || '') && (10 - ([...c.slice(0, 12)].reduce((s, d, i) => s + Number(d) * (i % 2 ? 3 : 1), 0) % 10)) % 10 === Number(c[12]);
-      check((await productCount()) === itemsBefore + 2 && chaurasa && chaurasa.selling_price === 32000 && chaurasa.unit === 'box' && listed.every((p) => validEan(p.barcode) && p.is_unlimited_stock),
-        'Excel import: Hindi headings read, 2 items added (row without price skipped), each with its own saved barcode, price in paise');
+      // v4.87.0 (first client): a row without a price is kept at ₹0 (label without a price; the counter asks).
+      const unpricedItem = listed.find((p) => p.name.startsWith('Saddam'));
+      check((await productCount()) === itemsBefore + 3 && chaurasa && chaurasa.selling_price === 32000 && chaurasa.unit === 'box' && unpricedItem && unpricedItem.selling_price === 0
+        && (await textVisible(page, 'items have no price yet', 5000)) && listed.every((p) => validEan(p.barcode) && p.is_unlimited_stock),
+        'Excel import: Hindi headings read, 3 items added (the row without a price kept at ₹0, said so on the done screen), each with its own saved barcode, price in paise');
+      listed = listed.filter((p) => p.selling_price > 0); // the later steps use the priced items
       await page.getByRole('button', { name: /Done & View Catalog/ }).click();
       await runImport(sheetFile([['चौरसा', '8 वाला', 'अतिसिया', 350, '100 नग'], ['अनार', 'अनार स्पेशल', 'विन', 590, 'युनिट']]));
-      listed = (await readStore(page, 'products')).filter((p) => p.id.startsWith('prod_imp_'));
+      listed = (await readStore(page, 'products')).filter((p) => p.id.startsWith('prod_imp_') && p.selling_price > 0);
       const again = listed.find((p) => p.id === chaurasa.id);
-      check((await productCount()) === itemsBefore + 2 && again.selling_price === 35000 && again.barcode === chaurasa.barcode,
+      check((await productCount()) === itemsBefore + 3 && again.selling_price === 35000 && again.barcode === chaurasa.barcode,
         'Uploading the sheet again with a new price updates that price — no copies, barcode kept');
 
       // v4.71.0 — "Print labels" after the import: Studio opens with the re-priced item and
@@ -580,6 +584,31 @@ async function run() {
         localStorage.setItem(k, JSON.stringify({ ...JSON.parse(localStorage.getItem(k) || '{}'), wholesale_price: false }));
         window.dispatchEvent(new Event('feature_switches_changed'));
       });
+
+      // v4.87.0 — an item imported without a price: the price box opens when it is added, and the
+      // bill does not complete at ₹0; with a price typed it does.
+      step = 'item without a price';
+      await page.locator('main').first().click({ position: { x: 5, y: 5 } }).catch(() => {});
+      await page.keyboard.press('F1');
+      await page.waitForTimeout(400);
+      await addByName('Saddam');
+      const priceBoxOpened = await page.locator('input[data-edit-price]').waitFor({ state: 'visible', timeout: 5000 }).then(() => true, () => false);
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(400);
+      const nBefore = await salesCount();
+      await posSearch.evaluate((el) => el.blur());
+      await page.keyboard.press('F10');
+      await page.waitForTimeout(1200);
+      const refusedAtZero = (await salesCount()) === nBefore && (await page.locator('input[data-edit-price]').isVisible().catch(() => false));
+      await page.locator('input[data-edit-price]').fill('45');
+      await page.getByRole('button', { name: /Update Line Item/ }).click();
+      await page.waitForTimeout(400);
+      await page.keyboard.press('F10');
+      await page.waitForTimeout(1600);
+      const pricedSale = (await readStore(page, 'sales')).slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0];
+      check(priceBoxOpened && refusedAtZero && (await salesCount()) === nBefore + 1 && pricedSale.grand_total === 4500,
+        `An item imported without a price asks for it at the counter and never bills at ₹0 (box opened ${priceBoxOpened}, refused at ₹0 ${refusedAtZero}, billed ₹${(pricedSale?.grand_total || 0) / 100})`);
+      await closeSaleWindow();
 
       // v4.72.0 — barcode gun: a code typed into the search box adds its item, Enter on the
       // empty box finishes the bill, the next scan closes "Sale completed", and with a bill

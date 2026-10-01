@@ -194,8 +194,9 @@ export function buildImportRows(grid: unknown[][], headerIndex: number, roles: C
       gstRate: gst !== null && gst >= 0 && gst <= 100 ? gst : null,
       hsn: clean(cell(r, 'hsn')).replace(/\D/g, '').slice(0, 8),
     };
+    // A row without a price is still imported (v4.87.0, first client): the item is saved at ₹0,
+    // its label prints without a price, and the counter asks for the price when it is billed.
     if (!row.name) row.skip = msg('No item name');
-    else if (row.pricePaise === null) row.skip = msg('No price');
     rows.push(row);
   });
 
@@ -256,10 +257,11 @@ export function planImport(rows: ImportRow[], existing: Product[], mrpMapped: bo
       continue;
     }
     matched.add(product.id);
-    const price = row.pricePaise!;
-    const mrp = mrpMapped && row.mrpPaise ? row.mrpPaise : price;
+    // No price in the sheet: the saved price stays.
+    const price = row.pricePaise;
+    const mrp = price !== null && mrpMapped && row.mrpPaise ? row.mrpPaise : price;
     const changes: string[] = [];
-    if (product.selling_price !== price || (product.mrp || product.selling_price) !== mrp) changes.push(msg('price'));
+    if (price !== null && (product.selling_price !== price || (product.mrp || product.selling_price) !== mrp)) changes.push(msg('price'));
     if (row.category && normName(product.category_name || '') !== normName(row.category)) changes.push(msg('category'));
     if (row.unit && product.unit !== row.unit) changes.push(msg('unit'));
     if (row.costPaise !== null && product.purchase_price !== row.costPaise) changes.push(msg('cost price'));
