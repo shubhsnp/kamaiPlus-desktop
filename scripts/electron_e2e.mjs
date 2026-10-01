@@ -435,10 +435,16 @@ async function run() {
       await page.locator('[data-label-preview]').waitFor({ timeout: 15000 });
       // v4.85.0 — the preview must actually SHOW the labels (Rahul: "preview dikh nahi raha").
       const previewFrame = page.frameLocator('[data-label-preview]');
-      await previewFrame.locator('.label').first().waitFor({ timeout: 10000 }).catch(() => {});
+      // v4.85.0: an empty list shows a SAMPLE label first; the frame reloads when the items arrive.
+      await page.locator('[data-preview-sample]').waitFor({ state: 'detached', timeout: 10000 }).catch(() => {});
+      let previewBox = null;
+      for (let i = 0; i < 20 && !previewBox; i++) {
+        await previewFrame.locator('.label').first().waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+        previewBox = await previewFrame.locator('.label').first().boundingBox().catch(() => null);
+        if (!previewBox) await page.waitForTimeout(250);
+      }
       const previewLabels = await previewFrame.locator('.label').count();
       const previewBars = await previewFrame.locator('.label .bars svg').count();
-      const previewBox = await previewFrame.locator('.label').first().boundingBox().catch(() => null);
       const frameBox = await page.locator('[data-label-preview]').boundingBox();
       const inView = frameBox && frameBox.y < 860 && frameBox.y + 40 > 0;
       await shot(page, 'studio-preview');

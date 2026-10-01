@@ -2421,6 +2421,8 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(/style=\{\{ height: `\$\{heightPx\}px`, maxHeight \}\}/.test(previewSrc) && !/h-\[62vh\]/.test(previewSrc)
     && /maxHeight="40vh"/.test(readSource('components/products/QuickBarcodePrintModal.tsx')),
     'Label preview: the frame is as tall as the labels (up to a limit), not a fixed 62vh box');
+  assert(previewSrc.includes('key={frameKey}') && previewSrc.includes('const frameKey = useMemo('),
+    'Label preview: new content = a new frame (changing srcdoc twice fast left Chromium a grey, never-drawn document — v4.86.0)');
   const setupSrc = readSource('components/labels/LabelSetupPanel.tsx');
   assert(/if \(customOk\(key, v\)\) update\(/.test(setupSrc) && /value=\{typed \?\? String\(s\.custom\[key\]\)\}/.test(setupSrc) && /onBlur=\{\(\) => endCustom\(key\)\}/.test(setupSrc),
     'Label setup: a custom size is saved only once usable — typing "38" no longer jumps back to 50 after the "3"');

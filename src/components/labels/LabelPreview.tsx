@@ -49,9 +49,19 @@ export function LabelPreview({ labels, settings, shopName, max = 48, maxHeight =
     offsetMm: settings.offsetMm,
   }), [shown, stock, zoom, settings.content, settings.costCodeWord, settings.barHeightMm, settings.offsetMm, shopName, qr]);
 
+  // A new frame for new content (v4.86.0): changing `srcdoc` of a live sandboxed frame twice in
+  // quick succession (sample label → the real list) sometimes left Chromium with a document it
+  // never laid out — a grey box, "the preview does not show". A fresh element always draws.
+  const frameKey = useMemo(() => {
+    let h = 5381;
+    for (let i = 0; i < html.length; i++) h = ((h << 5) + h + html.charCodeAt(i)) | 0;
+    return `${html.length}_${h}`;
+  }, [html]);
+
   return (
     <div className="space-y-1.5">
       <iframe
+        key={frameKey}
         title={tr('Label preview')}
         srcDoc={html}
         sandbox=""
