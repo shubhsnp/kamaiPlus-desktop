@@ -14,7 +14,7 @@ import { applyImportPlan, ImportResult } from '@/lib/import/catalogImportDb';
 import { ImportColumnMapper } from './ImportColumnMapper';
 import { ImportPreview } from './ImportPreview';
 import { tr } from '@/lib/i18n/core';
-import { useFeatureSwitches } from '@/lib/features/featureSwitches';
+import { setFeatureSwitch, useFeatureSwitches } from '@/lib/features/featureSwitches';
 
 interface CatalogImportModalProps {
   onClose: () => void;
@@ -39,7 +39,8 @@ const SAMPLE_ROWS = [
  * sheet again with new prices updates those prices; nothing is added twice.
  */
 export function CatalogImportModal({ onClose, businessId, onImportComplete }: CatalogImportModalProps) {
-  const labelsOn = useFeatureSwitches().barcode_studio; // Settings → Features: no "Print labels" when off
+  const switches = useFeatureSwitches();
+  const labelsOn = switches.barcode_studio; // Settings → Features: no "Print labels" when off
   const [step, setStep] = useState<'pick' | 'map' | 'preview' | 'done'>('pick');
   const [busy, setBusy] = useState(false);
   const [fileName, setFileName] = useState('');
@@ -114,11 +115,13 @@ export function CatalogImportModal({ onClose, businessId, onImportComplete }: Ca
         taxInclusive: shop?.gst_pricing_mode !== 'exclusive',
         mapped: {
           mrp: roles.includes('mrp'), cost: roles.includes('cost'), unit: roles.includes('unit'), stock: roles.includes('stock'),
-          category: roles.includes('category'), gst: roles.includes('gst'), hsn: roles.includes('hsn'),
+          category: roles.includes('category'), gst: roles.includes('gst'), hsn: roles.includes('hsn'), wholesale: roles.includes('wholesale'),
         },
         giveBarcodes,
       });
       setResult(res);
+      // A sheet with wholesale prices: the Retail / Wholesale switch comes on by itself (v4.87.0).
+      if (roles.includes('wholesale') && plan.creates.concat(plan.updates.map((u) => u.row)).some((r) => r.wholesalePaise)) setFeatureSwitch('wholesale_price', true);
       // New and re-priced items: Barcode Studio offers their labels ("Last Excel import").
       saveLastImportIds(res.createdIds.concat(res.updatedIds));
       setStep('done');
@@ -134,7 +137,9 @@ export function CatalogImportModal({ onClose, businessId, onImportComplete }: Ca
   const downloadSample = async () => {
     const XLSX = await import('xlsx');
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(SAMPLE_ROWS), 'Items');
+    // With the Wholesale price switch on, the sample shows the extra "Wholesale" column (v4.87.0).
+    const rows = switches.wholesale_price ? SAMPLE_ROWS.map((r) => ({ ...r, Wholesale: Math.round(r.Price * 0.9) })) : SAMPLE_ROWS;
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Items');
     XLSX.writeFile(wb, 'KamaiPlus_Price_List_Sample.xlsx');
   };
 

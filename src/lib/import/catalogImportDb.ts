@@ -10,7 +10,7 @@ export interface ImportContext {
   /** Settings → "Default GST Calculation" (new items follow it, like items added by hand). */
   taxInclusive: boolean;
   /** Columns present in the sheet — an unmapped column never overwrites a saved value. */
-  mapped: { mrp: boolean; cost: boolean; unit: boolean; stock: boolean; category: boolean; gst: boolean; hsn: boolean };
+  mapped: { mrp: boolean; cost: boolean; unit: boolean; stock: boolean; category: boolean; gst: boolean; hsn: boolean; wholesale?: boolean };
   /** Give every new item without a barcode its own store code. */
   giveBarcodes: boolean;
 }
@@ -81,6 +81,7 @@ export async function applyImportPlan(plan: ImportPlan, ctx: ImportContext): Pro
         selling_price: price,
         mrp: ctx.mapped.mrp && r.mrpPaise ? r.mrpPaise : price,
         purchase_price: r.costPaise ?? 0,
+        wholesale_price: ctx.mapped.wholesale && r.wholesalePaise ? r.wholesalePaise : undefined,
         tax_rate: r.gstRate ?? 0,
         is_tax_inclusive: ctx.taxInclusive,
         // No HSN in the sheet = no HSN (a made-up code would reach the GST / HSN report).
@@ -113,6 +114,7 @@ export async function applyImportPlan(plan: ImportPlan, ctx: ImportContext): Pro
       }
       if (ctx.mapped.unit && row.unit) next.unit = row.unit;
       if (ctx.mapped.cost && row.costPaise !== null) next.purchase_price = row.costPaise;
+      if (ctx.mapped.wholesale && row.wholesalePaise !== null) next.wholesale_price = row.wholesalePaise;
       if (ctx.mapped.gst && row.gstRate !== null) next.tax_rate = row.gstRate;
       if (ctx.mapped.hsn && row.hsn) next.hsn_code = row.hsn;
       if (row.barcode && !product.barcode?.trim() && !used.has(row.barcode)) {

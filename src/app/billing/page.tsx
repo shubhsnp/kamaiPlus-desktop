@@ -56,6 +56,8 @@ import dynamic from 'next/dynamic';
 import { useHardwareBarcodeScanner } from '@/lib/hardware/barcodeScannerListener';
 
 import { focusPosCustomerName, PosCustomerRow } from '@/components/billing/PosCustomerRow';
+import { PosPriceModeToggle } from '@/components/billing/PosPriceModeToggle';
+import { modeForCustomer, PriceMode, repriceCart, unitPriceFor } from '@/lib/billing/priceMode';
 import { searchEnterAction } from '@/lib/billing/scanInput';
 import { parseWeighedBarcode, weighedQuantity } from '@/lib/barcode/weighedBarcode';
 import { allowsFractionalQty, formatCartQty, roundQty } from '@/lib/billing/unitQuantity';
@@ -149,6 +151,11 @@ export default function BillingPage() {
   const splitCredit = activeTab.splitCredit;
   const billDiscountType = activeTab.billDiscountType || 'flat';
   const billDiscountValue = activeTab.billDiscountValue || '';
+  // Retail / wholesale prices for this bill (v4.87.0, lib/billing/priceMode.ts). The ref lets the
+  // scan / keyboard handlers that were set up earlier read the bill's current mode.
+  const priceMode: PriceMode = activeTab.priceMode || 'retail';
+  const priceModeRef = React.useRef<PriceMode>(priceMode);
+  priceModeRef.current = priceMode;
   // Persist tabs in localStorage
   useEffect(() => {
     try {
@@ -178,6 +185,17 @@ export default function BillingPage() {
   // Picking a saved customer (or going back to walk-in) replaces whatever was typed.
   const setSelectedCustomerId = (id: string) => {
     updateActiveTab((tab) => ({ ...tab, selectedCustomerId: id, customerName: '', customerPhone: '' }));
+    // A customer marked "wholesale" turns the bill to wholesale prices (v4.87.0).
+    if (isFeatureOn('wholesale_price') && priceModeRef.current !== 'wholesale' && modeForCustomer(customers.find((c) => c.id === id)) === 'wholesale') {
+      void setPriceMode('wholesale');
+    }
+  };
+
+  // Retail ↔ wholesale: the cart's items move to that price; a rate typed by hand stays.
+  const setPriceMode = async (mode: PriceMode) => {
+    const ids = Array.from(new Set(cart.map((line) => line.product_id)));
+    const found = (await db.products.bulkGet(ids)).filter((p): p is Product => Boolean(p));
+    updateActiveTab((tab) => ({ ...tab, priceMode: mode, cart: repriceCart(tab.cart, found, tab.priceMode || 'retail', mode, calculateItemTax) }));
   };
 
   const customerDraft: CustomerDraft = { name: activeTab.customerName || '', phone: activeTab.customerPhone || '' };
@@ -327,6 +345,7 @@ export default function BillingPage() {
   // on Credit (or with an udhar part in Split) from before goes back to a paid mode.
   const khataOn = useFeatureSwitches().khata;
   const paymentKeysOn = useFeatureSwitches().payment_keys;
+  const wholesaleOn = useFeatureSwitches().wholesale_price;
   useEffect(() => {
     if (khataOn) return;
     if (paymentMethod === 'credit') setPaymentMethod('cash');
@@ -554,7 +573,8 @@ export default function BillingPage() {
             : item
         );
       } else {
-        const price = product.selling_price;
+        // The bill's price: wholesale when the bill is wholesale and the item has one (v4.87.0).
+        const price = unitPriceFor(product, isFeatureOn('wholesale_price') ? priceModeRef.current : 'retail');
         const lineTotal = Math.round(price * allowedQty);
         const taxRate = product.tax_rate || 0;
         const taxAmt = calculateItemTax(lineTotal, taxRate, product.is_tax_inclusive);
@@ -1024,6 +1044,8 @@ export default function BillingPage() {
         change_returned: changeReturnedPaise,
         payment_status: balanceDuePaise === 0 ? 'paid' : balanceDuePaise < grandTotalPaise ? 'partial' : 'unpaid',
         status: 'completed',
+        // A wholesale bill says so (Transactions, the cloud) — v4.87.0.
+        ...(isFeatureOn('wholesale_price') && priceMode === 'wholesale' ? { price_mode: 'wholesale' as const } : {}),
         created_by: 'owner',
         created_at: now,
         updated_at: now,
@@ -1502,6 +1524,7 @@ export default function BillingPage() {
           onDraftChange={setCustomerDraft}
           onSelect={setSelectedCustomerId}
         />
+        {wholesaleOn && <div className="mt-2"><PosPriceModeToggle mode={priceMode} onChange={(m) => void setPriceMode(m)} /></div>}
       </div>
 
       {/* Cart Header with Hold Bill Button */}

@@ -72,7 +72,8 @@ import { cleanVariantLabels, DEFAULT_COUNTED_STOCK, summarizeVariants, tracksOwn
 import { buildBillCustomer, cleanCustomerNameInput, cleanMobileInput, isDraftEmpty, resolveBillCustomer, splitDraft, suggestCustomers } from '../src/lib/billing/billCustomer';
 import { DEFAULT_FEATURE_SWITCHES, FEATURES, featureForPath, isPathEnabled, parseFeatureSwitches, showSellingPriceField } from '../src/lib/features/featureSwitches';
 import { matchesProductDetails } from '../src/lib/products/detailSearch';
-import { buildImportRows, buildItemName, findHeaderRow, guessColumnRoles, mapUnit, parseAmount, planImport } from '../src/lib/import/catalogImport';
+import { buildImportRows, buildItemName, COLUMN_ROLES, findHeaderRow, guessColumnRoles, mapUnit, parseAmount, planImport } from '../src/lib/import/catalogImport';
+import { hasWholesalePrice, modeForCustomer, repriceCart, unitPriceFor } from '../src/lib/billing/priceMode';
 import { DESKTOP_STORE_CODE_RANGES, ean13CheckDigit, isValidEan13, nextStoreBarcodes } from '../src/lib/barcode/storeBarcodes';
 import type { CartItem, Product } from '../src/types';
 import { barcodeSymbol } from '../src/lib/barcode/barcodeGenerator';
@@ -831,7 +832,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(/const typedCashPaise = paymentMethod === 'cash' && amountReceivedInput/.test(pos) && /receivedPaise = typedCashPaise \?\?/.test(pos), 'Cash typed in cash mode never leaks into a UPI / card / credit bill as a part payment');
   assert(/typedCashPaise < grandTotalPaise && \(!hasCustomer \|\| !udharAllowed\)/.test(pos) && /const hasCustomer = Boolean\(targetCustomer \|\| newCustomer\);/.test(pos), 'Short cash without a customer (picked or typed) is refused (no untracked udhar) — and with Khata switched off, even with one (v4.81.0)');
   assert(/if \(excess > parts\[0\]\)/.test(pos) && /changeReturnedPaise = excessP;/.test(pos), 'Overpaid split: the excess is change from the cash part, never counted in the drawer');
-  assert(/const price = existing\.unit_price;/.test(pos) && /const price = item\.unit_price;/.test(pos) && (pos.match(/const price = product\.selling_price;/g) || []).length === 1, 'Adding more of a line keeps the rate the cashier edited (only a new line takes the catalogue price)');
+  assert(/const price = existing\.unit_price;/.test(pos) && /const price = item\.unit_price;/.test(pos) && (pos.match(/const price = unitPriceFor\(product, /g) || []).length === 1 && !/const price = product\.selling_price;/.test(pos), 'Adding more of a line keeps the rate the cashier edited (only a new line takes the catalogue price — retail or wholesale, v4.87.0)');
   assert((pos.match(/is_tax_inclusive: product\.is_tax_inclusive \?\? !isBusinessGstExclusive/g) || []).length === 2, 'Cart lines store a resolved tax mode, so POS tax and bill totals (saleMath) agree');
   // Split overpay arithmetic: 848.00 bill, 900 cash + 0 UPI -> 52.00 change, 848.00 kept.
   const grand = 84800; const cash = 90000; const excess = cash - grand;
@@ -2594,6 +2595,69 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   const ms = ALL_SOURCE.filter((f) => !/[\\/]lib[\\/]ids\.ts$/.test(f) &&/`(sale|ledg|mov|prod|cust|cat|exp|shift)_\$\{Date\.now\(\)\}`/.test(fs.readFileSync(f, 'utf8')));
   assert(/return `\$\{prefix\}_\$\{stamp\}_\$\{rand\}`;/.test(idsSrc) && ms.length === 0 && newId('sale') !== newId('sale') && /^sale_\d{13}_[a-z0-9]{8}$/.test(newId('sale')),
     `C12: new record ids are time + 8 random characters — two counters in the same millisecond never share one (ms-only ids left: ${ms.map((f) => path.relative(SRC_ROOT, f)).join(', ') || 'none'})`);
+}
+
+// 9j(y). Customer Change (first client, v4.87.0): retail AND wholesale price for the same item.
+// One Excel sheet with an extra "Wholesale" column; a Retail / Wholesale switch per bill; a
+// wholesale customer turns the bill to wholesale. A price typed by hand on a line is never moved.
+{
+  const item = { id: 'w1', selling_price: 1000, wholesale_price: 850 };
+  const noWholesale = { id: 'w2', selling_price: 500 };
+  assert(unitPriceFor(item, 'retail') === 1000 && unitPriceFor(item, 'wholesale') === 850 && unitPriceFor(noWholesale, 'wholesale') === 500
+    && unitPriceFor({ selling_price: 700, wholesale_price: 0 }, 'wholesale') === 700 && hasWholesalePrice(item) && !hasWholesalePrice(noWholesale as { wholesale_price?: number }),
+    'Wholesale: an item with a wholesale price sells at it on a wholesale bill; without one (or 0) it keeps its retail price');
+  assert(modeForCustomer({ is_wholesale: true }) === 'wholesale' && modeForCustomer({ is_wholesale: false }) === 'retail' && modeForCustomer(null) === 'retail',
+    'Wholesale: a customer marked wholesale starts a wholesale bill; others and walk-in stay retail');
+
+  const tax = (t: number, rate: number) => (rate ? Math.round(t - t / (1 + rate / 100)) : 0);
+  const line = (id: string, qty: number, price: number, extra: Partial<CartItem> = {}): CartItem => ({ product_id: id, product_name: id, quantity: qty, unit: 'piece', unit_price: price, discount_amount: 0, tax_rate: 0, tax_amount: 0, total_amount: qty * price, ...extra } as CartItem);
+  const cart = [line('w1', 2, 1000, { tax_rate: 18, discount_amount: 100 }), line('w2', 1, 500), line('typed', 1, 999), line('gone', 1, 300)];
+  const products = [item, noWholesale, { id: 'typed', selling_price: 1200, wholesale_price: 1100 }];
+  const ws = repriceCart(cart, products, 'retail', 'wholesale', tax);
+  const back = repriceCart(ws, products, 'wholesale', 'retail', tax);
+  assert(ws[0].unit_price === 850 && ws[0].total_amount === 1600 && ws[0].tax_amount === tax(1600, 18) && ws[0].discount_amount === 100
+    && ws[1].unit_price === 500 && ws[2].unit_price === 999 && ws[3].unit_price === 300
+    && back[0].unit_price === 1000 && back[0].total_amount === 1900 && repriceCart(cart, products, 'retail', 'retail', tax) === cart,
+    'Wholesale switch: lines move to the wholesale price and back (total, GST and the line discount worked out again); a rate typed by hand and an item no longer saved stay');
+
+  const roles = guessColumnRoles(['Item Name', 'Price', 'Wholesale Price', 'MRP']);
+  const rolesHi = guessColumnRoles(['आयटम', 'भाव', 'थोक भाव']);
+  assert(roles.join() === 'name,price,wholesale,mrp' && rolesHi.join() === 'name,price,wholesale' && guessColumnRoles(['Item', 'Dealer Rate', 'Rate']).join() === 'name,wholesale,price'
+    && COLUMN_ROLES.some((r) => r.id === 'wholesale'),
+    'Excel: a "Wholesale" / "Dealer" / "थोक" column is the wholesale price — never taken for the retail price');
+  const grid = [['Item Name', 'Price', 'Wholesale'], ['Rice 25kg', 1500, 1400], ['Sugar 1kg', 45, '']];
+  const wRows = buildImportRows(grid, 0, guessColumnRoles(grid[0] as string[]), { prefixSection: false });
+  const savedRice = { id: 'r1', name: 'Rice 25kg', selling_price: 150000, mrp: 150000, wholesale_price: 0, purchase_price: 0, tax_rate: 0, unit: 'piece', category_name: '' } as unknown as Product;
+  const savedSugar = { id: 's1', name: 'Sugar 1kg', selling_price: 4500, mrp: 4500, wholesale_price: 4000, purchase_price: 0, tax_rate: 0, unit: 'piece', category_name: '' } as unknown as Product;
+  const wPlan = planImport(wRows, [savedRice, savedSugar], false);
+  assert(wRows[0].wholesalePaise === 140000 && wRows[1].wholesalePaise === null && wPlan.updates.length === 1 && wPlan.updates[0].changes.includes('wholesale price')
+    && wPlan.unchanged.length === 1,
+    'Excel: same names, a Wholesale column → only the wholesale price changes (retail kept); a blank wholesale cell leaves the saved one alone');
+  const importDbSrc = readSource('lib/import/catalogImportDb.ts');
+  assert(/if \(ctx\.mapped\.wholesale && row\.wholesalePaise !== null\) next\.wholesale_price = row\.wholesalePaise;/.test(importDbSrc)
+    && /wholesale_price: ctx\.mapped\.wholesale && r\.wholesalePaise \? r\.wholesalePaise : undefined,/.test(importDbSrc)
+    && /setFeatureSwitch\('wholesale_price', true\)/.test(readSource('components/import/CatalogImportModal.tsx')),
+    'Excel import saves the wholesale price (new and saved items) and switches the Retail / Wholesale choice on when a sheet brings wholesale prices');
+
+  assert(DEFAULT_FEATURE_SWITCHES.wholesale_price === false && FEATURES.some((f) => f.id === 'wholesale_price' && f.group === 'product_form'),
+    'Wholesale price is a switch in Settings → Features (off until a shop needs it)');
+  const wDoc = toCloud('products', { id: 'p', name: 'Rice', selling_price: 150000, wholesale_price: 140000 }, { bizId: 'biz_u' });
+  const wCust = toCloud('customers', { id: 'c', name: 'Dealer', is_wholesale: true }, { bizId: 'biz_u' });
+  assert(wDoc.wholesale_price_paise === 140000 && !('wholesale_price' in wDoc) && wCust.is_wholesale === true
+    && fromCloud('products', wDoc, null, { bizId: 'biz_u' }).wholesale_price === 140000,
+    'Cloud contract: wholesale_price travels as wholesale_price_paise (R2), a wholesale customer as is_wholesale');
+
+  const billSrc = readSource('app/billing/page.tsx');
+  assert(/const price = unitPriceFor\(product, isFeatureOn\('wholesale_price'\) \? priceModeRef\.current : 'retail'\);/.test(billSrc)
+    && /cart: repriceCart\(tab\.cart, found, tab\.priceMode \|\| 'retail', mode, calculateItemTax\)/.test(billSrc)
+    && /modeForCustomer\(customers\.find\(\(c\) => c\.id === id\)\) === 'wholesale'/.test(billSrc)
+    && /\.\.\.\(isFeatureOn\('wholesale_price'\) && priceMode === 'wholesale' \? \{ price_mode: 'wholesale' as const \} : \{\}\)/.test(billSrc)
+    && /\{wholesaleOn && <div className="mt-2"><PosPriceModeToggle/.test(billSrc),
+    'Billing: a new line takes the bill\'s price (also from a scan), switching re-prices the cart, a wholesale customer switches the bill, the sale is marked wholesale; the switch shows only when on');
+  assert(/sale\.price_mode === 'wholesale'/.test(readSource('components/transactions/TransactionBillCard.tsx'))
+    && /unitPriceFor\(product, sale\?\.price_mode === 'wholesale' \? 'wholesale' : 'retail'\)/.test(readSource('components/invoices/EditInvoiceModal.tsx'))
+    && /data-customer-wholesale/.test(readSource('components/customers/AddEditCustomerModal.tsx')) && /data-product-wholesale/.test(readSource('components/products/AddEditProductModal.tsx')),
+    'Wholesale shows on the bill in Transactions, an edited wholesale bill adds items at wholesale, customers and items get their wholesale fields');
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.

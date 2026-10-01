@@ -140,6 +140,8 @@ export interface Product {
   unit: ProductUnit;
   purchase_price: number; // in paise
   selling_price: number; // in paise (Selling Price / MRP)
+  /** Second selling price for wholesale bills (paise; 0 / missing = none) — v4.87.0, lib/billing/priceMode.ts. */
+  wholesale_price?: number;
   is_loose_item?: boolean; // Kirana loose item sold by open weight
   allow_decimal?: boolean; // allows decimal quantities (0.25 kg, 0.5 kg, etc.)
   is_unlimited_stock?: boolean; // bypasses zero stock block
@@ -187,6 +189,8 @@ export interface Customer {
   total_visits: number;
   last_visit_date?: string;
   customer_type: CustomerType;
+  /** Buys at wholesale prices: picking this customer turns the bill to wholesale (v4.87.0). */
+  is_wholesale?: boolean;
   notes?: string;
   created_at: string;
   updated_at: string;
@@ -278,6 +282,8 @@ export interface Sale {
   returned_amount?: number; // in paise
   return_id?: string;
   notes?: string;
+  /** 'wholesale' when the bill was made at wholesale prices (v4.87.0); missing = retail. */
+  price_mode?: 'wholesale';
   created_by: string;
   created_at: string;
   updated_at: string;

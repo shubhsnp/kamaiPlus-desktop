@@ -96,6 +96,7 @@ export default function CustomersPage() {
     address?: string;
     gstin?: string;
     customer_type: CustomerType;
+    is_wholesale?: boolean;
     date_of_birth?: string;
     anniversary_date?: string;
     loyalty_points: number;

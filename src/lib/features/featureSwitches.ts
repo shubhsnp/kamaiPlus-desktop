@@ -31,7 +31,8 @@ export type FeatureId =
   | 'product_size_colour'
   | 'product_variants'
   | 'whatsapp'
-  | 'payment_keys';
+  | 'payment_keys'
+  | 'wholesale_price';
 
 export type FeatureSwitches = Record<FeatureId, boolean>;
 
@@ -74,6 +75,8 @@ export const DEFAULT_FEATURE_SWITCHES: FeatureSwitches = {
   whatsapp: true,
   // v4.85.0 (Rahul): F4 / F8 / F9 pick Cash / UPI / Credit only when a shop turns them on.
   payment_keys: false,
+  // v4.87.0 (first client): a second price for wholesale bills — off until a shop needs it.
+  wholesale_price: false,
 };
 
 /** Order and texts of Settings → Features (msg ids, translated where shown). */
@@ -93,6 +96,7 @@ export const FEATURES: FeatureInfo[] = [
   { id: 'product_hsn', group: 'product_form', label: msg('HSN / SAC Code'), description: msg('Printed on GST bills and used in the GSTR-1 HSN summary.') },
   { id: 'product_gst_rate', group: 'product_form', label: msg('GST Tax Rate (%)'), description: msg('Off: new items are saved without GST.') },
   { id: 'product_size_colour', group: 'product_form', label: msg('Size / Colour'), description: msg('Size and colour fields for clothes, shoes and similar items.') },
+  { id: 'wholesale_price', group: 'product_form', label: msg('Wholesale price'), description: msg('A second price per item for wholesale customers. Billing gets a Retail / Wholesale switch; Excel import reads a "Wholesale" column.') },
   { id: 'product_variants', group: 'product_form', label: msg('Variants (Size / Colour)'), description: msg('One item in many sizes or colours, each with its own price and stock.') },
   { id: 'payment_keys', group: 'tools', label: msg('Payment keys F4 / F8 / F9'), description: msg('Cash (F4), UPI (F8) and Credit (F9) keys on the billing counter. Off: choose the payment with the mouse.') },
   { id: 'whatsapp', group: 'tools', label: msg('WhatsApp messages'), description: msg('WhatsApp buttons for bills, udhar reminders, khata slips, restock orders and reports.') },

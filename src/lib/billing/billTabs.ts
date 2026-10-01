@@ -17,6 +17,8 @@ export interface BillTab {
   splitCredit: string;
   billDiscountType?: 'flat' | 'percentage';
   billDiscountValue?: string;
+  /** Retail (default) or wholesale prices for this bill (v4.87.0, lib/billing/priceMode.ts). */
+  priceMode?: 'retail' | 'wholesale';
   isHeld: boolean;
   heldAt?: string;
   holdNote?: string;

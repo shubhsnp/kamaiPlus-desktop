@@ -121,7 +121,7 @@ const SPECS: Record<CloudTable, TableSpec> = {
     in: (doc, row, local) => { if (!local) row.created_at ??= new Date().toISOString(); },
   },
   products: {
-    money: ['purchase_price', 'selling_price', 'mrp'],
+    money: ['purchase_price', 'selling_price', 'mrp', 'wholesale_price'],
     rename: { current_stock: 'stock_quantity' },
     bools: ['is_tax_inclusive', 'is_loose_item', 'is_favorite', 'is_active', 'has_variants', 'allow_decimal', 'is_unlimited_stock'],
     ignoreIn: ['stock', 'price'],
@@ -146,6 +146,7 @@ const SPECS: Record<CloudTable, TableSpec> = {
   },
   customers: {
     money: ['current_balance', 'opening_balance', 'total_spent'],
+    bools: ['is_wholesale'],
     // state_code: worked out from the GSTIN on the way out; the phone's copy stays in the cloud (merge writes).
     ignoreIn: ['is_vip', 'birthday', 'state_code'],
     dates: DATES,

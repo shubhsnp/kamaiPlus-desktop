@@ -46,6 +46,9 @@ interface AddEditProductModalProps {
   setFormIsUnlimitedStock: (val: boolean) => void;
   formMrp: string;
   setFormMrp: (val: string) => void;
+  /** Wholesale price (v4.87.0) — shown with the "Wholesale price" switch on. */
+  formWholesalePrice: string;
+  setFormWholesalePrice: (val: string) => void;
   formTaxRate: number;
   setFormTaxRate: (val: number) => void;
   formStock: string;
@@ -95,6 +98,8 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
   formIsUnlimitedStock,
   setFormIsUnlimitedStock,
   formMrp,
+  formWholesalePrice,
+  setFormWholesalePrice,
   setFormMrp,
   formTaxRate,
   setFormTaxRate,
@@ -134,9 +139,9 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
   // keeps whatever value the product already has; a new product gets it empty / 0.
   const switches = useFeatureSwitches();
   const showSellingPrice = showSellingPriceField(switches.product_selling_price, editingProduct);
-  const priceFieldCount = 1 + (showSellingPrice ? 1 : 0) + (switches.product_cost_price ? 1 : 0);
+  const priceFieldCount = 1 + (showSellingPrice ? 1 : 0) + (switches.product_cost_price ? 1 : 0) + (switches.wholesale_price ? 1 : 0);
   const codeFieldCount = 1 + (switches.product_hsn ? 1 : 0) + (switches.product_gst_rate ? 1 : 0);
-  const SM_COLS: Record<number, string> = { 1: 'sm:grid-cols-1', 2: 'sm:grid-cols-2', 3: 'sm:grid-cols-3' };
+  const SM_COLS: Record<number, string> = { 1: 'sm:grid-cols-1', 2: 'sm:grid-cols-2', 3: 'sm:grid-cols-3', 4: 'sm:grid-cols-4' };
 
   return (
     <Modal
@@ -261,6 +266,18 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
               onChange={(e) => setFormMrp(e.target.value)}
               required={!showSellingPrice}
             />
+            {switches.wholesale_price && (
+              <Input
+                label={tr('Wholesale Price (₹)')}
+                placeholder={tr('blank = same as retail')}
+                type="number"
+                step="0.01"
+                min="0"
+                value={formWholesalePrice}
+                onChange={(e) => setFormWholesalePrice(e.target.value)}
+                data-product-wholesale
+              />
+            )}
             {switches.product_cost_price && (
               <Input
                 label={tr('Purchase / Cost Price (₹)')}

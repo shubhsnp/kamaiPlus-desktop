@@ -531,6 +531,56 @@ async function run() {
       check(n2 === n1 + 1 && (await salesCount()) === n2, 'Enter completes the sale; Enter / F10 under the "Sale completed" window never complete the bill waiting behind it');
       await closeSaleWindow();
 
+      // v4.87.0 (Customer Change, first client) — the same item at a retail AND a wholesale price.
+      step = 'wholesale price';
+      const unl = (await readStore(page, 'products')).find((p) => p.name === 'E2E Unlimited Item');
+      await page.evaluate(({ id }) => new Promise((resolve, reject) => {
+        const req = indexedDB.open('VyaparSetuDB');
+        req.onerror = () => reject(req.error);
+        req.onsuccess = () => {
+          const idb = req.result;
+          const tx = idb.transaction('products', 'readwrite');
+          const st = tx.objectStore('products');
+          const g = st.get(id);
+          g.onsuccess = () => st.put({ ...g.result, wholesale_price: 2000 });
+          tx.oncomplete = () => { idb.close(); resolve(true); };
+          tx.onerror = () => reject(tx.error);
+        };
+      }), { id: unl.id });
+      await page.evaluate(() => {
+        const k = 'kamai_feature_switches';
+        localStorage.setItem(k, JSON.stringify({ ...JSON.parse(localStorage.getItem(k) || '{}'), wholesale_price: true }));
+        window.location.href = '/billing/';
+      });
+      await textVisible(page, 'Payment Mode', 15000);
+      await page.locator('main').first().click({ position: { x: 5, y: 5 } }).catch(() => {});
+      await page.keyboard.press('F1');
+      await page.waitForTimeout(400);
+      await addByName('E2E Unlimited Item');
+      const newestLine = async () => {
+        const ts = await tabsNow();
+        const t = ts.reduce((a, b) => (b.tabNumber > a.tabNumber ? b : a));
+        return t.cart.find((l) => l.product_id === unl.id);
+      };
+      const retailRate = (await newestLine())?.unit_price;
+      await page.locator('[data-price-mode-wholesale]').first().click();
+      await page.waitForTimeout(600);
+      const wholesaleRate = (await newestLine())?.unit_price;
+      const n4 = await salesCount();
+      await posSearch.evaluate((el) => el.blur());
+      await page.keyboard.press('F10');
+      await page.waitForTimeout(1600);
+      const allSales = await readStore(page, 'sales');
+      const lastSale = allSales.slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0];
+      check(retailRate === 2500 && wholesaleRate === 2000 && allSales.length === n4 + 1 && lastSale.price_mode === 'wholesale' && lastSale.grand_total === 2000,
+        `Wholesale: the item sells at ₹25 retail; "Wholesale" on the bill moves it to ₹20 and the saved bill is marked wholesale (retail ${retailRate}, wholesale ${wholesaleRate}, bill ${lastSale?.grand_total} ${lastSale?.price_mode})`);
+      await closeSaleWindow();
+      await page.evaluate(() => {
+        const k = 'kamai_feature_switches';
+        localStorage.setItem(k, JSON.stringify({ ...JSON.parse(localStorage.getItem(k) || '{}'), wholesale_price: false }));
+        window.dispatchEvent(new Event('feature_switches_changed'));
+      });
+
       // v4.72.0 — barcode gun: a code typed into the search box adds its item, Enter on the
       // empty box finishes the bill, the next scan closes "Sale completed", and with a bill
       // printer set once on the counter Enter prints straight to it. kp:print is caught in
