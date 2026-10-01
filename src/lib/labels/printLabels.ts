@@ -1,6 +1,7 @@
 import { printHtml } from '@/lib/print/printDocument';
 import { buildLabelHtml, LabelData, LabelHtmlOptions } from './labelSheet';
 import { LabelSettings, labelPageMm, stockFor } from './labelSettings';
+import { calibrateBeforeFirstPrint } from './autoCalibrate';
 
 /**
  * Prints barcode labels with this computer's label setup: straight to the chosen
@@ -20,6 +21,9 @@ export async function printLabels(labels: LabelData[], settings: LabelSettings, 
     offsetMm: settings.offsetMm,
     alignment: extra.alignment,
   });
+  // First print to this printer at this label size: the printer learns the gap first (v4.89.0).
+  // The calibration and the labels go to the same print queue, in this order.
+  await calibrateBeforeFirstPrint(settings);
   return printHtml(html, stock.kind === 'sheet' ? 'a4' : 'label', {
     pageSizeMm: stock.kind === 'sheet' ? undefined : { width: page.widthMm, height: page.heightMm },
     deviceName: settings.printer || undefined,

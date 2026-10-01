@@ -9,6 +9,7 @@ import {
 import { printAlignmentTest, printLabels } from '@/lib/labels/printLabels';
 import { encodeCostCode, isValidCostCodeWord } from '@/lib/labels/labelExtras';
 import { LabelPositionControl } from './LabelPositionControl';
+import { calibrationFor, markCalibrated } from '@/lib/labels/autoCalibrate';
 import { LabelStockDiagram } from './LabelStockDiagram';
 import { msg, tr } from '@/lib/i18n/core';
 
@@ -91,7 +92,10 @@ export function LabelSetupPanel({ shopName }: { shopName: string }) {
     setTestNote(tr('Sending the calibration…'));
     const res = await desktop.calibrateLabelPrinter(s.printer);
     const byHand = tr('Calibrate it by hand: switch the printer off, hold the FEED button, switch it on and let go when the light blinks (see its manual). It feeds a few labels and learns the gap.');
-    if (res.ok) setTestNote(tr('The printer is measuring the labels (it feeds 2–3 blank ones). Then press "Check size & position".'));
+    if (res.ok) {
+      markCalibrated(s, 'done');
+      setTestNote(tr('The printer is measuring the labels (it feeds 2–3 blank ones). Then press "Check size & position".'));
+    }
     else if (res.manual) setTestNote(byHand);
     else setTestNote(`${tr('Could not send the calibration: {error}', { error: res.error || '' })} ${byHand}`);
   };
@@ -227,6 +231,17 @@ export function LabelSetupPanel({ shopName }: { shopName: string }) {
         )}
         {testNote && <span className="text-slate-600">{testNote}</span>}
       </div>
+      {/* v4.89.0: the first print to a printer at a label size calibrates it by itself. */}
+      {desktop?.calibrateLabelPrinter && s.printer && (() => {
+        const cal = calibrationFor(s);
+        return (
+          <p className={cal ? 'text-emerald-700 font-bold' : 'text-amber-800 font-bold'} data-label-calibration-status>
+            {cal
+              ? tr('Printer set up for this label size on {date}. Loaded a new roll? Press "Calibrate printer".', { date: new Date(cal.at).toLocaleDateString('en-IN') })
+              : tr('The first label print sets the printer up for this size: it feeds 2–3 blank labels once, then every label lines up.')}
+          </p>
+        );
+      })()}
     </div>
   );
 }

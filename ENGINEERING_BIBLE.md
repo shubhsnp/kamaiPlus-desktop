@@ -792,7 +792,7 @@ There is no global state library. Modules talk through window events:
 `kamai_thermal_paper_width` · `kamai_silent_print` · `kamai_print_upi_qr` ·
 `kamai_cash_drawer_enabled` · `kamai_saved_bt_printer_mac` ·
 `kamai_soundbox_lang` · `kamai_soundbox_vol` · `kamai_last_backup_time` ·
-`kamai_last_backup_type` · `kamai_last_restore_time` · `kamai_cloud_account` · `kamai_cloud_sync_on` · `kamai_cloud_outbox` · `kamai_cloud_full_push` · `kamai_cloud_sync_status` · `kamai_cloud_inflight` · `kamai_cloud_pull_cursor` · `kamai_cloud_device_id` · `kamai_app_installed` ·
+`kamai_last_backup_type` · `kamai_last_restore_time` · `kamai_cloud_account` · `kamai_cloud_sync_on` · `kamai_cloud_outbox` · `kamai_cloud_full_push` · `kamai_cloud_sync_status` · `kamai_cloud_inflight` · `kamai_cloud_pull_cursor` · `kamai_cloud_device_id` · `kamai_label_calibrated` · `kamai_app_installed` ·
 `kamai_pwa_banner_dismissed` · `kamai_cashier_owner_pin` · `kamai_cashier_privacy_locked` ·
 `kamai_print_settings` (bill printers) · `kamai_label_settings` · `kamai_last_import_ids` ·
 `kamai_label_handoff` (Purchases → Barcode Studio labels) · `kamai_stock_entry_draft` (typed "New stock" rows) ·
@@ -1035,6 +1035,7 @@ with the reason) → import.
 - Real-app check (printing caught in the main process and rendered to PDF): 50×25 → one
   50×25 page per label; 38×25 2-across → 78×25 pages; A4 → one A4 page; custom 60×40 to a
   chosen printer → silent. Electron E2E does the same for "Print labels" after an import.
+- **Auto calibration (v4.89.0, Customer Bug — first client):** on a fresh 50 × 25 mm roll the first labels of a run printed shifted (price on the gap / next label) until the printer found the gap itself. `lib/labels/autoCalibrate.ts`: the first `printLabels` to a named printer at a roll size sends the printer's calibration (`kp:calibrate-label-printer`, TSPL `GAPDETECT` …) BEFORE the labels — same Windows queue, so it runs first — and remembers it per printer + size in `kamai_label_calibrated`; an unknown make is marked "manual" (not retried); a failure never blocks printing. Label setup shows the status; "Calibrate printer" (new roll) marks it too. Suite 9 §9j(z), Electron E2E (calibration stubbed — no real printer feeds).
 - **Bar height (v4.80.0)**: `LabelSettings.barHeightMm` (0 = the bars fill the space left, as
   before; 6–20 mm in the setup, stored 3–60) → `buildLabelHtml({ barHeightMm })` from both
   `printLabels` and `LabelPreview`. A set height centres the label's lines and only the bars

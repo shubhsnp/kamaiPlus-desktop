@@ -416,6 +416,14 @@ async function run() {
         const fsm = process.mainModule.require('fs');
         const pathm = process.mainModule.require('path');
         globalThis.__labelJobs = [];
+        // v4.89.0 — the first label print calibrates the printer: caught here too, so the test
+        // never feeds labels on a real printer attached to this PC.
+        globalThis.__calibrations = [];
+        ipcMain.removeHandler('kp:calibrate-label-printer');
+        ipcMain.handle('kp:calibrate-label-printer', async (_e, name) => {
+          globalThis.__calibrations.push({ name, at: globalThis.__labelJobs.length });
+          return { ok: true, language: 'TSPL' };
+        });
         ipcMain.removeHandler('kp:print');
         ipcMain.handle('kp:print', async (_e, opts) => {
           const file = pathm.join(dir, `job${globalThis.__labelJobs.length}.html`);
@@ -430,6 +438,12 @@ async function run() {
           return { ok: true };
         });
       }, pdfDir);
+      // A shop with a label printer chosen (the client's TSC) — "Ask every time" never calibrates.
+      await page.evaluate(() => {
+        const s = JSON.parse(localStorage.getItem('kamai_label_settings') || '{}');
+        localStorage.setItem('kamai_label_settings', JSON.stringify({ ...s, printer: 'E2E Label Printer' }));
+        localStorage.removeItem('kamai_label_calibrated');
+      });
       await page.locator('[data-import-print-labels]').click();
       await page.waitForURL(/barcode-generator/, { timeout: 15000 });
       await page.locator('[data-label-preview]').waitFor({ timeout: 15000 });
@@ -456,6 +470,16 @@ async function run() {
       const labelHtml = fs.readFileSync(path.join(pdfDir, 'job0.html'), 'utf8');
       check(labelJob && labelJob.paper === 'label' && labelJob.pageSizeMm.width === 50 && labelJob.pageSizeMm.height === 25 && labelJob.pages === 1 && labelHtml.includes(chaurasa.barcode),
         `Import → Print labels → the label printer gets one 50 × 25 mm page with the item's saved barcode (${JSON.stringify(labelJob)})`);
+      // v4.89.0 (Customer Bug: first labels of the run shifted on a fresh 50 × 25 roll) — the first
+      // print to this printer at this size calibrates it, BEFORE the labels; the next print does not.
+      const calsAfterFirst = await app.evaluate(() => globalThis.__calibrations.slice());
+      await page.locator('[data-print-labels]').click();
+      await page.waitForTimeout(2500);
+      const calsAfterSecond = await app.evaluate(() => globalThis.__calibrations.slice());
+      const jobsNow = (await app.evaluate(() => globalThis.__labelJobs)).length;
+      check(calsAfterFirst.length === 1 && calsAfterFirst[0].at === 0 && calsAfterFirst[0].name && calsAfterSecond.length === 1 && jobsNow === 2
+        && (await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('kamai_label_calibrated') || '{}')).length)) === 1,
+        `First label print to a printer calibrates it first (once per printer + size), the next print goes straight out (${JSON.stringify(calsAfterFirst)}, after 2nd: ${calsAfterSecond.length})`);
 
       // v4.68.0 — customer typed on the counter row (no pop-up) is saved with the bill.
       step = 'counter customer';

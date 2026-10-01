@@ -78,6 +78,7 @@ import type { CartItem, Product } from '../src/types';
 import { barcodeSymbol } from '../src/lib/barcode/barcodeGenerator';
 import { CUSTOM_LIMITS, DEFAULT_LABEL_SETTINGS, LABEL_STOCKS, labelPageMm, labelsPerPage, MAX_SETUP_COPIES, parseLabelSettings, stockFor } from '../src/lib/labels/labelSettings';
 import { buildLabelHtml } from '../src/lib/labels/labelSheet';
+import { calibrationKey, needsAutoCalibration } from '../src/lib/labels/autoCalibrate';
 import { expandCopies } from '../src/lib/labels/printLabels';
 import { looksLikeBarcode, searchEnterAction } from '../src/lib/billing/scanInput';
 import { emptyEntryRow, labelCopiesFor, lowStockAlertFor, planStockEntry, stockAfterInward, StockEntryRow } from '../src/lib/inward/stockEntry';
@@ -2594,6 +2595,27 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   const ms = ALL_SOURCE.filter((f) => !/[\\/]lib[\\/]ids\.ts$/.test(f) &&/`(sale|ledg|mov|prod|cust|cat|exp|shift)_\$\{Date\.now\(\)\}`/.test(fs.readFileSync(f, 'utf8')));
   assert(/return `\$\{prefix\}_\$\{stamp\}_\$\{rand\}`;/.test(idsSrc) && ms.length === 0 && newId('sale') !== newId('sale') && /^sale_\d{13}_[a-z0-9]{8}$/.test(newId('sale')),
     `C12: new record ids are time + 8 random characters — two counters in the same millisecond never share one (ms-only ids left: ${ms.map((f) => path.relative(SRC_ROOT, f)).join(', ') || 'none'})`);
+}
+
+// 9j(z). Customer Bug (first client, v4.89.0): on a fresh 50 × 25 mm roll the first labels of a run
+// printed shifted (price on the gap / next label) until the printer found the gap by itself. The
+// first print to a printer at a label size now calibrates it (once), then prints.
+{
+  const base = { ...DEFAULT_LABEL_SETTINGS, printer: 'TSC TE244', stockId: 'roll_50x25' };
+  const k50 = calibrationKey(base);
+  const k38 = calibrationKey({ ...base, stockId: 'roll_38x25_2' });
+  const kOther = calibrationKey({ ...base, printer: 'Other' });
+  assert(k50 !== k38 && k50 !== kOther && calibrationKey({ ...base }) === k50,
+    'Label calibration is remembered per printer AND label size (a new size or printer calibrates again)');
+  assert(needsAutoCalibration(base, false, true) && !needsAutoCalibration(base, true, true) && !needsAutoCalibration({ ...base, printer: '' }, false, true)
+    && !needsAutoCalibration({ ...base, stockId: 'a4_24' }, false, true) && !needsAutoCalibration(base, false, false),
+    'Auto calibration: only for a named label printer on a roll, once, and only where the app has a command for it');
+  const plSrc = readSource('lib/labels/printLabels.ts');
+  assert(plSrc.indexOf('await calibrateBeforeFirstPrint(settings);') > 0 && plSrc.indexOf('await calibrateBeforeFirstPrint(settings);') < plSrc.indexOf("return printHtml(html, stock.kind === 'sheet'"),
+    'Every label print (Studio, 1-click, test, size check) calibrates first when needed — before the labels go to the printer queue');
+  const acSrc = readSource('lib/labels/autoCalibrate.ts');
+  assert(acSrc.includes("markCalibrated(settings, 'manual');") && acSrc.includes("return 'failed';") && readSource('components/labels/LabelSetupPanel.tsx').includes("markCalibrated(s, 'done');"),
+    'An unknown printer make is not retried on every print; a failed calibration never blocks printing; the Calibrate button also counts');
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.
