@@ -38,7 +38,7 @@ export const CashRegisterHeaderActions: React.FC<CashRegisterHeaderActionsProps>
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <h1 className="text-base sm:text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight">
-              {tr('Cash Register & Petty Cash Drawer')}
+              {tr('Cash Register')}
             </h1>
             <span className={`px-2 py-0.5 rounded-full text-[9.5px] font-black uppercase flex items-center gap-1 border ${
               isOpen 

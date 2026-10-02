@@ -195,7 +195,7 @@ export default function BarcodeGeneratorPage() {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 truncate">
             <Barcode className="w-4 h-4 text-slate-800 shrink-0" />
-            <h1 className="text-sm sm:text-lg font-black text-slate-900 truncate">{tr('Barcode & Price Label Studio')}</h1>
+            <h1 className="text-sm sm:text-lg font-black text-slate-900 truncate">{tr('Barcode Studio')}</h1>
           </div>
           <p className="text-[10px] sm:text-xs text-slate-500 truncate">{tr('Every label carries the item\'s own saved barcode — it scans straight into the bill.')}</p>
         </div>

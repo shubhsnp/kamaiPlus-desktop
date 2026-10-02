@@ -30,6 +30,7 @@ const FastBarcodeInwardModal = dynamic(
 import { TodayBusinessPulse } from '@/components/dashboard/TodayBusinessPulse';
 import { QuickActionDock } from '@/components/dashboard/QuickActionDock';
 import { QuickToolsGrid } from '@/components/dashboard/QuickToolsGrid';
+import { TodayInsights } from '@/components/dashboard/TodayInsights';
 
 import { DashboardStockWatchlist } from '@/components/dashboard/DashboardStockWatchlist';
 import { DashboardRecentSales } from '@/components/dashboard/DashboardRecentSales';
@@ -209,6 +210,9 @@ export default function DashboardHome() {
       {switches.sales_reports && <AdvancedAnalyticsBanner />}
 
 
+
+      {/* 3b. TODAY AT A GLANCE — top items sold today, biggest udhar (v4.93.0) */}
+      <TodayInsights sales={todaysRevenueSales} debtors={customersWithCredit} khataOn={switches.khata} />
 
       {/* 4. LOW STOCK & OUT OF STOCK WATCHLIST ACCORDION */}
       <DashboardStockWatchlist

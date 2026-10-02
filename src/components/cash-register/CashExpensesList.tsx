@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { CashExpense } from '@/types';
 import { Card } from '@/components/ui/Card';
-import { formatINR } from '@/lib/utils';
+import { amountTone, formatINR, formatINRSigned } from '@/lib/utils';
 import { expenseCategoryLabel, tr } from '@/lib/i18n/core';
 
 interface CashExpensesListProps {
@@ -35,8 +35,8 @@ export const CashExpensesList: React.FC<CashExpensesListProps> = ({
             {tr('Today\'s Petty Cash Outflows')}
           </h3>
         </div>
-        <span className="text-xs font-mono font-black text-rose-600 dark:text-rose-400">
-          {tr('Total: -')}{formatINR(totalExpensePaise)}
+        <span className={`text-xs font-mono font-black ${amountTone(totalExpensePaise, 'text-rose-600 dark:text-rose-400')}`}>
+          {tr('Total:')} {formatINRSigned(totalExpensePaise, '-')}
         </span>
       </div>
 

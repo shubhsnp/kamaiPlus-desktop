@@ -42,7 +42,7 @@ export const ProductHeaderActions: React.FC<ProductHeaderActionsProps> = ({
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <h1 className="text-base sm:text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight">
-              {tr('Products Master & Items')}
+              {tr('Products')}
             </h1>
             <CashierPrivacyToggleButton />
           </div>

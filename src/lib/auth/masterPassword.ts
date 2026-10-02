@@ -6,6 +6,7 @@
  */
 
 import { safeReturnPath } from './idleLock';
+import { PROFIT_UNLOCK_SESSION_KEY } from './cashierPrivacy';
 
 const KEY = 'kamai_master_password';
 const PREFIX = 'sha256$';
@@ -84,8 +85,11 @@ export function lockApp(returnTo?: string): void {
     const path = safeReturnPath(returnTo);
     if (path) sessionStorage.setItem(RETURN_KEY, path);
     else sessionStorage.removeItem(RETURN_KEY);
+    // Profit hides again too (cashierPrivacy.ts).
+    sessionStorage.removeItem(PROFIT_UNLOCK_SESSION_KEY);
   } catch {}
   window.dispatchEvent(new Event('auth_changed'));
+  window.dispatchEvent(new Event('privacy_mode_changed'));
 }
 
 /** Where to go after the password: the page open when the app locked, else home. */

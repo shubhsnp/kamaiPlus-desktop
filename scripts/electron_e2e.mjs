@@ -1244,6 +1244,25 @@ async function run() {
       await page.waitForTimeout(400);
       check(homeIds === 'new_bill,khata,fast_inward,day_summary,printers' && gstStandIn && rowsFull && fastOnHome && /\/$/.test(new URL(page.url()).pathname),
         `Home with Purchases / GST off: tiles "${homeIds}", Backup & CA exports in GST's place, every row full; Fast barcode inward opens right on Home`);
+
+      // v4.93.0 (UX audit, batch 2) — Home shows shop facts; profit starts locked once an owner PIN exists.
+      step = 'home insights';
+      const topItems = await page.locator('[data-home-top-items] li').count();
+      const dupTiles = await page.locator('[data-home-tool="/billing"], [data-home-tool="/khata"]').count();
+      const slimAnalytics = await page.locator('[data-home-analytics]').evaluate((el) => el.getBoundingClientRect().height).catch(() => 0);
+      check(topItems > 0 && dupTiles === 0 && slimAnalytics > 0 && slimAnalytics < 60,
+        `Home: "Top items today" lists ${topItems} items, Billing / Khata not repeated as tiles, analytics is one slim row (${Math.round(slimAnalytics)}px)`);
+      await page.evaluate(() => { localStorage.setItem('kamai_cashier_owner_pin', '2468'); sessionStorage.removeItem('kamai_profit_unlocked'); window.dispatchEvent(new Event('privacy_mode_changed')); });
+      await page.locator('aside a[href="/reports"]').first().click();
+      const reportsLocked = await textVisible(page, 'Tap to unlock with owner PIN', 10000);
+      await page.locator('aside a[href="/products"]').first().click();
+      await page.waitForTimeout(1200);
+      const costLocked = (await page.locator('button[title="Click to unlock with 4-Digit Owner PIN"]').count()) > 0;
+      await page.evaluate(() => { localStorage.removeItem('kamai_cashier_owner_pin'); window.dispatchEvent(new Event('privacy_mode_changed')); });
+      check(reportsLocked && costLocked, `With an owner PIN, profit starts hidden everywhere — Reports (${reportsLocked}) and Products cost prices (${costLocked}) — one lock`);
+      // Back to Home for the printer-setup checks below.
+      await page.locator('aside a[href="/"]').first().click();
+      await page.locator('[data-home-action="printers"]').waitFor({ timeout: 15000 });
       await page.locator('[data-home-action="printers"]').click();
       await page.locator('[data-bill-printer]').waitFor({ timeout: 10000 });
       const printersTitle = await page.locator('[role="dialog"]').first().innerText();

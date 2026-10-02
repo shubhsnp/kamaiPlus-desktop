@@ -4,6 +4,8 @@ import { isFeatureOn } from '@/lib/features/featureSwitches';
 
 const PIN_STORAGE_KEY = 'kamai_cashier_owner_pin';
 const PRIVACY_MODE_KEY = 'kamai_cashier_privacy_locked';
+/** v4.93.0: the owner's unlock lasts this app session only (a restart or "Lock" hides profit again). */
+export const PROFIT_UNLOCK_SESSION_KEY = 'kamai_profit_unlocked';
 
 /*
  * There is no default PIN. A built-in "1234" (printed on the PIN screen) let any
@@ -47,6 +49,10 @@ export function isProfitHidden(): boolean {
   if (typeof window === 'undefined') return false;
   if (!isFeatureOn('profit_privacy')) return false;
   try {
+    // v4.93.0: with an owner PIN, profit and cost prices start hidden every time the app opens
+    // (and after a lock) until the owner unlocks them — they used to stay open until someone
+    // pressed "Cashier Privacy". Without a PIN nothing could unlock them: the manual lock stays.
+    if (hasOwnerPin()) return sessionStorage.getItem(PROFIT_UNLOCK_SESSION_KEY) !== '1';
     return localStorage.getItem(PRIVACY_MODE_KEY) === 'true';
   } catch {
     return false;
@@ -60,6 +66,8 @@ export function setProfitHidden(hidden: boolean) {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(PRIVACY_MODE_KEY, hidden ? 'true' : 'false');
+    if (hidden) sessionStorage.removeItem(PROFIT_UNLOCK_SESSION_KEY);
+    else sessionStorage.setItem(PROFIT_UNLOCK_SESSION_KEY, '1');
     window.dispatchEvent(new Event('privacy_mode_changed'));
   } catch {}
 }

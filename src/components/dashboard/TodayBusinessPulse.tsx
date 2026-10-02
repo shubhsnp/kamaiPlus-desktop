@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Card } from '@/components/ui/Card';
-import { formatINR } from '@/lib/utils';
+import { amountTone, formatINRCompact } from '@/lib/utils';
 import { ProfitMask, CashierPrivacyToggleButton } from '@/components/privacy/ProfitMask';
 import { 
   TrendingUp, 
@@ -77,7 +77,7 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
         </div>
 
         <div className="text-base sm:text-xl font-black text-slate-900 dark:text-slate-100 font-mono tracking-tight mt-1.5 truncate">
-          {formatINR(netCashInHand)}
+          {formatINRCompact(netCashInHand)}
         </div>
       </div>
 
@@ -125,7 +125,7 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
               </div>
 
               <div className="text-base sm:text-xl font-black text-slate-900 dark:text-slate-100 font-mono tracking-tight mt-1.5 truncate">
-                {formatINR(todaysSalesTotal)}
+                {formatINRCompact(todaysSalesTotal)}
               </div>
             </div>
 
@@ -159,7 +159,7 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
               </div>
 
               <div className="text-base sm:text-xl font-black text-slate-900 dark:text-slate-100 font-mono tracking-tight mt-1.5 truncate">
-                <ProfitMask valuePaise={todaysGrossProfit} />
+                <ProfitMask value={formatINRCompact(todaysGrossProfit)} />
               </div>
             </div>
 
@@ -188,13 +188,13 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
               </div>
 
               <div className="text-base sm:text-xl font-black text-slate-900 dark:text-slate-100 font-mono tracking-tight mt-1.5 truncate">
-                {formatINR(averageBillPaise)}
+                {formatINRCompact(averageBillPaise)}
               </div>
             </div>
 
             <div className="pt-1.5 mt-1.5 border-t border-blue-100/80 dark:border-blue-900/40 flex items-center justify-between gap-1 text-[10px] sm:text-[11px]">
               <span className="text-slate-500 dark:text-slate-400 font-semibold truncate" title={tr('Add buying prices to your items to see profit here.')}>
-                {tr('Biggest bill')}: <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{formatINR(biggestBillPaise)}</span>
+                {tr('Biggest bill')}: <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{formatINRCompact(biggestBillPaise)}</span>
               </span>
               {reportsOn && (
               <span className="text-blue-700 dark:text-blue-400 font-bold inline-flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform text-[10px]">
@@ -229,8 +229,8 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
                 </span>
               </div>
 
-              <div className="text-base sm:text-xl font-black text-rose-600 dark:text-rose-400 font-mono tracking-tight mt-1.5 truncate">
-                {formatINR(totalOutstandingCredit)}
+              <div className={`text-base sm:text-xl font-black ${amountTone(totalOutstandingCredit, 'text-rose-600 dark:text-rose-400')} font-mono tracking-tight mt-1.5 truncate`}>
+                {formatINRCompact(totalOutstandingCredit)}
               </div>
             </div>
 

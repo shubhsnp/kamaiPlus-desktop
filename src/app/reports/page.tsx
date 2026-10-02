@@ -22,6 +22,8 @@ import {
 import { saveGeneralReportPdf, savePartyStatementPdf } from '@/lib/reports/reportOutput';
 import { getDesktopApi } from '@/lib/desktop/desktopBridge';
 import { OwnerPinPrompt } from '@/components/privacy/OwnerPinPrompt';
+import { useProfitHidden } from '@/components/privacy/ProfitMask';
+import { setProfitHidden } from '@/lib/auth/cashierPrivacy';
 import { useFeatureSwitches } from '@/lib/features/featureSwitches';
 import { CategoryList, DeadStockList, ItemList, PartyList, ProfitView, profitText } from '@/components/reports/analytics/AnalyticsLists';
 import { PartyDetailModal } from '@/components/reports/analytics/PartyDetailModal';
@@ -46,7 +48,8 @@ export default function SalesAnalyticsPage() {
   const [sort, setSort] = useState<ReportSort>('sales');
   const [tab, setTab] = useState<Tab>('parties');
   const [search, setSearch] = useState('');
-  const [pinUnlocked, setUnlocked] = useState(false);
+  // v4.93.0: the same profit lock as every other screen (it had its own, always locked at start).
+  const pinUnlocked = !useProfitHidden();
   // Settings → Features → "Hide profit from staff" off: profit is always shown, no PIN.
   const privacyOn = useFeatureSwitches().profit_privacy;
   const unlocked = pinUnlocked || !privacyOn;
@@ -131,7 +134,7 @@ export default function SalesAnalyticsPage() {
           {privacyOn && (
             <button
               type="button"
-              onClick={() => (unlocked ? setUnlocked(false) : setPinOpen(true))}
+              onClick={() => (unlocked ? setProfitHidden(true) : setPinOpen(true))}
               className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 inline-flex items-center gap-1.5 cursor-pointer hover:bg-slate-50"
               title={unlocked ? tr('Hide profit') : tr('Show profit (owner PIN)')}
             >
@@ -268,7 +271,7 @@ export default function SalesAnalyticsPage() {
         view={view}
         onClose={() => setOpenCategory(null)}
       />
-      <OwnerPinPrompt isOpen={pinOpen} onClose={() => setPinOpen(false)} onUnlocked={() => setUnlocked(true)} />
+      <OwnerPinPrompt isOpen={pinOpen} onClose={() => setPinOpen(false)} onUnlocked={() => setProfitHidden(false)} />
     </div>
   );
 }

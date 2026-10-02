@@ -15,7 +15,7 @@ import { AccountingExportsCard } from '@/components/backup/AccountingExportsCard
 import { tr } from '@/lib/i18n/core';
 
 /**
- * Data Backup & Tax Reports (v4.78.0): the daily automatic backup, a backup file to keep
+ * Backup & Restore (v4.78.0, the menu name since v4.93.0): the daily automatic backup, a backup file to keep
  * anywhere, a safe restore (checked file, one transaction, today's backup refreshed
  * first, app reloaded after), and Tally / CA exports for a chosen period.
  */
@@ -98,7 +98,7 @@ export default function CloudBackupPage() {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 truncate">
             <HardDrive className="w-4 h-4 text-amber-700 shrink-0" />
-            <h1 className="text-sm xs:text-base sm:text-lg font-black text-slate-900 truncate">{tr('Data Backup & Tax Reports')}</h1>
+            <h1 className="text-sm xs:text-base sm:text-lg font-black text-slate-900 truncate">{tr('Backup & Restore')}</h1>
           </div>
           <p className="text-[10px] sm:text-xs text-slate-500 truncate">{tr('Offline JSON database snapshots, Tally Prime XML, and CA Master Sales Registers')}</p>
         </div>

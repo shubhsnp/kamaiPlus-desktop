@@ -15,7 +15,7 @@ interface QuickActionDockProps {
 }
 
 const LOOK: Record<Exclude<QuickActionId, 'new_bill'>, { icon: React.ElementType; title: string; subtitle: string; border: string; chip: string }> = {
-  khata: { icon: BookOpen, title: msg('Digital Khata'), subtitle: msg('Customer Udhar'), border: 'border-indigo-200/80 dark:border-indigo-900/60', chip: 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800' },
+  khata: { icon: BookOpen, title: msg('Khata Ledger'), subtitle: msg('Customer Udhar'), border: 'border-indigo-200/80 dark:border-indigo-900/60', chip: 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800' },
   stock_inward: { icon: Boxes, title: msg('Stock Inward'), subtitle: msg('Bills & Restock'), border: 'border-blue-200/80 dark:border-blue-900/60', chip: 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800' },
   fast_inward: { icon: ScanLine, title: msg('Fast barcode inward'), subtitle: msg('Scan new stock in'), border: 'border-blue-200/80 dark:border-blue-900/60', chip: 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800' },
   day_summary: { icon: Calculator, title: msg('Day Summary'), subtitle: msg('Shift Z-Report'), border: 'border-emerald-200/80 dark:border-emerald-900/60', chip: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800' },

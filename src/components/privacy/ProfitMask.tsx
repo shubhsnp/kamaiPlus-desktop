@@ -8,6 +8,22 @@ import { CashierPinModal } from './CashierPinModal';
 import { formatINR } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
 
+/** Profit hidden right now — the one lock every screen follows (Reports too, v4.93.0). */
+export function useProfitHidden(): boolean {
+  const [hidden, setHidden] = useState<boolean>(false);
+  useEffect(() => {
+    const read = () => setHidden(isProfitHidden());
+    read();
+    window.addEventListener('privacy_mode_changed', read);
+    window.addEventListener(FEATURE_SWITCHES_EVENT, read);
+    return () => {
+      window.removeEventListener('privacy_mode_changed', read);
+      window.removeEventListener(FEATURE_SWITCHES_EVENT, read);
+    };
+  }, []);
+  return hidden;
+}
+
 interface ProfitMaskProps {
   children?: React.ReactNode;
   value?: React.ReactNode;

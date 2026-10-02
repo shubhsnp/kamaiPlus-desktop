@@ -19,6 +19,24 @@ export function formatINR(paise: number, includeSymbol: boolean = true): string 
   return includeSymbol ? `₹${formatted}` : formatted;
 }
 
+/** Summary cards (v4.93.0): "₹2,420" when there are no paise, "₹2,420.50" when there are. */
+export function formatINRCompact(paise: number): string {
+  const p = Math.round(paise || 0);
+  if (p % 100 !== 0) return formatINR(p);
+  return `₹${new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(p / 100)}`;
+}
+
+/** "+₹50.00" / "-₹50.00" — and plain "₹0.00" for nothing (it showed "-₹0.00"). */
+export function formatINRSigned(paise: number, sign: '+' | '-'): string {
+  const p = Math.round(paise || 0);
+  return p === 0 ? formatINR(0) : `${sign}${formatINR(Math.abs(p))}`;
+}
+
+/** A coloured amount goes grey when it is zero (a red "₹0.00 udhar" looked like a problem). */
+export function amountTone(paise: number, tone: string, zeroTone = 'text-slate-400 dark:text-slate-500'): string {
+  return Math.round(paise || 0) === 0 ? zeroTone : tone;
+}
+
 /**
  * Parse user-entered Rupee decimal string into integer paise
  * e.g. "120.50" -> 12050

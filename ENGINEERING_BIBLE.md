@@ -458,6 +458,7 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 | `hardware/printerWatch.ts` | Printers seen now (`publishPrinters`, `usePrinterFacts`), `openPrintersWindow`, the silent-print key + event (§9.10) |
 | `whatsapp/` | WhatsApp (§9.11): `whatsappLinks.ts` (number, wa.me, UPI pay link), `customerMessages.ts` / `businessMessages.ts` / `whatsappText.ts` (messages, en / hi / mr), `whatsappSettings.ts`, `whatsappDrafts.ts` (request → window), `openWhatsApp.ts` (open + `openWhatsAppComposer`) |
 | `dashboard/homeTiles.ts` | Home Quick Actions list, GST stand-in, Profit vs Average Bill (§9.10) |
+| `dashboard/todayInsights.ts` | Home "Today at a glance": `topItemsToday`, `topDebtors` (§9.10, v4.93.0) |
 | `hardware/escpos.ts` | Raw ESC/POS bytecode (ASCII-safe: ₹ • — are transliterated) |
 | `hardware/bluetoothPrinter.ts` | Web Bluetooth ESC/POS printer — only the "Bluetooth" print in "Sale completed" and Barcode Studio use it; it connects on demand (the billing hardware manager that paired it was removed in v4.73.0) |
 | `hardware/barcodeScannerListener.ts` | USB/HID scanner keystroke capture when **no** text box owns the scan (key timing by `e.timeStamp`; `ignore` lets the POS search box read scans itself) — §9.5 |
@@ -469,7 +470,7 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 | `backup/cloudBackupService.ts` | Local JSON backup/restore of every table (`BACKUP_TABLES`), `checkBackupPayload`, one-transaction restore, "add missing" merge, settings (§2.3, v4.78.0) |
 | `backup/autoBackup.ts` · `backupSchedule.ts` · `backupChanges.ts` | Automatic backup: run it / when (hourly while data changes, counter free) / "data changed" DBCore middleware registered in `db/index.ts` (§2.3, v4.82.0) |
 | `auth.ts` | `getStoredUser` / `setStoredUser` / `logoutUser` / `purgeLocalDeviceData`, 24h session |
-| `auth/cashierPrivacy.ts` | Owner PIN + profit-masking for staff |
+| `auth/cashierPrivacy.ts` | Owner PIN + profit-masking for staff. v4.93.0: with a PIN, profit starts hidden every app start / after Lock (`PROFIT_UNLOCK_SESSION_KEY` in sessionStorage; `lockApp` clears it); Reports follows the same lock (`useProfitHidden`) |
 | `reports/advancedReports.ts` | Sales analytics (net of returns, profit only on frozen `cost_price`) |
 | `gst/gstr1Generator.ts` | GSTR-1 + HSN summary for the screen and the CSV |
 | `gst/gstr1Json.ts` | **GSTR-1 JSON for the GST portal / offline tool** (`buildGstr1Json`) and the GST page periods (`gstPeriodRange`, Indian FY) — see §10 #25 |
@@ -1273,6 +1274,14 @@ The ✏️ on a bill line (`components/billing/PosItemEditModal.tsx`, chips per 
 - `TodayBusinessPulse`: with no buying price anywhere (`showProfitCard` — cost field off, no
   product `purchase_price`, no costed revenue today) the Profit card becomes **Average Bill**
   (`billStats`: day revenue ÷ bills, plus the biggest bill) — profit would always say ₹0.
+- v4.93.0 (UX audit batch 2): the pulse cards show whole rupees without ".00"
+  (`formatINRCompact`; paise show when there are any), a zero amount is grey (`amountTone`),
+  ribbons never show "-₹0.00" (`formatINRSigned`) — `lib/utils.ts`. The tools grid no longer
+  repeats Billing / Khata (they are quick actions); `TodayInsights` ("Top items today",
+  "Highest udhar") sits under the quick actions; `AdvancedAnalyticsBanner` is one slim row.
+  Page titles = their menu names (Products, Khata Ledger, Purchases & Bills, Transactions,
+  Cash Register, Barcode Studio, Backup & Restore); walk-in bills are "Cash Customer"
+  everywhere (the name saved on the bill), Reports too.
 
 **Printers window** (`components/printers/PrintersWindow.tsx`): `BillPrinterSetup` (optional
 `title` + `children`) plus the label printer (`LabelSetupPanel`) one click down. Opened from

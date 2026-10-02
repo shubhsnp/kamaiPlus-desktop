@@ -499,7 +499,7 @@ function KhataContent() {
           <div className="flex items-center gap-1.5 truncate">
             <BookOpen className="w-4 h-4 text-amber-500 shrink-0" />
             <h1 className="text-sm xs:text-base sm:text-lg font-black text-slate-900 dark:text-slate-100 truncate">
-              {tr('Digital Khata & Udhar Ledger')}
+              {tr('Khata Ledger')}
             </h1>
           </div>
           <p className="text-[10.5px] sm:text-xs text-slate-500 truncate">

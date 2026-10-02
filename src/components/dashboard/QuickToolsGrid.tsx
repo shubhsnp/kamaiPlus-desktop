@@ -9,10 +9,8 @@ import {
   Barcode, 
   TrendingUp, 
   FileSpreadsheet, 
-  Receipt,
   Calculator,
   ShieldCheck,
-  BookOpen,
   Users,
   HardDrive
 } from 'lucide-react';
@@ -27,21 +25,14 @@ interface QuickToolsGridProps {
 export const QuickToolsGrid: React.FC<QuickToolsGridProps> = ({
   productsCount,
 }) => {
-  // Screens switched off in Settings → Features get no shortcut tile.
+  // Screens switched off in Settings → Features get no shortcut tile. Billing and Khata are in
+  // the quick actions right above (v4.93.0: they were on Home twice, with two names).
   const switches = useFeatureSwitches();
   const toolSections = [
     {
       title: tr('Daily Counter & Ops'),
       dotColor: 'bg-emerald-500',
       tools: [
-        {
-          title: tr('Billing (POS)'),
-          subtitle: tr('Instant Checkout'),
-          href: '/billing',
-          icon: Receipt,
-          color: 'text-emerald-600 dark:text-emerald-400',
-          bg: 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800',
-        },
         {
           title: tr('Cash Register'),
           subtitle: tr('Shift & Z-Report'),
@@ -73,7 +64,7 @@ export const QuickToolsGrid: React.FC<QuickToolsGridProps> = ({
       dotColor: 'bg-blue-500',
       tools: [
         {
-          title: tr('Products Master'),
+          title: tr('Products'),
           subtitle: tr('{productsCount} SKUs', { productsCount: productsCount }),
           href: '/products',
           icon: Package,
@@ -111,15 +102,7 @@ export const QuickToolsGrid: React.FC<QuickToolsGridProps> = ({
       dotColor: 'bg-purple-500',
       tools: [
         {
-          title: tr('Khata Ledger'),
-          subtitle: tr('Customer Udhar'),
-          href: '/khata',
-          icon: BookOpen,
-          color: 'text-amber-600 dark:text-amber-400',
-          bg: 'bg-amber-50 dark:bg-amber-950/60 border-amber-200 dark:border-amber-800',
-        },
-        {
-          title: tr('Customers CRM'),
+          title: tr('Customers'),
           subtitle: tr('Loyalty & Visits'),
           href: '/customers',
           icon: Users,

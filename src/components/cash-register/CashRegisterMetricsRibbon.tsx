@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Card } from '@/components/ui/Card';
-import { formatINR } from '@/lib/utils';
+import { amountTone, formatINR, formatINRSigned } from '@/lib/utils';
 import { 
   Banknote, 
   ArrowDownLeft, 
@@ -54,8 +54,8 @@ export const CashRegisterMetricsRibbon: React.FC<CashRegisterMetricsRibbonProps>
             </span>
             <span className="text-[10px] text-slate-400 font-mono">{tr('Today')}</span>
           </div>
-          <div className="text-base sm:text-lg font-black font-mono text-emerald-600 dark:text-emerald-400 mt-0.5 leading-tight">
-            <ProfitMask value={`+${formatINR(cashSalesPaise)}`} />
+          <div className={`text-base sm:text-lg font-black font-mono ${amountTone(cashSalesPaise, 'text-emerald-600 dark:text-emerald-400')} mt-0.5 leading-tight`}>
+            <ProfitMask value={formatINRSigned(cashSalesPaise, '+')} />
           </div>
           <div className="text-[10px] text-slate-400 truncate mt-0.5">
             {tr('Received from bills')}
@@ -71,8 +71,8 @@ export const CashRegisterMetricsRibbon: React.FC<CashRegisterMetricsRibbonProps>
             </span>
             <span className="text-[10px] text-slate-400 font-mono">{tr('Spent')}</span>
           </div>
-          <div className="text-base sm:text-lg font-black font-mono text-rose-600 dark:text-rose-400 mt-0.5 leading-tight">
-            <ProfitMask value={`-${formatINR(cashExpensesPaise)}`} />
+          <div className={`text-base sm:text-lg font-black font-mono ${amountTone(cashExpensesPaise, 'text-rose-600 dark:text-rose-400')} mt-0.5 leading-tight`}>
+            <ProfitMask value={formatINRSigned(cashExpensesPaise, '-')} />
           </div>
           <div className="text-[10px] text-slate-400 truncate mt-0.5">
             {tr('Petty cash expenses')}

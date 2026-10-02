@@ -5,23 +5,22 @@ import Link from 'next/link';
 import { ArrowRight, LineChart } from 'lucide-react';
 import { tr } from '@/lib/i18n/core';
 
-/** Home entry point to Sales Analytics (Android `_buildAdvancedAnalyticsBanner`). */
+/**
+ * Home entry point to Sales Analytics (Android `_buildAdvancedAnalyticsBanner`).
+ * v4.93.0: one slim row — the big dark banner read like an upsell in an app sold once.
+ */
 export function AdvancedAnalyticsBanner() {
   return (
-    <Link href="/reports" className="group block">
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-950 via-slate-900 to-indigo-900 border border-indigo-800 p-4 flex items-center gap-4 shadow-sm group-hover:shadow-md transition">
-        <div className="absolute -right-8 -top-10 w-40 h-40 rounded-full bg-indigo-500/10" />
-        <div className="w-11 h-11 rounded-xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center shrink-0">
-          <LineChart className="w-5 h-5 text-indigo-200" />
+    <Link href="/reports" className="group block" data-home-analytics>
+      <div className="rounded-xl border border-indigo-200/80 bg-indigo-50/50 hover:bg-indigo-50 px-3 py-2 flex items-center gap-3 transition">
+        <div className="w-7 h-7 rounded-lg bg-white border border-indigo-200 flex items-center justify-center shrink-0">
+          <LineChart className="w-4 h-4 text-indigo-600" />
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-white font-black text-sm">{tr('Advanced Analytics')}</span>
-            <span className="px-1.5 py-0.5 rounded bg-amber-400 text-slate-950 text-[9px] font-black tracking-wider">{tr('INSIGHTS')}</span>
-          </div>
-          <p className="text-indigo-200/80 text-xs truncate">{tr('Deep sales reports • Customer udhar & margins • Dead stock')}</p>
+        <div className="flex-1 min-w-0 flex items-baseline gap-2">
+          <span className="text-indigo-950 font-black text-xs shrink-0">{tr('Advanced Analytics')}</span>
+          <span className="text-indigo-700/80 text-xs truncate">{tr('Deep sales reports • Customer udhar & margins • Dead stock')}</span>
         </div>
-        <span className="relative inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/10 border border-white/20 text-white text-xs font-bold group-hover:bg-white/20 transition">
+        <span className="inline-flex items-center gap-1 text-indigo-700 text-xs font-bold group-hover:translate-x-0.5 transition-transform shrink-0">
           {tr('View')} <ArrowRight className="w-3.5 h-3.5" />
         </span>
       </div>

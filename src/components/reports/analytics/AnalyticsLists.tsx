@@ -120,7 +120,7 @@ export function PartyList({
               </button>
             </div>
             <div className="text-[11.5px] text-slate-500 truncate">
-              {p.invoiceCount} {p.invoiceCount === 1 ? tr('Bill') : tr('Bills')} • {p.partyPhone || tr('Walk-in')}
+              {p.invoiceCount} {p.invoiceCount === 1 ? tr('Bill') : tr('Bills')} • {p.partyPhone || tr('No phone')}
               {p.creditPaise > 0 && <span className="text-amber-700 font-bold"> {tr('• Udhar')} {formatINR(p.creditPaise)}</span>}
             </div>
           </div>

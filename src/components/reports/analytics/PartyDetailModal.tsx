@@ -79,7 +79,7 @@ export function PartyDetailModal({ party, periodSales, returns, periodLabel, bus
               <div className="flex-1 min-w-0">
                 <div className="font-black text-slate-900 truncate">{summary.partyName}</div>
                 <div className="text-xs text-slate-500 flex items-center gap-1">
-                  <Phone className="w-3 h-3" /> {summary.partyPhone || tr('Walk-in Customer')}
+                  <Phone className="w-3 h-3" /> {summary.partyPhone || tr('No phone')}
                 </div>
               </div>
               <button

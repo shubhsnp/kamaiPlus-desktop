@@ -35,7 +35,7 @@ export const TransactionHeaderActions: React.FC<TransactionHeaderActionsProps> =
       <div className="min-w-0">
         <h1 className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
           <Receipt className="w-5 h-5 text-slate-800 dark:text-slate-200 shrink-0" />
-          <span>{tr('Transactions & Sales Ledger')}</span>
+          <span>{tr('Transactions')}</span>
         </h1>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
           {tr('Audit history, reprint thermal bills, customer khata credit tracking, and 1-click Tally export.')}

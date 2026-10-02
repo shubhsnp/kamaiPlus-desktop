@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Card } from '@/components/ui/Card';
-import { formatINR } from '@/lib/utils';
+import { amountTone, formatINR } from '@/lib/utils';
 import { ArrowDownLeft, ArrowUpRight, Wallet, BookOpen } from 'lucide-react';
 import { tr } from '@/lib/i18n/core';
 
@@ -33,7 +33,7 @@ export const KhataMetricsRibbon: React.FC<KhataMetricsRibbonProps> = ({
             </span>
             <span className="text-[9.5px] text-rose-500/80 font-mono hidden xs:inline">बाकी</span>
           </div>
-          <div className="text-base sm:text-lg font-black font-mono text-rose-600 dark:text-rose-400 mt-0.5 leading-tight truncate">
+          <div className={`text-base sm:text-lg font-black font-mono ${amountTone(totalUdharReceivable, 'text-rose-600 dark:text-rose-400')} mt-0.5 leading-tight truncate`}>
             {formatINR(totalUdharReceivable)}
           </div>
           <div className="text-[10px] text-slate-400 truncate mt-0.5 hidden sm:block">
@@ -50,7 +50,7 @@ export const KhataMetricsRibbon: React.FC<KhataMetricsRibbonProps> = ({
             </span>
             <span className="text-[9.5px] text-emerald-600/80 font-mono hidden xs:inline">जमा</span>
           </div>
-          <div className="text-base sm:text-lg font-black font-mono text-emerald-600 dark:text-emerald-400 mt-0.5 leading-tight truncate">
+          <div className={`text-base sm:text-lg font-black font-mono ${amountTone(totalAdvancePayable, 'text-emerald-600 dark:text-emerald-400')} mt-0.5 leading-tight truncate`}>
             {formatINR(totalAdvancePayable)}
           </div>
           <div className="text-[10px] text-slate-400 truncate mt-0.5 hidden sm:block">

@@ -171,7 +171,7 @@ export default function PurchasesPage() {
         <div>
           <h1 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <ShoppingBag className="w-5 h-5 text-amber-500" />
-            <span>{tr('Purchase & Restock Orders')}</span>
+            <span>{tr('Purchases & Bills')}</span>
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400">
             {tr('Record inbound inventory, capture wholesale invoices, and update cost prices.')}

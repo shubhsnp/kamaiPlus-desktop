@@ -258,7 +258,7 @@ export function summarizeParty(
 
   return {
     partyId,
-    partyName: isWalkIn ? tr('Walk-in Customer') : name || fallback.name || tr('Customer'),
+    partyName: isWalkIn ? tr('Cash Customer') : name || fallback.name || tr('Customer'),
     partyPhone: isWalkIn ? '' : phone || fallback.phone || '',
     totalSalesPaise: billed,
     totalCostPaise: acc.cost,

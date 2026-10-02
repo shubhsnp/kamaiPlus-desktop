@@ -31,7 +31,7 @@ import { EscPosEncoder } from '../src/lib/hardware/escpos';
 
 import { signSessionToken, verifySessionToken } from '../src/lib/auth/session';
 import { calculateGstSummary } from '../src/lib/invoices/gstCalculator';
-import { formatINR } from '../src/lib/utils';
+import { amountTone, formatINR, formatINRCompact, formatINRSigned } from '../src/lib/utils';
 import { parsePaymentNotification } from '../src/lib/payments/notificationParser';
 import { numberToHindiWords, numberToEnglishWords, soundboxEngine } from '../src/lib/payments/soundboxEngine';
 import { paymentBridge } from '../src/lib/payments/paymentBridge';
@@ -71,6 +71,7 @@ import {
 import { computeDrawerSummary, localDateKey } from '../src/lib/reports/cashDrawer';
 import { cartBeyond, makeEmptyTab, nextBillTabId, tabsAfterClosing, tabsAfterSale, tabsAfterUndo, tabsForNewBill } from '../src/lib/billing/billTabs';
 import { scrollDeltaToShow } from '../src/lib/billing/cartFocus';
+import { topDebtors, topItemsToday } from '../src/lib/dashboard/todayInsights';
 import { applyPaymentToBill, openBillsOldestFirst, planBillAllocation } from '../src/lib/khata/billAllocation';
 import { generalCategoryId } from '../src/lib/products/defaultCategory';
 import { nextSupplierBalance } from '../src/lib/suppliers/supplierLedger';
@@ -81,7 +82,7 @@ import { matchesProductDetails } from '../src/lib/products/detailSearch';
 import { buildImportRows, buildItemName, COLUMN_ROLES, findHeaderRow, guessColumnRoles, mapUnit, parseAmount, planImport } from '../src/lib/import/catalogImport';
 import { hasWholesalePrice, modeForCustomer, repriceCart, unitPriceFor } from '../src/lib/billing/priceMode';
 import { DESKTOP_STORE_CODE_RANGES, ean13CheckDigit, isValidEan13, nextStoreBarcodes } from '../src/lib/barcode/storeBarcodes';
-import type { CartItem, Product } from '../src/types';
+import type { CartItem, Customer, Product, Sale } from '../src/types';
 import { barcodeSymbol } from '../src/lib/barcode/barcodeGenerator';
 import { CUSTOM_LIMITS, DEFAULT_LABEL_SETTINGS, LABEL_STOCKS, labelPageMm, labelsPerPage, MAX_SETUP_COPIES, parseLabelSettings, stockFor } from '../src/lib/labels/labelSettings';
 import { buildLabelHtml } from '../src/lib/labels/labelSheet';
@@ -2806,6 +2807,49 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     'Status bar: one line on a laptop (no "Offline DB / Online" twice — the top bar says it), / and Esc only on wide screens, "All keys" lists every key');
 }
 
+// 9j(ac). UX audit, batch 2 (v4.93.0) — Home, money on screen, one profit lock, one name per screen.
+{
+  assert(formatINRCompact(242000) === '₹2,420' && formatINRCompact(242050) === '₹2,420.50' && formatINRCompact(0) === '₹0' && formatINRCompact(12345600) === '₹1,23,456'
+    && formatINRSigned(0, '-') === '₹0.00' && formatINRSigned(-0, '+') === '₹0.00' && formatINRSigned(5000, '-') === '-₹50.00' && formatINRSigned(5000, '+') === '+₹50.00'
+    && amountTone(0, 'text-rose-600').startsWith('text-slate-400') && amountTone(1, 'text-rose-600') === 'text-rose-600',
+    'Money on Home: no ".00" on whole rupees (paise still show when there are any); never "-₹0.00"; a zero amount is grey, not red');
+  const line = (id: string, q: number, amt: number) => ({ product_id: id, product_name: id.toUpperCase(), unit: 'pc', quantity: q, total_amount: amt } as unknown as CartItem);
+  const top = topItemsToday([{ items: [line('a', 1, 5000), line('b', 2, 9000)] }, { items: [line('a', 2, 10000), line('c', 1, 0)] }] as unknown as Sale[]);
+  const owe = topDebtors([{ id: '1', name: 'A', phone: '', current_balance: 500 }, { id: '2', name: 'B', phone: '', current_balance: 0 }, { id: '3', name: 'C', phone: '', current_balance: 900 }] as unknown as Customer[]);
+  assert(top.map((t) => `${t.productId}:${t.quantity}:${t.amountPaise}`).join() === 'a:3:15000,b:2:9000' && owe.map((c) => c.id).join() === '3,1',
+    'Home "Today at a glance": items added up across today\'s bills, biggest takings first (no ₹0 lines); udhar biggest first, nobody at ₹0');
+  const privacy = readSource('lib/auth/cashierPrivacy.ts');
+  const lock = readSource('lib/auth/masterPassword.ts');
+  const reports = readSource('app/reports/page.tsx');
+  assert(/if \(hasOwnerPin\(\)\) return sessionStorage\.getItem\(PROFIT_UNLOCK_SESSION_KEY\) !== '1';/.test(privacy) && /if \(hidden\) sessionStorage\.removeItem\(PROFIT_UNLOCK_SESSION_KEY\);/.test(privacy)
+    && /sessionStorage\.removeItem\(PROFIT_UNLOCK_SESSION_KEY\);/.test(lock.slice(lock.indexOf('export function lockApp')))
+    && /const pinUnlocked = !useProfitHidden\(\);/.test(reports) && !/useState\(false\);\s*\n\s*\/\/ Settings → Features → "Hide profit from staff" off/.test(reports)
+    && /unlocked \? setProfitHidden\(true\) : setPinOpen\(true\)/.test(reports) && /onUnlocked=\{\(\) => setProfitHidden\(false\)\}/.test(reports),
+    'Profit lock: with an owner PIN, profit / cost start hidden at every app start and after Lock (the unlock lasts one session); Reports follows the same lock');
+  const titles: [string, string, string][] = [
+    ['components/products/ProductHeaderActions.tsx', "{tr('Products')}", 'Products Master & Items'],
+    ['app/khata/page.tsx', "{tr('Khata Ledger')}", 'Digital Khata & Udhar Ledger'],
+    ['app/purchases/page.tsx', "{tr('Purchases & Bills')}", 'Purchase & Restock Orders'],
+    ['components/transactions/TransactionHeaderActions.tsx', "{tr('Transactions')}", 'Transactions & Sales Ledger'],
+    ['components/cash-register/CashRegisterHeaderActions.tsx', "{tr('Cash Register')}", 'Cash Register & Petty Cash Drawer'],
+    ['app/barcode-generator/page.tsx', "{tr('Barcode Studio')}", 'Barcode & Price Label Studio'],
+    ['app/cloud-backup/page.tsx', "{tr('Backup & Restore')}", 'Data Backup & Tax Reports'],
+    ['components/dashboard/QuickActionDock.tsx', "title: msg('Khata Ledger')", "msg('Digital Khata')"],
+    ['components/dashboard/QuickToolsGrid.tsx', "title: tr('Customers')", 'Customers CRM'],
+  ];
+  const wrongTitles = titles.filter(([f, want, old]) => !readSource(f).includes(want) || readSource(f).includes(old)).map(([f]) => f);
+  assert(wrongTitles.length === 0 && !/Walk-in Customer/.test(readSource('lib/reports/advancedReports.ts') + readSource('components/reports/analytics/PartyDetailModal.tsx')),
+    `One name per screen: each page's title is its menu name; bills without a customer are "Cash Customer" everywhere${wrongTitles.length ? ` (wrong: ${wrongTitles.join(', ')})` : ''}`);
+  const pulse = readSource('components/dashboard/TodayBusinessPulse.tsx');
+  const grid = readSource('components/dashboard/QuickToolsGrid.tsx');
+  const home = readSource('components/dashboard/DashboardHome.tsx');
+  assert(/amountTone\(totalOutstandingCredit, 'text-rose-600 dark:text-rose-400'\)/.test(pulse) && !/formatINR\(/.test(pulse)
+    && !/`-\$\{formatINR/.test(readSource('components/cash-register/CashRegisterMetricsRibbon.tsx')) && !/tr\('Total: -'\)/.test(readSource('components/cash-register/CashExpensesList.tsx'))
+    && !/href: '\/billing'/.test(grid) && !/href: '\/khata'/.test(grid) && /<TodayInsights sales=\{todaysRevenueSales\} debtors=\{customersWithCredit\} khataOn=\{switches\.khata\} \/>/.test(home)
+    && !/from-indigo-950/.test(readSource('components/dashboard/AdvancedAnalyticsBanner.tsx')),
+    'Home: cards without ".00", a zero udhar is grey; Billing / Khata no longer twice (the quick actions have them); "Today at a glance"; analytics is one slim row');
+}
+
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.
 const PRO_OR_AI = /useProSubscription|requirePro|UpgradeModal|ProFeatureBadge|subscriptionService|razorpay|generativelanguage\.googleapis|gemini/i;
 // The one exception: the cloud contract's list of plan fields the Desktop must NEVER write (R9,
@@ -3286,7 +3330,7 @@ assert(isProfitPartial(rep) && rep.uncostedLineCount === 1, 'Uncosted line marks
 assert(Math.abs(marginPercent(rep) - 20) < 0.001, 'Margin is measured over costed revenue only (20%)');
 const arihant = rep.partyData.find((p) => p.partyId === 'c1');
 assert(!!arihant && arihant.creditPaise === 10000 && rep.paymentSummary.totalCreditPaise === 10000, 'Party udhar and period credit sales are reported');
-assert(!!rep.partyData.find((p) => p.partyId === WALK_IN_ID && p.partyName === 'Walk-in Customer'), 'Bills without a customer group under Walk-in Customer');
+assert(!!rep.partyData.find((p) => p.partyId === WALK_IN_ID && p.partyName === 'Cash Customer'), 'Bills without a customer group under "Cash Customer" (the name on the bill, v4.93.0)');
 const deadIds = rep.itemData.filter(isDeadStock).map((d) => d.itemName);
 assert(deadIds.includes('Dusty Item') && !deadIds.includes('Service') && !deadIds.includes('Atta'), 'Dead stock = in-stock items with no sale (estimates do not count, unlimited-stock skipped)');
 const sortedByQty = sortReport(rep, 'qty');
