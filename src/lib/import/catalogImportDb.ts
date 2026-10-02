@@ -10,7 +10,7 @@ export interface ImportContext {
   /** Settings → "Default GST Calculation" (new items follow it, like items added by hand). */
   taxInclusive: boolean;
   /** Columns present in the sheet — an unmapped column never overwrites a saved value. */
-  mapped: { mrp: boolean; cost: boolean; unit: boolean; stock: boolean; category: boolean; gst: boolean; hsn: boolean };
+  mapped: { mrp: boolean; cost: boolean; unit: boolean; stock: boolean; category: boolean; gst: boolean; hsn: boolean; wholesale?: boolean };
   /** Give every new item without a barcode its own store code. */
   giveBarcodes: boolean;
 }
@@ -69,7 +69,8 @@ export async function applyImportPlan(plan: ImportPlan, ctx: ImportContext): Pro
     const creates: Product[] = plan.creates.map((r, i) => {
       const cat = categoryFor(ctx.mapped.category ? r.category : '');
       const counted = ctx.mapped.stock && r.stock !== null;
-      const price = r.pricePaise!;
+      // No price in the sheet → ₹0 for now (the counter asks for it; the label prints without one).
+      const price = r.pricePaise ?? 0;
       return {
         id: `prod_imp_${stamp}_${i}`,
         business_id: ctx.businessId,
@@ -81,6 +82,7 @@ export async function applyImportPlan(plan: ImportPlan, ctx: ImportContext): Pro
         selling_price: price,
         mrp: ctx.mapped.mrp && r.mrpPaise ? r.mrpPaise : price,
         purchase_price: r.costPaise ?? 0,
+        wholesale_price: ctx.mapped.wholesale && r.wholesalePaise ? r.wholesalePaise : undefined,
         tax_rate: r.gstRate ?? 0,
         is_tax_inclusive: ctx.taxInclusive,
         // No HSN in the sheet = no HSN (a made-up code would reach the GST / HSN report).
@@ -98,11 +100,12 @@ export async function applyImportPlan(plan: ImportPlan, ctx: ImportContext): Pro
     });
 
     const updates: Product[] = plan.updates.map(({ row, product }) => {
-      const price = row.pricePaise!;
+      const price = row.pricePaise;
       const next: Product = {
         ...product,
-        selling_price: price,
-        mrp: ctx.mapped.mrp && row.mrpPaise ? row.mrpPaise : price,
+        // A blank price cell never wipes the saved price.
+        selling_price: price ?? product.selling_price,
+        mrp: price === null ? product.mrp : ctx.mapped.mrp && row.mrpPaise ? row.mrpPaise : price,
         is_active: true,
         updated_at: now,
       };
@@ -113,6 +116,7 @@ export async function applyImportPlan(plan: ImportPlan, ctx: ImportContext): Pro
       }
       if (ctx.mapped.unit && row.unit) next.unit = row.unit;
       if (ctx.mapped.cost && row.costPaise !== null) next.purchase_price = row.costPaise;
+      if (ctx.mapped.wholesale && row.wholesalePaise !== null) next.wholesale_price = row.wholesalePaise;
       if (ctx.mapped.gst && row.gstRate !== null) next.tax_rate = row.gstRate;
       if (ctx.mapped.hsn && row.hsn) next.hsn_code = row.hsn;
       if (row.barcode && !product.barcode?.trim() && !used.has(row.barcode)) {

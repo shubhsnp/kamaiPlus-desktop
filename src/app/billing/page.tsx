@@ -56,6 +56,9 @@ import dynamic from 'next/dynamic';
 import { useHardwareBarcodeScanner } from '@/lib/hardware/barcodeScannerListener';
 
 import { focusPosCustomerName, PosCustomerRow } from '@/components/billing/PosCustomerRow';
+import { PosPriceModeToggle } from '@/components/billing/PosPriceModeToggle';
+import { quickRestockProduct } from '@/lib/inventory/quickRestock';
+import { modeForCustomer, PriceMode, repriceCart, unitPriceFor } from '@/lib/billing/priceMode';
 import { searchEnterAction } from '@/lib/billing/scanInput';
 import { parseWeighedBarcode, weighedQuantity } from '@/lib/barcode/weighedBarcode';
 import { allowsFractionalQty, formatCartQty, roundQty } from '@/lib/billing/unitQuantity';
@@ -149,6 +152,11 @@ export default function BillingPage() {
   const splitCredit = activeTab.splitCredit;
   const billDiscountType = activeTab.billDiscountType || 'flat';
   const billDiscountValue = activeTab.billDiscountValue || '';
+  // Retail / wholesale prices for this bill (v4.87.0, lib/billing/priceMode.ts). The ref lets the
+  // scan / keyboard handlers that were set up earlier read the bill's current mode.
+  const priceMode: PriceMode = activeTab.priceMode || 'retail';
+  const priceModeRef = React.useRef<PriceMode>(priceMode);
+  priceModeRef.current = priceMode;
   // Persist tabs in localStorage
   useEffect(() => {
     try {
@@ -178,6 +186,17 @@ export default function BillingPage() {
   // Picking a saved customer (or going back to walk-in) replaces whatever was typed.
   const setSelectedCustomerId = (id: string) => {
     updateActiveTab((tab) => ({ ...tab, selectedCustomerId: id, customerName: '', customerPhone: '' }));
+    // A customer marked "wholesale" turns the bill to wholesale prices (v4.87.0).
+    if (isFeatureOn('wholesale_price') && priceModeRef.current !== 'wholesale' && modeForCustomer(customers.find((c) => c.id === id)) === 'wholesale') {
+      void setPriceMode('wholesale');
+    }
+  };
+
+  // Retail ↔ wholesale: the cart's items move to that price; a rate typed by hand stays.
+  const setPriceMode = async (mode: PriceMode) => {
+    const ids = Array.from(new Set(cart.map((line) => line.product_id)));
+    const found = (await db.products.bulkGet(ids)).filter((p): p is Product => Boolean(p));
+    updateActiveTab((tab) => ({ ...tab, priceMode: mode, cart: repriceCart(tab.cart, found, tab.priceMode || 'retail', mode, calculateItemTax) }));
   };
 
   const customerDraft: CustomerDraft = { name: activeTab.customerName || '', phone: activeTab.customerPhone || '' };
@@ -327,6 +346,7 @@ export default function BillingPage() {
   // on Credit (or with an udhar part in Split) from before goes back to a paid mode.
   const khataOn = useFeatureSwitches().khata;
   const paymentKeysOn = useFeatureSwitches().payment_keys;
+  const wholesaleOn = useFeatureSwitches().wholesale_price;
   useEffect(() => {
     if (khataOn) return;
     if (paymentMethod === 'credit') setPaymentMethod('cash');
@@ -457,39 +477,7 @@ export default function BillingPage() {
   // Instant POS Quick Restock and Add to Cart
   const handleRestockAndAddToCart = async (product: Product, restockQty: number = 10, billQty: number = 1) => {
     try {
-      const now = new Date().toISOString();
-      const current = Number(product.current_stock ?? 0);
-      const newStock = current + restockQty;
-
-      const updatedProduct: Product = {
-        ...product,
-        current_stock: newStock,
-        updated_at: now,
-      };
-
-      await db.products.put(updatedProduct);
-
-      await db.inventory_movements.put({
-        id: `mov_pos_restock_${Date.now()}_${product.id}`,
-        business_id: product.business_id || business?.id || 'biz_default',
-        product_id: product.id,
-        product_name: product.name,
-        movement_type: 'PURCHASE',
-        quantity: restockQty,
-        previous_stock: current,
-        new_stock: newStock,
-        reason: `POS Quick Restock (+${restockQty} ${product.unit || 'units'}) during billing`,
-        created_by: 'cashier',
-        created_at: now,
-      });
-
-      // Direct cloud sync to prevent stale overwrite (never blocks the cart)
-      const bizId = product.business_id || business?.id;
-      if (bizId && bizId !== 'biz_default') {
-        void cloudMerge(`businesses/${bizId}/products/${product.id}`, updatedProduct);
-      }
-
-      addToCart(updatedProduct, billQty);
+      addToCart(await quickRestockProduct(product, restockQty, business?.id), billQty);
     } catch (err) {
       console.error('Failed to quick restock from POS:', err);
       showAlert(tr('Failed to restock item. Please check inventory.'));
@@ -524,6 +512,14 @@ export default function BillingPage() {
       }
     }
 
+    // No price yet (v4.87.0): it goes in the cart and the price box opens at once.
+    const needsPrice = !product.has_variants && !(unitPriceFor(product, 'retail') > 0) && !cart.some((line) => line.product_id === product.id);
+    if (needsPrice) {
+      window.setTimeout(() => {
+        showBillingToast(tr('"{name}" has no price yet — enter it.', { name: product.name }), 'info');
+        handleOpenEditItem({ product_id: product.id, product_name: product.name, quantity: quantityToAdd, unit: product.unit, unit_price: 0, discount_amount: 0, tax_rate: product.tax_rate || 0, tax_amount: 0, total_amount: 0, is_tax_inclusive: product.is_tax_inclusive } as CartItem);
+      }, 0);
+    }
     playBeepSound('success');
     setCart((prev) => {
       const existing = prev.find((item) => item.product_id === product.id);
@@ -554,7 +550,8 @@ export default function BillingPage() {
             : item
         );
       } else {
-        const price = product.selling_price;
+        // The bill's price: wholesale when the bill is wholesale and the item has one (v4.87.0).
+        const price = unitPriceFor(product, isFeatureOn('wholesale_price') ? priceModeRef.current : 'retail');
         const lineTotal = Math.round(price * allowedQty);
         const taxRate = product.tax_rate || 0;
         const taxAmt = calculateItemTax(lineTotal, taxRate, product.is_tax_inclusive);
@@ -871,6 +868,14 @@ export default function BillingPage() {
 
   const handleCompleteSale = async () => {
     if (cart.length === 0) return;
+    // An item without a price (imported without one, v4.87.0) is never billed at ₹0: ask for it.
+    const unpriced = cart.find((line) => !(line.unit_price > 0));
+    if (unpriced) {
+      playBeepSound('alert');
+      showBillingToast(tr('Enter the price of "{name}" — it has no price yet.', { name: unpriced.product_name }), 'error');
+      handleOpenEditItem(unpriced);
+      return;
+    }
     // A double Enter / double click must never save the same cart twice
     // (two bills, stock deducted twice, same invoice number).
     if (completingSaleRef.current) return;
@@ -1024,6 +1029,8 @@ export default function BillingPage() {
         change_returned: changeReturnedPaise,
         payment_status: balanceDuePaise === 0 ? 'paid' : balanceDuePaise < grandTotalPaise ? 'partial' : 'unpaid',
         status: 'completed',
+        // A wholesale bill says so (Transactions, the cloud) — v4.87.0.
+        ...(isFeatureOn('wholesale_price') && priceMode === 'wholesale' ? { price_mode: 'wholesale' as const } : {}),
         created_by: 'owner',
         created_at: now,
         updated_at: now,
@@ -1502,6 +1509,7 @@ export default function BillingPage() {
           onDraftChange={setCustomerDraft}
           onSelect={setSelectedCustomerId}
         />
+        {wholesaleOn && <div className="mt-2"><PosPriceModeToggle mode={priceMode} onChange={(m) => void setPriceMode(m)} /></div>}
       </div>
 
       {/* Cart Header with Hold Bill Button */}

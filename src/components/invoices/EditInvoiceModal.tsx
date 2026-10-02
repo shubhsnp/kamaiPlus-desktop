@@ -1,5 +1,6 @@
 'use client';
 import { showAlert } from '@/lib/ui/dialogs';
+import { unitPriceFor } from '@/lib/billing/priceMode';
 
 import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/db';
@@ -167,7 +168,9 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
       handleUpdateItemQty(existingIndex, items[existingIndex].quantity + 1);
     } else {
       const taxRate = product.tax_rate || 0;
-      const lineTotal = product.selling_price;
+      // A wholesale bill gets the item's wholesale price here too (v4.87.0).
+      const unitPrice = unitPriceFor(product, sale?.price_mode === 'wholesale' ? 'wholesale' : 'retail');
+      const lineTotal = unitPrice;
       const taxAmt = calculateItemTax(lineTotal, taxRate, product.is_tax_inclusive);
       setItems((prev) => [
         ...prev,
@@ -178,7 +181,7 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
           barcode: product.barcode,
           quantity: 1,
           unit: product.unit,
-          unit_price: product.selling_price,
+          unit_price: unitPrice,
           mrp: product.mrp,
           discount_amount: 0,
           tax_rate: taxRate,

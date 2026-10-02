@@ -83,6 +83,11 @@ export const TransactionBillCard: React.FC<TransactionBillCardProps> = ({
                 {paymentMethodLabel(sale.payment_method)}
               </span>
             )}
+            {sale.price_mode === 'wholesale' && (
+              <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase bg-violet-100 dark:bg-violet-950/60 text-violet-800 dark:text-violet-300 border border-violet-300 dark:border-violet-800 shrink-0" data-bill-wholesale>
+                {tr('Wholesale')}
+              </span>
+            )}
             {isReturned && (
               <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-800 shrink-0">
                 {tr('↩ Returned')}

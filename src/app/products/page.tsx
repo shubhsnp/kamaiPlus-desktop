@@ -95,6 +95,7 @@ export default function ProductsPage() {
   const [formIsLooseItem, setFormIsLooseItem] = useState(false);
   const [formIsUnlimitedStock, setFormIsUnlimitedStock] = useState(false);
   const [formMrp, setFormMrp] = useState('');
+  const [formWholesalePrice, setFormWholesalePrice] = useState('');
   const [formTaxRate, setFormTaxRate] = useState<number>(0);
   const [formStock, setFormStock] = useState('');
   const [formMinStock, setFormMinStock] = useState('5');
@@ -200,6 +201,7 @@ export default function ProductsPage() {
     // New items are "Unlimited stock" (not counted) by default, like the Android app.
     setFormIsUnlimitedStock(true);
     setFormMrp('');
+    setFormWholesalePrice('');
     setFormTaxRate(0);
     setFormStock('0');
     setFormMinStock(String(DEFAULT_COUNTED_STOCK));
@@ -227,6 +229,7 @@ export default function ProductsPage() {
     setFormIsLooseItem(Boolean(p.is_loose_item));
     setFormIsUnlimitedStock(Boolean(p.is_unlimited_stock));
     setFormMrp(p.mrp ? (p.mrp / 100).toFixed(2) : '');
+    setFormWholesalePrice(p.wholesale_price ? (p.wholesale_price / 100).toFixed(2) : '');
     setFormTaxRate(p.tax_rate || 0);
     setFormStock(p.current_stock.toString());
     setFormMinStock((p.min_stock_level || 5).toString());
@@ -254,6 +257,14 @@ export default function ProductsPage() {
     const sellingPricePaise = sellingShown ? parseRupeesToPaise(formSellingPrice) : parseRupeesToPaise(formMrp);
     const purchasePricePaise = formPurchasePrice ? parseRupeesToPaise(formPurchasePrice) : 0;
     const mrpPaise = formMrp ? parseRupeesToPaise(formMrp) : sellingPricePaise;
+    // Wholesale price (v4.87.0): only from the form while the switch is on; else the saved one stays.
+    const wholesalePricePaise = switches.wholesale_price
+      ? (formWholesalePrice ? parseRupeesToPaise(formWholesalePrice) : 0)
+      : editingProduct?.wholesale_price || 0;
+    if (wholesalePricePaise < 0) {
+      setFormError(tr('Enter a valid wholesale price.'));
+      return;
+    }
     const stockNum = parseFloat(formStock) || 0;
     const minStockNum = parseInt(formMinStock) || 5;
 
@@ -287,6 +298,7 @@ export default function ProductsPage() {
       selling_price: sellingPricePaise,
       purchase_price: purchasePricePaise,
       mrp: mrpPaise,
+      wholesale_price: wholesalePricePaise > 0 ? wholesalePricePaise : undefined,
       tax_rate: formTaxRate,
       // New products follow Settings → "Default GST Calculation"; an edited product keeps its own.
       is_tax_inclusive: editingProduct?.is_tax_inclusive ?? business?.gst_pricing_mode !== 'exclusive',
@@ -556,6 +568,8 @@ export default function ProductsPage() {
         setFormIsUnlimitedStock={setFormIsUnlimitedStock}
         formMrp={formMrp}
         setFormMrp={setFormMrp}
+        formWholesalePrice={formWholesalePrice}
+        setFormWholesalePrice={setFormWholesalePrice}
         formTaxRate={formTaxRate}
         setFormTaxRate={setFormTaxRate}
         formStock={formStock}

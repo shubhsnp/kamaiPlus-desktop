@@ -9,6 +9,7 @@ import { Plus, Edit3, Trash2 } from 'lucide-react';
 
 import { validateCustomerData } from '@/lib/validation/validators';
 import { tr } from '@/lib/i18n/core';
+import { useFeatureSwitches } from '@/lib/features/featureSwitches';
 
 interface AddEditCustomerModalProps {
   isOpen: boolean;
@@ -21,6 +22,8 @@ interface AddEditCustomerModalProps {
     address?: string;
     gstin?: string;
     customer_type: CustomerType;
+    /** Buys at wholesale prices (v4.87.0). */
+    is_wholesale?: boolean;
     date_of_birth?: string;
     anniversary_date?: string;
     loyalty_points: number;
@@ -44,6 +47,8 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
   const [address, setAddress] = useState('');
   const [gstin, setGstin] = useState('');
   const [customerType, setCustomerType] = useState<CustomerType>('regular');
+  const [isWholesale, setIsWholesale] = useState(false);
+  const wholesaleOn = useFeatureSwitches().wholesale_price;
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [anniversaryDate, setAnniversaryDate] = useState('');
   const [loyaltyPoints, setLoyaltyPoints] = useState<string>('0');
@@ -62,6 +67,7 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
       setAddress(editingCustomer.address || '');
       setGstin(editingCustomer.gstin || '');
       setCustomerType(editingCustomer.customer_type || 'regular');
+      setIsWholesale(Boolean(editingCustomer.is_wholesale));
       setDateOfBirth(editingCustomer.date_of_birth || '');
       setAnniversaryDate(editingCustomer.anniversary_date || '');
       setLoyaltyPoints(editingCustomer.loyalty_points ? String(editingCustomer.loyalty_points) : '0');
@@ -75,6 +81,7 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
       setAddress('');
       setGstin('');
       setCustomerType('regular');
+      setIsWholesale(false);
       setDateOfBirth('');
       setAnniversaryDate('');
       setLoyaltyPoints('0');
@@ -113,6 +120,8 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
         address: address.trim() || undefined,
         gstin: gstin.trim().toUpperCase() || undefined,
         customer_type: customerType,
+        // Switch off: the saved choice stays as it was.
+        is_wholesale: wholesaleOn ? isWholesale : Boolean(editingCustomer?.is_wholesale),
         date_of_birth: dateOfBirth || undefined,
         anniversary_date: anniversaryDate || undefined,
         loyalty_points: pts,
@@ -184,6 +193,12 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
               <option value="credit">{tr('Credit / Khata Customer')}</option>
               <option value="new">{tr('New Customer')}</option>
             </select>
+            {wholesaleOn && (
+              <label className="mt-2 flex items-center gap-2 text-xs font-bold text-violet-800 cursor-pointer">
+                <input type="checkbox" checked={isWholesale} onChange={(e) => setIsWholesale(e.target.checked)} className="w-4 h-4 accent-violet-600" data-customer-wholesale />
+                {tr('Wholesale customer — bills use wholesale prices')}
+              </label>
+            )}
           </div>
 
           <Input 

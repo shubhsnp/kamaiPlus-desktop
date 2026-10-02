@@ -130,6 +130,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 {formatINR(product.mrp)}
               </span>
             )}
+            {(product.wholesale_price || 0) > 0 && (
+              <span className="text-[10px] font-bold text-violet-700" data-product-wholesale-price>
+                {tr('Wholesale {price}', { price: formatINR(product.wholesale_price || 0) })}
+              </span>
+            )}
           </div>
         </div>
 

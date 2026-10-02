@@ -110,7 +110,7 @@ try {
   // Every feature switch on: every screen and every optional field shows.
   await page.evaluate(() => {
     const all = ['khata', 'customers', 'inventory', 'barcode_studio', 'cash_register', 'purchases', 'suppliers', 'gst_reports', 'sales_reports', 'invoice_designer',
-      'product_selling_price', 'product_cost_price', 'product_hsn', 'product_gst_rate', 'product_size_colour', 'product_variants', 'payment_keys', 'whatsapp'];
+      'product_selling_price', 'product_cost_price', 'product_hsn', 'product_gst_rate', 'product_size_colour', 'product_variants', 'payment_keys', 'whatsapp', 'wholesale_price'];
     localStorage.setItem('kamai_feature_switches', JSON.stringify(Object.fromEntries(all.map((k) => [k, true]))));
   });
   await visitAll('all-on');

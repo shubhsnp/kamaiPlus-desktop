@@ -11,7 +11,7 @@ import { msg } from '@/lib/i18n/core';
  * barcode, else by the item name built here — which is stable for the same sheet.
  */
 
-export type ColumnRole = 'name' | 'company' | 'category' | 'price' | 'mrp' | 'cost' | 'unit' | 'stock' | 'barcode' | 'gst' | 'hsn' | 'ignore';
+export type ColumnRole = 'name' | 'company' | 'category' | 'price' | 'mrp' | 'cost' | 'wholesale' | 'unit' | 'stock' | 'barcode' | 'gst' | 'hsn' | 'ignore';
 
 /** Choices in the "Use this column as" list (msg ids). */
 export const COLUMN_ROLES: { id: ColumnRole; label: string }[] = [
@@ -22,6 +22,7 @@ export const COLUMN_ROLES: { id: ColumnRole; label: string }[] = [
   { id: 'unit', label: msg('Unit / per') },
   { id: 'mrp', label: msg('MRP') },
   { id: 'cost', label: msg('Purchase / cost price') },
+  { id: 'wholesale', label: msg('Wholesale price') },
   { id: 'stock', label: msg('Stock') },
   { id: 'barcode', label: msg('Barcode') },
   { id: 'gst', label: msg('GST %') },
@@ -37,6 +38,8 @@ const HEADING_RULES: [ColumnRole, string[]][] = [
   ['gst', ['gst', 'tax', 'vat', 'जीएसटी']],
   ['mrp', ['mrp', 'max retail', 'एमआरपी']],
   ['cost', ['purchase', 'cost', 'buy', 'buying', 'खरीद', 'खरेदी']],
+  // v4.87.0: a second price for wholesale bills — before 'price', so "Wholesale Price" is not the retail price.
+  ['wholesale', ['wholesale', 'whole sale', 'wholesaler', 'dealer', 'b2b', 'thok', 'थोक', 'होलसेल', 'घाऊक']],
   ['price', ['price', 'selling', 'sale', 'rate', 'sp', 'भाव', 'दाम', 'किंमत', 'कीमत', 'दर']],
   ['stock', ['stock', 'qty', 'quantity', 'opening', 'स्टॉक', 'मात्रा', 'नग संख्या']],
   ['unit', ['unit', 'uom', 'per', 'प्रति', 'इकाई', 'युनिट']],
@@ -141,6 +144,8 @@ export interface ImportRow {
   pricePaise: number | null;
   mrpPaise: number | null;
   costPaise: number | null;
+  /** Wholesale price (v4.87.0); null = no column or a blank cell (the saved one stays). */
+  wholesalePaise: number | null;
   unit: ProductUnit | null;
   stock: number | null;
   barcode: string;
@@ -182,14 +187,16 @@ export function buildImportRows(grid: unknown[][], headerIndex: number, roles: C
       pricePaise: paise(cell(r, 'price')),
       mrpPaise: col('mrp') >= 0 ? paise(cell(r, 'mrp')) : null,
       costPaise: col('cost') >= 0 ? paise(cell(r, 'cost')) : null,
+      wholesalePaise: col('wholesale') >= 0 ? paise(cell(r, 'wholesale')) : null,
       unit: mapped ? mapped.unit : null,
       stock: stock !== null && stock >= 0 ? stock : null,
       barcode: clean(cell(r, 'barcode')).replace(/\.0+$/, ''),
       gstRate: gst !== null && gst >= 0 && gst <= 100 ? gst : null,
       hsn: clean(cell(r, 'hsn')).replace(/\D/g, '').slice(0, 8),
     };
+    // A row without a price is still imported (v4.87.0, first client): the item is saved at ₹0,
+    // its label prints without a price, and the counter asks for the price when it is billed.
     if (!row.name) row.skip = msg('No item name');
-    else if (row.pricePaise === null) row.skip = msg('No price');
     rows.push(row);
   });
 
@@ -250,13 +257,15 @@ export function planImport(rows: ImportRow[], existing: Product[], mrpMapped: bo
       continue;
     }
     matched.add(product.id);
-    const price = row.pricePaise!;
-    const mrp = mrpMapped && row.mrpPaise ? row.mrpPaise : price;
+    // No price in the sheet: the saved price stays.
+    const price = row.pricePaise;
+    const mrp = price !== null && mrpMapped && row.mrpPaise ? row.mrpPaise : price;
     const changes: string[] = [];
-    if (product.selling_price !== price || (product.mrp || product.selling_price) !== mrp) changes.push(msg('price'));
+    if (price !== null && (product.selling_price !== price || (product.mrp || product.selling_price) !== mrp)) changes.push(msg('price'));
     if (row.category && normName(product.category_name || '') !== normName(row.category)) changes.push(msg('category'));
     if (row.unit && product.unit !== row.unit) changes.push(msg('unit'));
     if (row.costPaise !== null && product.purchase_price !== row.costPaise) changes.push(msg('cost price'));
+    if (row.wholesalePaise !== null && (product.wholesale_price || 0) !== row.wholesalePaise) changes.push(msg('wholesale price'));
     if (row.gstRate !== null && product.tax_rate !== row.gstRate) changes.push(msg('GST'));
     if (row.hsn && product.hsn_code !== row.hsn) changes.push(msg('HSN'));
     if (row.barcode && !product.barcode?.trim()) changes.push(msg('barcode'));
