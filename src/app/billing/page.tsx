@@ -82,6 +82,10 @@ const InvoiceModal = dynamic(
 import { PosItemEditModal } from '@/components/billing/PosItemEditModal';
 import { VariantPickerModal } from '@/components/billing/VariantPickerModal';
 import { PosProductCard } from '@/components/billing/PosProductCard';
+import { PosSplitLayout, usePosLayout } from '@/components/billing/PosSplitLayout';
+import { PosScanModeButton, PosScanPanel } from '@/components/billing/PosScanPanel';
+import { PosCategoryTabs } from '@/components/billing/PosCategoryTabs';
+import { showProductList } from '@/lib/billing/posLayout';
 import { generalCategoryId } from '@/lib/products/defaultCategory';
 import { BillingToast, BillingToastData, FullscreenUpiQrModal, QuickAddScannedProductModal } from '@/components/billing/PosDialogs';
 import { CashTenderPanel, SplitPaymentPanel, UpiQrCard } from '@/components/billing/PosPaymentPanels';
@@ -95,6 +99,7 @@ export default function BillingPage() {
   const { language, t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [posLayout, setPosLayout] = usePosLayout();
   const searchInputRef = React.useRef<HTMLInputElement>(null);
   // True while a sale is being saved (see handleCompleteSale).
   const completingSaleRef = React.useRef(false);
@@ -1996,11 +2001,16 @@ export default function BillingPage() {
     </div>
   );
 
+  // v4.92.0 — Scan mode hides the product list while the gun types (lib/billing/posLayout.ts).
+  const listVisible = showProductList(posLayout, searchQuery);
+
   return (
     <div className="relative pb-40 lg:pb-2 h-full flex flex-col">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 h-full flex-1 min-h-0">
-        {/* Left: Product Selection Catalog */}
-        <div className="lg:col-span-7 flex flex-col h-full min-h-0">
+      <PosSplitLayout
+        layout={posLayout}
+        onLayoutChange={setPosLayout}
+        onDone={focusProductSearch}
+        catalog={
           <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col h-full min-h-0 space-y-3">
             {/* Search & Actions Bar */}
             <div className="flex items-center gap-2 flex-shrink-0">
@@ -2017,130 +2027,101 @@ export default function BillingPage() {
                   <kbd className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-500 font-mono text-[10px] font-bold">/</kbd>
                 </div>
               </div>
+              <PosScanModeButton
+                active={posLayout.scanMode}
+                onToggle={() => {
+                  setPosLayout({ ...posLayout, scanMode: !posLayout.scanMode });
+                  focusProductSearch();
+                }}
+              />
             </div>
 
-            {/* Category Filter Tabs */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 flex-shrink-0 scrollbar-none">
-              <button
-                onClick={() => setSelectedCategory('all')}
-                className={cn(
-                  'px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap cursor-pointer transition-all flex items-center gap-1.5',
-                  selectedCategory === 'all'
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                )}
-              >
-                <span>{tr('All Items')}</span>
-                <span className={cn(
-                  "text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold",
-                  selectedCategory === 'all' ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"
-                )}>
-                  {totalProductCount}
-                </span>
-              </button>
-              {categories.map((cat) => {
-                const count = categoryCounts[cat.id] || 0;
-                return (
-                  <button
-                    key={cat.id}
-                    onClick={() => setSelectedCategory(cat.id)}
-                    className={cn(
-                      'px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap flex items-center gap-1.5 cursor-pointer transition-all',
-                      selectedCategory === cat.id
-                        ? 'bg-slate-900 text-white font-bold shadow-xs'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                    )}
-                  >
-                    <Tag className="w-3 h-3 text-slate-400" />
-                    <span>{cat.name}</span>
-                    <span className={cn(
-                      "text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold",
-                      selectedCategory === cat.id ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"
-                    )}>
-                      {count}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+            {!posLayout.scanMode && (
+              <PosCategoryTabs categories={categories} categoryCounts={categoryCounts} selectedCategory={selectedCategory} onSelect={setSelectedCategory} totalProductCount={totalProductCount} />
+            )}
+            {!listVisible && (
+              <PosScanPanel cart={cart} itemCount={totalItemCount} grandTotalPaise={grandTotalPaise} />
+            )}
 
-            {/* Responsive Products Grid */}
-            <div className="flex-1 min-h-0" style={{ height: '100%' }}>
-              {products.length === 0 ? (
-                <div className="py-12 text-center text-xs text-slate-500 border border-dashed border-slate-300 rounded-2xl bg-white p-6 space-y-2.5">
-                  <div className="font-bold text-slate-800 text-sm">
-                    {totalProductCount === 0 ? tr('No products in store catalog') : tr('No items match your search')}
-                  </div>
-                  <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
-                    {totalProductCount === 0
-                      ? tr('Your inventory is currently empty. Click below to load pre-configured starter items.')
-                      : tr('Try clearing your search query or selecting "All Items".')}
-                  </p>
-                  {totalProductCount === 0 && (
-                    <Button
-                      type="button"
-                      onClick={handleLoadSampleProducts}
-                      disabled={isSeedingProducts}
-                      size="sm"
-                      className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs gap-1.5 shadow-xs cursor-pointer border-none mt-1"
-                    >
-                      <Sparkles className="w-3.5 h-3.5" />
-                      <span>{isSeedingProducts ? tr('Loading Default Items...') : tr('✨ Load Default Products')}</span>
-                    </Button>
+            {listVisible && (
+              <>
+                {/* Responsive Products Grid */}
+                <div className="flex-1 min-h-0" style={{ height: '100%' }} data-pos-product-grid>
+                  {products.length === 0 ? (
+                    <div className="py-12 text-center text-xs text-slate-500 border border-dashed border-slate-300 rounded-2xl bg-white p-6 space-y-2.5">
+                      <div className="font-bold text-slate-800 text-sm">
+                        {totalProductCount === 0 ? tr('No products in store catalog') : tr('No items match your search')}
+                      </div>
+                      <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
+                        {totalProductCount === 0
+                          ? tr('Your inventory is currently empty. Click below to load pre-configured starter items.')
+                          : tr('Try clearing your search query or selecting "All Items".')}
+                      </p>
+                      {totalProductCount === 0 && (
+                        <Button
+                          type="button"
+                          onClick={handleLoadSampleProducts}
+                          disabled={isSeedingProducts}
+                          size="sm"
+                          className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs gap-1.5 shadow-xs cursor-pointer border-none mt-1"
+                        >
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span>{isSeedingProducts ? tr('Loading Default Items...') : tr('✨ Load Default Products')}</span>
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                    <VirtuosoGrid
+                      data={products}
+                      totalCount={products.length}
+                      listClassName="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2.5 pr-1 content-start"
+                      itemClassName="w-full"
+                      itemContent={(idx, p) => {
+                        const inCartQuantity = cart.find((i) => i.product_id === p.id)?.quantity || 0;
+                        const availableStock = getAvailableStockForProduct(p);
+                        const stockNum = Number(p.current_stock ?? 0);
+                        const variants = p.has_variants ? variantInfo[p.id] || { count: 0, minPricePaise: p.selling_price } : undefined;
+                        // A variant parent's stock lives in its sizes / colours; the picker shows those.
+                        const isOutOfStock = !variants && !p.is_unlimited_stock && (stockNum <= 0 || availableStock <= 0);
+                        const isLowStock = !variants && !p.is_unlimited_stock && !isOutOfStock && availableStock <= (p.min_stock_level || 5);
+                        const isHighlighted = highlightedIndex === idx;
+
+                        return (
+                          <PosProductCard
+                            key={p.id}
+                            p={p}
+                            idx={idx}
+                            inCartQuantity={inCartQuantity}
+                            availableStock={availableStock}
+                            stockNum={stockNum}
+                            isOutOfStock={isOutOfStock}
+                            isLowStock={isLowStock}
+                            isHighlighted={isHighlighted}
+                            variants={variants}
+                            onAdd={(prod) => {
+                              if (isOutOfStock) {
+                                playBeepSound('alert');
+                                showBillingToast(tr('Out of Stock: "{name}" has 0 stock remaining.', { name: prod.name }), 'error');
+                                return;
+                              }
+                              addToCart(prod, 1);
+                            }}
+                          />
+                        );
+                      }}
+                    />
                   )}
                 </div>
-              ) : (
-                <VirtuosoGrid
-                  data={products}
-                  totalCount={products.length}
-                  listClassName="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2.5 pr-1 content-start"
-                  itemClassName="w-full"
-                  itemContent={(idx, p) => {
-                    const inCartQuantity = cart.find((i) => i.product_id === p.id)?.quantity || 0;
-                    const availableStock = getAvailableStockForProduct(p);
-                    const stockNum = Number(p.current_stock ?? 0);
-                    const variants = p.has_variants ? variantInfo[p.id] || { count: 0, minPricePaise: p.selling_price } : undefined;
-                    // A variant parent's stock lives in its sizes / colours; the picker shows those.
-                    const isOutOfStock = !variants && !p.is_unlimited_stock && (stockNum <= 0 || availableStock <= 0);
-                    const isLowStock = !variants && !p.is_unlimited_stock && !isOutOfStock && availableStock <= (p.min_stock_level || 5);
-                    const isHighlighted = highlightedIndex === idx;
-
-                    return (
-                      <PosProductCard
-                        key={p.id}
-                        p={p}
-                        idx={idx}
-                        inCartQuantity={inCartQuantity}
-                        availableStock={availableStock}
-                        stockNum={stockNum}
-                        isOutOfStock={isOutOfStock}
-                        isLowStock={isLowStock}
-                        isHighlighted={isHighlighted}
-                        variants={variants}
-                        onAdd={(prod) => {
-                          if (isOutOfStock) {
-                            playBeepSound('alert');
-                            showBillingToast(tr('Out of Stock: "{name}" has 0 stock remaining.', { name: prod.name }), 'error');
-                            return;
-                          }
-                          addToCart(prod, 1);
-                        }}
-                      />
-                    );
-                  }}
-                />
-              )}
-            </div>
+              </>
+            )}
           </div>
-        </div>
-
-        {/* Right: Checkout Side Panel (Desktop only, 5 cols) */}
-        <div className="hidden lg:flex lg:col-span-5 flex-col h-full min-h-0">
+        }
+        checkout={
           <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col h-full min-h-0 overflow-hidden">
             {renderCheckoutPanel()}
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* Mobile Floating Bottom Sticky Cart Button (Elevated cleanly above bottom nav bar) */}
       <div className="lg:hidden fixed bottom-[88px] left-3 right-3 sm:left-6 sm:right-6 max-w-md mx-auto p-3 bg-white/95 backdrop-blur-md border border-slate-300 rounded-2xl z-30 shadow-2xl shadow-slate-900/15 flex items-center justify-between gap-3">

@@ -1119,6 +1119,18 @@ normally the product search box (it has focus when Billing opens and after every
   `main.js` — and roll width / cash drawer / UPI QR switches that only its Bluetooth path
   read) were removed from Billing; the two billing-only files are deleted. The bill printer
   is the ⚙ button (`BillPrinterSetup`). `BarcodeScannerModal` was also removed from `/products` in v4.81.0 (§9.12) — the app has no webcam scanner.
+- **Counter layout & Scan mode (v4.92.0).** Products + bill sit in `components/billing/PosSplitLayout.tsx`
+  (wide screens only; phones keep the cart drawer). The line between them drags (bill 32–68 %
+  of the width), double-click resets; `kamai_pos_layout` in localStorage keeps the share per
+  mode (`lib/billing/posLayout.ts`, read after mount — first paint is always the old 7 : 5).
+  **Scan mode** (`PosScanModeButton`, next to the search) hides the category chips and the
+  grid while the box is empty or holds a code being typed (`showProductList`) and shows
+  `PosScanPanel` — last scanned item big + bill total. Enter-by-code is unchanged. The divider
+  and the button `preventDefault` on mousedown so focus never leaves the search box (the gun
+  types there). Category chips moved to `PosCategoryTabs.tsx` (same markup). The drag keeps the
+  pointer's layout in a ref (`drag`) and button-up saves that — never the last *rendered*
+  layout (on a slow PC that snapped the bill back to the first step). Suite 9 §9j(aa),
+  Electron E2E "counter layout".
 
 ### 9.6 Search in English letters (v4.73.0)
 

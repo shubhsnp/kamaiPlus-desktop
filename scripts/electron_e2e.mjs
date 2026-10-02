@@ -716,6 +716,56 @@ async function run() {
       await page.getByRole('button', { name: /Silent: ON/ }).click(); // back off before the restart checks
       await page.waitForTimeout(300);
 
+      // v4.92.0 (Customer Change) — the line between products and bill drags (remembered,
+      // double-click resets) and Scan mode hides the product list; the gun keeps working and
+      // the cursor never leaves the search box.
+      step = 'counter layout';
+      const lyRect = (sel) => page.locator(sel).first().evaluate((el) => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; });
+      const lyShare = async () => (await lyRect('[data-pos-bill-panel]')).w / (await lyRect('[data-pos-layout]')).w;
+      await posSearch.click();
+      const ly0 = await lyShare();
+      const lyDiv = await lyRect('[data-pos-divider]');
+      const lyRowW = (await lyRect('[data-pos-layout]')).w;
+      await page.mouse.move(lyDiv.x + lyDiv.w / 2, lyDiv.y + lyDiv.h / 2);
+      await page.mouse.down();
+      await page.mouse.move(lyDiv.x + lyDiv.w / 2 - lyRowW * 0.12, lyDiv.y + lyDiv.h / 2, { steps: 10 });
+      await page.mouse.up();
+      await page.waitForTimeout(500);
+      const ly1 = await lyShare();
+      const savedLayout = await page.evaluate(() => JSON.parse(localStorage.getItem('kamai_pos_layout') || '{}'));
+      check(Math.abs(ly0 - 5 / 12) < 0.02 && ly1 > ly0 + 0.09 && Math.abs(savedLayout.billShare - ly1) < 0.02 && savedLayout.scanMode === false && (await inSearch()),
+        `Counter: dragging the line widens the bill (${(ly0 * 100).toFixed(1)}% → ${(ly1 * 100).toFixed(1)}%), it is remembered, the cursor stays in the search box`);
+      await page.locator('[data-pos-divider]').dblclick();
+      await page.waitForTimeout(500);
+      const ly2 = await lyShare();
+      check(Math.abs(ly2 - 5 / 12) < 0.02 && (await inSearch()), `Double-click on the line puts the counter back to the normal size (${(ly2 * 100).toFixed(1)}%)`);
+
+      await page.locator('[data-pos-scan-mode]').click();
+      await page.waitForTimeout(500);
+      const scanShare = await lyShare();
+      const gridHidden = (await page.locator('[data-pos-product-grid]').count()) === 0 && (await page.locator('[data-pos-scan-panel]').isVisible());
+      const gB0 = await cartQty(gB.id);
+      await page.keyboard.type(gB.barcode, { delay: 3 });
+      const midScanHidden = (await page.locator('[data-pos-product-grid]').count()) === 0;
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(700);
+      const lastText = await page.locator('[data-pos-last-scanned]').innerText().catch(() => '');
+      await shot(page, 'counter-scan-mode');
+      check(gridHidden && midScanHidden && Math.abs(scanShare - 0.62) < 0.02 && (await cartQty(gB.id)) === gB0 + 1 && lastText.includes(gB.name.slice(0, 6)) && (await inSearch())
+        && (await page.locator('[data-pos-scan-mode="on"]').count()) === 1,
+        `Scan mode: product list hidden (also while the gun types), bill ${(scanShare * 100).toFixed(0)}% wide, a scan adds the item and shows it big ("${lastText.split('\n')[1] || ''}"), cursor in the search box`);
+      await posSearch.fill('chaurasa');
+      await page.waitForTimeout(800);
+      const gridForName = (await page.locator('[data-pos-product-grid]').count()) === 1;
+      await posSearch.press('Escape');
+      await page.waitForTimeout(400);
+      const gridAfterClear = await page.locator('[data-pos-product-grid]').count();
+      await page.locator('[data-pos-scan-mode]').click();
+      await page.waitForTimeout(500);
+      const backLayout = await page.evaluate(() => JSON.parse(localStorage.getItem('kamai_pos_layout') || '{}'));
+      check(gridForName && gridAfterClear === 0 && (await page.locator('[data-pos-product-grid]').count()) === 1 && Math.abs((await lyShare()) - 5 / 12) < 0.02 && backLayout.scanMode === false && (await inSearch()),
+        'Scan mode: a typed name shows its matches, an empty box hides them again; "Show products" brings the list and the normal width back');
+
       // v4.73.0 — English letters find the Hindi-named items; the counter has no webcam,
       // Rapid (webcam) or Bluetooth hardware-manager buttons any more.
       step = 'english search';

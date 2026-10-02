@@ -53,6 +53,8 @@ import { buildInvoiceDocument, getPrimaryUpiVpa, paginateInvoiceRows, storePhone
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ThermalReceipt } from '../src/components/invoices/print/ThermalReceipt';
+import { activeBillShare, billShareFromPointer, clampBillShare, DEFAULT_BILL_SHARE, DEFAULT_SCAN_BILL_SHARE, MAX_BILL_SHARE, MIN_BILL_SHARE, parsePosLayout, resetBillShare, showProductList, withBillShare } from '../src/lib/billing/posLayout';
+import { lastChangedLine } from '../src/components/billing/PosScanPanel';
 import { buildSampleSale } from '../src/lib/invoices/sampleInvoice';
 import { resolveInvoiceConfig } from '../src/lib/invoices/themeDefaults';
 import {
@@ -2699,6 +2701,50 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     && /unitPriceFor\(product, sale\?\.price_mode === 'wholesale' \? 'wholesale' : 'retail'\)/.test(readSource('components/invoices/EditInvoiceModal.tsx'))
     && /data-customer-wholesale/.test(readSource('components/customers/AddEditCustomerModal.tsx')) && /data-product-wholesale/.test(readSource('components/products/AddEditProductModal.tsx')),
     'Wholesale shows on the bill in Transactions, an edited wholesale bill adds items at wholesale, customers and items get their wholesale fields');
+}
+
+// 9j(aa). Customer Change (first client, v4.92.0): a scanning counter wants the bill big — the
+// line between products and bill drags (remembered), and Scan mode hides the product list.
+{
+  const fresh = parsePosLayout(null);
+  assert(fresh.scanMode === false && fresh.billShare === DEFAULT_BILL_SHARE && Math.abs(DEFAULT_BILL_SHARE - 5 / 12) < 1e-9
+    && parsePosLayout('not json').billShare === DEFAULT_BILL_SHARE && parsePosLayout('{"billShare":"x","scanMode":"yes"}').scanMode === false,
+    'Counter layout: never set (or broken) = exactly the old 7 : 5 counter, product list on');
+  assert(clampBillShare(0.1) === MIN_BILL_SHARE && clampBillShare(0.95) === MAX_BILL_SHARE && clampBillShare(NaN) === DEFAULT_BILL_SHARE
+    && parsePosLayout('{"billShare":0.99,"scanBillShare":0.01}').billShare === MAX_BILL_SHARE && parsePosLayout('{"billShare":0.99,"scanBillShare":0.01}').scanBillShare === MIN_BILL_SHARE,
+    'Divider: the bill never gets narrower than 32 % or wider than 68 % — neither side can vanish');
+  const scan = { ...fresh, scanMode: true };
+  const dragged = withBillShare(scan, 0.5);
+  assert(billShareFromPointer(0, 1000, 500) === 0.5 && billShareFromPointer(100, 1000, 700) === 0.4 && billShareFromPointer(0, 0, 10) === DEFAULT_BILL_SHARE
+    && dragged.scanBillShare === 0.5 && dragged.billShare === DEFAULT_BILL_SHARE && activeBillShare(dragged) === 0.5 && activeBillShare(fresh) === DEFAULT_BILL_SHARE
+    && resetBillShare(dragged).scanBillShare === DEFAULT_SCAN_BILL_SHARE && resetBillShare(withBillShare(fresh, 0.6)).billShare === DEFAULT_BILL_SHARE,
+    'Divider: the pointer sets the bill share; list mode and Scan mode keep their own width; double-click resets only the current one');
+  assert(showProductList(fresh, '') && showProductList(fresh, '8901234567890') && !showProductList(scan, '') && !showProductList(scan, '  ')
+    && !showProductList(scan, '89') && !showProductList(scan, '8901234567890') && !showProductList(scan, 'SKU-00123') && showProductList(scan, 'atta') && showProductList(scan, 'Parle G'),
+    'Scan mode: list hidden while empty and while the gun types a code (never flashes mid-scan); a typed name shows its matches');
+  const line = (id: string, q: number) => ({ product_id: id, quantity: q } as CartItem);
+  assert(lastChangedLine(new Map(), [line('a', 1), line('b', 1)])?.product_id === 'b' && lastChangedLine(new Map([['a', 1], ['b', 1]]), [line('a', 2), line('b', 1)])?.product_id === 'a'
+    && lastChangedLine(new Map([['a', 2], ['b', 1]]), [line('a', 1), line('b', 1)]) === null,
+    'Scan mode "Last scanned": the line just added or whose quantity went up (a removal changes nothing)');
+
+  const billSrc = readSource('app/billing/page.tsx');
+  const splitSrc = readSource('components/billing/PosSplitLayout.tsx');
+  const scanSrc = readSource('components/billing/PosScanPanel.tsx');
+  assert(billSrc.includes('<PosSplitLayout') && billSrc.includes('onDone={focusProductSearch}') && billSrc.includes('const listVisible = showProductList(posLayout, searchQuery);')
+    && billSrc.includes('{listVisible && (') && billSrc.includes('<VirtuosoGrid') && billSrc.includes('<PosCategoryTabs') && !billSrc.includes('lg:col-span-7'),
+    'Billing: products + bill sit in PosSplitLayout, the grid (unchanged) shows unless Scan mode hides it, back to the search after a drag');
+  assert((splitSrc.match(/onMouseDown=\{\(e\) => e\.preventDefault\(\)\}/g) || []).length === 1 && splitSrc.includes('e.preventDefault();\n          e.currentTarget.setPointerCapture')
+    && (scanSrc.match(/onMouseDown=\{\(e\) => e\.preventDefault\(\)\}/g) || []).length === 1 && !/tabIndex/.test(splitSrc),
+    'Divider and Scan-mode buttons never take the focus from the search box (the barcode gun types into it); the divider is not in the Tab order');
+  assert(splitSrc.includes('useEffect(() => {\n    setLayout(loadPosLayout());') && splitSrc.includes('useState<PosLayout>(DEFAULT_POS_LAYOUT)')
+    && splitSrc.includes("hidden lg:flex flex-col h-full min-h-0 shrink-0") && splitSrc.includes("body.cursor = prev.cursor;"),
+    'Layout read after mount (no hydration mismatch), the bill panel only on wide screens (phones keep the cart drawer), a drag never leaves the cursor stuck');
+  // Bug found in the Electron run (slow PC): the bill snapped back to the first step of the drag,
+  // because button-up saved the last RENDERED layout while later moves were still unrendered.
+  assert(splitSrc.includes('const drag = useRef<PosLayout | null>(null);') && splitSrc.includes('drag.current = next;') && splitSrc.includes('const final = drag.current;')
+    && splitSrc.includes('onLayoutChange(final, true);') && !splitSrc.includes('onLayoutChange(latest.current, true)') && splitSrc.includes('onLostPointerCapture={finish}')
+    && !/onPointerMove=\{\(e\) => dragging/.test(splitSrc),
+    'Divider drag: every move is kept in a ref and button-up saves where the pointer ended (not the last rendered step); a lost capture saves too');
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.

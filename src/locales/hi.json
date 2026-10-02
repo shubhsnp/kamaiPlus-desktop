@@ -2609,5 +2609,15 @@
   "Show UPI QR (payment code)": "UPI QR दिखाएँ (पेमेंट कोड)",
   "Also print the UPI QR on 58mm / 80mm thermal bills": "58mm / 80mm थर्मल बिल पर भी UPI QR छापें",
   "No UPI ID saved yet, so no QR prints.": "अभी कोई UPI ID सेव नहीं है, इसलिए QR नहीं छपेगा।",
-  "Add UPI ID in Settings": "सेटिंग्स में UPI ID जोड़ें"
+  "Add UPI ID in Settings": "सेटिंग्स में UPI ID जोड़ें",
+  "Last scanned": "अभी स्कैन किया",
+  "Ready to scan": "स्कैन के लिए तैयार",
+  "Scan an item with the barcode gun — it goes straight on the bill.": "बारकोड गन से आइटम स्कैन करें — वह सीधे बिल में जुड़ जाएगा।",
+  "This bill": "यह बिल",
+  "Show the product list again": "प्रोडक्ट लिस्ट फिर से दिखाएँ",
+  "Scan mode: hide the product list and make the bill bigger": "स्कैन मोड: प्रोडक्ट लिस्ट छिपाएँ और बिल बड़ा करें",
+  "Show products": "प्रोडक्ट दिखाएँ",
+  "Scan mode": "स्कैन मोड",
+  "Drag to make the bill wider or narrower. Double-click to reset.": "बिल को चौड़ा या पतला करने के लिए खींचें। पहले जैसा करने के लिए डबल-क्लिक करें।",
+  "Product list is hidden in Scan mode. Type a name in the box above to search, or press \"Show products\".": "स्कैन मोड में प्रोडक्ट लिस्ट छिपी रहती है। खोजने के लिए ऊपर के बॉक्स में नाम लिखें, या \"प्रोडक्ट दिखाएँ\" दबाएँ।"
 }
