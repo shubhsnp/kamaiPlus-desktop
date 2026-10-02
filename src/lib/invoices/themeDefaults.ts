@@ -35,6 +35,7 @@ export const DEFAULT_INVOICE_THEME_CONFIG: InvoiceThemeConfig = {
   show_tagline: true,
   show_owner: true,
   show_upi_qr: true,
+  show_upi_qr_thermal: true,
   show_signature: true,
   show_gst_breakup: true,
   show_hsn_code: true,

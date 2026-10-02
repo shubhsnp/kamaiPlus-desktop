@@ -49,7 +49,10 @@ import {
 } from '../src/lib/validation/validators';
 import { formatInvoiceNumber, parseInvoiceSequenceNumber } from '../src/lib/invoices/invoiceNumberService';
 import crypto from 'crypto';
-import { buildInvoiceDocument, getPrimaryUpiVpa, paginateInvoiceRows } from '../src/lib/invoices/invoiceDocument';
+import { buildInvoiceDocument, getPrimaryUpiVpa, paginateInvoiceRows, storePhones } from '../src/lib/invoices/invoiceDocument';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { ThermalReceipt } from '../src/components/invoices/print/ThermalReceipt';
 import { buildSampleSale } from '../src/lib/invoices/sampleInvoice';
 import { resolveInvoiceConfig } from '../src/lib/invoices/themeDefaults';
 import {
@@ -3040,6 +3043,50 @@ const longRows = Array.from({ length: 40 }, (_, i) => ({ sno: i + 1, name: `Item
 const longPages = paginateInvoiceRows(longRows as any);
 assert(longPages.length >= 2 && longPages[0].length === 20 && longPages[longPages.length - 1].length <= 14, '40-line bill paginates 20 on page 1 and ≤14 on the summary page (Android budget)');
 assert(longPages.reduce((a, p) => a + p.length, 0) === 40, 'Pagination keeps every invoice line');
+
+// v4.91.0 (Customer Change, first client): two shop numbers on the bill; the 58 / 80 mm slip
+// follows every Invoice Themes switch like the A4 (logo, owner, HSN, GST breakup, terms,
+// signatory); the UPI QR has its own "also on thermal" switch; Pharmacy Rx & D.L. is gone.
+{
+  assert(storePhones({ phone: '9000000001', phone2: '9123456780' }) === '9000000001, 9123456780' && storePhones({ phone: '9000000001', phone2: '9000000001' }) === '9000000001'
+    && storePhones({ phone: '9000000001' }) === '9000000001' && storePhones(null) === '',
+    'Bill phones: both shop numbers, the second only when set and not the same');
+  const twoPh = { ...invBiz, phone2: '9123456780' };
+  const twoDoc = buildInvoiceDocument(sampleGstSale, twoPh, { upiVpa: 'shop@upi' });
+  const offDoc = buildInvoiceDocument(sampleGstSale, { ...twoPh, invoice_theme_config: { ...resolveInvoiceConfig(twoPh), show_owner: false } }, { upiVpa: 'shop@upi' });
+  assert(twoDoc.store.contactLine.includes('Ph: 9000000001, 9123456780') && twoDoc.store.phoneLine === 'Ph: 9000000001, 9123456780' && twoDoc.store.ownerName === 'Ramesh'
+    && offDoc.store.phoneLine === '' && offDoc.store.ownerName === '' && !offDoc.store.contactLine.includes('Ph:'),
+    'A4 + thermal print both numbers; "Show Owner & Phone" off hides owner and both numbers');
+  const rxDoc = buildInvoiceDocument(sampleGstSale, { ...invBiz, invoice_theme_config: { ...resolveInvoiceConfig(invBiz), show_pharmacy_rx: true, drug_license_no: '20B-1', pharmacist_reg_no: 'PH-1' } }, {});
+  const designerSrc = readSource('components/invoices/designer/DesignerSections.tsx');
+  assert(!rxDoc.store.licenseLine.includes('D.L.') && !rxDoc.store.licenseLine.includes('Pharmacist') && !designerSrc.includes('show_pharmacy_rx') && !designerSrc.includes('Pharmacy Rx'),
+    'Pharmacy Rx & D.L. is out of Invoice Themes — a switch saved on before no longer prints a D.L. line');
+  const thermOff = buildInvoiceDocument(sampleGstSale, { ...invBiz, invoice_theme_config: { ...resolveInvoiceConfig(invBiz), show_upi_qr_thermal: false } }, { upiVpa: 'shop@upi' });
+  assert(gstDoc.thermal.showUpi === true && thermOff.upi.show === true && thermOff.thermal.showUpi === false && hiddenDoc.thermal.showUpi === false && noUpiDoc.thermal.showUpi === false
+    && resolveInvoiceConfig(invBiz).show_upi_qr_thermal === true,
+    'UPI QR: "Also on thermal" off keeps it on A4 only; main switch off or no UPI ID = no QR anywhere; old saved themes keep it on');
+
+  const slip = (doc: typeof gstDoc, biz: any) => renderToStaticMarkup(React.createElement(ThermalReceipt, { doc, sale: sampleGstSale, business: biz, width: 58 }));
+  const logoBiz = { ...twoPh, logo_url: 'data:image/png;base64,iVBORw0KGgo=' };
+  const onSlip = slip(buildInvoiceDocument(sampleGstSale, logoBiz, { upiVpa: 'shop@upi', qrDataUrl: 'data:image/png;base64,QR' }), logoBiz);
+  const allOffBiz = { ...logoBiz, invoice_theme_config: { ...resolveInvoiceConfig(logoBiz), show_logo: false, show_owner: false, show_hsn_code: false, show_gst_breakup: false, show_terms: false, show_signature: false, show_upi_qr: false } };
+  const offSlip = slip(buildInvoiceDocument(sampleGstSale, allOffBiz, { upiVpa: 'shop@upi' }), allOffBiz);
+  const parts = ['data-thermal-logo', 'data-thermal-owner', 'data-thermal-phone', 'data-thermal-hsn', 'data-thermal-gst', 'data-thermal-terms', 'data-thermal-signatory', 'data-thermal-upi'];
+  assert(parts.every((p) => onSlip.includes(p)) && parts.every((p) => !offSlip.includes(p)) && onSlip.includes('9000000001, 9123456780') && onSlip.includes('HSN: 1101'),
+    `58 mm slip follows every Invoice Themes switch (on: ${parts.filter((p) => !onSlip.includes(p)).join(',') || 'all'} missing; off: ${parts.filter((p) => offSlip.includes(p)).join(',') || 'none'} left)`);
+  const prevSrc = readSource('components/invoices/InvoicePreview.tsx');
+  const outSrc = readSource('lib/invoices/invoiceOutput.tsx');
+  assert(prevSrc.includes('<ThermalReceipt doc={doc}') && outSrc.includes('<ThermalReceipt doc={doc}'),
+    'Invoice Themes preview and the real print render the same ThermalReceipt — what you see is what prints');
+
+  const onbSrc = readSource('app/onboarding/page.tsx');
+  assert(!onbSrc.includes('It is compulsory for generating payment QR') && onbSrc.includes('if (cleanUpiId && !upiRegex.test(cleanUpiId))') && onbSrc.includes('upi_id: cleanUpiId || undefined,')
+    && !/data-onboarding-upi[\s\S]{0,40}required/.test(onbSrc),
+    'Sign-up: UPI ID is optional (blank is fine, a typed one must be valid)');
+  const setSrc = readSource('app/settings/page.tsx');
+  assert(setSrc.includes("validateIndianPhone(phone2, false,") && setSrc.includes('phone2: phone2.trim() ?') && readSource('components/settings/StoreProfileTab.tsx').includes('data-settings-phone2'),
+    'Settings → Contact & Store Location: optional second number, checked like a mobile number, saved on the shop');
+}
 
 // -------------------------------------------------------------
 // SUITE 19: Bill Discount GST, Returns & Cash Drawer Money Rules

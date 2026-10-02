@@ -81,13 +81,10 @@ export default function OnboardingPage() {
       return;
     }
 
-    if (!cleanUpiId) {
-      setError(tr('Please enter your UPI ID (VPA). It is compulsory for generating payment QR codes on invoices.'));
-      return;
-    }
-
+    // UPI is optional (v4.91.0, Customer Change): a shop can add it later in Settings → UPI.
+    // When typed, it must still be a real UPI ID — a wrong one would put a dead QR on every bill.
     const upiRegex = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
-    if (!upiRegex.test(cleanUpiId)) {
+    if (cleanUpiId && !upiRegex.test(cleanUpiId)) {
       setError(tr('Please enter a valid UPI ID (e.g. yourname@upi, 9876543210@paytm, store@okaxis).'));
       return;
     }
@@ -108,7 +105,7 @@ export default function OnboardingPage() {
         business_type: businessType,
         owner_name: cleanOwnerName,
         phone: cleanPhone,
-        upi_id: cleanUpiId,
+        upi_id: cleanUpiId || undefined,
         email: user?.email || undefined,
         user_email: user?.email || undefined,
         user_uid: rawUid,
@@ -353,11 +350,11 @@ export default function OnboardingPage() {
               </p>
             </div>
 
-            {/* 4. UPI ID (Compulsory for instant QR & Payments) */}
+            {/* 4. UPI ID (optional — adds the payment QR to bills) */}
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 flex items-center justify-between">
-                <span>{tr('UPI ID / VPA *')}</span>
-                <span className="text-[10px] text-amber-400 font-semibold normal-case">{tr('Required for Bill QR Codes')}</span>
+                <span>{tr('UPI ID / VPA (Optional)')}</span>
+                <span className="text-[10px] text-slate-500 font-semibold normal-case">{tr('Can be added later in Settings')}</span>
               </label>
               <div className="relative flex items-center">
                 <span className="absolute left-3.5 text-cyan-400 pointer-events-none">
@@ -368,12 +365,12 @@ export default function OnboardingPage() {
                   value={upiId}
                   onChange={(e) => setUpiId(e.target.value.trim())}
                   placeholder={tr('e.g. 9876543210@paytm or store@okaxis')}
-                  required
+                  data-onboarding-upi
                   className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl focus:ring-2 focus:ring-amber-400 focus:outline-none text-white text-sm font-mono placeholder:font-sans placeholder:text-slate-600 transition"
                 />
               </div>
               <p className="text-[11px] text-slate-500 mt-1">
-                {tr('Printed as dynamic NPCI UPI QR code on all bills & thermal slips.')}
+                {tr('If added, bills print a UPI QR code for the bill amount. Leave blank if you do not take UPI.')}
               </p>
             </div>
 

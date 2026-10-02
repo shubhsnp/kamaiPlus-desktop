@@ -294,7 +294,7 @@ class BluetoothPrinterService {
     enc.doubleHeight(true).bold(true).textLine(business.name).bold(false).doubleHeight(false);
     if (config.show_tagline && business.tagline) enc.textLine(business.tagline);
     if (business.address) enc.textLine(business.address);
-    if (config.show_owner && business.phone) enc.textLine(`Ph: ${business.phone}`);
+    if (doc.store.phoneLine) enc.textLine(doc.store.phoneLine);
     if (business.gstin) enc.textLine(`GSTIN: ${business.gstin}`);
     if (doc.store.licenseLine) enc.textLine(doc.store.licenseLine);
     enc.bold(true).textLine(doc.heading).bold(false);
@@ -345,7 +345,7 @@ class BluetoothPrinterService {
     if (doc.savingsText) enc.alignCenter().bold(true).textLine(doc.savingsText).bold(false).alignLeft();
 
     // 6. Dynamic UPI QR — only for the shop's own saved UPI ID, never a guessed one
-    if (doc.upi.show && this.isUpiQrEnabled() && sale.grand_total > 0) {
+    if (doc.thermal.showUpi && this.isUpiQrEnabled() && sale.grand_total > 0) {
       const payable = sale.balance_due > 0 ? sale.balance_due : sale.grand_total;
       enc.feed(1);
       enc.alignCenter();

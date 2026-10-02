@@ -162,7 +162,7 @@ export default function InvoiceDesignerPage() {
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
           <div className="xl:col-span-5 space-y-3.5">
             <ThemeColorSection config={config} onChange={patch} />
-            <DisplayOptionsSection config={config} onChange={patch} />
+            <DisplayOptionsSection config={config} onChange={patch} hasUpi={Boolean(getPrimaryUpiVpa(previewBusiness))} />
             <TermsFooterSection config={config} onChange={patch} />
           </div>
 
@@ -187,6 +187,11 @@ export default function InvoiceDesignerPage() {
                 ))}
               </div>
             </div>
+            {format !== 'a4' && (
+              <p className="px-1 text-[11px] font-semibold text-slate-500" data-designer-thermal-note>
+                {tr('Thermal printers print in black only — the colour shows on A4 bills. Every other switch changes this slip live.')}
+              </p>
+            )}
             <InvoicePreview
               doc={doc}
               sale={previewSale}

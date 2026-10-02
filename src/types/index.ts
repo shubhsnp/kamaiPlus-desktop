@@ -43,6 +43,8 @@ export interface InvoiceThemeConfig {
   show_tagline: boolean;
   show_owner: boolean;
   show_upi_qr: boolean;
+  /** UPI QR also on 58 / 80 mm thermal slips (v4.91.0). Missing = on, as before. */
+  show_upi_qr_thermal?: boolean;
   show_gst_breakup: boolean;
   show_hsn_code: boolean;
   show_mrp_savings: boolean;
@@ -68,6 +70,8 @@ export interface Business {
   business_type: BusinessType;
   owner_name: string;
   phone: string;
+  /** Second shop contact number, printed next to `phone` on bills (v4.91.0). */
+  phone2?: string;
   email?: string;
   address: string;
   pincode?: string;

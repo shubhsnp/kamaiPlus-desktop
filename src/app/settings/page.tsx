@@ -51,6 +51,7 @@ export default function SettingsPage() {
   const [logoUrl, setLogoUrl] = useState<string>('');
   const [ownerName, setOwnerName] = useState('');
   const [phone, setPhone] = useState('');
+  const [phone2, setPhone2] = useState('');
   const [email, setEmail] = useState('');
   const [address, setAddress] = useState('');
   const [pincode, setPincode] = useState('');
@@ -104,6 +105,7 @@ export default function SettingsPage() {
       logoUrl: business.logo_url || '',
       ownerName: business.owner_name || '',
       phone: business.phone || '',
+      phone2: business.phone2 || '',
       email: business.email || '',
       address: business.address || '',
       pincode: business.pincode || '',
@@ -128,6 +130,7 @@ export default function SettingsPage() {
     setLogoUrl(initial.logoUrl);
     setOwnerName(initial.ownerName);
     setPhone(initial.phone);
+    setPhone2(initial.phone2);
     setEmail(initial.email);
     setAddress(initial.address);
     setPincode(initial.pincode);
@@ -273,6 +276,7 @@ export default function SettingsPage() {
     if (initial) {
       const simple: ChangedField[] = [
         { key: 'tagline', label: tr('Tagline'), category: 'profile', categoryLabel: tr('Store Profile'), oldValue: initial.tagline, newValue: tagline.trim() },
+        { key: 'phone2', label: tr('Second Contact Number'), category: 'profile', categoryLabel: tr('Store Profile'), oldValue: initial.phone2, newValue: phone2.trim() },
         { key: 'email', label: tr('Email'), category: 'profile', categoryLabel: tr('Store Profile'), oldValue: initial.email, newValue: email.trim() },
         { key: 'pincode', label: tr('Pincode'), category: 'profile', categoryLabel: tr('Store Profile'), oldValue: initial.pincode, newValue: pincode.trim() },
         { key: 'bank_name', label: tr('Bank Name'), category: 'upi', categoryLabel: tr('UPI & Banking'), oldValue: initial.bankName, newValue: bankName.trim() },
@@ -296,7 +300,7 @@ export default function SettingsPage() {
     }
 
     return changes;
-  }, [business, initial, name, ownerName, phone, address, gstin, invoicePrefix, gstPricingMode, tagline, email, pincode, bankName, bankAccountNo, bankIfsc, bankAccountName, nextInvoiceNumber, terms, footerMessage, logoUrl, upiList]);
+  }, [business, initial, name, ownerName, phone, phone2, address, gstin, invoicePrefix, gstPricingMode, tagline, email, pincode, bankName, bankAccountNo, bankIfsc, bankAccountName, nextInvoiceNumber, terms, footerMessage, logoUrl, upiList]);
 
   // UPI & bank changes keep their own group in the review, but belong to the Store Profile tab.
   const tabOfChange = (category: string) => (category === 'upi' ? 'profile' : category);
@@ -341,6 +345,15 @@ export default function SettingsPage() {
     const phoneRes = validateIndianPhone(phone, true, msg('Store Mobile Phone'));
     if (!phoneRes.isValid) {
       setSettingsError(phoneRes.error || tr('Invalid store mobile phone number.'));
+      setActiveTab('profile');
+      setIsReviewModalOpen(false);
+      return;
+    }
+
+    // 2b. Second contact number (optional, printed on bills next to the first — v4.91.0)
+    const phone2Res = validateIndianPhone(phone2, false, msg('Second Contact Number'));
+    if (!phone2Res.isValid) {
+      setSettingsError(phone2Res.error || tr('Invalid second contact number.'));
       setActiveTab('profile');
       setIsReviewModalOpen(false);
       return;
@@ -394,6 +407,7 @@ export default function SettingsPage() {
         logo_url: logoUrl || undefined,
         owner_name: ownerName.trim(),
         phone: phoneRes.cleanedValue || phone.trim(),
+        phone2: phone2.trim() ? phone2Res.cleanedValue || phone2.trim() : '',
         email: email.trim() || undefined,
         address: address.trim() || undefined,
         pincode: pincode.trim() || undefined,
@@ -488,6 +502,8 @@ export default function SettingsPage() {
           setOwnerName={setOwnerName}
           phone={phone}
           setPhone={setPhone}
+          phone2={phone2}
+          setPhone2={setPhone2}
           email={email}
           setEmail={setEmail}
           address={address}

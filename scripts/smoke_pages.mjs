@@ -79,12 +79,13 @@ try {
   await page.getByPlaceholder('e.g. Sharma Kirana & General Store').fill('Smoke Test Kirana');
   await page.getByPlaceholder('e.g. Ramesh Sharma').fill('Smoke Owner');
   await page.getByPlaceholder('98765 43210').fill('9876543210');
-  await page.getByPlaceholder('e.g. 9876543210@paytm or store@okaxis').fill('smoke@okaxis');
+  // v4.91.0 — UPI is optional at sign-up: this shop does not take UPI and leaves it blank.
+  await page.getByPlaceholder('e.g. 9876543210@paytm or store@okaxis').fill('');
   const seed = page.locator('input[type="checkbox"]').first();
   if (!(await seed.isChecked())) await seed.check();
   await page.getByRole('button', { name: /Complete Setup/i }).click();
   await page.waitForURL((u) => !u.pathname.startsWith('/onboarding'), { timeout: 30000 });
-  check(true, 'Store setup completes');
+  check(true, 'Store setup completes (UPI ID left blank — it is optional)');
   await page.waitForTimeout(2000);
 
   const visitAll = async (label) => {
@@ -114,6 +115,27 @@ try {
     localStorage.setItem('kamai_feature_switches', JSON.stringify(Object.fromEntries(all.map((k) => [k, true]))));
   });
   await visitAll('all-on');
+
+  // v4.91.0 — Invoice Themes: the 58 mm preview follows the switches live, the shop without a
+  // UPI ID is told so, Pharmacy Rx & D.L. is gone; Settings has the second contact number.
+  await page.evaluate(() => { window.location.href = '/invoice-designer/'; });
+  await page.getByRole('button', { name: '58mm', exact: true }).click({ timeout: 20000 });
+  const slip = page.locator('[data-thermal-receipt="58"]');
+  await slip.waitFor({ timeout: 10000 });
+  const termsBefore = await slip.locator('[data-thermal-terms]').count();
+  await page.getByRole('button', { name: /Show Terms & Conditions/ }).click();
+  await page.waitForTimeout(500);
+  const termsAfter = await slip.locator('[data-thermal-terms]').count();
+  const designerText = await page.locator('main').innerText();
+  const upiMissing = await page.locator('[data-designer-upi-missing]').isVisible().catch(() => false);
+  const noUpiOnSlip = (await slip.locator('[data-thermal-upi]').count()) === 0;
+  await page.screenshot({ path: path.join(SHOTS, 'designer-58mm.png') }).catch(() => {});
+  check(termsBefore === 1 && termsAfter === 0 && upiMissing && noUpiOnSlip && !/Pharmacy Rx/.test(designerText) && (await page.locator('[data-designer-thermal-note]').isVisible()),
+    `Invoice Themes 58 mm preview changes live (terms ${termsBefore} → ${termsAfter}), no UPI ID = no QR + a hint (${upiMissing}), Pharmacy Rx gone`);
+  await page.evaluate(() => { window.location.href = '/settings/'; });
+  const phone2 = page.locator('[data-settings-phone2]');
+  check(await phone2.isVisible({ timeout: 15000 }).catch(() => false) || await phone2.waitFor({ timeout: 15000 }).then(() => true, () => false),
+    'Settings → Contact & Store Location has the second contact number');
 
   // A sale through the counter, then the screens that read sales.
   await page.evaluate(() => { window.location.href = '/billing/'; });

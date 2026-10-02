@@ -4,6 +4,7 @@ import { Business, Sale } from '@/types';
 import { formatINR } from '@/lib/utils';
 import { saveHtmlAsPdf, safeFileName } from '@/lib/print/printDocument';
 import { getDesktopApi } from '@/lib/desktop/desktopBridge';
+import { storePhones } from '@/lib/invoices/invoiceDocument';
 import { tr } from '@/lib/i18n/core';
 
 const formatDate = (dateStr: string) => {
@@ -32,7 +33,7 @@ export async function generateBulkInvoicesPDF({
   }
 
   const storeName = business.name || 'Kamai+ Store';
-  const storePhone = business.phone ? `Ph: ${business.phone}` : '';
+  const storePhone = storePhones(business) ? `Ph: ${storePhones(business)}` : '';
   const storeGst = business.gstin ? `GSTIN: ${business.gstin}` : '';
   const storeAddress = business.address || '';
 

@@ -32,6 +32,8 @@ export interface InvoiceRow {
 
 export interface InvoiceTaxSlab {
   label: string;
+  /** "5%" — the slab's GST rate (thermal slip's short GST table). */
+  rate: string;
   taxable: string;
   cgstRate: string;
   cgstAmount: string;
@@ -59,6 +61,10 @@ export interface InvoiceDocument {
     tagline: string;
     address: string;
     contactLine: string;
+    /** "Ph: 98…, 97…" — both shop numbers, '' when "Show Owner & Phone" is off. */
+    phoneLine: string;
+    /** Owner name, '' when "Show Owner & Phone" is off. */
+    ownerName: string;
     licenseLine: string;
     logoUrl: string;
   };
@@ -93,6 +99,8 @@ export interface InvoiceDocument {
   thermal: {
     showTagline: boolean;
     showPhone: boolean;
+    /** UPI QR on the 58 / 80 mm slip: "Show UPI QR" on AND "Also on thermal slips" on (v4.91.0). */
+    showUpi: boolean;
   };
 }
 
@@ -244,13 +252,13 @@ export function buildInvoiceDocument(sale: Sale, business: Business, options: Bu
 
   // Store block
   const contactParts: string[] = [];
-  if (config.show_owner && business.phone) contactParts.push(`Ph: ${business.phone}`);
+  const phones = storePhones(business);
+  const phoneLine = config.show_owner && phones ? `Ph: ${phones}` : '';
+  if (phoneLine) contactParts.push(phoneLine);
   if (storeGstin) contactParts.push(`GSTIN: ${storeGstin}${stateNameFromCode(storeState) ? ` (${stateNameFromCode(storeState)})` : ''}`);
+  // The pharmacy D.L. / pharmacist line was taken out of Invoice Themes (v4.91.0, Customer
+  // Change) — a switch saved on before that no longer prints it.
   const licenseParts: string[] = [];
-  if (config.show_pharmacy_rx) {
-    if (config.drug_license_no) licenseParts.push(`D.L. No: ${config.drug_license_no}`);
-    if (config.pharmacist_reg_no) licenseParts.push(`Reg. Pharmacist: ${config.pharmacist_reg_no}`);
-  }
   if (config.fssai_license_no) licenseParts.push(`FSSAI: ${config.fssai_license_no}`);
   const ownerLine = config.show_owner && business.owner_name ? business.owner_name : '';
 
@@ -297,6 +305,7 @@ export function buildInvoiceDocument(sale: Sale, business: Business, options: Bu
       const hsnText = s.hsns.size > 0 ? Array.from(s.hsns).join(', ') : 'GST';
       return {
         label: `${hsnText} (${formatRate(rate)})`,
+        rate: formatRate(rate),
         taxable: formatINR(s.taxable),
         cgstRate: isInterState ? '-' : formatHalfRate(rate),
         cgstAmount: isInterState ? '-' : formatINR(cgst),
@@ -382,6 +391,8 @@ export function buildInvoiceDocument(sale: Sale, business: Business, options: Bu
       tagline: config.show_tagline ? (business.tagline || '').trim() : '',
       address: [business.address, business.pincode].filter((p) => p && String(p).trim()).join(' - '),
       contactLine: [ownerLine, ...contactParts].filter(Boolean).join('  •  '),
+      phoneLine,
+      ownerName: ownerLine,
       licenseLine: licenseParts.join('   '),
       logoUrl: config.show_logo ? business.logo_url || '' : '',
     },
@@ -426,8 +437,16 @@ export function buildInvoiceDocument(sale: Sale, business: Business, options: Bu
     thermal: {
       showTagline: Boolean(config.show_tagline),
       showPhone: Boolean(config.show_owner),
+      showUpi: !estimate && Boolean(config.show_upi_qr) && config.show_upi_qr_thermal !== false && upiVpa.length > 0,
     },
   };
+}
+
+/** The shop's contact numbers for a bill: "9876543210, 9123456780" (second one only when set and different). */
+export function storePhones(business?: Pick<Business, 'phone' | 'phone2'> | null): string {
+  const first = (business?.phone || '').trim();
+  const second = (business?.phone2 || '').trim();
+  return [first, second && second !== first ? second : ''].filter(Boolean).join(', ');
 }
 
 /** The UPI VPA a bill should be paid to: the default shop UPI, else the first one. */

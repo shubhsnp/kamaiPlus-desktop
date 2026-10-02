@@ -27,6 +27,8 @@ interface StoreProfileTabProps {
   setOwnerName: (val: string) => void;
   phone: string;
   setPhone: (val: string) => void;
+  phone2: string;
+  setPhone2: (val: string) => void;
   email: string;
   setEmail: (val: string) => void;
   address: string;
@@ -52,6 +54,8 @@ export const StoreProfileTab: React.FC<StoreProfileTabProps> = ({
   setOwnerName,
   phone,
   setPhone,
+  phone2,
+  setPhone2,
   email,
   setEmail,
   address,
@@ -141,7 +145,7 @@ export const StoreProfileTab: React.FC<StoreProfileTabProps> = ({
           </h3>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Input
             label={tr('Owner / Contact Person *')}
             placeholder={tr('e.g. Ramesh Patel')}
@@ -156,6 +160,14 @@ export const StoreProfileTab: React.FC<StoreProfileTabProps> = ({
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             required
+          />
+          <Input
+            label={tr('Second Contact Number (Optional)')}
+            placeholder={tr('e.g. 9123456780')}
+            type="tel"
+            value={phone2}
+            onChange={(e) => setPhone2(e.target.value)}
+            data-settings-phone2
           />
           <Input
             label={tr('Email Address (Optional)')}

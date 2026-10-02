@@ -684,6 +684,15 @@ Sale + Business
 change *every* output, because they all read the same `InvoiceDocument`. If you add a
 field to the A4 and not the thermal slip, you have created an inconsistency bug.
 
+**v4.91.0 (Customer Change):**
+- `ThermalReceipt` follows every Invoice Themes switch: logo (grayscale), owner, both phones, HSN per line, a short GST table, terms, signatory and the UPI QR. Colour is A4 only, and the designer says so.
+- The preview (`InvoicePreview`) and the print (`invoiceOutput.tsx`) render the same component.
+- UPI QR on the slip = `doc.thermal.showUpi`: `show_upi_qr` AND `show_upi_qr_thermal` (missing = on) AND a saved UPI ID. ESC/POS uses the same flag.
+- Shop phones come from `storePhones(business)`: `phone` + optional `Business.phone2` (Settings → Contact & Store Location). Used by A4, thermal, ESC/POS and the bulk invoice PDF.
+- The Pharmacy Rx & D.L. switch is gone from Invoice Themes. `buildInvoiceDocument` no longer prints a D.L. / pharmacist line, even if an old theme saved the switch on. FSSAI stays.
+- UPI ID is optional at sign-up; a typed one is still format-checked.
+- Tests: Suite 18 (v4.91.0 block), smoke "Invoice Themes 58 mm preview".
+
 `pdfGenerator.ts` (jsPDF + html2canvas) is a **separate raster path** used only for
 "download this on-screen element as PDF" (`/invoice` customer page, khata statement).
 It must always be `await import(...)`-ed. See §8.

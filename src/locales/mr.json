@@ -2597,5 +2597,17 @@
   "Your store data stays on this computer.": "तुमच्या दुकानाचा डेटा याच कॉम्प्युटरवर राहतो.",
   "Zero Dead Stock! 🎉": "कोणताही स्टॉक पडून नाही! 🎉",
   "Zero-padded serial: e.g. INV-001, INV-002, INV-003, INV-010, INV-100": "क्रमाने क्रमांक: उदा. INV-001, INV-002, INV-003, INV-010, INV-100",
-  "Zoom to 100%": "100% झूम"
+  "Zoom to 100%": "100% झूम",
+  "Thermal printers print in black only — the colour shows on A4 bills. Every other switch changes this slip live.": "थर्मल प्रिंटर फक्त काळ्या रंगात छापतात — रंग A4 बिलावर दिसतो. बाकी प्रत्येक स्विच या पावतीवर लगेच दिसतो.",
+  "UPI ID / VPA (Optional)": "UPI ID / VPA (आवश्यक नाही)",
+  "Can be added later in Settings": "नंतर सेटिंग्समध्ये जोडू शकता",
+  "If added, bills print a UPI QR code for the bill amount. Leave blank if you do not take UPI.": "जोडल्यास बिलावर बिलाच्या रकमेचा UPI QR छापला जाईल. UPI घेत नसाल तर रिकामे ठेवा.",
+  "Second Contact Number": "दुसरा संपर्क क्रमांक",
+  "Second Contact Number (Optional)": "दुसरा संपर्क क्रमांक (आवश्यक नाही)",
+  "e.g. 9123456780": "उदा. 9123456780",
+  "Invalid second contact number.": "दुसरा संपर्क क्रमांक बरोबर नाही.",
+  "Show UPI QR (payment code)": "UPI QR दाखवा (पेमेंट कोड)",
+  "Also print the UPI QR on 58mm / 80mm thermal bills": "58mm / 80mm थर्मल बिलावरही UPI QR छापा",
+  "No UPI ID saved yet, so no QR prints.": "अजून कोणताही UPI ID सेव्ह नाही, म्हणून QR छापला जाणार नाही.",
+  "Add UPI ID in Settings": "सेटिंग्समध्ये UPI ID जोडा"
 }

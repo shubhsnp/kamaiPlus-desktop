@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { Check } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { InvoiceThemeConfig } from '@/types';
@@ -66,17 +67,16 @@ const TOGGLES: { key: keyof InvoiceThemeConfig; label: string }[] = [
   { key: 'show_logo', label: msg('Show Store Logo') },
   { key: 'show_tagline', label: msg('Show Tagline') },
   { key: 'show_owner', label: msg('Show Owner & Phone') },
-  { key: 'show_upi_qr', label: msg('Show Dynamic UPI QR') },
+  { key: 'show_upi_qr', label: msg('Show UPI QR (payment code)') },
   { key: 'show_signature', label: msg('Authorised Signatory') },
   { key: 'show_gst_breakup', label: msg('Show GST Tax Breakup') },
   { key: 'show_hsn_code', label: msg('Show HSN/SAC Code') },
   { key: 'show_mrp_savings', label: msg('Show MRP Savings Badge') },
   { key: 'show_terms', label: msg('Show Terms & Conditions') },
-  { key: 'show_pharmacy_rx', label: msg('💊 Pharmacy Rx & D.L.') },
 ];
 
-/** 2. Heading and display toggles — every one of them changes the printed bill. */
-export function DisplayOptionsSection({ config, onChange }: { config: InvoiceThemeConfig; onChange: Patch }) {
+/** 2. Heading and display toggles — every one of them changes the printed bill (A4 and thermal). */
+export function DisplayOptionsSection({ config, onChange, hasUpi = true }: { config: InvoiceThemeConfig; onChange: Patch; hasUpi?: boolean }) {
   return (
     <Card className="p-4 bg-white border border-slate-200 space-y-3 shadow-2xs">
       <SectionTitle n={2}>{tr('Header & Invoice Display Options')}</SectionTitle>
@@ -124,28 +124,24 @@ export function DisplayOptionsSection({ config, onChange }: { config: InvoiceThe
           );
         })}
       </div>
-      {config.show_pharmacy_rx && (
-        <div className="p-3 bg-sky-50/70 rounded-xl border border-sky-200 grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <label className="text-[10.5px] font-bold text-slate-700">
-            {tr('Drug License (D.L.) No')}
+      {config.show_upi_qr && (
+        <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5" data-designer-upi>
+          <label className="flex items-center gap-2 text-[11.5px] font-bold text-slate-800 cursor-pointer">
             <input
-              type="text"
-              value={config.drug_license_no || ''}
-              onChange={(e) => onChange({ drug_license_no: e.target.value })}
-              placeholder={tr('e.g. 20B/21B-44910')}
-              className="mt-0.5 w-full px-2 py-1.5 text-xs rounded-lg border border-slate-300 bg-white font-mono focus:outline-none focus:border-sky-500"
+              type="checkbox"
+              checked={config.show_upi_qr_thermal !== false}
+              onChange={(e) => onChange({ show_upi_qr_thermal: e.target.checked })}
+              className="w-4 h-4 accent-emerald-600 cursor-pointer"
+              data-designer-upi-thermal
             />
+            {tr('Also print the UPI QR on 58mm / 80mm thermal bills')}
           </label>
-          <label className="text-[10.5px] font-bold text-slate-700">
-            {tr('Registered Pharmacist No')}
-            <input
-              type="text"
-              value={config.pharmacist_reg_no || ''}
-              onChange={(e) => onChange({ pharmacist_reg_no: e.target.value })}
-              placeholder={tr('e.g. PH-109281')}
-              className="mt-0.5 w-full px-2 py-1.5 text-xs rounded-lg border border-slate-300 bg-white font-mono focus:outline-none focus:border-sky-500"
-            />
-          </label>
+          {!hasUpi && (
+            <p className="text-[10.5px] font-semibold text-amber-800" data-designer-upi-missing>
+              {tr('No UPI ID saved yet, so no QR prints.')}{' '}
+              <Link href="/settings?tab=upi" className="underline">{tr('Add UPI ID in Settings')}</Link>
+            </p>
+          )}
         </div>
       )}
     </Card>
