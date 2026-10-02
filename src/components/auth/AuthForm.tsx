@@ -294,32 +294,6 @@ export const AuthForm: React.FC = () => {
       ) : (
         <form onSubmit={handleSetPassword} className="space-y-4">
           {isDesktop && (
-            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2.5" data-google-step>
-              <div className="text-[10.5px] font-black text-amber-400 uppercase tracking-wider">{tr('Google account — optional')}</div>
-              {account ? (
-                <div className="flex items-center gap-2 text-xs text-emerald-300">
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  <span>{tr('Google account connected:')} <span className="font-bold text-white">{account.email || account.name}</span></span>
-                </div>
-              ) : (
-                <>
-                  <p className="text-[11px] text-slate-400 leading-relaxed">
-                    {tr('Connect the same Google account as the KamaiPlus mobile app — now, or later from Backup → Google Account. Either way the app opens with your password.')}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={handleGoogle}
-                    disabled={googleBusy}
-                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-white hover:bg-slate-100 text-slate-900 font-black text-sm disabled:opacity-70 cursor-pointer"
-                  >
-                    {googleBusy ? <RefreshCw className="w-4 h-4 animate-spin" /> : <span className="font-black text-base leading-none text-blue-600">G</span>}
-                    <span>{googleBusy ? tr('Finish signing in in your browser…') : tr('Continue with Google')}</span>
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-          {isDesktop && (
             <div className="text-[10.5px] font-black text-amber-400 uppercase tracking-wider ml-1">{tr('Password for this computer')}</div>
           )}
           <div>
@@ -363,6 +337,34 @@ export const AuthForm: React.FC = () => {
             {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
             <span>{tr('Set Password & Start')}</span>
           </button>
+          {/* v4.93.0: the password (needed) comes first and its button is in sight; the Google account
+              (optional, also later from Backup) sits under it — it used to push the button off screen. */}
+          {isDesktop && (
+            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2.5" data-google-step>
+              <div className="text-[10.5px] font-black text-amber-400 uppercase tracking-wider">{tr('Google account — optional')}</div>
+              {account ? (
+                <div className="flex items-center gap-2 text-xs text-emerald-300">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>{tr('Google account connected:')} <span className="font-bold text-white">{account.email || account.name}</span></span>
+                </div>
+              ) : (
+                <>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    {tr('Connect the same Google account as the KamaiPlus mobile app — now, or later from Backup → Google Account. Either way the app opens with your password.')}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleGoogle}
+                    disabled={googleBusy}
+                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-white hover:bg-slate-100 text-slate-900 font-black text-sm disabled:opacity-70 cursor-pointer"
+                  >
+                    {googleBusy ? <RefreshCw className="w-4 h-4 animate-spin" /> : <span className="font-black text-base leading-none text-blue-600">G</span>}
+                    <span>{googleBusy ? tr('Finish signing in in your browser…') : tr('Continue with Google')}</span>
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </form>
       )}
     </div>

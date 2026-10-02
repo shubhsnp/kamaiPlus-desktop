@@ -6,7 +6,14 @@ import {
   X, 
   Calendar, 
   Filter, 
-  ArrowUpDown 
+  ArrowUpDown,
+  Zap,
+  History,
+  CalendarDays,
+  BarChart3,
+  Banknote,
+  QrCode,
+  BookOpen
 } from 'lucide-react';
 import { Customer } from '@/types';
 import { cn } from '@/lib/utils';
@@ -113,7 +120,7 @@ export const TransactionFilterToolbar: React.FC<TransactionFilterToolbarProps> =
                 ))}
               </optgroup>
             </select>
-            <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[9px]">▼</div>
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[10px]">▼</div>
           </div>
 
           {/* Sort Dropdown */}
@@ -128,7 +135,7 @@ export const TransactionFilterToolbar: React.FC<TransactionFilterToolbarProps> =
               <option value="amount-desc">{tr('⇅ ₹ High')}</option>
               <option value="amount-asc">{tr('⇅ ₹ Low')}</option>
             </select>
-            <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[9px]">▼</div>
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[10px]">▼</div>
           </div>
 
           {/* Reset Filters */}
@@ -149,24 +156,26 @@ export const TransactionFilterToolbar: React.FC<TransactionFilterToolbarProps> =
         {/* Date Presets Chips */}
         <div className="flex items-center gap-1 overflow-x-auto pb-0.5 text-xs font-bold scrollbar-none">
           {[
+            // v4.93.0: icons like the rest of the app (the chips had emoji).
             { id: 'all', label: tr('All Dates') },
-            { id: 'today', label: tr('⚡ Today') },
-            { id: 'yesterday', label: tr('⏪ Yesterday') },
-            { id: 'week', label: tr('🗓️ 7 Days') },
-            { id: 'month', label: tr('📊 Month') },
-            { id: 'custom', label: tr('🔍 Custom') },
-          ].map((df) => (
+            { id: 'today', label: tr('Today'), Icon: Zap },
+            { id: 'yesterday', label: tr('Yesterday'), Icon: History },
+            { id: 'week', label: tr('7 Days'), Icon: CalendarDays },
+            { id: 'month', label: tr('Month'), Icon: BarChart3 },
+            { id: 'custom', label: tr('Custom'), Icon: Calendar },
+          ].map(({ Icon, ...df }) => (
             <button
               key={df.id}
               type="button"
               onClick={() => onDatePresetChange(df.id as DatePreset)}
               className={cn(
-                "px-2.5 py-1 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer",
+                "px-2.5 py-1 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer inline-flex items-center gap-1",
                 datePreset === df.id 
                   ? "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-950 shadow-2xs" 
                   : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200"
               )}
             >
+              {Icon && <Icon className="w-3.5 h-3.5 opacity-70" />}
               {df.label}
             </button>
           ))}
@@ -176,21 +185,22 @@ export const TransactionFilterToolbar: React.FC<TransactionFilterToolbarProps> =
         <div className="flex items-center gap-1 overflow-x-auto pb-0.5 text-xs font-bold scrollbar-none">
           {[
             { id: 'all', label: tr('All Modes') },
-            { id: 'cash', label: tr('💵 Cash') },
-            { id: 'upi', label: tr('📱 UPI') },
-            { id: 'credit', label: tr('📒 Udhar') },
-          ].map((pf) => (
+            { id: 'cash', label: tr('Cash'), Icon: Banknote },
+            { id: 'upi', label: 'UPI', Icon: QrCode },
+            { id: 'credit', label: tr('Udhar'), Icon: BookOpen },
+          ].map(({ Icon, ...pf }) => (
             <button
               key={pf.id}
               type="button"
               onClick={() => onPaymentFilterChange(pf.id as PaymentFilter)}
               className={cn(
-                "px-2.5 py-1 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer",
+                "px-2.5 py-1 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer inline-flex items-center gap-1",
                 paymentFilter === pf.id 
                   ? "bg-amber-400 text-slate-950 font-black shadow-2xs" 
                   : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200"
               )}
             >
+              {Icon && <Icon className="w-3.5 h-3.5 opacity-70" />}
               {pf.label}
             </button>
           ))}

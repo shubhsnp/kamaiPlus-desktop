@@ -44,7 +44,7 @@ export const StockMovementsList: React.FC<StockMovementsListProps> = ({
                   <span className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">
                     {m.product_name}
                   </span>
-                  <span className={`px-1.5 py-0.2 rounded text-[9.5px] font-black uppercase ${
+                  <span className={`px-1.5 py-0.2 rounded text-[10.5px] font-black uppercase ${
                     m.movement_type === 'SALE'
                       ? 'bg-sky-100 text-sky-900'
                       : m.movement_type === 'PURCHASE'

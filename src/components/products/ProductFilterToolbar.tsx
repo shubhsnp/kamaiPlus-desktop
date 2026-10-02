@@ -13,6 +13,7 @@ import {
 import { Category } from '@/types';
 import { cn } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
+import { categoryLabel } from '@/lib/products/defaultCategory';
 
 interface ProductFilterToolbarProps {
   searchQuery: string;
@@ -165,7 +166,7 @@ export const ProductFilterToolbar: React.FC<ProductFilterToolbarProps> = ({
                   : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200"
               )}
             >
-              {c.name}
+              {categoryLabel(c.name)}
             </button>
           ))}
         </div>

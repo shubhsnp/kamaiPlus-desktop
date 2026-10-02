@@ -32,6 +32,7 @@ import { EscPosEncoder } from '../src/lib/hardware/escpos';
 import { signSessionToken, verifySessionToken } from '../src/lib/auth/session';
 import { calculateGstSummary } from '../src/lib/invoices/gstCalculator';
 import { amountTone, formatINR, formatINRCompact, formatINRSigned } from '../src/lib/utils';
+import { isAnalyticsNetworkNoise } from '../src/lib/diagnostics/errorReporter';
 import { parsePaymentNotification } from '../src/lib/payments/notificationParser';
 import { numberToHindiWords, numberToEnglishWords, soundboxEngine } from '../src/lib/payments/soundboxEngine';
 import { paymentBridge } from '../src/lib/payments/paymentBridge';
@@ -71,7 +72,9 @@ import {
 import { computeDrawerSummary, localDateKey } from '../src/lib/reports/cashDrawer';
 import { cartBeyond, makeEmptyTab, nextBillTabId, tabsAfterClosing, tabsAfterSale, tabsAfterUndo, tabsForNewBill } from '../src/lib/billing/billTabs';
 import { scrollDeltaToShow } from '../src/lib/billing/cartFocus';
-import { topDebtors, topItemsToday } from '../src/lib/dashboard/todayInsights';
+import { counterPace, hourRangeLabel, topDebtors, topItemsToday } from '../src/lib/dashboard/todayInsights';
+import { categoryLabel } from '../src/lib/products/defaultCategory';
+import { setActiveLanguage } from '../src/lib/i18n/core';
 import { applyPaymentToBill, openBillsOldestFirst, planBillAllocation } from '../src/lib/khata/billAllocation';
 import { generalCategoryId } from '../src/lib/products/defaultCategory';
 import { nextSupplierBalance } from '../src/lib/suppliers/supplierLedger';
@@ -1561,7 +1564,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(/db\.transaction\('rw', \[db\.products, db\.categories, db\.inventory_movements, db\.purchase_bills\]/.test(inwardDb) && !/\* 1\.25/.test(purchasesCode) && /readBillSheet\(grid\)/.test(readSource('components/purchases/PurchaseInwardOptionsSheet.tsx')) && /await applyBillInward\(/.test(readSource('components/purchases/BillScanReviewModal.tsx')),
     'A supplier bill is saved in one transaction (no half-added stock) and no selling price is made up from the cost');
   const purchasesPage = readSource('app/purchases/page.tsx');
-  assert(/db\.transaction\('rw', db\.products, db\.inventory_movements/.test(purchasesPage) && /stockAfterInward\(fresh, qtyNum\)/.test(purchasesPage) && /<InwardLabelOffer/.test(purchasesPage) && /href="\/barcode-generator\?new=1"/.test(purchasesPage) && /saveLabelHandoff\(done\.labels\)/.test(readSource('components/purchases/BillScanReviewModal.tsx')),
+  assert(/db\.transaction\('rw', db\.products, db\.inventory_movements/.test(purchasesPage) && /stockAfterInward\(fresh, qtyNum\)/.test(purchasesPage) && /<InwardLabelOffer/.test(purchasesPage) && /href="\/barcode-generator\?new=1"/.test(purchasesPage + readSource('components/purchases/PurchaseInwardMenu.tsx')) && /saveLabelHandoff\(done\.labels\)/.test(readSource('components/purchases/BillScanReviewModal.tsx')),
     'Manual inward starts counting an uncounted item, and every inward (manual or bill) offers "Print N labels"');
   const exactAt = pos.indexOf("await db.products.where('barcode').equals(clean).first()");
   const packAt = pos.indexOf('parseWeighedBarcode(clean)');
@@ -2848,6 +2851,69 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     && !/href: '\/billing'/.test(grid) && !/href: '\/khata'/.test(grid) && /<TodayInsights sales=\{todaysRevenueSales\} debtors=\{customersWithCredit\} khataOn=\{switches\.khata\} \/>/.test(home)
     && !/from-indigo-950/.test(readSource('components/dashboard/AdvancedAnalyticsBanner.tsx')),
     'Home: cards without ".00", a zero udhar is grey; Billing / Khata no longer twice (the quick actions have them); "Today at a glance"; analytics is one slim row');
+}
+
+// 9j(ad). UX audit, batch 3 (v4.93.0) — Transactions, Purchases, Backup.
+{
+  const head = readSource('components/transactions/TransactionHeaderActions.tsx');
+  const chips = readSource('components/transactions/TransactionFilterToolbar.tsx');
+  const menuAt = head.indexOf('role="menu"');
+  assert(menuAt > 0 && head.indexOf('onOpenClearHistory();') > menuAt && !/onClick=\{onOpenClearHistory\}/.test(head) && !/bg-amber-400/.test(head)
+    && !['⚡', '⏪', '🗓', '📊', '🔍', '💵', '📱', '📒'].some((e) => chips.includes(e)) && (chips.match(/\{Icon && <Icon /g) || []).length === 2,
+    'Transactions: "delete all bills" is in the ⋯ menu (not a red icon next to the exports), Tally is an export like the others, filter chips use icons not emoji');
+  const purchases = readSource('app/purchases/page.tsx');
+  const menu = readSource('components/purchases/PurchaseInwardMenu.tsx');
+  const inward = readSource('components/purchases/InwardBillButton.tsx');
+  assert(/<PurchaseInwardMenu onManual=\{\(\) => setIsModalOpen\(true\)\} onExcel=\{\(\) => setExcelOpen\(true\)\} onFast=\{\(\) => setFastInwardOpen\(true\)\} labelsOn=\{labelsOn\} \/>/.test(purchases)
+    && /open=\{excelOpen\}/.test(purchases) && !/data-purchases-fast-inward/.test(purchases) && !/text-slate-500 font-mono">\s*\{tr\('(All inventory stock levels|No purchase bills)/.test(purchases)
+    && ['manual', 'excel', 'fast'].every((o) => menu.includes(`data-inward-option="${o}"`)) && /\{labelsOn && \(\s*<Link href="\/barcode-generator\?new=1"/.test(menu)
+    && /const controlled = open !== undefined;/.test(inward) && /\{!controlled && \(/.test(inward),
+    'Purchases: one "Stock Inward ▾" menu (manual, Excel bill, fast barcode, new items + labels — each says what it is for) instead of four buttons; empty lists in the normal font');
+  const backup = readSource('app/cloud-backup/page.tsx');
+  assert((backup.match(/onClick=\{handleDownloadBackup\}/g) || []).length === 1 && backup.includes("tr('Export Full Backup')"),
+    'Backup: one Download button ("Export Full Backup", next to Restore) — the same download was offered twice');
+  // Bug seen in the Electron run: the internet dropped mid-test → Firebase Analytics' installation
+  // call rejected inside Firebase → an uncaught "installations/app-offline" error in the error log.
+  const analyticsSrc = readSource('lib/firebase/analytics.ts');
+  assert(isAnalyticsNetworkNoise({ code: 'installations/app-offline' }) && isAnalyticsNetworkNoise({ code: 'analytics/config-fetch-failed' })
+    && !isAnalyticsNetworkNoise({ code: 'storage/quota' }) && !isAnalyticsNetworkNoise(new Error('installations/app-offline')) && !isAnalyticsNetworkNoise(null)
+    && /if \(isAnalyticsNetworkNoise\(e\.reason\)\) \{\s*e\.preventDefault\(\);\s*return;/.test(readSource('lib/diagnostics/errorReporter.ts'))
+    && /if \(!analytics && !isOnline\(\)\) return null;/.test(analyticsSrc) && /if \(!isOnline\(\)\) return;\s*try \{/.test(analyticsSrc),
+    'Offline: Analytics does not start (or log) without internet, and its own network rejections never reach the error log — other errors still do');
+}
+
+// 9j(ae). UX audit, batch 4 (v4.93.0) — first run, product form, Hindi categories, focus, small text, day pace.
+{
+  const auth = readSource('components/auth/AuthForm.tsx');
+  const setPwForm = auth.slice(auth.indexOf('<form onSubmit={handleSetPassword}'));
+  assert(setPwForm.indexOf("tr('Set Password & Start')") > 0 && setPwForm.indexOf("tr('Set Password & Start')") < setPwForm.indexOf('data-google-step')
+    && /useState<boolean>\(false\);/.test(readSource('app/onboarding/page.tsx').slice(readSource('app/onboarding/page.tsx').indexOf('seedStarterCatalog') - 300)),
+    'First run: the password and its button come first, the optional Google account under it; the fireworks sample catalog is not ticked by default');
+  const productsPage = readSource('app/products/page.tsx');
+  const form = readSource('components/products/AddEditProductModal.tsx');
+  assert(/useState<ProductUnit>\('piece'\)/.test(productsPage) && /setFormUnit\('piece'\);/.test(productsPage) && !/useState<ProductUnit>\('packet'\)/.test(productsPage)
+    && /!excelTipHidden && \(/.test(form) && /localStorage\.setItem\(EXCEL_TIP_KEY, '1'\)/.test(form) && form.includes('data-excel-tip-hide'),
+    'Add Product: a new item starts as Piece (not Packet); the "wholesale bill in Excel?" tip can be closed for good');
+  const hiCat = JSON.parse(readSource('locales/hi.json')) as Record<string, string>;
+  const enGeneral = categoryLabel('General');
+  setActiveLanguage('hi', hiCat);
+  const hiGeneral = categoryLabel(' General ');
+  const hiOwn = categoryLabel('Sparklers');
+  setActiveLanguage('en', null);
+  assert(enGeneral === 'General' && hiGeneral === hiCat['General'] && hiGeneral !== 'General' && hiOwn === 'Sparklers' && categoryLabel(undefined) === ''
+    && ['components/billing/PosCategoryTabs.tsx', 'components/billing/PosProductCard.tsx', 'components/products/ProductFilterToolbar.tsx', 'components/products/AddEditProductModal.tsx', 'components/products/CategoryPicker.tsx']
+      .every((f) => readSource(f).includes('categoryLabel(')),
+    'Hindi / Marathi: the starter categories (General, FMCG, Loose Items …) show translated on Billing and Products; a category the shop typed stays as typed; the saved name stays English');
+  const tinyFiles = ALL_SOURCE.filter((f) => f.endsWith('.tsx') && !/(print|label|thermal|invoice[\\/]page|pwa)/i.test(path.relative(SRC_ROOT, f)))
+    .filter((f) => /text-\[(9|9\.5|8|8\.5|7|7\.5)px\]/.test(fs.readFileSync(f, 'utf8'))).map((f) => path.relative(SRC_ROOT, f));
+  assert(/focus-visible:ring-2 focus-visible:ring-amber-500/.test(readSource('components/ui/Button.tsx')) && tinyFiles.length === 0,
+    `Keyboard focus shows on buttons (amber ring); no screen text under 10 px (print documents keep their sizes)${tinyFiles.length ? ` — still tiny: ${tinyFiles.join(', ')}` : ''}`);
+  const at = (h: number, m: number) => ({ created_at: new Date(2026, 9, 2, h, m).toISOString() });
+  const pace = counterPace([at(18, 40), at(10, 5), at(18, 10), at(19, 30), at(18, 55)], 100000);
+  assert(pace.bills === 5 && pace.averagePaise === 20000 && pace.busiestHour === 18 && pace.busiestBills === 3 && pace.firstAt?.getHours() === 10 && pace.lastAt?.getHours() === 19
+    && counterPace([], 0).busiestHour === null && hourRangeLabel(18) === '6 pm–7 pm' && hourRangeLabel(23) === '11 pm–12 am' && hourRangeLabel(0) === '12 am–1 am' && hourRangeLabel(11) === '11 am–12 pm'
+    && readSource('components/reports/DayEndClosingReportModal.tsx').includes('data-day-pace'),
+    'Day Summary "counter pace": average bill, the busiest hour (6 pm–7 pm, 3 bills) and the first → last bill');
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.

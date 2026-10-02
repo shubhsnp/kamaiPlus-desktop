@@ -272,7 +272,7 @@ export function SettingsReviewModal({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
                   {/* Previous Value */}
                   <div className="p-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-900 space-y-0.5">
-                    <span className="text-[9.5px] uppercase font-bold text-rose-600 block tracking-wider font-sans">
+                    <span className="text-[10.5px] uppercase font-bold text-rose-600 block tracking-wider font-sans">
                       {tr('Previous Value')}
                     </span>
                     <div className="truncate font-semibold line-through opacity-80" title={field.oldValue || tr('(Empty)')}>
@@ -282,7 +282,7 @@ export function SettingsReviewModal({
 
                   {/* New Value */}
                   <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-950 space-y-0.5">
-                    <span className="text-[9.5px] uppercase font-bold text-emerald-700 block tracking-wider font-sans">
+                    <span className="text-[10.5px] uppercase font-bold text-emerald-700 block tracking-wider font-sans">
                       {tr('New Value (Pending)')}
                     </span>
                     <div className="truncate font-bold text-emerald-800" title={field.newValue || tr('(Empty)')}>

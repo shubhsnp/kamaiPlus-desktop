@@ -498,7 +498,7 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
 
                 {/* Rate Input */}
                 <div className="w-20">
-                  <label className="text-[9px] font-bold text-slate-400 uppercase block">{tr('Rate (₹)')}</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase block">{tr('Rate (₹)')}</label>
                   <input
                     type="number"
                     step="0.01"

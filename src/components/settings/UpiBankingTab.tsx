@@ -128,7 +128,7 @@ export const UpiBankingTab: React.FC<UpiBankingTabProps> = ({
                       {item.label || tr('UPI Account')}
                     </span>
                     {item.is_default && (
-                      <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase bg-emerald-100 dark:bg-emerald-950 text-emerald-900 dark:text-emerald-300 border border-emerald-300">
+                      <span className="px-1.5 py-0.2 rounded text-[10px] font-black uppercase bg-emerald-100 dark:bg-emerald-950 text-emerald-900 dark:text-emerald-300 border border-emerald-300">
                         {tr('Default POS QR')}
                       </span>
                     )}

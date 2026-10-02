@@ -20,6 +20,12 @@ export function reportError(source: string, error: unknown, detail?: string): vo
   } catch {}
 }
 
+/** A rejection from Firebase Analytics / Installations (codes "installations/…", "analytics/…"). */
+export function isAnalyticsNetworkNoise(reason: unknown): boolean {
+  const code = reason && typeof reason === 'object' && 'code' in reason ? String((reason as { code?: unknown }).code || '') : '';
+  return /^(installations|analytics)\//.test(code);
+}
+
 let installed = false;
 
 /** Hooks window.onerror and unhandled promise rejections once per page load. */
@@ -30,6 +36,12 @@ export function installGlobalErrorReporting(): void {
     reportError('window', e.error || e.message, e.filename ? `${e.filename}:${e.lineno}` : undefined);
   });
   window.addEventListener('unhandledrejection', (e) => {
+    // v4.93.0: Firebase Analytics' own background calls (installation id, config) reject when the
+    // internet drops — network noise from an optional add-on, not a fault in the shop's app.
+    if (isAnalyticsNetworkNoise(e.reason)) {
+      e.preventDefault();
+      return;
+    }
     reportError('promise', e.reason);
   });
 }

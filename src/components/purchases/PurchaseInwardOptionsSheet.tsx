@@ -183,7 +183,7 @@ export function PurchaseInwardOptionsSheet({
                         <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
                           {tr('Upload Excel / CSV File')}
                         </span>
-                        <span className="px-1.5 py-0.2 rounded-md bg-emerald-600 text-white text-[9px] font-black uppercase tracking-tight">
+                        <span className="px-1.5 py-0.2 rounded-md bg-emerald-600 text-white text-[10px] font-black uppercase tracking-tight">
                           {tr('Bulk')}
                         </span>
                       </div>
@@ -213,7 +213,7 @@ export function PurchaseInwardOptionsSheet({
                         <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
                           {tr('Add Single Item Manually')}
                         </span>
-                        <span className="px-1.5 py-0.2 rounded-md bg-purple-600 text-white text-[9px] font-black uppercase tracking-tight">
+                        <span className="px-1.5 py-0.2 rounded-md bg-purple-600 text-white text-[10px] font-black uppercase tracking-tight">
                           {tr('Manual Form')}
                         </span>
                       </div>

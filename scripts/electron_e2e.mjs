@@ -231,6 +231,13 @@ async function run() {
       // v4.85.0 (it can be connected later on Backup). The stand-in answers here.
       const setBtn = page.getByRole('button', { name: /Set Password & Start/i });
       const openBeforeGoogle = await setBtn.isEnabled();
+      // v4.93.0: the password's button comes first, the optional Google box under it.
+      const pwFirst = await page.evaluate(() => {
+        const btn = [...document.querySelectorAll('button')].find((b) => /Set Password & Start/.test(b.textContent || ''));
+        const g = document.querySelector('[data-google-step]');
+        return Boolean(btn && g && btn.getBoundingClientRect().top < g.getBoundingClientRect().top);
+      });
+      check(pwFirst, 'First run: "Set Password & Start" sits above the optional Google box');
       await page.getByRole('button', { name: /Continue with Google/i }).click();
       const connected = await textVisible(page, 'e2e.owner@example.com', 10000);
       check(openBeforeGoogle && connected,
@@ -244,9 +251,11 @@ async function run() {
       await page.getByPlaceholder('98765 43210').fill('9876543210');
       await page.getByPlaceholder('e.g. 9876543210@paytm or store@okaxis').fill('e2eshop@okaxis');
       const seed = page.locator('input[type="checkbox"]').first();
+      const seedDefault = await seed.isChecked();
       if (!(await seed.isChecked())) await seed.check();
       await page.getByRole('button', { name: /Complete Setup/i }).click();
       await page.waitForURL((u) => !u.pathname.startsWith('/onboarding'), { timeout: 20000 });
+      check(!seedDefault, 'Store setup: the fireworks sample catalog is not ticked by default (this test ticks it)');
       check(true, 'Store setup completes and opens the app');
 
       step = 'catalog';
@@ -327,6 +336,7 @@ async function run() {
       await page.getByRole('button', { name: /Save Product/ }).click();
       await page.waitForTimeout(800);
       const unlimitedItem = (await readStore(page, 'products')).find((p) => p.name === 'E2E Unlimited Item');
+      check(unlimitedItem && unlimitedItem.unit === 'piece', `Add Product: a new item starts as Piece (saved unit: ${unlimitedItem && unlimitedItem.unit})`);
       check(unlimitedItem && unlimitedItem.is_unlimited_stock === true && unlimitedItem.selling_price === 2500 && unlimitedItem.mrp === 2500 && unlimitedItem.tax_rate === 0,
         'The new item is saved as unlimited stock and sells at its MRP (₹25 = 2500 paise, no GST)');
 
@@ -998,7 +1008,8 @@ async function run() {
         localStorage.setItem('kamai_feature_switches', JSON.stringify({ ...cur, purchases: true }));
       });
       await page.evaluate(() => { window.location.href = '/purchases/'; });
-      await page.getByRole('button', { name: /Manual Inward/ }).click();
+      await page.locator('[data-purchases-inward-menu] > button').click(); // v4.93.0: one "Stock Inward" menu
+      await page.locator('[data-inward-option="manual"]').click();
       await page.locator('form select').first().selectOption(rocket.id);
       await page.getByPlaceholder('e.g. 50').fill('10');
       await page.getByRole('button', { name: /Save Stock Inward/ }).click();
@@ -1027,7 +1038,8 @@ async function run() {
       ]), 'Bill');
       XLSX.writeFile(billWb, billFile);
       await page.evaluate(() => { window.location.href = '/purchases/'; });
-      await page.getByRole('button', { name: /Inward Bill \(Excel/ }).click();
+      await page.locator('[data-purchases-inward-menu] > button').click();
+      await page.locator('[data-inward-option="excel"]').click();
       await page.locator('input[type="file"][accept*=".xlsx"]').setInputFiles(billFile);
       await page.locator('[data-inward-row]').first().waitFor({ timeout: 15000 });
       const rowsRead = await page.locator('[data-inward-row]').count();
@@ -1252,6 +1264,12 @@ async function run() {
       const slimAnalytics = await page.locator('[data-home-analytics]').evaluate((el) => el.getBoundingClientRect().height).catch(() => 0);
       check(topItems > 0 && dupTiles === 0 && slimAnalytics > 0 && slimAnalytics < 60,
         `Home: "Top items today" lists ${topItems} items, Billing / Khata not repeated as tiles, analytics is one slim row (${Math.round(slimAnalytics)}px)`);
+      await page.locator('[data-home-action="day_summary"]').click();
+      const paceShown = await page.locator('[data-day-pace]').waitFor({ timeout: 10000 }).then(() => true).catch(() => false);
+      const paceText = paceShown ? (await page.locator('[data-day-pace]').innerText()).replace(/\s+/g, ' ') : '';
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(300);
+      check(paceShown && /Average Bill/i.test(paceText) && /Busiest hour/i.test(paceText), `Day Summary shows the counter pace ("${paceText}")`);
       await page.evaluate(() => { localStorage.setItem('kamai_cashier_owner_pin', '2468'); sessionStorage.removeItem('kamai_profit_unlocked'); window.dispatchEvent(new Event('privacy_mode_changed')); });
       await page.locator('aside a[href="/reports"]').first().click();
       const reportsLocked = await textVisible(page, 'Tap to unlock with owner PIN', 10000);
@@ -1260,6 +1278,18 @@ async function run() {
       const costLocked = (await page.locator('button[title="Click to unlock with 4-Digit Owner PIN"]').count()) > 0;
       await page.evaluate(() => { localStorage.removeItem('kamai_cashier_owner_pin'); window.dispatchEvent(new Event('privacy_mode_changed')); });
       check(reportsLocked && costLocked, `With an owner PIN, profit starts hidden everywhere — Reports (${reportsLocked}) and Products cost prices (${costLocked}) — one lock`);
+
+      // v4.93.0 (batch 3) — "delete all bills" sits in the ⋯ menu on Transactions.
+      step = 'transactions menu';
+      await page.locator('aside a[href="/transactions"]').first().click();
+      await page.locator('[data-transactions-more] button').first().waitFor({ timeout: 10000 });
+      const clearBefore = await page.locator('[data-transactions-clear-history]').count();
+      await page.locator('[data-transactions-more] button').first().click();
+      const clearInMenu = await page.locator('[data-transactions-clear-history]').isVisible().catch(() => false);
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(200);
+      check(clearBefore === 0 && clearInMenu && (await page.locator('[data-transactions-clear-history]').count()) === 0,
+        'Transactions: "Delete all history" is only in the ⋯ menu (opens on click, Esc closes it)');
       // Back to Home for the printer-setup checks below.
       await page.locator('aside a[href="/"]').first().click();
       await page.locator('[data-home-action="printers"]').waitFor({ timeout: 15000 });

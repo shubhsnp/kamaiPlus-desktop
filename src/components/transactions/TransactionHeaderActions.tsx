@@ -1,12 +1,13 @@
 'use client';
 
-import React from 'react';
-import { 
-  Receipt, 
-  RotateCcw, 
-  Download, 
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  Receipt,
+  RotateCcw,
+  Download,
   Trash2,
-  FileText
+  FileText,
+  MoreHorizontal
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { tr } from '@/lib/i18n/core';
@@ -30,6 +31,28 @@ export const TransactionHeaderActions: React.FC<TransactionHeaderActionsProps> =
   onBulkDownloadInvoices,
   onOpenClearHistory,
 }) => {
+  // v4.93.0: "delete all bills" sat as a red icon right next to the exports — one slip away.
+  // It now lives in the "⋯" menu (the confirm window behind it is unchanged). The menu is
+  // fixed-positioned: the button row scrolls sideways on a narrow window and would clip it.
+  const [menuAt, setMenuAt] = useState<{ top: number; right: number } | null>(null);
+  const moreRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!menuAt) return;
+    const close = (e: Event) => {
+      if (e instanceof KeyboardEvent && e.key !== 'Escape') return;
+      if (e.type === 'mousedown' && moreRef.current?.contains(e.target as Node)) return;
+      setMenuAt(null);
+    };
+    window.addEventListener('mousedown', close);
+    window.addEventListener('keydown', close);
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('mousedown', close);
+      window.removeEventListener('keydown', close);
+      window.removeEventListener('resize', close);
+    };
+  }, [menuAt]);
+
   return (
     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-3.5 sm:p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-2xs">
       <div className="min-w-0">
@@ -82,28 +105,55 @@ export const TransactionHeaderActions: React.FC<TransactionHeaderActionsProps> =
           </Button>
         )}
 
-        {/* Tally Prime XML */}
+        {/* Tally Prime XML — an export like the others (it was the loud yellow button; the
+            counter's everyday work is search and returns, not Tally). */}
         <Button
+          variant="outline"
           size="sm"
           onClick={onExportTallyXML}
-          className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs gap-1.5 shadow-2xs cursor-pointer whitespace-nowrap shrink-0 rounded-xl"
+          className="text-xs font-bold gap-1.5 whitespace-nowrap shrink-0 rounded-xl border-slate-200 dark:border-slate-700"
           disabled={filteredCount === 0}
         >
-          <Download className="w-3.5 h-3.5 text-slate-950" />
+          <Download className="w-3.5 h-3.5" />
           <span>{tr('Tally Prime XML')}</span>
         </Button>
 
-        {/* Clear History */}
+        {/* More: Delete / reset all history */}
         {totalSalesCount > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onOpenClearHistory}
-            className="text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 border-rose-200 dark:border-rose-900 px-2.5 shrink-0 rounded-xl"
-            title={tr('Delete / Reset All Transaction History')}
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </Button>
+          <div ref={moreRef} className="shrink-0" data-transactions-more>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                if (menuAt) return setMenuAt(null);
+                const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                setMenuAt({ top: r.bottom + 4, right: window.innerWidth - r.right });
+              }}
+              aria-expanded={Boolean(menuAt)}
+              aria-label={tr('More')}
+              title={tr('More')}
+              className="text-xs font-bold px-2.5 shrink-0 rounded-xl border-slate-200 dark:border-slate-700"
+            >
+              <MoreHorizontal className="w-4 h-4" />
+            </Button>
+            {menuAt && (
+              <div className="fixed z-50 w-64 rounded-xl border border-slate-200 bg-white shadow-xl p-1" style={{ top: menuAt.top, right: menuAt.right }} role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuAt(null);
+                    onOpenClearHistory();
+                  }}
+                  className="w-full text-left px-3 py-2 rounded-lg text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-2 cursor-pointer"
+                  data-transactions-clear-history
+                >
+                  <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                  <span>{tr('Delete / Reset All Transaction History')}</span>
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

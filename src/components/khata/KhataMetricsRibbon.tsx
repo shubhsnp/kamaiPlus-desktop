@@ -31,7 +31,7 @@ export const KhataMetricsRibbon: React.FC<KhataMetricsRibbonProps> = ({
               <ArrowDownLeft className="w-3.5 h-3.5 shrink-0" />
               <span>{tr('You\'ll Get')}</span>
             </span>
-            <span className="text-[9.5px] text-rose-500/80 font-mono hidden xs:inline">बाकी</span>
+            <span className="text-[10.5px] text-rose-500/80 font-mono hidden xs:inline">बाकी</span>
           </div>
           <div className={`text-base sm:text-lg font-black font-mono ${amountTone(totalUdharReceivable, 'text-rose-600 dark:text-rose-400')} mt-0.5 leading-tight truncate`}>
             {formatINR(totalUdharReceivable)}
@@ -48,7 +48,7 @@ export const KhataMetricsRibbon: React.FC<KhataMetricsRibbonProps> = ({
               <ArrowUpRight className="w-3.5 h-3.5 shrink-0" />
               <span>{tr('Advance')}</span>
             </span>
-            <span className="text-[9.5px] text-emerald-600/80 font-mono hidden xs:inline">जमा</span>
+            <span className="text-[10.5px] text-emerald-600/80 font-mono hidden xs:inline">जमा</span>
           </div>
           <div className={`text-base sm:text-lg font-black font-mono ${amountTone(totalAdvancePayable, 'text-emerald-600 dark:text-emerald-400')} mt-0.5 leading-tight truncate`}>
             {formatINR(totalAdvancePayable)}
@@ -65,7 +65,7 @@ export const KhataMetricsRibbon: React.FC<KhataMetricsRibbonProps> = ({
               <Wallet className="w-3.5 h-3.5 text-amber-500 shrink-0" />
               <span>{tr('Net Balance')}</span>
             </span>
-            <span className="text-[9.5px] text-slate-400 font-mono hidden xs:inline">कुल</span>
+            <span className="text-[10.5px] text-slate-400 font-mono hidden xs:inline">कुल</span>
           </div>
           <div className="text-base sm:text-lg font-black font-mono text-slate-900 dark:text-slate-100 mt-0.5 leading-tight truncate">
             {formatINR(netBalance)}
@@ -82,7 +82,7 @@ export const KhataMetricsRibbon: React.FC<KhataMetricsRibbonProps> = ({
               <BookOpen className="w-3.5 h-3.5 shrink-0" />
               <span>{tr('Accounts')}</span>
             </span>
-            <span className="text-[9.5px] text-indigo-500/80 font-mono hidden xs:inline">खाते</span>
+            <span className="text-[10.5px] text-indigo-500/80 font-mono hidden xs:inline">खाते</span>
           </div>
           <div className="text-base sm:text-lg font-black font-mono text-indigo-600 dark:text-indigo-400 mt-0.5 leading-tight">
             {totalCustomersCount}

@@ -6,7 +6,7 @@ import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useBusiness } from '@/components/layout/BusinessProvider';
 import { BackupCheck, checkBackupPayload, downloadBackupJSON } from '@/lib/backup/cloudBackupService';
-import { Download, Upload, CheckCircle2, HardDrive, FileDown } from 'lucide-react';
+import { Download, Upload, CheckCircle2, HardDrive } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { AutoBackupCard } from '@/components/backup/AutoBackupCard';
 import { CloudAccountCard } from '@/components/backup/CloudAccountCard';
@@ -102,11 +102,8 @@ export default function CloudBackupPage() {
           </div>
           <p className="text-[10px] sm:text-xs text-slate-500 truncate">{tr('Offline JSON database snapshots, Tally Prime XML, and CA Master Sales Registers')}</p>
         </div>
-        <Button size="sm" onClick={handleDownloadBackup} disabled={isBackingUp} className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs px-3 py-1.5 rounded-lg shadow-2xs border-none gap-1 cursor-pointer flex-shrink-0">
-          <FileDown className="w-3.5 h-3.5 text-slate-950" />
-          <span className="hidden sm:inline">{isBackingUp ? tr('Backing up...') : tr('Download Backup (.JSON)')}</span>
-          <span className="sm:hidden">{isBackingUp ? tr('Saving...') : tr('Backup')}</span>
-        </Button>
+        {/* v4.93.0: the second "Download Backup" button went — "Export Full Backup" below does the
+            same, next to "Restore". */}
       </div>
 
       <div className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl shadow-2xs flex items-center justify-between gap-2 text-xs">

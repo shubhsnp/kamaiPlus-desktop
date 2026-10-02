@@ -6,6 +6,7 @@ import { Category } from '@/types';
 import { findOrCreateCategory } from '@/lib/products/categories';
 import { showAlert } from '@/lib/ui/dialogs';
 import { tr } from '@/lib/i18n/core';
+import { categoryLabel } from '@/lib/products/defaultCategory';
 
 interface CategoryPickerProps {
   categories: Category[];
@@ -70,7 +71,7 @@ export function CategoryPicker({ categories, value, onChange, businessId, emptyL
     <span className={`inline-flex items-center gap-1 ${className}`}>
       <select value={value} onChange={(e) => onChange(e.target.value)} className="h-8 px-2 rounded-lg border border-slate-300 bg-white text-xs font-bold max-w-[14rem]" data-category-select>
         {emptyLabel !== undefined && <option value="">{emptyLabel}</option>}
-        {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        {categories.map((c) => <option key={c.id} value={c.id}>{categoryLabel(c.name)}</option>)}
       </select>
       <button type="button" onClick={() => setAdding(true)} className="h-8 px-2 inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-xs font-bold cursor-pointer" title={tr('New category')} data-category-new>
         <Plus className="w-3.5 h-3.5" /> {tr('New')}

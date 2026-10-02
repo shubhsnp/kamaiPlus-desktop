@@ -78,7 +78,7 @@ export function FastInwardRow({ row, index, linked, categories, columns, flash, 
         <span className="text-[10px] font-mono text-slate-400 text-right">{index + 1}</span>
         <div className="min-w-0">
           <div className="text-[10px] font-mono text-slate-600 truncate" title={row.barcode || linked?.barcode || ''}>{row.barcode || linked?.barcode || '—'}</div>
-          <span className={`inline-block mt-0.5 px-1.5 rounded text-[9px] font-black uppercase ${linked ? 'bg-emerald-100 text-emerald-800' : needs ? 'bg-amber-100 text-amber-900' : 'bg-sky-100 text-sky-800'}`} data-fast-status>
+          <span className={`inline-block mt-0.5 px-1.5 rounded text-[10px] font-black uppercase ${linked ? 'bg-emerald-100 text-emerald-800' : needs ? 'bg-amber-100 text-amber-900' : 'bg-sky-100 text-sky-800'}`} data-fast-status>
             {linked ? tr('Saved') : needs ? tr('Name + price needed') : tr('New')}
           </span>
         </div>

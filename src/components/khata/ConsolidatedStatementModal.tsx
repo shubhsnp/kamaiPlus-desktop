@@ -542,7 +542,7 @@ export function ConsolidatedStatementModal({
                         <span>#{sale.invoice_number} ({new Date(sale.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })})</span>
                         <span className="font-mono">{formatINR(sale.balance_due || 0)}</span>
                       </div>
-                      <div className="text-[9.5px] text-slate-500 truncate">
+                      <div className="text-[10.5px] text-slate-500 truncate">
                         {tr('Total:')} {formatINR(sale.grand_total)} {tr('| Paid:')} {formatINR(sale.amount_received || 0)}
                       </div>
                     </div>
@@ -570,12 +570,12 @@ export function ConsolidatedStatementModal({
                   <div className="text-center pt-1 flex flex-col items-center space-y-1">
                     <img src={qrDataUrl} alt="UPI QR" className="w-24 h-24 p-1 border border-slate-300" />
                     <div className="text-[10px] font-bold">{tr('Scan to Pay via UPI')}</div>
-                    {business?.upi_id && <div className="text-[9.5px] font-mono text-slate-600">{business.upi_id}</div>}
+                    {business?.upi_id && <div className="text-[10.5px] font-mono text-slate-600">{business.upi_id}</div>}
                   </div>
                 )}
 
                 {/* Thermal Footer */}
-                <div className="text-center text-[9.5px] text-slate-500 pt-1">
+                <div className="text-center text-[10.5px] text-slate-500 pt-1">
                   <div>{tr('Thank you for your business!')}</div>
                   <div>{tr('KamaiPlus POS')}</div>
                 </div>

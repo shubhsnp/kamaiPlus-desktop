@@ -685,7 +685,7 @@ function KhataContent() {
                           : '₹0.00'}
                       </div>
                       <div className="mt-1">
-                        <span className={`inline-block px-1.5 py-0.2 rounded text-[9px] font-black uppercase tracking-tight ${
+                        <span className={`inline-block px-1.5 py-0.2 rounded text-[10px] font-black uppercase tracking-tight ${
                           isDue
                             ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
                             : isAdv
@@ -815,7 +815,7 @@ function KhataContent() {
                       : 'bg-slate-50 border-slate-200 text-slate-900 dark:bg-slate-800/80 dark:border-slate-700 dark:text-slate-200'
                   }`}>
                     <div className="text-left sm:text-right">
-                      <div className="text-[9.5px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 leading-none mb-1">
+                      <div className="text-[10.5px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 leading-none mb-1">
                         {tr('Current Outstanding Balance')}
                       </div>
                       <div className={`text-lg sm:text-xl font-black font-mono leading-none ${

@@ -1282,6 +1282,22 @@ The ✏️ on a bill line (`components/billing/PosItemEditModal.tsx`, chips per 
   Page titles = their menu names (Products, Khata Ledger, Purchases & Bills, Transactions,
   Cash Register, Barcode Studio, Backup & Restore); walk-in bills are "Cash Customer"
   everywhere (the name saved on the bill), Reports too.
+- v4.95.0 (UX audit batches 3 + 4): Transactions — "Delete / reset all history" is in the "⋯"
+  menu (`data-transactions-more`, fixed-positioned so the scrolling button row cannot clip it),
+  Tally XML is a plain export, filter chips use lucide icons. Purchases — one
+  `PurchaseInwardMenu` ("Stock Inward ▾": manual, Excel bill, fast barcode, new items + labels);
+  `InwardBillButton` takes `open` / `onOpenChange` and then shows no button. Backup — one
+  download (Export Full Backup). First run — `AuthForm` shows the password + button first, the
+  optional Google box under it; onboarding's fireworks sample catalog is unticked by default.
+  Add Product — new items start as `piece`; the Excel tip closes for good (`kamai_hide_excel_tip`).
+  `categoryLabel()` (`lib/products/defaultCategory.ts`) translates only the five
+  `STARTER_CATEGORIES` on screen (saved names stay English). `Button` shows a
+  `focus-visible` amber ring. No screen text under 10 px (print documents unchanged). Day
+  Summary: `counterPace` / `hourRangeLabel` (`lib/dashboard/todayInsights.ts`) — average bill,
+  busiest hour, first → last bill. Analytics starts only online and its own
+  `installations/…` / `analytics/…` rejections are not logged (`isAnalyticsNetworkNoise`,
+  `lib/diagnostics/errorReporter.ts`) — a dropped connection put them in the error log.
+  Suite 9 §9j(ad), §9j(ae).
 
 **Printers window** (`components/printers/PrintersWindow.tsx`): `BillPrinterSetup` (optional
 `title` + `children`) plus the label printer (`LabelSetupPanel`) one click down. Opened from

@@ -58,18 +58,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 <button
                   type="button"
                   onClick={() => onOpenVariants?.(product)}
-                  className="px-1.5 py-0.2 rounded text-[9.5px] font-black bg-purple-100 text-purple-800 border border-purple-300 cursor-pointer hover:bg-purple-200"
+                  className="px-1.5 py-0.2 rounded text-[10.5px] font-black bg-purple-100 text-purple-800 border border-purple-300 cursor-pointer hover:bg-purple-200"
                 >
                   {tr('Variants ▾')}
                 </button>
               )}
               {product.variant_label && (
-                <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                <span className="px-1.5 py-0.2 rounded text-[10.5px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
                   {product.variant_label}
                 </span>
               )}
               {product.is_loose_item && (
-                <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-0.5">
+                <span className="px-1.5 py-0.2 rounded text-[10.5px] font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-0.5">
                   <Scale className="w-2.5 h-2.5" />
                   {tr('Weighed')}
                 </span>

@@ -17,6 +17,9 @@ interface InwardBillButtonProps {
   existingProducts: Product[];
   onScanSuccess?: (billId: string, updatedCount: number, createdCount: number) => void;
   className?: string;
+  /** v4.93.0: opened from Purchases → "Stock Inward ▾" — no button of its own then. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export function InwardBillButton({
@@ -24,11 +27,17 @@ export function InwardBillButton({
   existingProducts,
   onScanSuccess,
   className = '',
+  open,
+  onOpenChange,
 }: InwardBillButtonProps) {
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [ownOpen, setOwnOpen] = useState(false);
+  const controlled = open !== undefined;
+  const isSheetOpen = controlled ? open : ownOpen;
+  const setIsSheetOpen = (v: boolean) => (controlled ? onOpenChange?.(v) : setOwnOpen(v));
 
   return (
     <>
+      {!controlled && (
       <Button
         type="button"
         onClick={() => setIsSheetOpen(true)}
@@ -40,6 +49,7 @@ export function InwardBillButton({
         <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
         <span>{tr('Inward Bill (Excel / CSV)')}</span>
       </Button>
+      )}
 
       {isSheetOpen && (
       <PurchaseInwardOptionsSheet

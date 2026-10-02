@@ -5,8 +5,15 @@ import { usePathname } from 'next/navigation';
 
 let analytics: Analytics | null = null;
 
+// v4.93.0: Analytics asks Firebase's servers for an installation id when it starts. Offline that
+// request rejects inside Firebase, where no try/catch here reaches it — an uncaught
+// "installations/app-offline" error landed in the shop's error log. So Analytics starts only
+// while the computer is online, and an event made offline is skipped (it is never needed for billing).
+const isOnline = () => typeof navigator === 'undefined' || navigator.onLine !== false;
+
 export async function initFirebaseAnalytics(): Promise<Analytics | null> {
   if (typeof window === 'undefined') return null;
+  if (!analytics && !isOnline()) return null;
   const firebaseApp = getFirebaseApp();
   if (!firebaseApp || !isValidFirebaseAppId(firebaseApp.options.appId)) return null;
 
@@ -28,6 +35,7 @@ export async function trackBusinessEvent(
   eventName: string,
   eventParams: Record<string, any> = {}
 ) {
+  if (!isOnline()) return;
   try {
     const inst = analytics || (await initFirebaseAnalytics());
     if (inst) {

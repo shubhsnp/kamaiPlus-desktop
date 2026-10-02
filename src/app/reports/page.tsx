@@ -299,7 +299,7 @@ function Metric({
         <span className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
           <Icon className={cn('w-3.5 h-3.5', tone)} /> {title}
         </span>
-        <span className={cn('px-1.5 py-0.5 rounded bg-slate-50 text-[9.5px] font-black', tone)}>{tag}</span>
+        <span className={cn('px-1.5 py-0.5 rounded bg-slate-50 text-[10.5px] font-black', tone)}>{tag}</span>
       </div>
       <div className={cn('text-lg font-black font-mono mt-1 truncate', valueTone)}>{value}</div>
       <div className="text-[10.5px] text-slate-400 truncate">{sub}</div>

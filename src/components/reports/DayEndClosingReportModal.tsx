@@ -19,6 +19,7 @@ import { formatINR } from '@/lib/utils';
 import { generateDailyClosingPDF } from '@/lib/reports/dailyClosingPdf';
 import { localDateKey, summarizeDay } from '@/lib/reports/cashDrawer';
 import { msg, tr } from '@/lib/i18n/core';
+import { counterPace, hourRangeLabel } from '@/lib/dashboard/todayInsights';
 import { WhatsAppButton } from '@/components/whatsapp/WhatsAppButton';
 
 interface DayEndClosingReportModalProps {
@@ -59,6 +60,8 @@ export const DayEndClosingReportModal: React.FC<DayEndClosingReportModalProps> =
   const cashExpensePaise = day.cashExpenses;
   const netCashInTillPaise = day.netCashInTillPaise;
   const topItems: [string, number][] = day.topItems.slice(0, 3).map((t) => [t.name, t.qty]);
+  const pace = counterPace(daysSales, totalSalesPaise);
+  const clock = (d: Date | null) => (d ? d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true }) : '');
 
   const dateFormatted = new Date(datePrefix).toLocaleDateString('en-IN', {
     day: '2-digit',
@@ -192,6 +195,26 @@ export const DayEndClosingReportModal: React.FC<DayEndClosingReportModalProps> =
               <span className="text-[10px] text-slate-400">{tr('After ₹')}{(cashExpensePaise / 100).toFixed(0)} {tr('expenses')}</span>
             </div>
           </div>
+
+          {/* Counter pace (v4.93.0): average bill, the busiest hour, first → last bill */}
+          {pace.bills > 0 && (
+            <div className="grid grid-cols-3 gap-2 text-[11px]" data-day-pace>
+              <div className="p-2 rounded-xl bg-white/5 border border-white/10">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">{tr('Average Bill')}</span>
+                <span className="font-black text-white font-mono">{formatINR(pace.averagePaise)}</span>
+              </div>
+              <div className="p-2 rounded-xl bg-white/5 border border-white/10">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">{tr('Busiest hour')}</span>
+                <span className="font-black text-white">{pace.busiestHour === null ? '—' : hourRangeLabel(pace.busiestHour)}</span>
+                <span className="block text-[10px] text-slate-400">{tr('{count} bills', { count: pace.busiestBills })}</span>
+              </div>
+              <div className="p-2 rounded-xl bg-white/5 border border-white/10">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">{tr('First → last bill')}</span>
+                <span className="font-black text-white">{clock(pace.firstAt)}</span>
+                <span className="block text-[10px] text-slate-400">{clock(pace.lastAt)}</span>
+              </div>
+            </div>
+          )}
 
           {/* Payment Breakdown Rows */}
           <div className="space-y-1.5 pt-1 text-[11px] font-mono border-t border-slate-800/80 text-slate-300">

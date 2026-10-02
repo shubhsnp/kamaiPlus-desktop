@@ -1,14 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useBusiness } from '@/components/layout/BusinessProvider';
 import { formatINR, parseRupeesToPaise } from '@/lib/utils';
 import { 
   ShoppingBag, 
-  Plus, 
   Truck, 
   Package, 
   ArrowRight,
@@ -18,8 +16,7 @@ import {
   Clock,
   Sparkles,
   Layers,
-  ChevronRight,
-  Barcode
+  ChevronRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -27,6 +24,7 @@ import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
 import { Product, PurchaseBill } from '@/types';
 import { InwardBillButton } from '@/components/purchases/InwardBillButton';
+import { PurchaseInwardMenu } from '@/components/purchases/PurchaseInwardMenu';
 import { recordSupplierEntry } from '@/lib/suppliers/supplierLedger';
 import { isVariantParent, tracksOwnStock } from '@/lib/products/variants';
 import { CashierPrivacyToggleButton, ProfitMask } from '@/components/privacy/ProfitMask';
@@ -52,6 +50,7 @@ export default function PurchasesPage() {
   // After a manual inward: offer the labels for what came in (one per piece).
   const [labelOffer, setLabelOffer] = useState<InwardLabels | null>(null);
   const [fastInwardOpen, setFastInwardOpen] = useState(false);
+  const [excelOpen, setExcelOpen] = useState(false);
 
   // A variant parent holds no stock of its own — restock its sizes / colours instead.
   const products = (useLiveQuery(async () => db.products.toArray()) || []).filter((p) => !isVariantParent(p));
@@ -181,37 +180,19 @@ export default function PurchasesPage() {
         <div className="flex items-center gap-2 flex-wrap">
           <CashierPrivacyToggleButton />
 
-          {/* Excel / CSV Bill Inward */}
+          {/* Excel / CSV Bill Inward — its window; opened from the menu (v4.93.0) */}
           <InwardBillButton
             businessId={business?.id}
             existingProducts={products}
+            open={excelOpen}
+            onOpenChange={setExcelOpen}
             onScanSuccess={(_billId, updated, created) => {
               showToast(tr('🎉 Bill inward complete! {updated} items restocked, {created} new products created.', { updated: updated, created: created }));
             }}
           />
 
-          <Button onClick={() => setFastInwardOpen(true)} variant="outline" size="md" className="text-xs font-bold gap-1.5 cursor-pointer" data-purchases-fast-inward>
-            <Barcode className="w-4 h-4 text-emerald-600" />
-            <span>{tr('Fast barcode inward')}</span>
-          </Button>
-
-          {labelsOn && (
-          <Link
-            href="/barcode-generator?new=1"
-            prefetch={false}
-            className="inline-flex items-center gap-1.5 h-10 px-3 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-900 font-bold text-xs"
-            title={tr('Type name, price and quantity — items are saved with their stock and barcode, one label per piece.')}
-            data-purchases-new-stock
-          >
-            <Barcode className="w-4 h-4 text-emerald-600" />
-            <span>{tr('New items + labels')}</span>
-          </Link>
-          )}
-
-          <Button onClick={() => setIsModalOpen(true)} size="md" className="text-xs font-bold gap-1.5 cursor-pointer">
-            <Plus className="w-4 h-4" />
-            <span>{tr('Manual Inward')}</span>
-          </Button>
+          {/* v4.93.0: one "Stock Inward ▾" menu instead of four buttons in a row */}
+          <PurchaseInwardMenu onManual={() => setIsModalOpen(true)} onExcel={() => setExcelOpen(true)} onFast={() => setFastInwardOpen(true)} labelsOn={labelsOn} />
         </div>
       </div>
 
@@ -231,7 +212,7 @@ export default function PurchasesPage() {
 
           <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
             {restockItems.length === 0 ? (
-              <div className="p-8 text-center text-xs text-slate-500 font-mono">
+              <div className="p-8 text-center text-xs text-slate-500">
                 {tr('All inventory stock levels are healthy! 👍')}
               </div>
             ) : (
@@ -272,7 +253,7 @@ export default function PurchasesPage() {
 
           <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
             {purchaseBills.length === 0 && recentMovements.length === 0 ? (
-              <div className="p-8 text-center text-xs text-slate-500 font-mono">
+              <div className="p-8 text-center text-xs text-slate-500">
                 {tr('No purchase bills recorded yet. Use “Inward Bill” or “Manual Inward” to add wholesale bills.')}
               </div>
             ) : purchaseBills.length > 0 ? (
@@ -292,7 +273,7 @@ export default function PurchasesPage() {
                     <div className="font-black font-mono text-emerald-600 dark:text-emerald-400">
                       <ProfitMask>{formatINR(bill.total_amount || 0)}</ProfitMask>
                     </div>
-                    <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                       {tr('Confirmed')}
                     </span>
                   </div>

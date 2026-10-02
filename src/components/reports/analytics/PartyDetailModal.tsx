@@ -140,7 +140,7 @@ export function PartyDetailModal({ party, periodSales, returns, periodLabel, bus
                       <span className="font-black text-slate-900 text-sm">#{sale.invoice_number}</span>
                       <span
                         className={cn(
-                          'px-1.5 py-0.5 rounded text-[9.5px] font-black',
+                          'px-1.5 py-0.5 rounded text-[10.5px] font-black',
                           returned ? 'bg-rose-100 text-rose-700' : sale.balance_due > 0 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-50 text-emerald-700'
                         )}
                       >

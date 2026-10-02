@@ -71,7 +71,7 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
             <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600 dark:text-amber-400 shrink-0" />
             <span className="truncate">{tr('Cash in Hand')}</span>
           </div>
-          <span className="px-1.5 py-0.2 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 text-[9px] font-black">
+          <span className="px-1.5 py-0.2 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 text-[10px] font-black">
             {tr('Till / Galla')}
           </span>
         </div>
@@ -119,7 +119,7 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
                   <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   <span className="truncate">{tr('Today\'s Sales')}</span>
                 </div>
-                <span className="px-1.5 py-0.2 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-900 dark:text-emerald-200 text-[9px] font-black">
+                <span className="px-1.5 py-0.2 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-900 dark:text-emerald-200 text-[10px] font-black">
                   {todaysSalesCount} {tr('Bills')}
                 </span>
               </div>
@@ -152,7 +152,7 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
                   <span className="truncate">{tr('Today\'s Profit')}</span>
                 </div>
                 {marginBase > 0 && (
-                  <span className="px-1.5 py-0.2 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-900 dark:text-blue-200 text-[9px] font-black font-mono">
+                  <span className="px-1.5 py-0.2 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-900 dark:text-blue-200 text-[10px] font-black font-mono">
                     ~{profitMarginPercent}{tr('% Margin')}
                   </span>
                 )}
@@ -182,7 +182,7 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
                   <ShoppingBasket className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 dark:text-blue-400 shrink-0" />
                   <span className="truncate">{tr('Average Bill')}</span>
                 </div>
-                <span className="px-1.5 py-0.2 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-900 dark:text-blue-200 text-[9px] font-black">
+                <span className="px-1.5 py-0.2 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-900 dark:text-blue-200 text-[10px] font-black">
                   {tr('Per customer')}
                 </span>
               </div>
@@ -224,7 +224,7 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
                   <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-600 dark:text-rose-400 shrink-0" />
                   <span className="truncate">{tr('Market Udhar')}</span>
                 </div>
-                <span className="px-1.5 py-0.2 rounded-full bg-rose-100 dark:bg-rose-900/60 text-rose-900 dark:text-rose-200 text-[9px] font-black">
+                <span className="px-1.5 py-0.2 rounded-full bg-rose-100 dark:bg-rose-900/60 text-rose-900 dark:text-rose-200 text-[10px] font-black">
                   {customersWithCreditCount} {tr('Debtors')}
                 </span>
               </div>

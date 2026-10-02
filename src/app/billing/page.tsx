@@ -1613,19 +1613,19 @@ export default function BillingPage() {
               </div>
               <div className="grid grid-cols-3 gap-1 pt-1 border-t border-amber-200/80 text-center font-mono">
                 <div>
-                  <span className="text-[9px] uppercase font-bold text-slate-500 block">{tr('Old Balance')}</span>
+                  <span className="text-[10px] uppercase font-bold text-slate-500 block">{tr('Old Balance')}</span>
                   <span className="font-bold text-slate-800">
                     {formatINR(selectedCustomer.current_balance || 0)}
                   </span>
                 </div>
                 <div>
-                  <span className="text-[9px] uppercase font-bold text-slate-500 block">{tr('This Bill')}</span>
+                  <span className="text-[10px] uppercase font-bold text-slate-500 block">{tr('This Bill')}</span>
                   <span className="font-bold text-rose-600">
                     +{formatINR(grandTotalPaise)}
                   </span>
                 </div>
                 <div>
-                  <span className="text-[9px] uppercase font-bold text-slate-500 block">{tr('New Balance')}</span>
+                  <span className="text-[10px] uppercase font-bold text-slate-500 block">{tr('New Balance')}</span>
                   <span className="font-black text-rose-700">
                     ={formatINR((selectedCustomer.current_balance || 0) + grandTotalPaise)}
                   </span>

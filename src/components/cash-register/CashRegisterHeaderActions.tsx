@@ -40,7 +40,7 @@ export const CashRegisterHeaderActions: React.FC<CashRegisterHeaderActionsProps>
             <h1 className="text-base sm:text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight">
               {tr('Cash Register')}
             </h1>
-            <span className={`px-2 py-0.5 rounded-full text-[9.5px] font-black uppercase flex items-center gap-1 border ${
+            <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-black uppercase flex items-center gap-1 border ${
               isOpen 
                 ? 'bg-emerald-100 text-emerald-900 border-emerald-300' 
                 : 'bg-slate-100 text-slate-700 border-slate-300'

@@ -9,7 +9,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', isLoading, disabled, children, ...props }, ref) => {
-    const baseStyles = 'inline-flex items-center justify-center font-semibold rounded-lg disabled:opacity-50 disabled:pointer-events-none select-none focus:outline-none transition-all duration-150 active:scale-95 cursor-pointer';
+    const baseStyles = 'inline-flex items-center justify-center font-semibold rounded-lg disabled:opacity-50 disabled:pointer-events-none select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1 transition-all duration-150 active:scale-95 cursor-pointer';
     
     const variants = {
       primary: 'bg-slate-900 hover:bg-slate-800 text-white border border-slate-900',

@@ -213,7 +213,7 @@ export default function GSTReportsPage() {
                     <span className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">
                       {inv.customer_name || tr('B2B Client')}
                     </span>
-                    <span className="px-1.5 py-0.2 rounded text-[9.5px] font-black uppercase bg-indigo-50 text-indigo-700 border border-indigo-200">
+                    <span className="px-1.5 py-0.2 rounded text-[10.5px] font-black uppercase bg-indigo-50 text-indigo-700 border border-indigo-200">
                       {inv.customer_gstin}
                     </span>
                   </div>

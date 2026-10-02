@@ -5,6 +5,7 @@ import { ChevronDown, ChevronUp, Tag } from 'lucide-react';
 import type { Category } from '@/types';
 import { cn } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
+import { categoryLabel } from '@/lib/products/defaultCategory';
 
 /**
  * The POS category chips above the product grid (moved out of app/billing/page.tsx, v4.92.0).
@@ -60,7 +61,7 @@ export function PosCategoryTabs({
         {ordered.map((cat) => (
           <button key={cat.id} onClick={() => onSelect(cat.id)} className={chip(selectedCategory === cat.id)}>
             <Tag className="w-3 h-3 text-slate-400" />
-            <span>{cat.name}</span>
+            <span>{categoryLabel(cat.name)}</span>
             <span className={count(selectedCategory === cat.id)}>{categoryCounts[cat.id] || 0}</span>
           </button>
         ))}

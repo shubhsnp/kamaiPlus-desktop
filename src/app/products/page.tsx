@@ -89,7 +89,8 @@ export default function ProductsPage() {
   // Form State
   const [formName, setFormName] = useState('');
   const [formCategory, setFormCategory] = useState('');
-  const [formUnit, setFormUnit] = useState<ProductUnit>('packet');
+  // v4.93.0: a new item starts as Piece (it was Packet — wrong for most items).
+  const [formUnit, setFormUnit] = useState<ProductUnit>('piece');
   const [formPurchasePrice, setFormPurchasePrice] = useState('');
   const [formSellingPrice, setFormSellingPrice] = useState('');
   const [formIsLooseItem, setFormIsLooseItem] = useState(false);
@@ -194,7 +195,7 @@ export default function ProductsPage() {
     setFormError('');
     setFormName('');
     setFormCategory('');
-    setFormUnit('packet');
+    setFormUnit('piece');
     setFormPurchasePrice('');
     setFormSellingPrice('');
     setFormIsLooseItem(false);

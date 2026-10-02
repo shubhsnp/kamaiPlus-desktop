@@ -357,7 +357,7 @@ export const SalesReturnModal: React.FC<SalesReturnModalProps> = ({
                         <td className="py-2.5 px-2 text-center font-bold text-slate-500">
                           {item.quantity}
                           {(alreadyReturned[idx] || 0) > 0 && (
-                            <div className="text-[9.5px] text-rose-600 font-bold">{alreadyReturned[idx]} {tr('returned')}</div>
+                            <div className="text-[10.5px] text-rose-600 font-bold">{alreadyReturned[idx]} {tr('returned')}</div>
                           )}
                         </td>
                         <td className="py-2.5 px-2 text-center">

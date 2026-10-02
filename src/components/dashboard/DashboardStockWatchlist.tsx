@@ -53,7 +53,7 @@ export const DashboardStockWatchlist: React.FC<DashboardStockWatchlistProps> = (
               <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-slate-100">
                 {tr('Low Stock & Out-of-Stock Alert')}
               </h3>
-              <span className={`px-2 py-0.5 rounded-full text-[9.5px] font-black ${
+              <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-black ${
                 outOfStockProducts.length > 0
                   ? 'bg-rose-600 text-white animate-pulse'
                   : 'bg-amber-500 text-slate-950'
@@ -131,7 +131,7 @@ export const DashboardStockWatchlist: React.FC<DashboardStockWatchlistProps> = (
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block truncate">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block truncate">
                         {item.category_name || tr('General')}
                       </span>
                       <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate mt-0.5" title={item.name}>
@@ -143,7 +143,7 @@ export const DashboardStockWatchlist: React.FC<DashboardStockWatchlistProps> = (
                     </div>
 
                     <span className={cn(
-                      "px-1.5 py-0.5 rounded-md text-[9.5px] font-black uppercase shrink-0",
+                      "px-1.5 py-0.5 rounded-md text-[10.5px] font-black uppercase shrink-0",
                       isZero
                         ? "bg-rose-600 text-white shadow-2xs"
                         : "bg-amber-200 dark:bg-amber-950 text-amber-950 dark:text-amber-200 font-bold"

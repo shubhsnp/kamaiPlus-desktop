@@ -58,13 +58,13 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
                   {customer.name}
                 </span>
                 {isVip && (
-                  <span className="px-1.5 py-0.2 rounded text-[9.5px] font-black bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 border border-amber-300 flex items-center gap-0.5">
+                  <span className="px-1.5 py-0.2 rounded text-[10.5px] font-black bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 border border-amber-300 flex items-center gap-0.5">
                     <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
                     VIP
                   </span>
                 )}
                 {hasUdhar && (
-                  <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-200">
+                  <span className="px-1.5 py-0.2 rounded text-[10.5px] font-bold bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-200">
                     {tr('Khata')}
                   </span>
                 )}

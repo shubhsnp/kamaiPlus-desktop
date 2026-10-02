@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Plus, 
   Edit3, 
@@ -12,7 +12,8 @@ import {
   Building2,
   Boxes,
   Infinity as InfinityIcon,
-  Printer
+  Printer,
+  X
 } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
@@ -24,6 +25,9 @@ import { DEFAULT_COUNTED_STOCK } from '@/lib/products/variants';
 import { showSellingPriceField, useFeatureSwitches } from '@/lib/features/featureSwitches';
 import { tr } from '@/lib/i18n/core';
 import { ProductBarcodeField } from './ProductBarcodeField';
+import { categoryLabel } from '@/lib/products/defaultCategory';
+
+const EXCEL_TIP_KEY = 'kamai_hide_excel_tip';
 
 interface AddEditProductModalProps {
   isOpen: boolean;
@@ -143,6 +147,15 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
   const codeFieldCount = 1 + (switches.product_hsn ? 1 : 0) + (switches.product_gst_rate ? 1 : 0);
   const SM_COLS: Record<number, string> = { 1: 'sm:grid-cols-1', 2: 'sm:grid-cols-2', 3: 'sm:grid-cols-3', 4: 'sm:grid-cols-4' };
 
+  // The "Have a wholesale bill in Excel?" tip: closed once = gone on this computer.
+  const [excelTipHidden, setExcelTipHidden] = useState(() => {
+    try { return localStorage.getItem(EXCEL_TIP_KEY) === '1'; } catch { return false; }
+  });
+  const hideExcelTip = () => {
+    setExcelTipHidden(true);
+    try { localStorage.setItem(EXCEL_TIP_KEY, '1'); } catch {}
+  };
+
   return (
     <Modal
       isOpen={isOpen}
@@ -157,8 +170,8 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
       size="lg"
     >
       <form onSubmit={onSubmit} className="space-y-3.5">
-        {/* Bulk Excel Inward Suggestion Banner */}
-        {!editingProduct && onOpenInwardSheet && (
+        {/* Bulk Excel Inward Suggestion Banner — ✕ hides it on this computer (v4.93.0) */}
+        {!editingProduct && onOpenInwardSheet && !excelTipHidden && (
           <div className="p-3 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/20 border border-amber-200/80 dark:border-amber-800/60 flex items-center justify-between gap-3 shadow-2xs">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-8 h-8 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-bold shrink-0">
@@ -182,6 +195,16 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
               className="px-2.5 py-1.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-950 text-xs font-black shrink-0 hover:bg-slate-800 cursor-pointer shadow-xs active:scale-95 transition"
             >
               {tr('Bulk Inward (Excel)')}
+            </button>
+            <button
+              type="button"
+              onClick={hideExcelTip}
+              className="p-1 rounded-lg text-slate-400 hover:text-slate-700 shrink-0 cursor-pointer"
+              aria-label={tr('Do not show this again')}
+              title={tr('Do not show this again')}
+              data-excel-tip-hide
+            >
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
         )}
@@ -218,7 +241,7 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
             >
               <option value="">{tr('General Products')}</option>
               {categories.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
+                <option key={c.id} value={c.id}>{categoryLabel(c.name)}</option>
               ))}
             </select>
           </div>

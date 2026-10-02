@@ -70,12 +70,12 @@ export const TransactionBillCard: React.FC<TransactionBillCardProps> = ({
               {sale.invoice_number}
             </span>
             {isEstimate ? (
-              <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase bg-violet-100 dark:bg-violet-950/60 text-violet-800 dark:text-violet-300 border border-violet-300 dark:border-violet-800 shrink-0">
+              <span className="px-1.5 py-0.2 rounded text-[10px] font-black uppercase bg-violet-100 dark:bg-violet-950/60 text-violet-800 dark:text-violet-300 border border-violet-300 dark:border-violet-800 shrink-0">
                 {tr('📝 Estimate')}
               </span>
             ) : (
               <span className={cn(
-                'px-1.5 py-0.2 rounded text-[9px] font-black uppercase shrink-0',
+                'px-1.5 py-0.2 rounded text-[10px] font-black uppercase shrink-0',
                 sale.payment_method === 'cash' ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' :
                 sale.payment_method === 'upi' ? 'bg-sky-50 dark:bg-sky-950/60 text-sky-800 dark:text-sky-300 border border-sky-200 dark:border-sky-800' :
                 'bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-700'
@@ -84,12 +84,12 @@ export const TransactionBillCard: React.FC<TransactionBillCardProps> = ({
               </span>
             )}
             {sale.price_mode === 'wholesale' && (
-              <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase bg-violet-100 dark:bg-violet-950/60 text-violet-800 dark:text-violet-300 border border-violet-300 dark:border-violet-800 shrink-0" data-bill-wholesale>
+              <span className="px-1.5 py-0.2 rounded text-[10px] font-black uppercase bg-violet-100 dark:bg-violet-950/60 text-violet-800 dark:text-violet-300 border border-violet-300 dark:border-violet-800 shrink-0" data-bill-wholesale>
                 {tr('Wholesale')}
               </span>
             )}
             {isReturned && (
-              <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-800 shrink-0">
+              <span className="px-1.5 py-0.2 rounded text-[10px] font-black uppercase bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-800 shrink-0">
                 {tr('↩ Returned')}
               </span>
             )}

@@ -42,7 +42,9 @@ export default function OnboardingPage() {
   const [phone, setPhone] = useState<string>('');
   const [upiId, setUpiId] = useState<string>('');
   const [businessType] = useState<BusinessType>('retail');
-  const [seedStarterCatalog, setSeedStarterCatalog] = useState<boolean>(true);
+  // v4.93.0: off by default — the sample items are fireworks, which a kirana or clothes shop
+  // then had to delete one by one. A shop that wants to try the app ticks it.
+  const [seedStarterCatalog, setSeedStarterCatalog] = useState<boolean>(false);
 
   // Load current authenticated user and pre-fill details
   useEffect(() => {

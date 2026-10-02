@@ -48,7 +48,7 @@ export const CashExpensesList: React.FC<CashExpensesListProps> = ({
                 <span className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">
                   {e.title || expenseCategoryLabel(e.category)}
                 </span>
-                <span className="px-1.5 py-0.2 rounded text-[9.5px] font-black uppercase bg-rose-50 text-rose-700 border border-rose-200">
+                <span className="px-1.5 py-0.2 rounded text-[10.5px] font-black uppercase bg-rose-50 text-rose-700 border border-rose-200">
                   {expenseCategoryLabel(e.category)}
                 </span>
               </div>

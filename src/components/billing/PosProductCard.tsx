@@ -3,6 +3,7 @@
 import React from 'react';
 import { cn, formatINR } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
+import { categoryLabel } from '@/lib/products/defaultCategory';
 
 // Memoized Product Card to prevent re-rendering the entire 200-item grid on every cart update
 export const PosProductCard = React.memo(({
@@ -45,15 +46,15 @@ export const PosProductCard = React.memo(({
       )}
     >
       {isOutOfStock ? (
-        <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-rose-600 text-white text-[9px] font-black uppercase tracking-wider shadow-xs">
+        <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-rose-600 text-white text-[10px] font-black uppercase tracking-wider shadow-xs">
           {tr('Out of Stock')}
         </div>
       ) : isHighlighted ? (
-        <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-emerald-600 text-white text-[9px] font-black font-mono shadow-xs">
+        <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-emerald-600 text-white text-[10px] font-black font-mono shadow-xs">
           {tr('↵ Enter')}
         </div>
       ) : inCartQuantity > 0 ? (
-        <div className="absolute top-1.5 right-1.5 px-1.5 py-0.2 rounded-md bg-amber-400 text-slate-950 text-[9px] font-black shadow-xs">
+        <div className="absolute top-1.5 right-1.5 px-1.5 py-0.2 rounded-md bg-amber-400 text-slate-950 text-[10px] font-black shadow-xs">
           {inCartQuantity} {tr('in cart')}
         </div>
       ) : null}
@@ -62,7 +63,7 @@ export const PosProductCard = React.memo(({
           card's full width (it used to be cut after ~7 letters) and up to 3 lines. */}
       <div className="min-w-0">
         <span className="pr-14 text-[10px] uppercase font-extrabold tracking-wider block leading-tight text-slate-400 truncate">
-          {p.category_name || tr('Item')}
+          {categoryLabel(p.category_name) || tr('Item')}
         </span>
         <h4 title={p.name} className={cn(
           "text-xs sm:text-sm font-bold line-clamp-3 mt-1 leading-snug break-words",

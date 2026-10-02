@@ -35,3 +35,41 @@ export function topDebtors(customers: Pick<Customer, 'id' | 'name' | 'phone' | '
     .sort((a, b) => (b.current_balance || 0) - (a.current_balance || 0))
     .slice(0, limit);
 }
+
+/** Day Summary "counter pace" (v4.93.0): average bill, the busiest hour, the first and last bill. */
+export interface CounterPace {
+  bills: number;
+  averagePaise: number;
+  busiestHour: number | null;
+  busiestBills: number;
+  firstAt: Date | null;
+  lastAt: Date | null;
+}
+
+export function counterPace(sales: Pick<Sale, 'created_at'>[], netSalesPaise: number): CounterPace {
+  const times = sales.map((s) => new Date(s.created_at)).filter((d) => !isNaN(d.getTime())).sort((a, b) => a.getTime() - b.getTime());
+  const perHour = new Map<number, number>();
+  times.forEach((d) => perHour.set(d.getHours(), (perHour.get(d.getHours()) || 0) + 1));
+  let busiestHour: number | null = null;
+  let busiestBills = 0;
+  Array.from(perHour.entries()).sort((a, b) => a[0] - b[0]).forEach(([h, n]) => {
+    if (n > busiestBills) {
+      busiestHour = h;
+      busiestBills = n;
+    }
+  });
+  return {
+    bills: times.length,
+    averagePaise: times.length ? Math.round(netSalesPaise / times.length) : 0,
+    busiestHour,
+    busiestBills,
+    firstAt: times[0] || null,
+    lastAt: times[times.length - 1] || null,
+  };
+}
+
+/** 18 → "6 pm–7 pm" (the earliest hour wins a tie). */
+export function hourRangeLabel(h: number): string {
+  const f = (x: number) => `${((x + 11) % 12) + 1} ${x % 24 < 12 ? 'am' : 'pm'}`;
+  return `${f(h)}–${f((h + 1) % 24)}`;
+}

@@ -221,7 +221,7 @@ export const DashboardRecentSales: React.FC<DashboardRecentSalesProps> = ({
                           </span>
                         )}
                         <span className={cn(
-                          "px-1.5 py-0.2 rounded text-[9px] font-black uppercase",
+                          "px-1.5 py-0.2 rounded text-[10px] font-black uppercase",
                           isCredit
                             ? "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300"
                             : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
@@ -247,7 +247,7 @@ export const DashboardRecentSales: React.FC<DashboardRecentSalesProps> = ({
                       <div className="text-xs sm:text-sm font-black font-mono text-slate-900 dark:text-slate-100 leading-tight">
                         {formatINR(sale.grand_total)}
                       </div>
-                      <div className="text-[9.5px] text-slate-400 font-medium">
+                      <div className="text-[10.5px] text-slate-400 font-medium">
                         {isCredit ? (
                           <span className="text-rose-600 dark:text-rose-400 font-bold">{tr('Due:')} {formatINR(sale.balance_due || 0)}</span>
                         ) : (
