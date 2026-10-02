@@ -62,6 +62,39 @@ export function tabsAfterClosing(tabs: BillTab[], doneId: string, newId: string)
   return { tabs: [...remaining, fresh], activeTabId: fresh.id };
 }
 
+/** A bill taken off the counter by ✕ (closed) or "Clear" (cleared), kept a few seconds for Undo (v4.93.0). */
+export interface DiscardedBill {
+  tab: BillTab;
+  /** Where the bill sat in the tab bar. */
+  index: number;
+  kind: 'closed' | 'cleared';
+}
+
+/**
+ * Undo: a cleared bill gets its items back (lines scanned since stay; an item in both keeps the
+ * new line); a closed bill comes back in its old place and the blank bill the close opened goes.
+ * Closing the only bill reuses its id for the blank one — the restored bill then takes `freshId`.
+ */
+export function tabsAfterUndo(tabs: BillTab[], d: DiscardedBill, freshId: string): { tabs: BillTab[]; activeTabId: string } {
+  if (d.kind === 'cleared') {
+    const at = tabs.findIndex((t) => t.id === d.tab.id);
+    if (at >= 0) {
+      const now = tabs[at];
+      const back = d.tab.cart.filter((old) => !now.cart.some((l) => l.product_id === old.product_id));
+      const next = [...tabs];
+      next[at] = { ...now, cart: [...back, ...now.cart] };
+      return { tabs: next, activeTabId: now.id };
+    }
+  }
+  const clash = tabs.some((t) => t.id === d.tab.id);
+  const restored = clash ? { ...d.tab, id: freshId } : d.tab;
+  // A bill with the same id is the new bill that took its place — kept if anything is in it.
+  const kept = tabs.filter((t) => t.isHeld || !isBlankTab(t));
+  const next = [...kept];
+  next.splice(Math.min(Math.max(d.index, 0), kept.length), 0, restored);
+  return { tabs: next, activeTabId: restored.id };
+}
+
 /** A cart line at a new quantity, its totals worked out again (the POS supplies the tax rule). */
 export type RetotalLine = (line: CartItem, quantity: number) => CartItem;
 

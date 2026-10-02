@@ -766,6 +766,101 @@ async function run() {
       check(gridForName && gridAfterClear === 0 && (await page.locator('[data-pos-product-grid]').count()) === 1 && Math.abs((await lyShare()) - 5 / 12) < 0.02 && backLayout.scanMode === false && (await inSearch()),
         'Scan mode: a typed name shows its matches, an empty box hides them again; "Show products" brings the list and the normal width back');
 
+      // v4.93.0 (UX audit, batch 1) — the counter on a laptop screen.
+      step = 'counter polish';
+      const geo = await page.evaluate(() => {
+        const sc = document.querySelector('[data-pos-product-grid] [data-virtuoso-scroller]');
+        const chips = document.querySelector('[data-pos-category-tabs]');
+        const foot = document.querySelector('footer');
+        return { gridOver: sc ? sc.scrollWidth - sc.clientWidth : -1, chipsOver: chips ? chips.scrollWidth - chips.clientWidth : -1, footH: foot ? foot.getBoundingClientRect().height : 0, offlineDb: /Offline DB/.test(foot ? foot.innerText : '') };
+      });
+      await page.locator('[data-status-keys] button').click();
+      const keysList = await page.locator('[data-status-keys-list]').innerText().catch(() => '');
+      await page.keyboard.press('Escape');
+      await posSearch.click();
+      check(geo.gridOver === 0 && geo.chipsOver <= 0 && geo.footH <= 30 && !geo.offlineDb && /F10/.test(keysList) && /Esc/.test(keysList),
+        `Counter: product grid fits its column (overflow ${geo.gridOver}px), category chips do not scroll sideways, status bar is one line (${geo.footH}px) and "All keys" lists every key`);
+
+      // Many lines: the newest is in view and flashes.
+      const cards = page.locator('[data-pos-product-grid] button');
+      const nCards = Math.min(await cards.count(), 9);
+      for (let k = 0; k < nCards; k++) {
+        await cards.nth(k).click({ timeout: 5000 }).catch(() => {});
+        await page.waitForTimeout(150);
+        // An item without a price (or with sizes) opens its window — close it and go on.
+        if (await page.locator('[role="dialog"]').count()) {
+          await page.keyboard.press('Escape');
+          await page.waitForTimeout(250);
+          if (await page.locator('[role="dialog"]').count()) await page.getByRole('button', { name: /^Cancel$/ }).first().click().catch(() => {});
+          await page.waitForTimeout(150);
+        }
+      }
+      // Then one more item, new to this bill, by name + Enter: its line is added at the bottom.
+      const inCart = new Set((await tabsNow()).flatMap((t) => t.cart).map((l) => l.product_id));
+      const extra = (await readStore(page, 'products')).find((p) => p.is_active !== false && !p.parent_id && !p.has_variants && Number(p.selling_price) > 0
+        && (p.is_unlimited_stock || Number(p.current_stock) > 2) && !inCart.has(p.id) && /^[A-Za-z]/.test(p.name));
+      await page.evaluate(() => { const b = document.querySelector('[data-pos-bill-panel] [data-pos-bill-scroll]'); if (b) b.scrollTop = 0; });
+      if (extra) {
+        await posSearch.fill(extra.name);
+        await page.waitForTimeout(700);
+        await posSearch.press('Enter');
+        await page.waitForTimeout(350);
+      }
+      const seen = await page.evaluate((id) => {
+        const box = document.querySelector('[data-pos-bill-panel] [data-pos-bill-scroll]');
+        const flash = document.querySelector('[data-pos-bill-panel] [data-pos-line-flash]');
+        if (!box || !flash) return { ok: false, lines: 0, overflow: false, scrolled: 0, same: false };
+        const b = box.getBoundingClientRect(); const f = flash.getBoundingClientRect();
+        return { ok: f.top >= b.top - 1 && f.bottom <= b.bottom + 1, lines: document.querySelectorAll('[data-pos-bill-panel] [data-pos-line]').length,
+          overflow: box.scrollHeight > box.clientHeight, scrolled: box.scrollTop, same: flash.getAttribute('data-pos-line') === id };
+      }, extra ? extra.id : '');
+      check(Boolean(extra) && seen.ok && seen.same && seen.lines >= 6 && (!seen.overflow || seen.scrolled > 0),
+        `A long bill (${seen.lines} lines) scrolls down to the item just added (${extra ? extra.name : 'none'}), and it flashes`);
+
+      // Clear → Undo, ✕ → Undo.
+      const linesBefore = await page.locator('[data-pos-bill-panel] [data-pos-line]').count();
+      await page.locator('[data-pos-bill-panel] [data-pos-clear]').click();
+      await page.waitForTimeout(300);
+      const clearedNow = await page.locator('[data-pos-bill-panel] [data-pos-line]').count();
+      await page.locator('[data-pos-bill-panel] [data-pos-undo-button]').click();
+      await page.waitForTimeout(400);
+      const restored = await page.locator('[data-pos-bill-panel] [data-pos-line]').count();
+      check(linesBefore > 0 && clearedNow === 0 && restored === linesBefore && (await inSearch()), `"Clear" can be undone: ${linesBefore} lines → 0 → ${restored}, cursor back in the search box`);
+      const fullId = await page.locator('[data-pos-bill-panel] [data-active-bill]').getAttribute('data-bill-tab');
+      await page.locator('[data-pos-bill-panel] button[title="Open New Parallel Bill Cart"]').click();
+      await page.waitForTimeout(300);
+      const tabsTwo = (await tabsNow()).length;
+      await page.locator(`[data-pos-bill-panel] [data-bill-tab="${fullId}"] button[title="Close this bill tab"]`).click();
+      await page.waitForTimeout(300);
+      const closedGone = !(await tabsNow()).some((t) => t.id === fullId);
+      await page.locator('[data-pos-bill-panel] [data-pos-undo-button]').click();
+      await page.waitForTimeout(400);
+      const backTab = (await tabsNow()).find((t) => t.id === fullId);
+      const activeNow = await page.locator('[data-pos-bill-panel] [data-active-bill]').getAttribute('data-bill-tab');
+      check(tabsTwo >= 2 && closedGone && backTab && backTab.cart.length === linesBefore && activeNow === fullId && (await page.locator('[data-pos-bill-panel] [data-pos-line]').count()) === linesBefore,
+        `✕ on a bill with items can be undone (the bill and its ${linesBefore} lines come back)`);
+
+      // Credit with no customer: the warning sits under the name box, in view.
+      const creditBtn = page.locator('[data-pos-bill-panel] [data-pos-pay-modes] button', { hasText: 'Credit' });
+      if (await creditBtn.count()) {
+        await creditBtn.click();
+        await page.waitForTimeout(400);
+        const warn = await page.evaluate(() => {
+          const panel = document.querySelector('[data-pos-bill-panel]');
+          const el = [...panel.querySelectorAll('span')].find((x) => /compulsory for Credit/.test(x.textContent || ''));
+          const box = panel.querySelector('[data-pos-bill-scroll]');
+          if (!el || !box) return false;
+          return el.getBoundingClientRect().bottom <= box.getBoundingClientRect().top + 1 && el.getBoundingClientRect().top >= 0;
+        });
+        check(warn, 'Credit with no customer: "Customer Name is compulsory" shows right under the name box (not lost below the bill)');
+        await page.locator('[data-pos-bill-panel] [data-pos-pay-modes] button', { hasText: 'Cash' }).click();
+        await page.waitForTimeout(300);
+      }
+      await shot(page, 'counter-polish');
+      await page.locator('[data-pos-bill-panel] [data-pos-clear]').click();
+      await page.locator('[data-pos-bill-panel] [data-pos-undo] button[aria-label="Dismiss"]').click().catch(() => {});
+      await posSearch.click();
+
       // v4.73.0 — English letters find the Hindi-named items; the counter has no webcam,
       // Rapid (webcam) or Bluetooth hardware-manager buttons any more.
       step = 'english search';

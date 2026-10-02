@@ -1131,6 +1131,20 @@ normally the product search box (it has focus when Billing opens and after every
   pointer's layout in a ref (`drag`) and button-up saves that — never the last *rendered*
   layout (on a slow PC that snapped the bill back to the first step). Suite 9 §9j(aa),
   Electron E2E "counter layout".
+- **Bill panel (v4.93.0, UX audit batch 1).** `renderCheckoutPanel` is three parts: a fixed top
+  (bill tabs, `PrintFailureBar`, `PosUndoBar`, customer row, the "Udhar needs a name" warning,
+  cart header with the compact Retail / Wholesale switch), ONE scrolling body
+  (`data-pos-bill-scroll`: `PosCartLines` + the payment details — credit preview, split, cash
+  tender, UPI QR, `PosBillDiscount`) and the pinned bottom (payment mode buttons, "Items total"
+  only with a discount / added GST, grand total, Complete Sale). `PosCartLines` scrolls the
+  line just added into view and flashes it (`lib/billing/cartFocus.ts`; not on a bill switch);
+  UPI / Split / Credit scroll their details into view. ✕ and Clear keep the bill 8 s for Undo
+  (`DiscardedBill` / `tabsAfterUndo` in `lib/billing/billTabs.ts`). Product cards are
+  `w-full min-w-0` (a `<button>` sizes to its content — the 5th column pushed the grid 8 px
+  sideways); POS category chips wrap with "All categories (N)" like Products. Status bar: one
+  line (`whitespace-nowrap`), `/` and `Esc` only on 2xl, "All keys" popover; the duplicate
+  "Offline DB / Online" moved out (the top bar says "Online • Saved Locally"). Suite 9 §9j(ab),
+  Electron E2E "counter polish".
 
 ### 9.6 Search in English letters (v4.73.0)
 

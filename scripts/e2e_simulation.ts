@@ -69,7 +69,8 @@ import {
   isRevenueSale,
 } from '../src/lib/sales/saleMath';
 import { computeDrawerSummary, localDateKey } from '../src/lib/reports/cashDrawer';
-import { cartBeyond, makeEmptyTab, nextBillTabId, tabsAfterClosing, tabsAfterSale, tabsForNewBill } from '../src/lib/billing/billTabs';
+import { cartBeyond, makeEmptyTab, nextBillTabId, tabsAfterClosing, tabsAfterSale, tabsAfterUndo, tabsForNewBill } from '../src/lib/billing/billTabs';
+import { scrollDeltaToShow } from '../src/lib/billing/cartFocus';
 import { applyPaymentToBill, openBillsOldestFirst, planBillAllocation } from '../src/lib/khata/billAllocation';
 import { generalCategoryId } from '../src/lib/products/defaultCategory';
 import { nextSupplierBalance } from '../src/lib/suppliers/supplierLedger';
@@ -603,10 +604,14 @@ assert(
   /const renderCheckoutPanel = \(\) => \(\s*\n\s*<div className="flex flex-col flex-1 min-h-0">/.test(billingSrc),
   'POS checkout panel root is a bounded flex column (flex-1 min-h-0)'
 );
-assert(
-  /<div className="flex-1 min-h-0 overflow-y-auto space-y-3 pr-1 -mr-1">/.test(billingSrc),
-  'POS checkout panel has exactly one scrolling body region'
-);
+{
+  // v4.93.0: the scrolling body also carries data-pos-bill-scroll / ref (it is what a scan scrolls).
+  const panel = billingSrc.slice(billingSrc.indexOf('const renderCheckoutPanel = () => ('), billingSrc.indexOf('// v4.92.0 — Scan mode hides the product list'));
+  assert(
+    /<div className="flex-1 min-h-0 overflow-y-auto space-y-3 pr-1 -mr-1"[^>]*data-pos-bill-scroll/.test(panel) && (panel.match(/overflow-y-auto/g) || []).length === 1,
+    'POS checkout panel has exactly one scrolling body region'
+  );
+}
 assert(
   /Bottom Total & Checkout Button \(always visible\)[\s\S]{0,120}flex-shrink-0/.test(billingSrc),
   'POS grand total + Complete Sale button stay pinned (flex-shrink-0)'
@@ -1679,7 +1684,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   const pos = readSource('app/billing/page.tsx');
   const edit = readSource('components/billing/PosItemEditModal.tsx');
   assert(/const qty = roundQty\(parseFloat\(editItemQty\)\);/.test(pos) && /!Number\.isInteger\(qty\) && !allowsFractionalQty\(editingCartItem\.unit, product\?\.allow_decimal\)/.test(pos)
-    && /formatCartQty\(item\.quantity\)\}<\/span>/.test(pos) && /setEditItemQty\(String\(dozenFromPieces\(n\)\)\)/.test(edit) && /lineAmountPaise\(qtyNow, ratePaise\)/.test(edit),
+    && /formatCartQty\(item\.quantity\)\}<\/span>/.test(pos + readSource('components/billing/PosCartLines.tsx')) && /setEditItemQty\(String\(dozenFromPieces\(n\)\)\)/.test(edit) && /lineAmountPaise\(qtyNow, ratePaise\)/.test(edit),
     'Saving a line refuses a split piece, keeps 6 decimals; the window turns pieces into dozen and shows the amount');
 }
 
@@ -2695,7 +2700,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     && /cart: repriceCart\(tab\.cart, found, tab\.priceMode \|\| 'retail', mode, calculateItemTax\)/.test(billSrc)
     && /modeForCustomer\(customers\.find\(\(c\) => c\.id === id\)\) === 'wholesale'/.test(billSrc)
     && /\.\.\.\(isFeatureOn\('wholesale_price'\) && priceMode === 'wholesale' \? \{ price_mode: 'wholesale' as const \} : \{\}\)/.test(billSrc)
-    && /\{wholesaleOn && <div className="mt-2"><PosPriceModeToggle/.test(billSrc),
+    && /\{wholesaleOn && <PosPriceModeToggle compact /.test(billSrc), // v4.93.0: a small switch in the cart header
     'Billing: a new line takes the bill\'s price (also from a scan), switching re-prices the cart, a wholesale customer switches the bill, the sale is marked wholesale; the switch shows only when on');
   assert(/sale\.price_mode === 'wholesale'/.test(readSource('components/transactions/TransactionBillCard.tsx'))
     && /unitPriceFor\(product, sale\?\.price_mode === 'wholesale' \? 'wholesale' : 'retail'\)/.test(readSource('components/invoices/EditInvoiceModal.tsx'))
@@ -2745,6 +2750,60 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     && splitSrc.includes('onLayoutChange(final, true);') && !splitSrc.includes('onLayoutChange(latest.current, true)') && splitSrc.includes('onLostPointerCapture={finish}')
     && !/onPointerMove=\{\(e\) => dragging/.test(splitSrc),
     'Divider drag: every move is kept in a ref and button-up saves where the pointer ended (not the last rendered step); a lost capture saves too');
+}
+
+// 9j(ab). UX audit, batch 1 (v4.93.0) — the billing counter.
+{
+  const L = (id: string, q = 1) => ({ product_id: id, product_name: id, quantity: q } as CartItem);
+  const T = (id: string, n: number, cart: CartItem[], extra: Partial<ReturnType<typeof makeEmptyTab>> = {}) => ({ ...makeEmptyTab(id, n), cart, ...extra });
+  // (1) Undo after ✕ / Clear.
+  const a = T('a', 1, [L('x'), L('y')]);
+  const cleared = tabsAfterUndo([T('a', 1, [L('y', 3), L('z')])], { tab: a, index: 0, kind: 'cleared' }, 'fresh');
+  assert(cleared.activeTabId === 'a' && cleared.tabs[0].cart.map((l) => `${l.product_id}${l.quantity}`).join() === 'x1,y3,z1',
+    'Undo "Clear": the items come back; lines scanned since stay (an item in both keeps the new line)');
+  const b = T('b', 2, [L('p')]);
+  const afterClose = tabsAfterClosing([a, b], 'a', 'n1');
+  const undoClose = tabsAfterUndo(afterClose.tabs, { tab: a, index: 0, kind: 'closed' }, 'fresh');
+  assert(undoClose.tabs.map((t) => t.id).join() === 'a,b' && undoClose.activeTabId === 'a',
+    'Undo ✕: the closed bill comes back in its old place and is the open bill again');
+  const onlyBill = T('tab_1', 1, [L('x')]);
+  const undoOnly = tabsAfterUndo([makeEmptyTab('tab_1', 1)], { tab: onlyBill, index: 0, kind: 'closed' }, 'fresh');
+  const undoOnlyBusy = tabsAfterUndo([T('tab_1', 1, [L('q')])], { tab: onlyBill, index: 0, kind: 'closed' }, 'fresh');
+  const held = T('h', 3, [], { isHeld: true });
+  assert(undoOnly.tabs.length === 1 && undoOnly.tabs[0].id === 'fresh' && undoOnly.tabs[0].cart.length === 1
+    && undoOnlyBusy.tabs.map((t) => t.id).join() === 'fresh,tab_1' && undoOnlyBusy.tabs[1].cart[0].product_id === 'q'
+    && tabsAfterUndo([held, makeEmptyTab('n', 4)], { tab: b, index: 1, kind: 'closed' }, 'f').tabs.map((t) => t.id).join() === 'h,b',
+    'Undo ✕ on the only bill: it comes back under a new id, the blank bill goes, a bill started meanwhile stays (and a held bill is never dropped)');
+  // (2) The bill scrolls to the line just scanned — only its own box moves.
+  assert(scrollDeltaToShow({ top: 0, bottom: 100 }, { top: 120, bottom: 150 }) === 58 && scrollDeltaToShow({ top: 0, bottom: 100 }, { top: -30, bottom: -10 }) === -38
+    && scrollDeltaToShow({ top: 0, bottom: 100 }, { top: 10, bottom: 60 }) === 0 && scrollDeltaToShow({ top: 0, bottom: 100 }, { top: 120, bottom: 300 }) === 112,
+    'Bill scroll: a line below or above the box scrolls just into view; a line taller than the box shows its top');
+  const pos = readSource('app/billing/page.tsx');
+  const lines = readSource('components/billing/PosCartLines.tsx');
+  const undoBar = readSource('components/billing/PosUndoBar.tsx');
+  const panel = pos.slice(pos.indexOf('const renderCheckoutPanel = () => ('), pos.indexOf('// v4.92.0 — Scan mode hides the product list'));
+  const at = (t: string) => panel.indexOf(t);
+  assert(/keepForUndo\(tabs\.find\(\(t\) => t\.id === tabId\), 'closed'\);\s*if \(tabs\.length === 1\)/.test(pos) && /keepForUndo\(activeTab, 'cleared'\);\s*setCart\(\[\]\);/.test(pos)
+    && panel.includes('onClick={handleClearCart}') && !panel.includes('onClick={() => setCart([])}') && panel.includes('<PosUndoBar discarded={discardedBill}')
+    && /onMouseDown=\{\(e\) => e\.preventDefault\(\)\}\s*onClick=\{onUndo\}/.test(undoBar) && /UNDO_SECONDS = 8/.test(undoBar),
+    'Billing: ✕ and Clear keep the bill 8 s for Undo (the Undo click never takes the cursor from the search box)');
+  assert(panel.includes('<PosCartLines cart={cart} billId={activeTab.id}') && /scrollIntoContainer\(\(list\?\.closest\('\[data-pos-bill-scroll\]'\)/.test(lines)
+    && /if \(!before \|\| before\.bill !== billId\) return;/.test(lines) && lines.includes("data-pos-line-flash={flashId === item.product_id ? 'true' : undefined}")
+    && /\(item\.size \|\| item\.color \|\| item\.imei_serial \|\| item\.warranty_period_months\) && \(/.test(lines),
+    'Bill lines: the line just scanned scrolls into view and flashes (not on a bill switch or page open); no empty attribute row on plain lines');
+  assert(at('<PosCustomerRow') > 0 && at('<PosCustomerRow') < at('data-pos-bill-scroll') && at('Customer Name is compulsory for Credit (Udhar)') < at('data-pos-bill-scroll')
+    && at("{tr('Cart Items (')}") < at('data-pos-bill-scroll') && at("{ id: 'cash', label: tr('Cash')") > at('Bottom Total & Checkout Button (always visible)')
+    && panel.includes('(discountTotalPaise > 0 || addedGstPaise > 0) && (') && panel.includes('<PosPriceModeToggle compact')
+    && /scrollIntoContainer\(box, box\?\.querySelector<HTMLElement>\('\[data-pos-pay-details\]'\)/.test(pos),
+    'Bill panel: tabs, customer (+ the Udhar-needs-a-name warning), cart header stay put; payment mode is pinned over the total; "Items total" only with a discount / added GST; UPI / Split / Credit bring their details into view');
+  const card = readSource('components/billing/PosProductCard.tsx');
+  const chips = readSource('components/billing/PosCategoryTabs.tsx');
+  const bar = readSource('components/layout/DesktopStatusBar.tsx');
+  assert(card.includes("'w-full min-w-0 p-2.5 rounded-xl border") && !card.includes('<div className="pr-12">') && card.includes('line-clamp-3') && card.includes('title={p.name}')
+    && !chips.includes('overflow-x-auto') && chips.includes("!showAll && 'max-h-[30px] overflow-hidden'") && chips.includes("tr('All categories ({count})'"),
+    'POS grid: a card is exactly its column (it grew to its price + stock and pushed the grid 8 px sideways); the name gets the full width; category chips wrap with "All categories"');
+  assert(bar.includes('whitespace-nowrap border-t border-slate-800') && !bar.includes("tr('Offline DB:')") && /MINOR_KEYS\.has\(key\) \? 'hidden 2xl:flex'/.test(bar) && bar.includes('data-status-keys-list'),
+    'Status bar: one line on a laptop (no "Offline DB / Online" twice — the top bar says it), / and Esc only on wide screens, "All keys" lists every key');
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.

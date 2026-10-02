@@ -6,28 +6,22 @@ import type { CartItem } from '@/types';
 import { cn, formatINR } from '@/lib/utils';
 import { formatCartQty } from '@/lib/billing/unitQuantity';
 import { tr } from '@/lib/i18n/core';
+import { cartQuantities, lastChangedLine } from '@/lib/billing/cartFocus';
 
 /**
  * Scan mode (v4.92.0): what the product list's place shows while the gun does the work —
  * the item just scanned, big, and the bill so far. The bill itself stays on the right.
  */
 
-/** The line that was just added or whose quantity just went up (the "last scanned" item). */
-export function lastChangedLine(prev: Map<string, number>, cart: CartItem[]): CartItem | null {
-  for (let i = cart.length - 1; i >= 0; i--) {
-    const line = cart[i];
-    const before = prev.get(line.product_id);
-    if (before === undefined || line.quantity > before) return line;
-  }
-  return null;
-}
+// The "last scanned" line is worked out in lib/billing/cartFocus.ts (the bill uses it too).
+export { lastChangedLine };
 
 function useLastScanned(cart: CartItem[]): { line: CartItem | null; tick: number } {
   const prev = useRef<Map<string, number>>(new Map());
   const [state, setState] = useState<{ id: string | null; tick: number }>({ id: null, tick: 0 });
   useEffect(() => {
     const changed = lastChangedLine(prev.current, cart);
-    prev.current = new Map(cart.map((l) => [l.product_id, l.quantity]));
+    prev.current = cartQuantities(cart);
     if (changed) setState((s) => ({ id: changed.product_id, tick: s.tick + 1 }));
   }, [cart]);
   const line = (state.id && cart.find((l) => l.product_id === state.id)) || cart[cart.length - 1] || null;

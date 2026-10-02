@@ -1,12 +1,17 @@
 'use client';
 
-import React from 'react';
-import { Tag } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { ChevronDown, ChevronUp, Tag } from 'lucide-react';
 import type { Category } from '@/types';
 import { cn } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
 
-/** The POS category chips above the product grid (moved out of app/billing/page.tsx, v4.92.0 — same markup). */
+/**
+ * The POS category chips above the product grid (moved out of app/billing/page.tsx, v4.92.0).
+ * v4.93.0 — one row that wraps instead of a side-scroll strip (a mouse wheel cannot scroll
+ * sideways, and the strip showed a scrollbar), like Products (v4.81.0): "All categories (N)"
+ * opens every row, and the picked category always sits right after "All Items".
+ */
 export function PosCategoryTabs({
   categories,
   categoryCounts,
@@ -20,49 +25,69 @@ export function PosCategoryTabs({
   onSelect: (id: string) => void;
   totalProductCount: number;
 }) {
+  const [showAll, setShowAll] = useState(false);
+  const [overflow, setOverflow] = useState(false);
+  const rowRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = rowRef.current;
+    if (!el) return;
+    const measure = () => setOverflow(el.scrollHeight > el.clientHeight + 2);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [categories.length, showAll]);
+
+  const picked = categories.find((c) => c.id === selectedCategory);
+  const ordered = picked ? [picked, ...categories.filter((c) => c.id !== picked.id)] : categories;
+
+  const chip = (active: boolean) =>
+    cn(
+      'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap flex items-center gap-1.5 cursor-pointer transition-all',
+      active ? 'bg-slate-900 text-white font-bold shadow-xs' : 'bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200'
+    );
+  const count = (active: boolean) =>
+    cn('text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold', active ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600');
+
   return (
-    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 flex-shrink-0 scrollbar-none">
-      <button
-        onClick={() => onSelect('all')}
-        className={cn(
-          'px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap cursor-pointer transition-all flex items-center gap-1.5',
-          selectedCategory === 'all'
-            ? 'bg-slate-900 text-white shadow-xs'
-            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-        )}
-      >
-        <span>{tr('All Items')}</span>
-        <span className={cn(
-          "text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold",
-          selectedCategory === 'all' ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"
-        )}>
-          {totalProductCount}
-        </span>
-      </button>
-      {categories.map((cat) => {
-        const count = categoryCounts[cat.id] || 0;
-        return (
-          <button
-            key={cat.id}
-            onClick={() => onSelect(cat.id)}
-            className={cn(
-              'px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap flex items-center gap-1.5 cursor-pointer transition-all',
-              selectedCategory === cat.id
-                ? 'bg-slate-900 text-white font-bold shadow-xs'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            )}
-          >
+    <div className="flex items-start gap-1.5 flex-shrink-0" data-pos-category-tabs>
+      <div ref={rowRef} className={cn('flex flex-1 min-w-0 flex-wrap items-center gap-1.5 select-none', !showAll && 'max-h-[30px] overflow-hidden')}>
+        <button onClick={() => onSelect('all')} className={cn(chip(selectedCategory === 'all'), 'font-bold')}>
+          <span>{tr('All Items')}</span>
+          <span className={count(selectedCategory === 'all')}>{totalProductCount}</span>
+        </button>
+        {ordered.map((cat) => (
+          <button key={cat.id} onClick={() => onSelect(cat.id)} className={chip(selectedCategory === cat.id)}>
             <Tag className="w-3 h-3 text-slate-400" />
             <span>{cat.name}</span>
-            <span className={cn(
-              "text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold",
-              selectedCategory === cat.id ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"
-            )}>
-              {count}
-            </span>
+            <span className={count(selectedCategory === cat.id)}>{categoryCounts[cat.id] || 0}</span>
           </button>
-        );
-      })}
+        ))}
+      </div>
+
+      {(overflow || showAll) && (
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => setShowAll((v) => !v)}
+          className="px-2.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap shrink-0 flex items-center gap-1 cursor-pointer border border-slate-200 text-slate-700 hover:bg-slate-100"
+          aria-expanded={showAll}
+          data-pos-category-more
+        >
+          {showAll ? (
+            <>
+              <span>{tr('Show less')}</span>
+              <ChevronUp className="w-3.5 h-3.5" />
+            </>
+          ) : (
+            <>
+              <span>{tr('All categories ({count})', { count: categories.length })}</span>
+              <ChevronDown className="w-3.5 h-3.5" />
+            </>
+          )}
+        </button>
+      )}
     </div>
   );
 }

@@ -10,10 +10,13 @@ import type { PriceMode } from '@/lib/billing/priceMode';
  * Retail / Wholesale for the bill on the counter (v4.87.0) — shown with Settings → Features →
  * "Wholesale price" on. Switching moves the cart's items to that price (lib/billing/priceMode.ts).
  */
-export function PosPriceModeToggle({ mode, onChange }: { mode: PriceMode; onChange: (mode: PriceMode) => void }) {
-  const btn = 'flex-1 h-8 px-2.5 rounded-md text-[11px] font-black flex items-center justify-center gap-1.5 cursor-pointer transition-colors';
+export function PosPriceModeToggle({ mode, onChange, compact = false }: { mode: PriceMode; onChange: (mode: PriceMode) => void; compact?: boolean }) {
+  // compact (v4.93.0): a small switch in the bill's header row instead of a full-width row.
+  const btn = compact
+    ? 'h-6 px-2 rounded text-[10.5px] font-black flex items-center justify-center gap-1 cursor-pointer transition-colors'
+    : 'flex-1 h-8 px-2.5 rounded-md text-[11px] font-black flex items-center justify-center gap-1.5 cursor-pointer transition-colors';
   return (
-    <div className="flex items-center gap-1 p-1 rounded-lg bg-slate-100 border border-slate-200" role="radiogroup" aria-label={tr('Price for this bill')} data-price-mode={mode}>
+    <div className={cn('flex items-center rounded-lg bg-slate-100 border border-slate-200', compact ? 'gap-0.5 p-0.5' : 'gap-1 p-1')} role="radiogroup" aria-label={tr('Price for this bill')} data-price-mode={mode}>
       <button
         type="button"
         role="radio"

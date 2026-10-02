@@ -34,7 +34,7 @@ export const PosProductCard = React.memo(({
       type="button"
       onClick={() => onAdd(p)}
       className={cn(
-        'p-2.5 rounded-xl border text-left flex flex-col justify-between relative transition-all min-h-[105px] sm:min-h-[110px] h-full',
+        'w-full min-w-0 p-2.5 rounded-xl border text-left flex flex-col justify-between relative transition-all min-h-[105px] sm:min-h-[110px] h-full',
         isOutOfStock
           ? 'border-rose-300/80 bg-rose-50/40 opacity-70 hover:border-rose-400 cursor-not-allowed select-none'
           : isHighlighted
@@ -58,12 +58,14 @@ export const PosProductCard = React.memo(({
         </div>
       ) : null}
 
-      <div className="pr-12">
-        <span className="text-[9px] uppercase font-extrabold tracking-wider block leading-tight text-slate-400">
+      {/* v4.93.0 — only the category line leaves room for the corner badge; the name gets the
+          card's full width (it used to be cut after ~7 letters) and up to 3 lines. */}
+      <div className="min-w-0">
+        <span className="pr-14 text-[10px] uppercase font-extrabold tracking-wider block leading-tight text-slate-400 truncate">
           {p.category_name || tr('Item')}
         </span>
-        <h4 className={cn(
-          "text-xs sm:text-sm font-bold line-clamp-2 mt-0.5 leading-snug",
+        <h4 title={p.name} className={cn(
+          "text-xs sm:text-sm font-bold line-clamp-3 mt-1 leading-snug break-words",
           isOutOfStock ? "text-slate-500 line-through" : "text-slate-900"
         )}>
           {p.name}

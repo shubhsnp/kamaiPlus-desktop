@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { HardDrive, WifiOff, Printer, Clock, FileText, LifeBuoy, Barcode } from 'lucide-react';
+import { Printer, Clock, FileText, LifeBuoy, Barcode, Keyboard } from 'lucide-react';
 import { APP_VERSION } from '@/lib/constants/version';
 import { useBusiness } from '@/components/layout/BusinessProvider';
 import { db } from '@/lib/db';
@@ -30,6 +30,9 @@ const BILLING_SHORTCUTS: [string, string][] = [
   ['Esc', msg('Clear search')],
 ];
 const MENU_SHORTCUT: [string, string] = ['Ctrl+B', msg('Show / hide menu')];
+// v4.93.0: on a laptop the bar showed every key and wrapped onto two lines. These two show only
+// on wide screens; "All keys" lists everything.
+const MINOR_KEYS = new Set(['/', 'Esc']);
 
 type Tone = 'ok' | 'warn' | 'bad';
 const DOT: Record<Tone, string> = { ok: 'bg-emerald-400', warn: 'bg-amber-400', bad: 'bg-rose-500' };
@@ -70,8 +73,8 @@ export const DesktopStatusBar: React.FC = () => {
   const pathname = usePathname();
   const router = useRouter();
   const switches = useFeatureSwitches();
-  const [isOnline, setIsOnline] = useState<boolean>(true);
   const [currentTime, setCurrentTime] = useState<string>('');
+  const [keysOpen, setKeysOpen] = useState(false);
 
   const business = useBusiness();
 
@@ -109,14 +112,6 @@ export const DesktopStatusBar: React.FC = () => {
   const labelLine = printers && chosen.label ? printerLine(chosen.label, printers) : null;
 
   useEffect(() => {
-    setIsOnline(navigator.onLine);
-
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
     const updateClock = () => {
       const now = new Date();
       setCurrentTime(
@@ -131,64 +126,65 @@ export const DesktopStatusBar: React.FC = () => {
     updateClock();
     const interval = setInterval(updateClock, 30000);
 
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-      clearInterval(interval);
-    };
+    return () => clearInterval(interval);
   }, []);
 
+  // "All keys" closes on Esc or a click anywhere else.
+  useEffect(() => {
+    if (!keysOpen) return;
+    const close = (e: Event) => {
+      if (e instanceof KeyboardEvent && e.key !== 'Escape') return;
+      if (e.type === 'mousedown' && (e.target as HTMLElement).closest('[data-status-keys]')) return;
+      setKeysOpen(false);
+    };
+    window.addEventListener('keydown', close);
+    window.addEventListener('mousedown', close);
+    return () => {
+      window.removeEventListener('keydown', close);
+      window.removeEventListener('mousedown', close);
+    };
+  }, [keysOpen]);
+
+  const keys = shortcutsFor(pathname, switches.khata, switches.payment_keys);
+
   return (
-    <footer className="h-7 bg-slate-900 text-slate-400 text-[11px] font-medium px-3 flex items-center justify-between border-t border-slate-800 select-none flex-shrink-0 z-30">
-      {/* Left: Storage & Sync Telemetry */}
-      <div className="flex items-center gap-3">
-        {/* Local Storage Offline Guarantee */}
-        <div className="flex items-center gap-1.5 text-emerald-400 font-semibold" title={tr('IndexedDB Persistent Offline Engine Active')}>
-          <HardDrive className="w-3 h-3 text-emerald-400" />
-          <span className="hidden sm:inline">{tr('Offline DB:')}</span>
-          <span>{tr('Ready (Local)')}</span>
-        </div>
-
-        <span className="text-slate-700">|</span>
-
-        {/* Sync Heartbeat */}
-        <div className="flex items-center gap-1.5" title={isOnline ? tr('Online: bills are saved on this computer') : tr('Offline mode: saving locally')}>
-          {isOnline ? (
-            <>
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              <span className="text-slate-300">{tr('Online')}</span>
-            </>
-          ) : (
-            <>
-              <WifiOff className="w-3 h-3 text-amber-400" />
-              <span className="text-amber-400 font-semibold">{tr('Offline (Local Only)')}</span>
-            </>
-          )}
-        </div>
-
-        {business?.name && (
-          <>
-            <span className="text-slate-700 hidden md:inline">|</span>
-            <span className="text-slate-400 font-normal hidden md:inline truncate max-w-[150px]">
-              {business.name}
-            </span>
-          </>
-        )}
+    <footer className="h-7 bg-slate-900 text-slate-400 text-[11px] font-medium px-3 flex items-center justify-between gap-3 whitespace-nowrap border-t border-slate-800 select-none flex-shrink-0 z-30">
+      {/* Left: the shop's name on wide screens. "Online • Saved Locally" is in the top bar —
+          the same two facts were here twice ("Offline DB: Ready" next to "Online"), v4.93.0. */}
+      <div className="flex items-center gap-3 min-w-0">
+        {business?.name && <span className="text-slate-400 font-normal hidden 2xl:inline truncate max-w-[180px]">{business.name}</span>}
       </div>
 
       {/* Center: the keyboard shortcuts that actually work on this screen */}
-      <div className="hidden lg:flex items-center gap-3 text-slate-400 text-[10.5px]">
-        {shortcutsFor(pathname, switches.khata, switches.payment_keys).map(({ key, label, wide }) => (
-          // On Billing the app-wide keys show only on wide screens (the counter keys come first).
-          <div key={key} className={`${wide ? 'hidden 2xl:flex' : 'flex'} items-center gap-1`} data-status-shortcut={key}>
-            <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-mono font-bold text-[9.5px]">{key}</kbd>
+      <div className="hidden lg:flex items-center gap-3 text-slate-400 text-[10.5px] min-w-0 overflow-hidden">
+        {keys.map(({ key, label, wide }) => (
+          // On Billing the app-wide keys (and / Esc) show only on wide screens (the counter keys come first).
+          <div key={key} className={`${wide || MINOR_KEYS.has(key) ? 'hidden 2xl:flex' : 'flex'} items-center gap-1 shrink-0`} data-status-shortcut={key}>
+            <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-mono font-bold text-[10px]">{key}</kbd>
             <span>{tr(label)}</span>
           </div>
         ))}
       </div>
+      <div className="relative hidden lg:block shrink-0" data-status-keys>
+        <button type="button" onClick={() => setKeysOpen((v) => !v)} className="flex items-center gap-1 text-slate-300 hover:text-amber-400 cursor-pointer" aria-expanded={keysOpen} title={tr('All keyboard shortcuts on this screen')}>
+          <Keyboard className="w-3.5 h-3.5" />
+          <span>{tr('All keys')}</span>
+        </button>
+        {keysOpen && (
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-64 p-3 rounded-xl bg-slate-900 border border-slate-700 shadow-2xl space-y-1.5" data-status-keys-list>
+            <div className="text-[10.5px] font-black uppercase tracking-wider text-slate-500">{tr('Keyboard shortcuts')}</div>
+            {keys.map(({ key, label }) => (
+              <div key={key} className="flex items-center justify-between gap-2 text-[11px] text-slate-300">
+                <span>{tr(label)}</span>
+                <kbd className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 font-mono font-bold text-[10px]">{key}</kbd>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Right: quick links, Printer, Clock, Version */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 shrink-0">
         <button type="button" onClick={() => openSettingsTab('invoicing', pathname, router.push)} title={tr('Invoice & Bill Rules')} className="flex items-center gap-1 text-slate-300 hover:text-amber-400 cursor-pointer" data-status-bill-rules>
           <FileText className="w-3 h-3" />
           <span className="hidden xl:inline">{tr('Bill rules')}</span>

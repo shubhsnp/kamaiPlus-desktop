@@ -17,9 +17,7 @@ import { VirtuosoGrid } from 'react-virtuoso';
 import { 
   Search, 
   Receipt, 
-  Trash2, 
   Plus, 
-  Minus, 
   QrCode, 
   Printer, 
   Share2, 
@@ -36,8 +34,6 @@ import {
   Mic,
   Barcode,
   Globe,
-  Tag,
-  Edit2,
   X,
   Settings2,
   ShoppingCart,
@@ -61,7 +57,7 @@ import { quickRestockProduct } from '@/lib/inventory/quickRestock';
 import { modeForCustomer, PriceMode, repriceCart, unitPriceFor } from '@/lib/billing/priceMode';
 import { searchEnterAction } from '@/lib/billing/scanInput';
 import { parseWeighedBarcode, weighedQuantity } from '@/lib/barcode/weighedBarcode';
-import { allowsFractionalQty, formatCartQty, roundQty } from '@/lib/billing/unitQuantity';
+import { allowsFractionalQty, roundQty } from '@/lib/billing/unitQuantity';
 import { searchProducts } from '@/lib/search/productSearch';
 import { BillPrinterSetup } from '@/components/billing/BillPrinterSetup';
 import { SILENT_PRINT_EVENT, SILENT_PRINT_KEY } from '@/lib/hardware/printerWatch';
@@ -85,11 +81,15 @@ import { PosProductCard } from '@/components/billing/PosProductCard';
 import { PosSplitLayout, usePosLayout } from '@/components/billing/PosSplitLayout';
 import { PosScanModeButton, PosScanPanel } from '@/components/billing/PosScanPanel';
 import { PosCategoryTabs } from '@/components/billing/PosCategoryTabs';
+import { PosCartLines } from '@/components/billing/PosCartLines';
+import { PosUndoBar } from '@/components/billing/PosUndoBar';
+import { PosBillDiscount } from '@/components/billing/PosBillDiscount';
 import { showProductList } from '@/lib/billing/posLayout';
+import { scrollIntoContainer } from '@/lib/billing/cartFocus';
 import { generalCategoryId } from '@/lib/products/defaultCategory';
 import { BillingToast, BillingToastData, FullscreenUpiQrModal, QuickAddScannedProductModal } from '@/components/billing/PosDialogs';
 import { CashTenderPanel, SplitPaymentPanel, UpiQrCard } from '@/components/billing/PosPaymentPanels';
-import { BillTab, getInitialTabs, makeEmptyTab, nextBillTabId, tabsAfterClosing, tabsAfterSale, tabsForNewBill, TABS_STORAGE_KEY } from '@/lib/billing/billTabs';
+import { BillTab, DiscardedBill, getInitialTabs, makeEmptyTab, nextBillTabId, tabsAfterClosing, tabsAfterSale, tabsAfterUndo, tabsForNewBill, TABS_STORAGE_KEY } from '@/lib/billing/billTabs';
 import { isFeatureOn, useFeatureSwitches } from '@/lib/features/featureSwitches';
 import { PrintFailureBar, useBackgroundBillPrint, warmBillPrinting } from '@/components/billing/BillPrintQueue';
 import { tr } from '@/lib/i18n/core';
@@ -276,8 +276,36 @@ export default function BillingPage() {
     }
   };
 
+  // ✕ / Clear keep the bill a few seconds for Undo (v4.93.0, components/billing/PosUndoBar.tsx).
+  const [discardedBill, setDiscardedBill] = useState<DiscardedBill | null>(null);
+  const keepForUndo = (tab: BillTab | undefined, kind: DiscardedBill['kind']) => {
+    if (tab && tab.cart.length > 0) setDiscardedBill({ tab, index: tabs.findIndex((t) => t.id === tab.id), kind });
+  };
+  const handleUndoDiscard = () => {
+    if (!discardedBill) return;
+    const next = tabsAfterUndo(tabs, discardedBill, `tab_${Date.now()}`);
+    setTabs(next.tabs);
+    setActiveTabId(next.activeTabId);
+    setDiscardedBill(null);
+    focusProductSearch();
+  };
+  const handleClearCart = () => {
+    keepForUndo(activeTab, 'cleared');
+    setCart([]);
+  };
+
+  // UPI / Split / Credit picked (click or F8 / F9): their details (QR, amounts, khata preview)
+  // sit below the bill lines — bring them into view.
+  const billScrollRef = React.useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (paymentMethod === 'cash') return;
+    const box = billScrollRef.current;
+    scrollIntoContainer(box, box?.querySelector<HTMLElement>('[data-pos-pay-details]') ?? null);
+  }, [paymentMethod, activeTabId]);
+
   const handleCloseTab = (tabId: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    keepForUndo(tabs.find((t) => t.id === tabId), 'closed');
     if (tabs.length === 1) {
       // Reset single tab
       setTabs([makeEmptyTab('tab_1', 1)]);
@@ -1374,139 +1402,129 @@ export default function BillingPage() {
   // Reusable Checkout Panel Component for Desktop side-panel and Mobile Bottom Drawer
   const renderCheckoutPanel = () => (
     <div className="flex flex-col flex-1 min-h-0">
-      {/* Everything above the tender card scrolls. The grand total and the
-          Complete Sale button are pinned below it, so a long bill can never
-          push the pay button out of the panel. */}
-      <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pr-1 -mr-1">
-      {/* Multi-Bill Tab Bar */}
-      <div className="bg-slate-100 p-1 rounded-xl flex items-center gap-1 overflow-x-auto border border-slate-200">
-        {tabs.map((tab) => {
-          const isActive = tab.id === activeTabId;
-          const count = tab.cart.reduce((s, i) => s + i.quantity, 0);
-          const cust = customers.find((c) => c.id === tab.selectedCustomerId);
-          const typedName = (tab.customerName || '').trim() || (tab.customerPhone || '').trim();
-          const tabTitle = cust ? cust.name.split(' ')[0] : typedName ? typedName.split(' ')[0] : tr('Bill #{tabNumber}', { tabNumber: tab.tabNumber });
+      {/* v4.93.0 — the bill tabs, the customer and the cart header stay put; only the bill's
+          lines and the payment details below them scroll; the payment mode, grand total and
+          Complete Sale are pinned at the bottom. A scan scrolls its line into view. */}
+      <div className="flex-shrink-0 space-y-2 pb-2">
+        {/* Multi-Bill Tab Bar */}
+        <div className="bg-slate-100 p-1 rounded-xl flex items-center gap-1 overflow-x-auto border border-slate-200">
+          {tabs.map((tab) => {
+            const isActive = tab.id === activeTabId;
+            const count = tab.cart.reduce((s, i) => s + i.quantity, 0);
+            const cust = customers.find((c) => c.id === tab.selectedCustomerId);
+            const typedName = (tab.customerName || '').trim() || (tab.customerPhone || '').trim();
+            const tabTitle = cust ? cust.name.split(' ')[0] : typedName ? typedName.split(' ')[0] : tr('Bill #{tabNumber}', { tabNumber: tab.tabNumber });
 
-          return (
-            <div
-              key={tab.id}
-              data-bill-tab={tab.id}
-              data-active-bill={isActive ? 'true' : undefined}
-              onClick={() => setActiveTabId(tab.id)}
+            return (
+              <div
+                key={tab.id}
+                data-bill-tab={tab.id}
+                data-active-bill={isActive ? 'true' : undefined}
+                onClick={() => setActiveTabId(tab.id)}
+                className={cn(
+                  'px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer select-none transition-all flex-shrink-0',
+                  isActive
+                    ? 'bg-white text-slate-900 shadow-xs border border-slate-300'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                )}
+              >
+                <span>{tabTitle}</span>
+                {count > 0 && (
+                  <span className={cn(
+                    'px-1.5 py-0.2 rounded-full text-[10px] font-extrabold',
+                    isActive ? 'bg-amber-400 text-slate-950' : 'bg-slate-200 text-slate-700'
+                  )}>
+                    {count}
+                  </span>
+                )}
+                {tab.isHeld && (
+                  <span className="text-[10px] text-amber-600" title={tr('Bill is on hold')}>
+                    ⏸️
+                  </span>
+                )}
+                {tabs.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={(e) => handleCloseTab(tab.id, e)}
+                    className="hover:text-rose-600 text-slate-400 p-0.5 rounded-full"
+                    title={tr('Close this bill tab')}
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Add New Tab Button */}
+          <button
+            type="button"
+            onClick={handleCreateNewTab}
+            className="p-1.5 rounded-lg text-slate-600 hover:text-slate-950 hover:bg-slate-200 text-xs font-bold flex items-center gap-1 flex-shrink-0 transition-colors cursor-pointer"
+            title={tr('Open New Parallel Bill Cart')}
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span className="text-[11px] hidden sm:inline">{tr('New')}</span>
+          </button>
+
+          {/* Silent Instant Print Quick Toggle */}
+          <div className="ml-auto flex items-center gap-1 flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                const next = !silentPrint;
+                // First time on with no bill printer chosen: pick it first (else it prints to the Windows default).
+                const ps = getPrintSettings();
+                if (next && !printerForFormat(ps, ps.defaultFormat)) {
+                  setIsBillPrinterOpen(true);
+                  return;
+                }
+                setAutoPrint(next);
+              }}
               className={cn(
-                'px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer select-none transition-all flex-shrink-0',
-                isActive
-                  ? 'bg-white text-slate-900 shadow-xs border border-slate-300'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                "px-2 py-1 rounded-lg text-[10.5px] font-bold flex items-center gap-1 transition-all cursor-pointer border",
+                silentPrint
+                  ? "bg-emerald-600 text-white border-emerald-600 shadow-2xs"
+                  : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
               )}
+              title={tr('Toggle Instant Silent Print (Direct Thermal Print without preview dialog)')}
             >
-              <span>{tabTitle}</span>
-              {count > 0 && (
-                <span className={cn(
-                  'px-1.5 py-0.2 rounded-full text-[10px] font-extrabold',
-                  isActive ? 'bg-amber-400 text-slate-950' : 'bg-slate-200 text-slate-700'
-                )}>
-                  {count}
-                </span>
-              )}
-              {tab.isHeld && (
-                <span className="text-[10px] text-amber-600" title={tr('Bill is on hold')}>
-                  ⏸️
-                </span>
-              )}
-              {tabs.length > 1 && (
-                <button
-                  type="button"
-                  onClick={(e) => handleCloseTab(tab.id, e)}
-                  className="hover:text-rose-600 text-slate-400 p-0.5 rounded-full"
-                  title={tr('Close this bill tab')}
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-          );
-        })}
-
-        {/* Add New Tab Button */}
-        <button
-          type="button"
-          onClick={handleCreateNewTab}
-          className="p-1.5 rounded-lg text-slate-600 hover:text-slate-950 hover:bg-slate-200 text-xs font-bold flex items-center gap-1 flex-shrink-0 transition-colors cursor-pointer"
-          title={tr('Open New Parallel Bill Cart')}
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span className="text-[11px] hidden sm:inline">{tr('New')}</span>
-        </button>
-
-        {/* Silent Instant Print Quick Toggle */}
-        <div className="ml-auto flex items-center gap-1 flex-shrink-0">
-          <button
-            type="button"
-            onClick={() => {
-              const next = !silentPrint;
-              // First time on with no bill printer chosen: pick it first (else it prints to the Windows default).
-              const ps = getPrintSettings();
-              if (next && !printerForFormat(ps, ps.defaultFormat)) {
-                setIsBillPrinterOpen(true);
-                return;
-              }
-              setAutoPrint(next);
-            }}
-            className={cn(
-              "px-2 py-1 rounded-lg text-[10.5px] font-bold flex items-center gap-1 transition-all cursor-pointer border",
-              silentPrint
-                ? "bg-emerald-600 text-white border-emerald-600 shadow-2xs"
-                : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
-            )}
-            title={tr('Toggle Instant Silent Print (Direct Thermal Print without preview dialog)')}
-          >
-            <Printer className="w-3 h-3" />
-            <span>{silentPrint ? tr('⚡ Silent: ON') : tr('Silent: OFF')}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsBillPrinterOpen(true)}
-            className="p-1 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 cursor-pointer"
-            title={tr('Bill printer')}
-            aria-label={tr('Bill printer')}
-            data-bill-printer-open
-          >
-            <Settings2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
-
-      <PrintFailureBar
-        failed={billPrint.failed}
-        onRetry={(job) => billPrint.print(job)}
-        onOpen={(job) => {
-          setActiveSaleForInvoice(job.sale);
-          searchInputRef.current?.blur();
-          setIsInvoiceModalOpen(true);
-        }}
-        onDismiss={billPrint.dismiss}
-      />
-
-      {/* Customer: one row, no pop-up — name / mobile, saved customers show underneath */}
-      <div>
-        <div className="flex items-center justify-between mb-1">
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-              {tr('Customer')}
-            </label>
-            {selectedCustomer && (selectedCustomer.current_balance || 0) > 0 && (
-              <span className="px-2 py-0.5 rounded-full bg-rose-100 border border-rose-300 text-rose-700 text-[10px] font-black flex items-center gap-1 shadow-2xs">
-                <span>{tr('⚠️ Old Khata:')}</span>
-                <span className="font-mono">{formatINR(selectedCustomer.current_balance)}</span>
-              </span>
-            )}
+              <Printer className="w-3 h-3" />
+              <span>{silentPrint ? tr('⚡ Silent: ON') : tr('Silent: OFF')}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsBillPrinterOpen(true)}
+              className="p-1 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 cursor-pointer"
+              title={tr('Bill printer')}
+              aria-label={tr('Bill printer')}
+              data-bill-printer-open
+            >
+              <Settings2 className="w-3.5 h-3.5" />
+            </button>
           </div>
-          {!selectedCustomer && isDraftEmpty(customerDraft) && (
-            <span className="text-[10.5px] font-semibold text-slate-400">{tr('Empty = walk-in customer')}</span>
-          )}
         </div>
 
+        <PrintFailureBar
+          failed={billPrint.failed}
+          onRetry={(job) => billPrint.print(job)}
+          onOpen={(job) => {
+            setActiveSaleForInvoice(job.sale);
+            searchInputRef.current?.blur();
+            setIsInvoiceModalOpen(true);
+          }}
+          onDismiss={billPrint.dismiss}
+        />
+
+        <PosUndoBar discarded={discardedBill} onUndo={handleUndoDiscard} onDismiss={() => setDiscardedBill(null)} />
+
+        {/* Customer: one row, no pop-up — name / mobile, saved customers show underneath */}
+        {selectedCustomer && (selectedCustomer.current_balance || 0) > 0 && (
+          <span className="inline-flex px-2 py-0.5 rounded-full bg-rose-100 border border-rose-300 text-rose-700 text-[10.5px] font-black items-center gap-1 shadow-2xs">
+            <span>{tr('⚠️ Old Khata:')}</span>
+            <span className="font-mono">{formatINR(selectedCustomer.current_balance)}</span>
+          </span>
+        )}
         <PosCustomerRow
           customers={customers}
           selectedCustomer={selectedCustomer}
@@ -1514,398 +1532,233 @@ export default function BillingPage() {
           onDraftChange={setCustomerDraft}
           onSelect={setSelectedCustomerId}
         />
-        {wholesaleOn && <div className="mt-2"><PosPriceModeToggle mode={priceMode} onChange={(m) => void setPriceMode(m)} /></div>}
-      </div>
 
-      {/* Cart Header with Hold Bill Button */}
-      <div className="flex items-center justify-between pt-1 flex-shrink-0">
-        <span className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
-          <span>{tr('Cart Items (')}{totalItemCount})</span>
-          {activeTab.isHeld && (
-            <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold">
-              {tr('⏸️ On Hold')}
-            </span>
-          )}
-        </span>
-
-        <div className="flex items-center gap-2">
-          {cart.length > 0 && (
+        {/* Credit Mode Mandatory Customer Alert Banner */}
+        {paymentMethod === 'credit' && !selectedCustomerId && isDraftEmpty(customerDraft) && (
+          <div className="p-2.5 bg-rose-50 border border-rose-300 rounded-xl text-xs text-rose-950 flex items-center justify-between gap-2 shadow-2xs">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="text-base flex-shrink-0">⚠️</span>
+              <span className="font-bold truncate">{tr('Customer Name is compulsory for Credit (Udhar)')}</span>
+            </div>
             <button
               type="button"
-              onClick={handleHoldActiveTab}
-              className="text-[11px] font-bold text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded border border-amber-200 flex items-center gap-1 cursor-pointer transition-colors"
-              title={tr('Park / Hold this bill and start a new one')}
+              onClick={() => focusPosCustomerName()}
+              className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] cursor-pointer flex-shrink-0 transition shadow-xs"
             >
-              <PauseCircle className="w-3 h-3" />
-              <span>{tr('Hold Bill')}</span>
+              {tr('+ Add Customer')}
             </button>
-          )}
-
-          {cart.length > 0 && (
-            <button
-              onClick={() => setCart([])}
-              className="text-[11px] font-bold text-rose-600 hover:text-rose-700 cursor-pointer transition-colors"
-            >
-              {tr('Clear')}
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Cart Column Header Bar for Spacious Table View */}
-      {cart.length > 0 && (
-        <div className="grid grid-cols-12 text-[10px] uppercase font-extrabold tracking-wider text-slate-400 px-2.5 py-1 bg-slate-100/90 rounded-lg flex-shrink-0 select-none">
-          <span className="col-span-6">{tr('Item & Details')}</span>
-          <span className="col-span-3 text-center">{tr('Qty')}</span>
-          <span className="col-span-3 text-right">{tr('Total (₹)')}</span>
-        </div>
-      )}
-
-      {/* Cart Items List with Inline / Popover Edit */}
-      <div className="border-t border-b border-slate-100 py-2 space-y-2 min-h-[60px]">
-        {cart.length === 0 ? (
-          <div className="text-center py-8 text-xs text-slate-400 font-medium space-y-1.5">
-            <ShoppingCart className="w-8 h-8 text-slate-300 mx-auto" />
-            <p className="font-semibold text-slate-600">{tr('Cart is empty')}</p>
-            <p className="text-[11px] text-slate-400">{tr('Tap products on the left or scan barcode to add')}</p>
           </div>
-        ) : (
-          cart.map((item) => (
-            <div 
-              key={item.product_id} 
-              className="p-2 sm:p-2.5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-2xs transition-all flex items-center justify-between gap-2 text-xs"
-            >
-              <div className="flex-1 min-w-0">
-                <div className="font-bold text-slate-900 truncate">
-                  {item.product_name}
-                </div>
-
-                {/* Dynamic Category Attributes */}
-                <div className="flex flex-wrap gap-1 my-0.5">
-                  {(item.size || item.color) && (
-                    <span className="text-[9px] bg-indigo-50 text-indigo-900 border border-indigo-200 px-1 py-0.2 rounded font-medium">
-                      {item.size && <span>{tr('Size:')} {item.size} </span>}
-                      {item.color && <span>• {item.color}</span>}
-                    </span>
-                  )}
-
-                  {(item.imei_serial || item.warranty_period_months) && (
-                    <span className="text-[9px] bg-cyan-50 text-cyan-900 border border-cyan-200 px-1 py-0.2 rounded font-mono">
-                      {item.imei_serial && <span>SN:{item.imei_serial} </span>}
-                      {item.warranty_period_months && <span>• {item.warranty_period_months}M</span>}
-                    </span>
-                  )}
-                </div>
-
-                <div className="text-[11px] text-slate-500 font-mono flex items-center flex-wrap gap-1.5">
-                  <span>{formatINR(item.unit_price)} × {formatCartQty(item.quantity)} {item.unit}</span>
-                  {item.discount_amount ? (
-                    <span className="text-[10px] text-emerald-700 font-bold bg-emerald-100 px-1 rounded">
-                      -₹{(item.discount_amount / 100).toFixed(0)} {tr('off')}
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-
-              {/* Quantity Stepper & Edit Button */}
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => updateQuantity(item.product_id, -1)}
-                  className="w-6 h-6 rounded bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700 hover:bg-slate-200 cursor-pointer active:scale-95 transition-all"
-                >
-                  <Minus className="w-3 h-3" />
-                </button>
-                <span className="font-bold font-mono text-xs min-w-6 text-center text-slate-900">{formatCartQty(item.quantity)}</span>
-                <button
-                  onClick={() => updateQuantity(item.product_id, 1)}
-                  className="w-6 h-6 rounded bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700 hover:bg-slate-200 cursor-pointer active:scale-95 transition-all"
-                >
-                  <Plus className="w-3 h-3" />
-                </button>
-
-                {/* Edit Price/Quantity/Discount Button */}
-                <button
-                  onClick={() => handleOpenEditItem(item)}
-                  title={tr('Edit Price, Quantity or Item Discount')}
-                  className="p-1 rounded text-slate-500 hover:text-slate-900 hover:bg-slate-100 ml-0.5 cursor-pointer transition-colors"
-                >
-                  <Edit2 className="w-3.5 h-3.5 text-slate-700" />
-                </button>
-
-                {/* Remove Button */}
-                <button
-                  onClick={() => removeFromCart(item.product_id)}
-                  className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 ml-0.5 cursor-pointer transition-colors"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              <div className="w-16 text-right font-extrabold font-mono text-xs text-slate-900">
-                {formatINR(item.total_amount)}
-              </div>
-            </div>
-          ))
         )}
-      </div>
 
-      {/* Payment Method Selector */}
-      <div>
-        <label className="text-xs font-bold text-slate-900 uppercase tracking-wider block mb-1">
-          {tr('Payment Mode')}
-        </label>
-        <div className={cn('grid gap-1.5 sm:gap-2', khataOn ? 'grid-cols-4' : 'grid-cols-3')}>
-          {[
-            { id: 'cash', label: tr('Cash'), icon: Banknote, shortcut: 'F4' },
-            { id: 'upi', label: tr('UPI / QR'), icon: QrCode, shortcut: 'F8' },
-            { id: 'credit', label: tr('Credit'), icon: BookOpen, shortcut: 'F9' },
-            { id: 'split', label: tr('Split'), icon: CreditCard },
-          ].filter((m) => khataOn || m.id !== 'credit').map((m) => {
-            const Icon = m.icon;
-            const isSelected = paymentMethod === m.id;
-            return (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => {
-                  setPaymentMethod(m.id as PaymentMethod);
-                  if (m.id === 'split' && !splitCash && !splitUpi) {
-                    setSplitCash((grandTotalPaise / 200).toString());
-                    setSplitUpi((grandTotalPaise / 200).toString());
-                  }
-                  if (m.id === 'credit' && !selectedCustomerId && isDraftEmpty(customerDraft)) {
-                    focusPosCustomerName();
-                  }
-                }}
-                className={cn(
-                  'py-2 px-1 rounded-lg border text-xs font-bold flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 transition-all text-center cursor-pointer relative',
-                  isSelected
-                    ? 'bg-slate-900 border-slate-900 text-white shadow-xs'
-                    : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
-                )}
-              >
-                <Icon className="w-3.5 h-3.5 flex-shrink-0" />
-                <span className="truncate">{m.label}</span>
-                {m.shortcut && paymentKeysOn && (
-                  <span className={cn(
-                    "text-[9px] font-mono px-1 py-0.2 rounded font-bold hidden sm:inline-block",
-                    isSelected ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
-                  )}>
-                    {m.shortcut}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Credit Mode Mandatory Customer Alert Banner */}
-      {paymentMethod === 'credit' && !selectedCustomerId && isDraftEmpty(customerDraft) && (
-        <div className="p-2.5 bg-rose-50 border border-rose-300 rounded-xl text-xs text-rose-950 flex items-center justify-between gap-2 shadow-2xs">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-base flex-shrink-0">⚠️</span>
-            <span className="font-bold truncate">{tr('Customer Name is compulsory for Credit (Udhar)')}</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => focusPosCustomerName()}
-            className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] cursor-pointer flex-shrink-0 transition shadow-xs"
-          >
-            {tr('+ Add Customer')}
-          </button>
-        </div>
-      )}
-
-      {/* Credit Mode Live Customer Balance Insight */}
-      {paymentMethod === 'credit' && selectedCustomer && (
-        <div className="p-2.5 bg-amber-50/90 border border-amber-300 rounded-xl text-xs text-amber-950 space-y-1.5 shadow-2xs">
-          <div className="flex items-center justify-between font-bold">
-            <span className="flex items-center gap-1 text-amber-900">
-              <BookOpen className="w-3.5 h-3.5 text-amber-600" />
-              <span>{tr('Khata Credit Preview (')}{selectedCustomer.name}):</span>
-            </span>
-            <span className="font-mono text-[11px] text-slate-500">{tr('Udhar Sale')}</span>
-          </div>
-          <div className="grid grid-cols-3 gap-1 pt-1 border-t border-amber-200/80 text-center font-mono">
-            <div>
-              <span className="text-[9px] uppercase font-bold text-slate-500 block">{tr('Old Balance')}</span>
-              <span className="font-bold text-slate-800">
-                {formatINR(selectedCustomer.current_balance || 0)}
+        {/* Cart Header: count, Retail / Wholesale, Hold, Clear */}
+        <div className="flex items-center justify-between gap-2 pt-1">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+            <span>{tr('Cart Items (')}{totalItemCount})</span>
+            {activeTab.isHeld && (
+              <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold">
+                {tr('⏸️ On Hold')}
               </span>
-            </div>
-            <div>
-              <span className="text-[9px] uppercase font-bold text-slate-500 block">{tr('This Bill')}</span>
-              <span className="font-bold text-rose-600">
-                +{formatINR(grandTotalPaise)}
-              </span>
-            </div>
-            <div>
-              <span className="text-[9px] uppercase font-bold text-slate-500 block">{tr('New Balance')}</span>
-              <span className="font-black text-rose-700">
-                ={formatINR((selectedCustomer.current_balance || 0) + grandTotalPaise)}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* If Split / Multi-Mode Payment: Render Breakdown Inputs */}
-      {paymentMethod === 'split' && cart.length > 0 && (
-        <SplitPaymentPanel
-          grandTotalPaise={grandTotalPaise}
-          splitCash={splitCash} setSplitCash={setSplitCash}
-          splitUpi={splitUpi} setSplitUpi={setSplitUpi}
-          splitCard={splitCard} setSplitCard={setSplitCard}
-          splitCredit={splitCredit} setSplitCredit={setSplitCredit}
-          creditAllowed={khataOn}
-        />
-      )}
-
-      {/* If Cash: Amount Received Input for Change calculation with Quick Tender Chips */}
-      {paymentMethod === 'cash' && cart.length > 0 && (
-        <CashTenderPanel
-          grandTotalPaise={grandTotalPaise}
-          amountReceivedInput={amountReceivedInput}
-          setAmountReceivedInput={setAmountReceivedInput}
-        />
-      )}
-
-      {/* If UPI (or Split with UPI): Real-Time Dynamic Amount QR Code Card */}
-      {((paymentMethod === 'upi') || (paymentMethod === 'split' && parseFloat(splitUpi || '0') > 0)) && cart.length > 0 && (
-        <UpiQrCard
-          paymentMethod={paymentMethod}
-          splitUpi={splitUpi}
-          grandTotalPaise={grandTotalPaise}
-          posQrDataUrl={posQrDataUrl}
-          business={business}
-          setIsEnlargeQrModalOpen={setIsEnlargeQrModalOpen}
-        />
-      )}
-
-      {/* Bill-Level Discount Field */}
-      {cart.length > 0 && (
-        <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-700 flex items-center gap-1">
-              <Tag className="w-3.5 h-3.5 text-emerald-600" />
-              <span>{tr('Bill Discount')}</span>
-            </span>
-            <div className="flex items-center p-0.5 bg-slate-200/80 rounded-lg">
-              <button
-                type="button"
-                onClick={() => setBillDiscountType('flat')}
-                className={cn(
-                  'px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer',
-                  billDiscountType === 'flat'
-                    ? 'bg-white text-slate-900 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                )}
-              >
-                {tr('₹ Flat')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setBillDiscountType('percentage')}
-                className={cn(
-                  'px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer',
-                  billDiscountType === 'percentage'
-                    ? 'bg-white text-slate-900 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                )}
-              >
-                {tr('% Percent')}
-              </button>
-            </div>
-          </div>
+            )}
+          </span>
 
           <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <input
-                type="number"
-                step="any"
-                min="0"
-                max={billDiscountType === 'percentage' ? 100 : undefined}
-                placeholder={billDiscountType === 'percentage' ? tr('e.g. 5 or 10%') : tr('e.g. 50')}
-                value={billDiscountValue}
-                onChange={(e) => setBillDiscountValue(e.target.value)}
-                className="w-full bg-white border border-slate-300 text-slate-900 text-xs rounded-lg pl-6 pr-2 py-1.5 focus:outline-none focus:border-slate-900 font-mono font-bold"
-              />
-              <span className="absolute left-2.5 top-1.5 text-xs text-slate-400 font-bold">
-                {billDiscountType === 'percentage' ? '%' : '₹'}
-              </span>
-            </div>
-            {billDiscountValue && (
+            {wholesaleOn && <PosPriceModeToggle compact mode={priceMode} onChange={(m) => void setPriceMode(m)} />}
+            {cart.length > 0 && (
               <button
                 type="button"
-                onClick={() => setBillDiscountValue('')}
-                className="text-[11px] text-rose-600 font-bold hover:text-rose-700 px-1.5 py-1 cursor-pointer"
+                onClick={handleHoldActiveTab}
+                className="text-[11px] font-bold text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded border border-amber-200 flex items-center gap-1 cursor-pointer transition-colors"
+                title={tr('Park / Hold this bill and start a new one')}
+              >
+                <PauseCircle className="w-3 h-3" />
+                <span>{tr('Hold Bill')}</span>
+              </button>
+            )}
+
+            {cart.length > 0 && (
+              <button
+                type="button"
+                onClick={handleClearCart}
+                className="text-[11px] font-bold text-rose-600 hover:text-rose-700 cursor-pointer transition-colors"
+                data-pos-clear
               >
                 {tr('Clear')}
               </button>
             )}
           </div>
+        </div>
 
-          {/* Quick Percent Chips */}
-          {billDiscountType === 'percentage' && (
-            <div className="flex items-center gap-1 pt-0.5">
-              {['5', '10', '15', '20'].map((pct) => (
-                <button
-                  key={pct}
-                  type="button"
-                  onClick={() => setBillDiscountValue(pct)}
-                  className={cn(
-                    'px-2 py-0.5 rounded text-[10px] font-bold transition-all border cursor-pointer',
-                    billDiscountValue === pct
-                      ? 'bg-emerald-600 text-white border-emerald-600'
-                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
-                  )}
-                >
-                  {pct}%
-                </button>
-              ))}
+        {cart.length > 0 && (
+          <div className="grid grid-cols-12 text-[10px] uppercase font-extrabold tracking-wider text-slate-400 px-2.5 py-0.5 bg-slate-100/90 rounded-lg select-none">
+            <span className="col-span-6">{tr('Item & Details')}</span>
+            <span className="col-span-3 text-center">{tr('Qty')}</span>
+            <span className="col-span-3 text-right">{tr('Total (₹)')}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pr-1 -mr-1" data-pos-bill-scroll ref={billScrollRef}>
+        <PosCartLines cart={cart} billId={activeTab.id} onQuantity={updateQuantity} onEdit={handleOpenEditItem} onRemove={removeFromCart} />
+
+        <div className="space-y-3" data-pos-pay-details>
+          {/* Credit Mode Live Customer Balance Insight */}
+          {paymentMethod === 'credit' && selectedCustomer && (
+            <div className="p-2.5 bg-amber-50/90 border border-amber-300 rounded-xl text-xs text-amber-950 space-y-1.5 shadow-2xs">
+              <div className="flex items-center justify-between font-bold">
+                <span className="flex items-center gap-1 text-amber-900">
+                  <BookOpen className="w-3.5 h-3.5 text-amber-600" />
+                  <span>{tr('Khata Credit Preview (')}{selectedCustomer.name}):</span>
+                </span>
+                <span className="font-mono text-[11px] text-slate-500">{tr('Udhar Sale')}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-1 pt-1 border-t border-amber-200/80 text-center font-mono">
+                <div>
+                  <span className="text-[9px] uppercase font-bold text-slate-500 block">{tr('Old Balance')}</span>
+                  <span className="font-bold text-slate-800">
+                    {formatINR(selectedCustomer.current_balance || 0)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[9px] uppercase font-bold text-slate-500 block">{tr('This Bill')}</span>
+                  <span className="font-bold text-rose-600">
+                    +{formatINR(grandTotalPaise)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[9px] uppercase font-bold text-slate-500 block">{tr('New Balance')}</span>
+                  <span className="font-black text-rose-700">
+                    ={formatINR((selectedCustomer.current_balance || 0) + grandTotalPaise)}
+                  </span>
+                </div>
+              </div>
             </div>
           )}
+
+          {/* If Split / Multi-Mode Payment: Render Breakdown Inputs */}
+          {paymentMethod === 'split' && cart.length > 0 && (
+            <SplitPaymentPanel
+              grandTotalPaise={grandTotalPaise}
+              splitCash={splitCash} setSplitCash={setSplitCash}
+              splitUpi={splitUpi} setSplitUpi={setSplitUpi}
+              splitCard={splitCard} setSplitCard={setSplitCard}
+              splitCredit={splitCredit} setSplitCredit={setSplitCredit}
+              creditAllowed={khataOn}
+            />
+          )}
+
+          {/* If Cash: Amount Received Input for Change calculation with Quick Tender Chips */}
+          {paymentMethod === 'cash' && cart.length > 0 && (
+            <CashTenderPanel
+              grandTotalPaise={grandTotalPaise}
+              amountReceivedInput={amountReceivedInput}
+              setAmountReceivedInput={setAmountReceivedInput}
+            />
+          )}
+
+          {/* If UPI (or Split with UPI): Real-Time Dynamic Amount QR Code Card */}
+          {((paymentMethod === 'upi') || (paymentMethod === 'split' && parseFloat(splitUpi || '0') > 0)) && cart.length > 0 && (
+            <UpiQrCard
+              paymentMethod={paymentMethod}
+              splitUpi={splitUpi}
+              grandTotalPaise={grandTotalPaise}
+              posQrDataUrl={posQrDataUrl}
+              business={business}
+              setIsEnlargeQrModalOpen={setIsEnlargeQrModalOpen}
+            />
+          )}
+
+          {cart.length > 0 && (
+            <PosBillDiscount type={billDiscountType} value={billDiscountValue} onTypeChange={setBillDiscountType} onValueChange={setBillDiscountValue} />
+          )}
         </div>
-      )}
       </div>
 
       {/* Bottom Total & Checkout Button (always visible) */}
       <div className="pt-2.5 mt-2.5 border-t border-slate-200 space-y-2 flex-shrink-0">
-        <div className="space-y-1 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-          <div className="flex items-center justify-between text-xs text-slate-600">
-            <span>{tr('Items Total')}</span>
-            <span className="font-semibold text-slate-800 font-mono">{formatINR(itemsValuePaise)}</span>
+        {/* Payment mode stays in sight above the total (F4 / F8 / F9 change it) */}
+        {/* Payment Method Selector */}
+        <div data-pos-pay-modes aria-label={tr('Payment Mode')}>
+          <div className={cn('grid gap-1.5 sm:gap-2', khataOn ? 'grid-cols-4' : 'grid-cols-3')}>
+            {[
+              { id: 'cash', label: tr('Cash'), icon: Banknote, shortcut: 'F4' },
+              { id: 'upi', label: tr('UPI / QR'), icon: QrCode, shortcut: 'F8' },
+              { id: 'credit', label: tr('Credit'), icon: BookOpen, shortcut: 'F9' },
+              { id: 'split', label: tr('Split'), icon: CreditCard },
+            ].filter((m) => khataOn || m.id !== 'credit').map((m) => {
+              const Icon = m.icon;
+              const isSelected = paymentMethod === m.id;
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => {
+                    setPaymentMethod(m.id as PaymentMethod);
+                    if (m.id === 'split' && !splitCash && !splitUpi) {
+                      setSplitCash((grandTotalPaise / 200).toString());
+                      setSplitUpi((grandTotalPaise / 200).toString());
+                    }
+                    if (m.id === 'credit' && !selectedCustomerId && isDraftEmpty(customerDraft)) {
+                      focusPosCustomerName();
+                    }
+                  }}
+                  className={cn(
+                    'py-1.5 px-1 rounded-lg border text-xs font-bold flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 transition-all text-center cursor-pointer relative',
+                    isSelected
+                      ? 'bg-slate-900 border-slate-900 text-white shadow-xs'
+                      : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
+                  )}
+                >
+                  <Icon className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="truncate">{m.label}</span>
+                  {m.shortcut && paymentKeysOn && (
+                    <span className={cn(
+                      "text-[10px] font-mono px-1 py-0.2 rounded font-bold hidden sm:inline-block",
+                      isSelected ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
+                    )}>
+                      {m.shortcut}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
-          {discountTotalPaise > 0 && (
-            <div className="flex items-center justify-between text-xs text-emerald-700 font-medium">
-              <span>
-                {tr('Total Discount')}
-                {billDiscountPaise > 0 && (
-                  <span className="text-[10px] ml-1 font-mono text-emerald-600">
-                    {tr('(Bill: -')}{formatINR(billDiscountPaise)})
-                  </span>
-                )}
-              </span>
-              <span className="font-semibold font-mono">-{formatINR(discountTotalPaise)}</span>
-            </div>
-          )}
-          {addedGstPaise > 0 && (
-            <div className="flex items-center justify-between text-xs text-slate-600">
-              <span>{tr('GST (added)')}</span>
-              <span className="font-semibold text-slate-800 font-mono">+{formatINR(addedGstPaise)}</span>
-            </div>
-          )}
-          {includedGstPaise > 0 && (
-            <div className="flex items-center justify-between text-[11px] text-slate-400">
-              <span>{tr('Incl. GST in prices')}</span>
-              <span className="font-mono">{formatINR(includedGstPaise)}</span>
-            </div>
-          )}
         </div>
 
+        {(discountTotalPaise > 0 || addedGstPaise > 0) && (
+          <div className="space-y-1 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+            <div className="flex items-center justify-between text-xs text-slate-600">
+              <span>{tr('Items Total')}</span>
+              <span className="font-semibold text-slate-800 font-mono">{formatINR(itemsValuePaise)}</span>
+            </div>
+            {discountTotalPaise > 0 && (
+              <div className="flex items-center justify-between text-xs text-emerald-700 font-medium">
+                <span>
+                  {tr('Total Discount')}
+                  {billDiscountPaise > 0 && (
+                    <span className="text-[10px] ml-1 font-mono text-emerald-600">
+                      {tr('(Bill: -')}{formatINR(billDiscountPaise)})
+                    </span>
+                  )}
+                </span>
+                <span className="font-semibold font-mono">-{formatINR(discountTotalPaise)}</span>
+              </div>
+            )}
+            {addedGstPaise > 0 && (
+              <div className="flex items-center justify-between text-xs text-slate-600">
+                <span>{tr('GST (added)')}</span>
+                <span className="font-semibold text-slate-800 font-mono">+{formatINR(addedGstPaise)}</span>
+              </div>
+            )}
+            {includedGstPaise > 0 && (
+              <div className="flex items-center justify-between text-[11px] text-slate-400">
+                <span>{tr('Incl. GST in prices')}</span>
+                <span className="font-mono">{formatINR(includedGstPaise)}</span>
+              </div>
+            )}
+          </div>
+        )}
         {/* High-Contrast POS Grand Total & Tender Card */}
-        <div className="p-3.5 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white rounded-2xl border border-slate-800 shadow-md space-y-2">
+        <div className="p-3 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white rounded-2xl border border-slate-800 shadow-md space-y-2">
           <div className="flex items-baseline justify-between gap-2">
             <div>
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
