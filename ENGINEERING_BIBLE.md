@@ -197,8 +197,19 @@ npm run release:desktop              # next build → electron-builder → scrip
 npm run release:publish              # firebase deploy --only hosting:updates
 ```
 
-- `updater.js` (main process, electron-updater, `provider: generic`): first check 60 s
-  after launch, then every 4 h; downloads silently; sends `kp:update-ready`.
+- `updater.js` (main process, electron-updater, `provider: generic`): first check 30 s
+  after launch, then every hour (v4.96.0; was 60 s / 4 h); downloads silently; sends
+  `kp:update-ready`.
+- **No differential updates, no `.blockmap` on the site (v4.96.0, live bug).** With a
+  blockmap, electron-updater asks for many byte ranges in ONE request; Firebase Hosting
+  ignores multi-range requests and sends the whole 110 MB file with `200 OK` (checked with
+  curl: a single range gets 206, several get 200). Every shop downloaded the installer
+  twice (differential attempt, then the full fallback) and on slow lines updates arrived
+  hours late or not at all. Now `autoUpdater.disableDifferentialDownload = true`,
+  `nsis.differentialPackage: false` (no blockmap built) and `prepare_release.js` deletes
+  any `.blockmap` from `release/` — so even apps installed before v4.96.0 (which still try
+  differential) fail the blockmap fetch at once and do one plain full download. Never put a
+  `.blockmap` back on the site unless the host supports multipart byte ranges.
 - `<UpdateReadyBanner>` (in `AppShell`) offers **Restart & Update** / **Later**. The app
   **never restarts by itself** (a bill may be open); otherwise the update installs
   silently on quit (`autoInstallOnAppQuit`).

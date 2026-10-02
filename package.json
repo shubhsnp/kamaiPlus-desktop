@@ -1,6 +1,6 @@
 {
   "name": "kamai-plus-desktop",
-  "version": "4.95.0",
+  "version": "4.96.0",
   "private": true,
   "description": "KamaiPlus Desktop Application",
   "scripts": {
@@ -94,7 +94,8 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "shortcutName": "KamaiPlus Desktop",
-      "artifactName": "KamaiPlus-Desktop-Setup-${version}.${ext}"
+      "artifactName": "KamaiPlus-Desktop-Setup-${version}.${ext}",
+    "differentialPackage": false
     },
     "publish": [
       {

@@ -804,6 +804,15 @@ assert(/autoUpdater\.channel = beta \? 'beta' : 'latest';\s*[\s\S]{0,200}autoUpd
 const prepSrc = fs.readFileSync(path.join(__dirname, 'prepare_release.js'), 'utf8');
 assert(Boolean(pkgJson.scripts?.['release:beta']?.includes('--beta')) && Boolean(pkgJson.scripts?.['release:promote']?.includes('--promote')), 'release:beta and release:promote scripts exist');
 assert(!/rmSync\(release,/.test(prepSrc) && /keep\.has\(f\)/.test(prepSrc), 'Preparing a release never wipes release/; only unreferenced installers are removed');
+// Live bug (2026-10-02, 4.95.0): installed apps got the new version late or not at all. With a
+// .blockmap on the site, electron-updater sends ONE request for many byte ranges; Firebase Hosting
+// answers that with the whole 110 MB file (200 OK, checked with curl), so the installer came down
+// twice on slow shop lines. The site carries no blockmap (old apps then do one full download) and
+// the app never tries differential; it checks hourly (was 4 h).
+assert(/autoUpdater\.disableDifferentialDownload = true;/.test(updaterSrc) && /const CHECK_INTERVAL_MS = 60 \* 60 \* 1000;/.test(updaterSrc)
+  && /const FIRST_CHECK_DELAY_MS = 30 \* 1000;/.test(updaterSrc) && pkgJson.build?.nsis?.differentialPackage === false
+  && !/copyFileSync\([^)]*blockmap/.test(prepSrc) && /if \(\/\\\.blockmap\$\/\.test\(f\)/.test(prepSrc),
+  'Updates: no .blockmap on the update site and no differential download (Hosting cannot serve multi-range requests); the app checks every hour');
 
 // 8q. A bill is marked paid only by the cashier — never by a simulated payment.
 const paymentPanelsSrc = readSource('components/billing/PosPaymentPanels.tsx');

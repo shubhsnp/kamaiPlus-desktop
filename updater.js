@@ -25,8 +25,9 @@
 const fs = require('fs');
 const path = require('path');
 
-const FIRST_CHECK_DELAY_MS = 60 * 1000;
-const CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000;
+// v4.96.0: every hour (was 4 h) — an app left open all day saw a new version only hours later.
+const FIRST_CHECK_DELAY_MS = 30 * 1000;
+const CHECK_INTERVAL_MS = 60 * 60 * 1000;
 const SETTINGS_FILE = 'update-settings.json';
 
 let readyVersion = null;
@@ -69,6 +70,11 @@ function initAutoUpdate({ ipcMain, getWindow, enabled, userDataDir, currentVersi
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.logger = null;
+  // v4.96.0: always one plain full download. The "differential" download asks Firebase Hosting
+  // for many byte ranges in one request, which Hosting does not support (it sends the whole
+  // file with 200 OK) — the installer was fetched twice and updates arrived late or never.
+  // prepare_release.js also no longer publishes the .blockmap, so older apps skip it too.
+  autoUpdater.disableDifferentialDownload = true;
 
   const applyChannel = () => {
     autoUpdater.channel = beta ? 'beta' : 'latest';

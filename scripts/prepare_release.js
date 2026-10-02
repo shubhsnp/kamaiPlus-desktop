@@ -42,13 +42,18 @@ if (mode === 'promote') {
 } else {
   const { version } = require(path.join(root, 'package.json'));
   const installer = `KamaiPlus-Desktop-Setup-${version}.exe`;
-  for (const f of ['latest.yml', installer, `${installer}.blockmap`]) {
+  for (const f of ['latest.yml', installer]) {
     if (!fs.existsSync(path.join(dist, f))) fail(`Missing dist/${f}. Build the installer first (npm run release:desktop / release:beta).`);
   }
   const yml = fs.readFileSync(path.join(dist, 'latest.yml'), 'utf8');
   if (ymlVersion(yml) !== version) fail(`dist/latest.yml is for v${ymlVersion(yml)}, not v${version}. Rebuild the installer.`);
   fs.copyFileSync(path.join(dist, installer), path.join(release, installer));
-  fs.copyFileSync(path.join(dist, `${installer}.blockmap`), path.join(release, `${installer}.blockmap`));
+  // v4.96.0: NO .blockmap on the update site. With a blockmap the installed app tries a
+  // "differential" download — one request asking for many byte ranges at once. Firebase
+  // Hosting does not answer that (it sends the whole 110 MB file with 200 OK), so every
+  // shop downloaded the installer twice and updates arrived late or not at all on slow
+  // lines. Without the blockmap every app version (also the old ones already installed)
+  // goes straight to one plain full download, which Hosting serves fine.
   fs.writeFileSync(path.join(release, 'beta.yml'), yml);
   if (mode === 'stable') fs.writeFileSync(path.join(release, 'latest.yml'), yml);
   console.log(mode === 'beta' ? `v${version} ready for BETA computers only (beta.yml).` : `v${version} ready for everyone (latest.yml + beta.yml).`);
@@ -60,14 +65,12 @@ for (const y of ['latest.yml', 'beta.yml']) {
   const p = path.join(release, y);
   if (fs.existsSync(p)) {
     const exe = ymlInstaller(fs.readFileSync(p, 'utf8'));
-    if (exe) {
-      keep.add(exe);
-      keep.add(`${exe}.blockmap`);
-    }
+    if (exe) keep.add(exe);
   }
 }
+// Every .blockmap goes (see above), and installers nobody points at.
 for (const f of fs.readdirSync(release)) {
-  if (/\.(exe|blockmap)$/.test(f) && !keep.has(f)) fs.rmSync(path.join(release, f));
+  if (/\.blockmap$/.test(f) || (/\.exe$/.test(f) && !keep.has(f))) fs.rmSync(path.join(release, f));
 }
 
 // Download page (site/ → release/). The stable version is stamped in so the
