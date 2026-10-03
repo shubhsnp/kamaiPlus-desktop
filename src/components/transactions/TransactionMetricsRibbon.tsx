@@ -17,6 +17,8 @@ interface TransactionMetricsRibbonProps {
   totalUpiPaise: number;
   totalCreditPaise: number;
   salesCount: number;
+  /** v4.97.0: the whole history is still loading — show "…", never a part-total. */
+  loading?: boolean;
 }
 
 export const TransactionMetricsRibbon: React.FC<TransactionMetricsRibbonProps> = ({
@@ -25,7 +27,9 @@ export const TransactionMetricsRibbon: React.FC<TransactionMetricsRibbonProps> =
   totalUpiPaise,
   totalCreditPaise,
   salesCount,
+  loading = false,
 }) => {
+  const money = (paise: number) => (loading ? '…' : formatINR(paise));
   return (
     <Card className="p-2.5 sm:p-3 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-2xs rounded-2xl">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-slate-800">
@@ -36,10 +40,10 @@ export const TransactionMetricsRibbon: React.FC<TransactionMetricsRibbonProps> =
               <TrendingUp className="w-3 h-3 text-slate-700 dark:text-slate-300" />
               <span>{tr('Revenue')}</span>
             </span>
-            <span className="text-[10px] text-slate-400 font-medium">({salesCount} {salesCount === 1 ? tr('bill') : tr('bills')})</span>
+            <span className="text-[10px] text-slate-400 font-medium">({loading ? '…' : salesCount} {salesCount === 1 ? tr('bill') : tr('bills')})</span>
           </div>
           <div className="text-base sm:text-lg font-black text-slate-900 dark:text-slate-100 font-mono mt-0.5 leading-tight truncate">
-            {formatINR(totalRevenuePaise)}
+            {money(totalRevenuePaise)}
           </div>
         </div>
 
@@ -52,7 +56,7 @@ export const TransactionMetricsRibbon: React.FC<TransactionMetricsRibbonProps> =
             </span>
           </div>
           <div className="text-base sm:text-lg font-black text-emerald-800 dark:text-emerald-300 font-mono mt-0.5 leading-tight truncate">
-            {formatINR(totalCashPaise)}
+            {money(totalCashPaise)}
           </div>
         </div>
 
@@ -65,7 +69,7 @@ export const TransactionMetricsRibbon: React.FC<TransactionMetricsRibbonProps> =
             </span>
           </div>
           <div className="text-base sm:text-lg font-black text-sky-800 dark:text-sky-300 font-mono mt-0.5 leading-tight truncate">
-            {formatINR(totalUpiPaise)}
+            {money(totalUpiPaise)}
           </div>
         </div>
 
@@ -79,7 +83,7 @@ export const TransactionMetricsRibbon: React.FC<TransactionMetricsRibbonProps> =
             </span>
           </div>
           <div className="text-base sm:text-lg font-black text-amber-900 dark:text-amber-300 font-mono mt-0.5 leading-tight truncate">
-            {formatINR(totalCreditPaise)}
+            {money(totalCreditPaise)}
           </div>
         </div>
       </div>

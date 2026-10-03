@@ -19,6 +19,8 @@ const PrintersWindow = dynamic(() => import('./PrintersWindow').then((m) => m.Pr
 /** Quick look (names only) this often; the full Windows look (offline state) every minute. */
 const QUICK_MS = 8000;
 const FULL_MS = 60000;
+const FIRST_LOOK_MS = 4000;
+const COUNTER_BUSY_MS = 20000;
 
 const KIND_LABEL = {
   thermal: msg('Receipt printer'),
@@ -93,13 +95,41 @@ export function PrinterWatcher() {
         busy.current = false;
       }
     };
-    void look(true);
-    const quickTimer = window.setInterval(() => void look(false), QUICK_MS);
-    const fullTimer = window.setInterval(() => void look(true), FULL_MS);
+    // v4.97.0: the first look waits until the page has opened. Run at once it started
+    // PowerShell (Get-Printer) in the very moment the first page was being loaded — the main
+    // process serves the page files too, and on a slow PC Home showed up seconds late.
+    const ric = (window as any).requestIdleCallback as ((cb: () => void, o?: { timeout: number }) => number) | undefined;
+    const firstTimer = window.setTimeout(() => {
+      if (ric) ric(() => void look(true), { timeout: FIRST_LOOK_MS });
+      else void look(true);
+    }, FIRST_LOOK_MS);
+    // The full look (PowerShell Get-Printer, ~1 s of CPU) waits while the counter is in use —
+    // a key, a scan or a click in the last 20 s — and runs at the next quiet moment instead.
+    // On a slow PC it took CPU from the bill being typed once a minute (v4.97.0).
+    let lastInputAt = 0;
+    let fullDue = false;
+    const onInput = () => {
+      lastInputAt = Date.now();
+    };
+    window.addEventListener('keydown', onInput, { capture: true, passive: true });
+    window.addEventListener('pointerdown', onInput, { capture: true, passive: true });
+    const counterBusy = () => Date.now() - lastInputAt < COUNTER_BUSY_MS;
+    const quickTimer = window.setInterval(() => {
+      const full = fullDue && !counterBusy();
+      if (full) fullDue = false;
+      void look(full);
+    }, QUICK_MS);
+    const fullTimer = window.setInterval(() => {
+      if (counterBusy()) fullDue = true;
+      else void look(true);
+    }, FULL_MS);
     return () => {
       alive = false;
+      window.clearTimeout(firstTimer);
       window.clearInterval(quickTimer);
       window.clearInterval(fullTimer);
+      window.removeEventListener('keydown', onInput, { capture: true });
+      window.removeEventListener('pointerdown', onInput, { capture: true });
     };
   }, []);
 

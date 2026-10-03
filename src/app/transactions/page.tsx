@@ -51,10 +51,19 @@ export default function TransactionsPage() {
   const business = useBusiness();
   const customers = useLiveQuery(async () => db.customers.toArray()) || [];
 
-  const allSales = useLiveQuery(async () => {
+  // v4.97.0: the newest bills show at once; the whole history (for "All dates", the totals,
+  // search and the exports) follows right after. Reading a year of bills took 1–1.5 s before
+  // anything showed. Until it is in, totals show "…" and the exports are off — they never
+  // work on part of the history.
+  const recentSales = useLiveQuery(() => db.sales.orderBy('created_at').reverse().limit(TX_PAGE_SIZE).toArray());
+  const fullSales = useLiveQuery(async () => {
     // Every bill: date filters used to silently miss anything older than the latest 500.
-    return await db.sales.orderBy('created_at').reverse().toArray();
-  }) || [];
+    // Newest first. Read in index order (one fast bulk read) and turned round here — a
+    // reversed read walks a cursor bill by bill: ~2× slower on a year of bills (v4.97.0).
+    return (await db.sales.orderBy('created_at').toArray()).reverse();
+  });
+  const historyLoading = fullSales === undefined;
+  const allSales = fullSales ?? recentSales ?? [];
 
   // Filter & KPI Logic
   const {
@@ -89,12 +98,13 @@ export default function TransactionsPage() {
 
   // Export Filtered Records to CSV
   const handleExportCSV = () => {
+    if (historyLoading) return;
     exportTransactionsCSV(filteredSales);
   };
 
   // Bulk Multi-Invoice Continuous PDF Download
   const handleBulkDownloadInvoices = async () => {
-    if (!business || filteredSales.length === 0) return;
+    if (!business || filteredSales.length === 0 || historyLoading) return;
     const selectedCustomerObj = customers.find((c) => c.id === selectedCustomerId);
     const dateLabel = datePreset === 'custom'
       ? `${startDate || 'Start'} to ${endDate || 'End'}`
@@ -227,6 +237,7 @@ export default function TransactionsPage() {
 
   // Export 1-Click Tally Prime XML
   const handleExportTallyXML = async () => {
+    if (historyLoading) return;
     if (filteredSales.length === 0) {
       showAlert(tr('No transactions to export.'));
       return;
@@ -263,8 +274,8 @@ export default function TransactionsPage() {
     <div className="space-y-3.5 pb-20 sm:pb-8 animate-in fade-in duration-150">
       {/* 1. Header & Quick Actions */}
       <TransactionHeaderActions
-        filteredCount={filteredSales.length}
-        totalSalesCount={allSales.length}
+        filteredCount={historyLoading ? 0 : filteredSales.length}
+        totalSalesCount={historyLoading ? 0 : allSales.length}
         onOpenSalesReturn={() => {
           setReturnSaleId(undefined);
           setIsReturnModalOpen(true);
@@ -282,6 +293,7 @@ export default function TransactionsPage() {
         totalUpiPaise={totalUpiPaise}
         totalCreditPaise={totalCreditPaise}
         salesCount={revenueBillCount}
+        loading={historyLoading}
       />
 
       {/* 3. Filter & Search Toolbar */}
@@ -310,7 +322,7 @@ export default function TransactionsPage() {
       <Card className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xs overflow-hidden">
         <div className="p-3 sm:p-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
           <span className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-            {tr('Transactions (')}{filteredSales.length})
+            {tr('Transactions (')}{historyLoading ? '…' : filteredSales.length})
           </span>
           <span className="text-[11px] text-slate-400 font-medium">
             {tr('Tap any row to view & print tax invoice')}

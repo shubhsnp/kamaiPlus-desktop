@@ -28,33 +28,33 @@ export function useTransactionFilters(allSales: Sale[], customers?: Customer[]) 
 
   // Recomputed only when the bills or a filter change — not on every render
   // (opening a modal or showing a toast used to re-filter the whole history).
-  const filteredSales = useMemo(() => allSales
-    .filter((sale) => {
-      const saleDate = new Date(sale.created_at);
-      const now = new Date();
+  // v4.97.0: the date limits are worked out once (not per bill), each bill's date is read once,
+  // and "newest first" needs no sorting — `allSales` arrives newest first (transactions page).
+  // On a year of bills the old sort parsed ~900,000 dates.
+  const filteredSales = useMemo(() => {
+    const now = new Date();
+    let from = -Infinity;
+    let to = Infinity;
+    if (datePreset === 'today') { from = dayStart(0).getTime(); to = dayStart(1).getTime(); }
+    else if (datePreset === 'yesterday') { from = dayStart(-1).getTime(); to = dayStart(0).getTime(); }
+    else if (datePreset === 'week') { from = dayStart(-6).getTime(); } // today plus the six days before it
+    else if (datePreset === 'month') { from = new Date(now.getFullYear(), now.getMonth(), 1).getTime(); }
+    else if (datePreset === 'custom') {
+      if (startDate) { const start = new Date(startDate); start.setHours(0, 0, 0, 0); from = start.getTime(); }
+      // inclusive end of the chosen day
+      if (endDate) { const end = new Date(endDate); end.setHours(23, 59, 59, 999); to = end.getTime() + 1; }
+    }
+    const datesOn = from !== -Infinity || to !== Infinity;
+    const targetCust = selectedCustomerId !== 'all' && selectedCustomerId !== 'walk-in' ? customers?.find((c) => c.id === selectedCustomerId) : undefined;
+    const targetName = targetCust?.name.toLowerCase().trim();
+    const cleanPhone = targetCust?.phone?.replace(/\D/g, '').slice(-10);
+    const q = debouncedSearch.trim() ? debouncedSearch.toLowerCase() : '';
 
+    const out = allSales.filter((sale) => {
       // 1. Date Range Filter
-      if (datePreset === 'today') {
-        if (saleDate < dayStart(0) || saleDate >= dayStart(1)) return false;
-      } else if (datePreset === 'yesterday') {
-        if (saleDate < dayStart(-1) || saleDate >= dayStart(0)) return false;
-      } else if (datePreset === 'week') {
-        // Today plus the six days before it.
-        if (saleDate < dayStart(-6)) return false;
-      } else if (datePreset === 'month') {
-        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        if (saleDate < monthStart) return false;
-      } else if (datePreset === 'custom') {
-        if (startDate) {
-          const start = new Date(startDate);
-          start.setHours(0, 0, 0, 0);
-          if (saleDate < start) return false;
-        }
-        if (endDate) {
-          const end = new Date(endDate);
-          end.setHours(23, 59, 59, 999);
-          if (saleDate > end) return false;
-        }
+      if (datesOn) {
+        const t = new Date(sale.created_at).getTime();
+        if (t < from || t >= to) return false;
       }
 
       // 2. Transaction Type (Cash vs Credit vs UPI)
@@ -69,19 +69,16 @@ export function useTransactionFilters(allSales: Sale[], customers?: Customer[]) 
       if (selectedCustomerId === 'walk-in') {
         if (sale.customer_id) return false;
       } else if (selectedCustomerId !== 'all') {
-        const targetCust = customers?.find((c) => c.id === selectedCustomerId);
         const matchId = sale.customer_id === selectedCustomerId;
-        const matchName = Boolean(targetCust && sale.customer_name && sale.customer_name.toLowerCase().trim() === targetCust.name.toLowerCase().trim());
-        const cleanPhone = targetCust?.phone?.replace(/\D/g, '').slice(-10);
+        const matchName = Boolean(targetName && sale.customer_name && sale.customer_name.toLowerCase().trim() === targetName);
         const matchPhone = Boolean(cleanPhone && sale.customer_phone && sale.customer_phone.includes(cleanPhone));
         if (!matchId && !matchName && !matchPhone) return false;
       }
 
       // 4. Search Query
-      if (debouncedSearch.trim()) {
-        const q = debouncedSearch.toLowerCase();
+      if (q) {
         const matchInv = sale.invoice_number.toLowerCase().includes(q);
-        const matchCust = (sale.customer_name && sale.customer_name.toLowerCase().includes(q)) || 
+        const matchCust = (sale.customer_name && sale.customer_name.toLowerCase().includes(q)) ||
                           (sale.customer_phone && sale.customer_phone.includes(q));
         const matchItems = sale.items && sale.items.some((i) => i.product_name.toLowerCase().includes(q));
 
@@ -89,19 +86,13 @@ export function useTransactionFilters(allSales: Sale[], customers?: Customer[]) 
       }
 
       return true;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'date-asc') {
-        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      }
-      if (sortBy === 'amount-desc') {
-        return b.grand_total - a.grand_total;
-      }
-      if (sortBy === 'amount-asc') {
-        return a.grand_total - b.grand_total;
-      }
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    }), [allSales, customers, datePreset, startDate, endDate, paymentFilter, selectedCustomerId, debouncedSearch, sortBy]);
+    });
+
+    if (sortBy === 'date-desc') return out; // already newest first
+    if (sortBy === 'date-asc') return out.reverse();
+    if (sortBy === 'amount-desc') return out.sort((a, b) => b.grand_total - a.grand_total);
+    return out.sort((a, b) => a.grand_total - b.grand_total);
+  }, [allSales, customers, datePreset, startDate, endDate, paymentFilter, selectedCustomerId, debouncedSearch, sortBy]);
 
   // KPI Calculations on filtered subset. Estimates and fully returned bills are not
   // revenue; cash counts only money kept (no change handed back), splits by their parts.

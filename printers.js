@@ -1,4 +1,5 @@
 const { execFile } = require('child_process');
+const path = require('path');
 
 /**
  * Printer facts from Windows (v4.78.0). Electron's own printer list has only names, so the
@@ -51,30 +52,85 @@ function parsePrinterJson(stdout) {
     });
 }
 
+// v4.97.0: PowerShell runs in a utility process (psWorker.js), never on the main thread — started
+// from main it sometimes held the main thread for seconds (measured: 5.1 s), and the main thread
+// also serves the pages and answers the window. Outside Electron (tests) it runs directly.
+let utilityProcess = null;
+try {
+  utilityProcess = require('electron').utilityProcess || null;
+} catch {
+  utilityProcess = null;
+}
+let worker = null;
+let seq = 0;
+const waiting = new Map();
+
+function psWorker() {
+  if (!utilityProcess) return null;
+  if (worker) return worker;
+  try {
+    worker = utilityProcess.fork(path.join(__dirname, 'psWorker.js'), [], { serviceName: 'KamaiPlus printer check' });
+  } catch {
+    worker = null;
+    return null;
+  }
+  worker.on('message', (m) => {
+    const done = m && waiting.get(m.id);
+    if (done) {
+      waiting.delete(m.id);
+      done(m);
+    }
+  });
+  worker.on('exit', () => {
+    worker = null;
+    for (const [id, done] of waiting) done({ id, error: 'printer helper stopped', stdout: '' });
+    waiting.clear();
+  });
+  return worker;
+}
+
+/** powershell.exe with these arguments → { error, stdout }; never throws. */
+function runPowerShell(args, timeoutMs) {
+  return new Promise((resolve) => {
+    const w = psWorker();
+    if (!w) {
+      execFile('powershell.exe', args, { windowsHide: true, timeout: timeoutMs, maxBuffer: 1024 * 1024 }, (err, stdout) =>
+        resolve({ error: err ? String(err.message || err) : null, stdout: String(stdout || '') })
+      );
+      return;
+    }
+    const id = ++seq;
+    const timer = setTimeout(() => {
+      if (waiting.delete(id)) resolve({ error: 'timeout', stdout: '' });
+    }, timeoutMs + 3000);
+    waiting.set(id, (m) => {
+      clearTimeout(timer);
+      resolve({ error: m.error || null, stdout: m.stdout || '' });
+    });
+    w.postMessage({ id, args, timeoutMs });
+  });
+}
+
 /** Installed printers with driver, port and offline state; null when Windows could not say. */
 function getPrinterStatus() {
   if (process.platform !== 'win32') return Promise.resolve(null);
   if (cache.value && Date.now() - cache.at < CACHE_MS) return Promise.resolve(cache.value);
   if (pending) return pending;
-  pending = new Promise((resolve) => {
-    execFile(
-      'powershell.exe',
-      ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(PS_SCRIPT, 'utf16le').toString('base64')],
-      { windowsHide: true, timeout: 15000, maxBuffer: 1024 * 1024 },
-      (err, stdout) => {
-        let value = null;
-        if (!err) {
-          try {
-            value = parsePrinterJson(stdout);
-          } catch {
-            value = null;
-          }
-        }
-        cache = { at: Date.now(), value };
-        pending = null;
-        resolve(value);
+  pending = runPowerShell(
+    ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(PS_SCRIPT, 'utf16le').toString('base64')],
+    15000
+  ).then(({ error, stdout }) => {
+    let value = null;
+    if (!error) {
+      try {
+        value = parsePrinterJson(stdout);
+      } catch {
+        value = null;
       }
-    );
+    }
+    cache = { at: Date.now(), value };
+    pending = null;
+    return value;
   });
   return pending;
 }

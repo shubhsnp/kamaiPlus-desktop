@@ -94,10 +94,8 @@ export const AuthForm: React.FC = () => {
       }
 
       setWelcomeMessage(tr('App Unlocked Successfully!'));
-      
-      // Simulate network delay for UX
-      await new Promise(resolve => setTimeout(resolve, 800));
-
+      // v4.97.0: straight in — an 800 ms "network delay" and a 500 ms pause were added on
+      // purpose here (1.3 s on every unlock of an offline app).
       await performLocalLogin();
 
     } catch (err: any) {
@@ -123,9 +121,6 @@ export const AuthForm: React.FC = () => {
       await setMasterPassword(password);
       
       setWelcomeMessage(tr('Master Password Set Successfully!'));
-      
-      await new Promise(resolve => setTimeout(resolve, 800));
-
       await performLocalLogin();
 
     } catch (err: any) {
@@ -146,7 +141,7 @@ export const AuthForm: React.FC = () => {
       // Read before the shell navigates (it clears the saved page once it gets there).
       const destination = unlockDestination();
       setStoredUser({ ...existing, login_timestamp: Date.now() });
-      setTimeout(() => router.replace(destination), 500);
+      router.replace(destination);
       return;
     }
     let bizId = localBiz?.id || 'biz_pending';
@@ -167,14 +162,7 @@ export const AuthForm: React.FC = () => {
 
     setStoredUser(localUser);
 
-    // Give UI a moment to show the welcome banner
-    setTimeout(() => {
-      if (!localBiz) {
-        router.replace('/onboarding');
-      } else {
-        router.replace('/');
-      }
-    }, 500);
+    router.replace(localBiz ? '/' : '/onboarding');
   };
 
   if (hasPassword === null) return null;

@@ -53,6 +53,7 @@ import crypto from 'crypto';
 import { buildInvoiceDocument, getPrimaryUpiVpa, paginateInvoiceRows, storePhones } from '../src/lib/invoices/invoiceDocument';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { useTransactionFilters } from '../src/components/transactions/useTransactionFilters';
 import { ThermalReceipt } from '../src/components/invoices/print/ThermalReceipt';
 import { activeBillShare, billShareFromPointer, clampBillShare, DEFAULT_BILL_SHARE, DEFAULT_SCAN_BILL_SHARE, MAX_BILL_SHARE, MIN_BILL_SHARE, parsePosLayout, resetBillShare, showProductList, withBillShare } from '../src/lib/billing/posLayout';
 import { lastChangedLine } from '../src/components/billing/PosScanPanel';
@@ -2923,6 +2924,43 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     && counterPace([], 0).busiestHour === null && hourRangeLabel(18) === '6 pm–7 pm' && hourRangeLabel(23) === '11 pm–12 am' && hourRangeLabel(0) === '12 am–1 am' && hourRangeLabel(11) === '11 am–12 pm'
     && readSource('components/reports/DayEndClosingReportModal.tsx').includes('data-day-pace'),
     'Day Summary "counter pace": average bill, the busiest hour (6 pm–7 pm, 3 bills) and the first → last bill');
+}
+
+// 9j(af). Speed (v4.97.0) — measured on a shop with 5,000 items, 30,000 bills, 2,000 customers.
+{
+  const pos = readSource('app/billing/page.tsx');
+  const sale = pos.slice(pos.indexOf('const completeSale = async'), pos.indexOf('// 5. The counter moves on'));
+  const txAt = sale.indexOf("await db.transaction('rw', db.products, db.inventory_movements, async () => {");
+  assert(txAt > 0 && sale.indexOf('await db.products.put(updatedProd);') > txAt && sale.indexOf('stockForCloud.push(updatedProd);') > txAt
+    && sale.indexOf('for (const p of stockForCloud) void cloudMerge(') > sale.indexOf('stockForCloud.push(updatedProd);')
+    && !/await db\.products\.put\(updatedProd\);[\s\S]{0,900}void cloudMerge\(`businesses\/\$\{businessId\}\/products\/\$\{prod\.id\}`/.test(sale),
+    'Complete Sale: all stock lines are deducted in ONE transaction (8 separate writes re-ran the counter\'s catalogue queries 16 times: 2.3 s → 0.2 s), cloud copies after the commit');
+  assert(!/const (categoryCounts|variantInfo) = useLiveQuery/.test(pos) && /\}, \[totalProductCount\]\);/.test(pos) && /db\.products\.orderBy\('category_id'\)\.eachKey/.test(pos),
+    'Billing: category counts and variant "from ₹X" are worked out when the number of items changes, not re-read after every sale');
+  const auth = readSource('components/auth/AuthForm.tsx');
+  assert(!/setTimeout\(/.test(auth) && /router\.replace\(destination\);/.test(auth),
+    'Unlock goes straight in (an 800 ms "network delay" and a 500 ms pause were there on purpose)');
+  const watcher = readSource('components/printers/PrinterWatcher.tsx');
+  assert(/const FIRST_LOOK_MS = 4000;/.test(watcher) && !/\n\s*void look\(true\);\n\s*const quickTimer/.test(watcher) && /const COUNTER_BUSY_MS = 20000;/.test(watcher)
+    && /if \(counterBusy\(\)\) fullDue = true;/.test(watcher),
+    'Printers: the first Get-Printer waits until the page is open (it made Home appear 1.4–5.9 s after unlock; now ~0.6 s), and the minute-by-minute one waits while the counter is in use');
+  const printersJs = fs.readFileSync(path.join(__dirname, '..', 'printers.js'), 'utf8');
+  const psWorkerJs = fs.readFileSync(path.join(__dirname, '..', 'psWorker.js'), 'utf8');
+  assert(/utilityProcess\.fork\(path\.join\(__dirname, 'psWorker\.js'\)/.test(printersJs) && /pending = runPowerShell\(/.test(printersJs) && !/pending = new Promise\(\(resolve\) => \{\s*execFile\(/.test(printersJs)
+    && /process\.parentPort\.on\('message'/.test(psWorkerJs) && (pkgJson.build?.files || []).includes('psWorker.js'),
+    'Printers: Get-Printer runs in a utility process — started from the main process it held the main thread up to 5 s (pages, the window and the database waited); measured gap now < 0.1 s');
+  const txPage = readSource('app/transactions/page.tsx');
+  assert(/db\.sales\.orderBy\('created_at'\)\.reverse\(\)\.limit\(TX_PAGE_SIZE\)\.toArray\(\)/.test(txPage) && /return \(await db\.sales\.orderBy\('created_at'\)\.toArray\(\)\)\.reverse\(\);/.test(txPage)
+    && (txPage.match(/if \(historyLoading\) return;/g) || []).length === 2 && /filteredSales\.length === 0 \|\| historyLoading\) return;/.test(txPage)
+    && /filteredCount=\{historyLoading \? 0 : filteredSales\.length\}/.test(txPage) && /loading=\{historyLoading\}/.test(txPage),
+    'Transactions: the newest 100 bills show at once (2.4 s → 0.5 s), the full history follows; until then totals show "…" and no export can run on part of the history');
+  // The filter hook, rendered for real: newest-first input stays newest first (no 900,000-date sort).
+  const mk = (id: string, at: string, total: number) => ({ id, invoice_number: id, created_at: at, grand_total: total, total_amount: total, items: [], payment_method: 'cash', status: 'completed' } as unknown as Sale);
+  const order: string[] = [];
+  const Probe = () => { const f = useTransactionFilters([mk('C', '2026-10-02T10:00:00.000Z', 300), mk('B', '2026-10-01T10:00:00.000Z', 900), mk('A', '2026-09-30T10:00:00.000Z', 100)]); order.push(f.filteredSales.map((x) => x.id).join('')); return null; };
+  renderToStaticMarkup(React.createElement(Probe));
+  assert(order[0] === 'CBA' && /if \(sortBy === 'date-desc'\) return out; \/\/ already newest first/.test(readSource('components/transactions/useTransactionFilters.ts')),
+    'Transactions filter: newest first with no re-sort; date limits worked out once, not per bill');
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.

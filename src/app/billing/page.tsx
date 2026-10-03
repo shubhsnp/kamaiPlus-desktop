@@ -393,33 +393,44 @@ export default function BillingPage() {
 
   // One indexed pass over the category column instead of one count() query per
   // category (a shop with 30 categories used to fire 30 serial IndexedDB reads
-  // every time the counter screen opened).
-  const categoryCounts = useLiveQuery(async () => {
-    const counts: Record<string, number> = {};
-    await db.products.orderBy('category_id').eachKey((key) => {
-      const id = String(key);
-      counts[id] = (counts[id] || 0) + 1;
-    });
-    return counts;
-  }, []) || {};
+  // every time the counter screen opened). Category counts and each variant parent's
+  // "from ₹X" are worked out when the NUMBER of items changes — not after every write
+  // (v4.97.0): a sale only changes stock, and as live queries they re-read the whole
+  // catalogue after every bill line (16 full passes for an 8-line bill, ~2 s on 5,000 items).
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
+  const [variantInfo, setVariantInfo] = useState<Record<string, { count: number; minPricePaise: number }>>({});
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      const counts: Record<string, number> = {};
+      await db.products.orderBy('category_id').eachKey((key) => {
+        const id = String(key);
+        counts[id] = (counts[id] || 0) + 1;
+      });
+      const children = await db.products.filter((p) => Boolean(p.parent_id) && p.is_active !== false).toArray();
+      const map: Record<string, { count: number; minPricePaise: number }> = {};
+      for (const c of children) {
+        const cur = map[c.parent_id!];
+        map[c.parent_id!] = cur
+          ? { count: cur.count + 1, minPricePaise: Math.min(cur.minPricePaise, c.selling_price) }
+          : { count: 1, minPricePaise: c.selling_price };
+      }
+      if (alive) {
+        setCategoryCounts(counts);
+        setVariantInfo(map);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [totalProductCount]);
 
   const [debouncedSearch] = useDebounce(searchQuery, 300);
   
   const [products, setProducts] = useState<any[]>([]);
 
-  // Variant picker (products with sizes / colours) and each parent's "from ₹X"
+  // Variant picker (products with sizes / colours); each parent's "from ₹X" is worked out above.
   const [variantPick, setVariantPick] = useState<{ parent: Product; qty: number } | null>(null);
-  const variantInfo = useLiveQuery(async () => {
-    const children = await db.products.filter((p) => Boolean(p.parent_id) && p.is_active !== false).toArray();
-    const map: Record<string, { count: number; minPricePaise: number }> = {};
-    for (const c of children) {
-      const cur = map[c.parent_id!];
-      map[c.parent_id!] = cur
-        ? { count: cur.count + 1, minPricePaise: Math.min(cur.minPricePaise, c.selling_price) }
-        : { count: 1, minPricePaise: c.selling_price };
-    }
-    return map;
-  }, []) || {};
 
   // Pull the cloud-sync bundle in while the cashier is still picking items, so
   // the first bill of the day does not wait for it.
@@ -1093,8 +1104,12 @@ export default function BillingPage() {
         await commitNextInvoiceNumber(currentBiz.id, nextSeq);
       }
 
-      // 3. Deduct product inventory stock
-      {
+      // 3. Deduct product inventory stock — every line in ONE transaction (v4.97.0). Each separate
+      // write made the counter's live queries re-read the whole catalogue: an 8-line bill on a
+      // 5,000-item shop took ~2 s. One commit = one refresh, and a bill never leaves half its
+      // stock deducted. Cloud copies go after the commit (never inside a Dexie transaction).
+      const stockForCloud: Product[] = [];
+      await db.transaction('rw', db.products, db.inventory_movements, async () => {
         for (const item of cart) {
         let prod = await db.products.get(item.product_id);
         if (!prod && item.barcode) {
@@ -1129,14 +1144,14 @@ export default function BillingPage() {
             created_by: 'owner',
             created_at: now,
           });
-
-          // Direct cloud sync to prevent stale overwrite from cloud background sync
-          if (businessId && businessId !== 'biz_default') {
-            void cloudMerge(`businesses/${businessId}/products/${prod.id}`, updatedProd);
-          }
+          stockForCloud.push(updatedProd);
         }
       }
-    }
+      });
+      // Direct cloud sync to prevent stale overwrite from cloud background sync
+      if (businessId && businessId !== 'biz_default') {
+        for (const p of stockForCloud) void cloudMerge(`businesses/${businessId}/products/${p.id}`, p);
+      }
 
       // Trigger background sync debounce for full backup
       void cloudSyncSoon(businessId);

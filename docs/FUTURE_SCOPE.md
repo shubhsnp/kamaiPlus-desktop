@@ -43,6 +43,7 @@ likhein (jaise `[x] v4.85.0`). Naya kaam mile to neeche jod dein (agla ID).
 | FS-25 | Customers page par English se Hindi naam dhoondhna | P3 | S | [ ] |
 | FS-26 | AMC / support plan (baar-baar aane wali kamai) | P2 | S | [ ] |
 | FS-27 | Doosre software (Vyapar / Marg) se data import | P3 | L | [ ] |
+| FS-28 | Naye Firebase projects mein CI/CD deploy script update (site auto-creation) | P3 | S | [ ] |
 
 ---
 
@@ -193,6 +194,10 @@ Niyam: AGENTS.md Rule 5 (400 lines). Ek-ek file, bina vyavahaar badle.
 - Purane props `onOpenRapidInward` (Dashboard, Inventory, `ProductHeaderActions`) jo kahin se
   diye nahi jaate.
 - Locales mein bekaar keys (jaise "Custom label" — v4.77.0 mein button hata).
+
+### FS-28 · Naye Firebase projects ke liye CI/CD deploy script update — P3 · S
+- **Kyun:** Firebase 15 Oct 2026 se naye projects mein default hosting site khud se nahi banayega. Automation/CI (jaise GitHub Actions) fail ho jayega (`404 Site Not Found`) kyunki site pre-provisioned nahi hogi. (KamaiPlus ka existing project isse affect nahi hoga).
+- **Kya karna hai:** Naye environment / project ke setup scripts mein `firebase deploy` chalane se pehle explicit creation command jodna: `firebase hosting:sites:create <site-id> --project=<project-id>`.
 
 ---
 

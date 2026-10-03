@@ -107,7 +107,7 @@ Defined in `main.js` (`ipcMain.handle`), exposed in `preload.js`, typed in
 | `kp:print-to-pdf` | `printToPdf({html, fileName, folder})` | Vector A4 PDF → `Documents/KamaiPlus/{Invoices\|Reports\|Statements}` |
 | `kp:print` | `print({html, paper, deviceName, silent, pageSizeMm})` | Sends to OS printer; thermal page height is measured from the DOM; `paper: 'label'` (v4.71.0) prints at `pageSizeMm` (10–300 mm, one label-roll row per page) |
 | `kp:get-printers` | `getPrinters()` | Installed printer list |
-| `kp:printer-status` | `getPrinterStatus()` | v4.78.0: Windows `Get-Printer` via `printers.js` → `{name, driver, port, status, offline}[]` (null if Windows cannot say; v4.80.0: a USB printer whose device is gone is offline); cached 5 s, ~2 s per real call. Feeds printer auto-detect (§9.10) |
+| `kp:printer-status` | `getPrinterStatus()` | v4.78.0: Windows `Get-Printer` via `printers.js` → `{name, driver, port, status, offline}[]` (null if Windows cannot say; v4.80.0: a USB printer whose device is gone is offline); cached 5 s, ~2 s per real call (in the `psWorker.js` utility process since v4.97.0). Feeds printer auto-detect (§9.10) |
 | `kp:calibrate-label-printer` | `calibrateLabelPrinter(name)` | v4.80.0: `labelCalibrate.js` — the label printer's own gap calibration as a RAW job (TSPL `GAPDETECT`, Zebra ZPL `~JC` / EPL `xa`, Godex `~S,SENSOR`), picked by make from a fixed list; only the name crosses over (to PowerShell via env). Unknown make → `{ok:false, manual:true}` (FEED button) (§9.4) |
 | `kp:open-whatsapp` | `openWhatsApp({phone, text})` | v4.79.0: `whatsapp.js` — WhatsApp Desktop (`whatsapp://send`) if installed, else `wa.me` in the browser; text over the Windows link limit → clipboard + empty chat → `{ok, via: 'app'\|'web', copied}` (§9.11) |
 | `kp:open-path` | `openPath(target)` | Opens a saved file — **only inside `Documents/KamaiPlus`** |
@@ -433,6 +433,7 @@ updater.js                  Auto-update from kamaiplus-desktop.web.app (main pro
 backup.js                   Daily automatic backup files (main process, §2.3)
 googleSignIn.js             Google sign-in in the browser, loopback + PKCE (main process, §2.6) — must stay in build.files
 printers.js                 Windows printer facts via Get-Printer (main process, §9.10) — must stay in build.files
+psWorker.js                 v4.97.0: runs printers.js' PowerShell in an Electron utility process (never on the main thread, §8.9) — must stay in build.files
 whatsapp.js                 Opens WhatsApp Desktop / wa.me (main process, §9.11) — must stay in build.files
 scripts/prepare_release.js  dist/ → release/ for the update site (§2.2)
 next.config.js              output:'export', images.unoptimized, TS errors NOT ignored
@@ -898,16 +899,50 @@ category on every mount. It is now a single indexed pass:
 every sale and customer into memory just to enable two buttons. Use `.count()`, and
 fetch rows inside the export handler.
 
-### Current budget (v4.38.0) — regenerate with the command in §13
+**8.6 — Many writes for one action go in ONE Dexie transaction (v4.97.0).** Every committed
+write re-runs every live query that read the table. Complete Sale deducted stock line by line
+(8 transactions for an 8-line bill) and the counter's catalogue queries re-read 5,000 items
+16 times: 2.3 s. One `db.transaction('rw', products, inventory_movements, …)` → 0.2 s.
+Never call the cloud (`cloudMerge`, any `fetch`) inside a Dexie transaction — collect and send
+after the commit.
+
+**8.7 — A live query must only watch what it shows.** Category counts and variant "from ₹X"
+do not change when stock changes; as live queries they re-scanned the catalogue after every
+sale. They now refresh when `db.products.count()` changes.
+
+**8.8 — No artificial delays.** The unlock had an 800 ms "simulate network delay" plus a 500 ms
+pause (1.3 s on every unlock of an offline app).
+
+**8.9 — Background helpers stay out of the first page load and the busy counter.**
+`PrinterWatcher`'s first Get-Printer (PowerShell, ~1 s of CPU) waits 4 s + idle — run at
+once it made Home appear 1.4–5.9 s after unlock (renderer idle, waiting); the 60 s full check
+waits while the counter had input in the last 20 s, and the PowerShell itself runs in a utility
+process (`psWorker.js`): started from the main process it sometimes held the main thread
+for seconds (measured 5.1 s — Windows checks a new process with an encoded command), and the
+main thread serves the pages, IPC and the window. Never start a child process from the main
+process on a timer. The automatic backup already waits for a free counter (§2.3).
+
+**8.10 — Big lists show their first page first.** `/transactions` shows the newest 100 bills
+from a `limit()` query while the whole history loads; totals show "…" and exports are off
+until it is in (never a part-history export). Read big tables in index order and reverse in
+JS — `orderBy().reverse()` walks a cursor (~2× slower). Do not sort an already-sorted list.
+
+Speed probe (scratch script, real Electron, a shop with 5,000 items / 30,000 bills / 2,000
+customers, this slow test PC): scan → line ~40 ms; Complete Sale 0.2–0.6 s (was 2.3–3.1 s);
+unlock → Home 1.1–1.5 s (was 5.8–7.0 s); Transactions 0.5 s (was 2.4 s). Suite 9 §9j(af).
+
+### Current budget (v4.97.0) — regenerate with the command in §13
 
 | | JS per route |
 | :--- | :--- |
-| Shared baseline (every page) | **769 KB** |
-| Heaviest route (`/billing`) | **988 KB** |
-| Everything else | 770–940 KB |
+| Shared baseline (every page) | **924 KB** (v4.38.0: 769 KB) |
+| Heaviest routes (`/products`, `/billing`) | **~1,130 KB** |
+| Everything else | 930–1,050 KB |
 
-The 769 KB floor is React + React-DOM + the Next runtime + Dexie + lucide + the shell.
-**If any route jumps past ~1.1 MB, you have statically imported something heavy.**
+The floor is React + React-DOM + the Next runtime + Dexie + lucide + the shell. Pages load
+from disk with V8's code cache, so the growth since v4.38 costs little; the Hindi / Marathi
+dictionaries (~265 KB each), firebase, jsPDF / html2canvas and xlsx stay lazy (not on any
+page's first load). **If any route jumps past ~1.25 MB, you have statically imported something heavy.**
 
 ---
 
