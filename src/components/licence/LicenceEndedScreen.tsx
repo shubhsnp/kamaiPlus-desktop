@@ -85,21 +85,36 @@ export const LicenceEndedScreen: React.FC<{
   );
 };
 
-/** A small note in the corner when the key ends within a week (v4.85.0); it can be closed. */
-export const LicenceEndingNotice: React.FC<{ validUntil: string; daysLeft: number }> = ({ validUntil, daysLeft }) => {
+/**
+ * The key ends within a week (v4.85.0). v4.98.0: a strip under the top bar (with the Admin's
+ * messages, AdminMessageBanner) — as a corner note it covered "Complete Sale" on the billing
+ * counter. WhatsApp / email to renew with the key filled in; red in the last 2 days; ✕ hides it
+ * until the app opens again. A renewal or a new day while the app is open updates it (main.js
+ * sends any change of the end date / days left).
+ */
+export const LicenceEndingNotice: React.FC<{ validUntil: string; daysLeft: number; licenceKey: string; shopName: string }> = ({ validUntil, daysLeft, licenceKey, shopName }) => {
   const [closed, setClosed] = useState(false);
   if (closed) return null;
+  const last = daysLeft <= 2;
+  const when = daysLeft <= 0 ? tr('Your licence ends today') : daysLeft === 1 ? tr('Your licence ends tomorrow') : tr('Your licence ends in {days} days', { days: daysLeft });
   return (
-    <div className="fixed bottom-12 right-4 z-50 max-w-xs p-3 rounded-xl bg-amber-50 border border-amber-300 shadow-lg text-xs text-amber-950 flex items-start gap-2" data-licence-ending>
-      <CalendarClock className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
-      <div className="space-y-0.5">
-        <p className="font-black">
-          {daysLeft === 0 ? tr('Your licence ends today') : tr('Your licence ends in {days} days', { days: daysLeft })}
-        </p>
-        <p>{tr('Valid till {date}. Contact KamaiPlus support to renew.', { date: dateText(validUntil) })}</p>
+    <div
+      role="status"
+      className={`flex items-start gap-2.5 px-3.5 py-1.5 rounded-xl border text-[13px] ${last ? 'bg-rose-50 border-rose-300 text-rose-950' : 'bg-amber-50 border-amber-300 text-amber-950'}`}
+      data-licence-ending={last ? 'last-days' : 'week'}
+    >
+      <CalendarClock className={`w-4 h-4 shrink-0 mt-0.5 ${last ? 'text-rose-600' : 'text-amber-600'}`} />
+      <div className="flex-1 min-w-0 flex flex-wrap items-center gap-x-3 gap-y-0.5">
+        <span>
+          <span className="font-black">{when}</span> · {tr('Valid till {date}. Renew now so billing does not stop:', { date: dateText(validUntil) })}
+        </span>
+        <SupportContactLine
+          className="!justify-start text-slate-700 text-xs"
+          message={`${supportGreeting()}\n${tr('Please renew my KamaiPlus licence:')} ${licenceKey} (${shopName})`}
+        />
       </div>
-      <button type="button" onClick={() => setClosed(true)} className="p-0.5 text-amber-700 hover:text-amber-950 cursor-pointer" aria-label={tr('Close')}>
-        <X className="w-3.5 h-3.5" />
+      <button type="button" onClick={() => setClosed(true)} className="p-0.5 opacity-70 hover:opacity-100 cursor-pointer" aria-label={tr('Close')} data-licence-ending-close>
+        <X className="w-4 h-4" />
       </button>
     </div>
   );

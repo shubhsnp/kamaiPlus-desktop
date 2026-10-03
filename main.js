@@ -12,6 +12,7 @@ const printers = require('./printers');
 const whatsapp = require('./whatsapp');
 const labelCalibrate = require('./labelCalibrate');
 const googleSignIn = require('./googleSignIn');
+const adminLink = require('./adminLink');
 
 // Main-process failures are logged instead of vanishing (errorlog.js).
 process.on('uncaughtException', (err) => {
@@ -425,8 +426,40 @@ ipcMain.handle('kp:licence-status', async () =>
 
 // Online check-in (v4.85.0): a fresh licence with the key's end date; a key blocked or moved
 // in the Admin Console stops the app. Offline: nothing changes. See licence.js refresh().
-const licenceRefresh = () =>
-  licence.refresh({ userDataDir: app.getPath('userData'), appVersion: app.getVersion(), fetchImpl: (url, opts) => net.fetch(url, opts) });
+// v4.98.0: it carries this PC's health (counts only) and brings the Admin's messages back
+// (adminLink.js); new messages go to the page at once.
+const licenceRefresh = async () => {
+  const userDataDir = app.getPath('userData');
+  let health = null;
+  try {
+    health = adminLink.buildHealth({ userDataDir, backupInfo: backup.getInfo(backupPaths()), errors: errorlog.readRecent(1000) });
+  } catch {
+    health = null;
+  }
+  const res = await licence.refresh({ userDataDir, appVersion: app.getVersion(), fetchImpl: (url, opts) => net.fetch(url, opts), health });
+  if (res.ok && res.messages !== undefined) {
+    let changed = false;
+    try {
+      changed = adminLink.saveMessages(userDataDir, res.messages);
+    } catch {
+      changed = false;
+    }
+    if (changed && mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('kp:admin-messages', adminLink.readMessages(userDataDir));
+  }
+  return res;
+};
+
+// The page's counts for the health report (v4.98.0) — kept for the next check-in.
+ipcMain.handle('kp:report-health', async (_event, counts) => {
+  try {
+    adminLink.saveCounts(app.getPath('userData'), counts);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
+ipcMain.handle('kp:admin-messages', async () => adminLink.readMessages(app.getPath('userData')));
 
 // "Check again" on the licence-ended screen (after the shop renews).
 ipcMain.handle('kp:licence-refresh', async () => {
@@ -435,12 +468,16 @@ ipcMain.handle('kp:licence-refresh', async () => {
 });
 
 const LICENCE_TICK_MS = 30 * 60 * 1000; // the end date can pass while the app is open
-const LICENCE_CHECKIN_MS = 6 * 60 * 60 * 1000;
+// v4.98.0: hourly (was 6 h) — the Admin's messages, a renewal and a block arrive within the hour.
+const LICENCE_CHECKIN_MS = 60 * 60 * 1000;
 
-/** Every 30 min: re-check the licence (and every 6 h, online, check in); tell the page on a change. */
+/** What the page shows about the licence: a change in any of it (a renewal too) is sent. */
+const licenceShown = (s) => JSON.stringify([s.state, s.validUntil || null, s.daysLeft ?? null, s.reason || null]);
+
+/** Every 30 min: re-check the licence (and every hour, online, check in); tell the page on a change. */
 function startLicenceWatch() {
   if (isDevServer) return;
-  let lastState = licence.getStatus({ userDataDir: app.getPath('userData'), dev: false }).state;
+  let lastShown = licenceShown(licence.getStatus({ userDataDir: app.getPath('userData'), dev: false }));
   let lastCheckIn = 0;
   const tick = async () => {
     // Installed app only: a test or source run never calls the licence server on its own.
@@ -449,8 +486,10 @@ function startLicenceWatch() {
       await licenceRefresh().catch(() => {});
     }
     const status = licence.getStatus({ userDataDir: app.getPath('userData'), dev: false });
-    if (status.state !== lastState && mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('kp:licence-changed', status);
-    lastState = status.state;
+    // v4.98.0: a renewal or a new day also counts (it was only "active" ↔ "ended").
+    const shown = licenceShown(status);
+    if (shown !== lastShown && mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('kp:licence-changed', status);
+    lastShown = shown;
   };
   setTimeout(() => { void tick(); }, 60 * 1000);
   setInterval(() => { void tick(); }, LICENCE_TICK_MS);

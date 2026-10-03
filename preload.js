@@ -22,6 +22,14 @@ contextBridge.exposeInMainWorld('kamaiDesktop', {
     return () => ipcRenderer.removeListener('kp:licence-changed', listener);
   },
   verifyLicenceKey: (key) => ipcRenderer.invoke('kp:licence-verify-key', key),
+  // v4.98.0 — health counts for the Admin Console, and the Admin's messages for this PC.
+  reportHealth: (counts) => ipcRenderer.invoke('kp:report-health', counts),
+  getAdminMessages: () => ipcRenderer.invoke('kp:admin-messages'),
+  onAdminMessages: (callback) => {
+    const listener = (_event, messages) => callback(messages);
+    ipcRenderer.on('kp:admin-messages', listener);
+    return () => ipcRenderer.removeListener('kp:admin-messages', listener);
+  },
   googleSignIn: (opts) => ipcRenderer.invoke('kp:google-signin', opts),
   logError: (entry) => ipcRenderer.invoke('kp:log-error', entry),
   getErrorReport: () => ipcRenderer.invoke('kp:error-report'),

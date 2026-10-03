@@ -57,6 +57,8 @@ import { useTransactionFilters } from '../src/components/transactions/useTransac
 import { ThermalReceipt } from '../src/components/invoices/print/ThermalReceipt';
 import { activeBillShare, billShareFromPointer, clampBillShare, DEFAULT_BILL_SHARE, DEFAULT_SCAN_BILL_SHARE, MAX_BILL_SHARE, MIN_BILL_SHARE, parsePosLayout, resetBillShare, showProductList, withBillShare } from '../src/lib/billing/posLayout';
 import { lastChangedLine } from '../src/components/billing/PosScanPanel';
+import { visibleAdminMessages } from '../src/lib/admin/adminMessages';
+import type { AdminMessage } from '../src/lib/desktop/desktopBridge';
 import { buildSampleSale } from '../src/lib/invoices/sampleInvoice';
 import { resolveInvoiceConfig } from '../src/lib/invoices/themeDefaults';
 import {
@@ -2515,11 +2517,11 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(/ipcMain\.handle\('kp:licence-refresh'/.test(mainSrc2) && /if \(app\.isPackaged && Date\.now\(\) - lastCheckIn >= LICENCE_CHECKIN_MS\)/.test(mainSrc2)
     && /startLicenceWatch\(\);/.test(mainSrc2) && /webContents\.send\('kp:licence-changed', status\)/.test(mainSrc2)
     && /refreshLicence: \(\) => ipcRenderer\.invoke\('kp:licence-refresh'\)/.test(preloadSrc) && /ipcRenderer\.on\('kp:licence-changed', listener\)/.test(preloadSrc),
-    'Check-in runs in the installed app only (every 6 h while online); every 30 min the licence is re-checked and the page told of a change');
+    'Check-in runs in the installed app only (every hour while online since v4.98.0); every 30 min the licence is re-checked and the page told of a change');
   const gateSrc2 = readSource('components/licence/LicenceGate.tsx');
   assert(/return api\.onLicenceChanged\?\.\(setStatus\);/.test(gateSrc2) && /if \(status\.state === 'expired'\) return <LicenceEndedScreen/.test(gateSrc2)
-    && /status\.daysLeft <= 7/.test(gateSrc2) && /data-licence-check-again/.test(readSource('components/licence/LicenceEndedScreen.tsx')),
-    'Licence gate: an ended licence shows only the "licence has ended" screen with "Check again"; a week before the end a closable note shows');
+    && /licence\.daysLeft <= 7/.test(readSource('components/admin/AdminMessageBanner.tsx')) && /data-licence-check-again/.test(readSource('components/licence/LicenceEndedScreen.tsx')),
+    'Licence gate: an ended licence shows only the "licence has ended" screen with "Check again"; a week before the end a closable note shows (a strip under the top bar since v4.98.0)');
 }
 
 // (u) Step 3 + 4 — cloud sync both ways (v4.85.0 one way, v4.86.0 both ways). Off by default (a "beta"
@@ -2961,6 +2963,120 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   renderToStaticMarkup(React.createElement(Probe));
   assert(order[0] === 'CBA' && /if \(sortBy === 'date-desc'\) return out; \/\/ already newest first/.test(readSource('components/transactions/useTransactionFilters.ts')),
     'Transactions filter: newest first with no re-sort; date limits worked out once, not per bill');
+}
+
+// 9j(ag). v4.98.0 (Rahul) — Admin Console ↔ Desktop: renewal warning, Admin messages, health.
+// The check-in (now hourly) carries COUNTS only and brings the Admin's messages back; the server
+// side is tested in the Android repo (functions/test/licence_core.test.js).
+{
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const link = require('../adminLink.js');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const lic = require('../licence.js');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const os = require('os');
+  const day = 24 * 60 * 60 * 1000;
+
+  // Counts from the page: only known fields of the right kind.
+  const c = link.cleanCounts({ bills_today: 12.4, bills_7d: '80', products: -1, customers: 'x', last_bill_at: 'not a date', cloud_sync: true, shop_name: 'Sharma', grand_total: 99999 });
+  assert(JSON.stringify(c) === JSON.stringify({ bills_today: 12, bills_7d: 80, cloud_sync: true }),
+    "Health: the page's counts keep only bills today / 7 days, items, customers, last bill time and the sync flag — never names or amounts");
+
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kp-sim-admin-'));
+  const now = Date.now();
+  link.saveCounts(dir, { bills_today: 7, bills_7d: 40, products: 5000, customers: 300, last_bill_at: new Date(now - 3600000).toISOString(), cloud_sync: false });
+  const errors = [{ at: new Date(now - 2 * day).toISOString() }, { at: new Date(now - 9 * day).toISOString() }, { at: 'bad' }];
+  const h = link.buildHealth({ userDataDir: dir, backupInfo: { lastBackupAt: '2026-10-03T05:00:00.000Z', count: 12, extraFolder: 'E:\\Backup' }, errors, nowMs: now });
+  assert(h.bills_today === 7 && h.bills_7d === 40 && h.products === 5000 && h.customers === 300 && h.cloud_sync === false
+    && h.last_backup_at === '2026-10-03T05:00:00.000Z' && h.backups_kept === 12 && h.backup_copy === true && h.errors_7d === 1
+    && typeof h.disk_free_gb === 'number' && h.disk_free_gb > 0 && typeof h.windows === 'string' && !('shop_name' in h),
+    'Health report: counts + last backup, backups kept, extra copy on, errors in 7 days, free disk, Windows version');
+  const tomorrow = link.buildHealth({ userDataDir: dir, backupInfo: null, errors: [], nowMs: now + day });
+  const stale = link.buildHealth({ userDataDir: dir, backupInfo: null, errors: [], nowMs: now + 3 * day });
+  assert(!('bills_today' in tomorrow) && tomorrow.bills_7d === 40 && !('bills_7d' in stale) && !('products' in stale),
+    "Health report: yesterday's \"bills today\" is never sent as today's; counts older than 2 days are left out");
+
+  // Messages: clean, at most 5, ended ones dropped; saved only when they change.
+  const msgs = link.cleanMessages([
+    { id: 'renew', scope: 'key', text: 'Licence 31 Oct ko khatam.\nRenew karein.', level: 'warning' },
+    { id: 'renew', text: 'duplicate' },
+    { id: 'old', text: 'ended', until: new Date(now - 1000).toISOString() },
+    { id: 'x', text: '   ' },
+    { id: 'all-1', text: '<b>Naya</b> version', level: 'shout' },
+    'junk',
+  ], now);
+  assert(msgs.length === 2 && msgs[0].text === 'Licence 31 Oct ko khatam.\nRenew karein.' && msgs[0].scope === 'key' && msgs[0].level === 'warning'
+    && msgs[1].level === 'info' && msgs[1].scope === 'all' && link.cleanMessages(Array.from({ length: 9 }, (_, i) => ({ id: `m${i}`, text: 't' }))).length === 5,
+    'Admin messages: one per id, empty or ended ones dropped, unknown level = info, at most 5');
+  assert(link.saveMessages(dir, msgs) === true && link.saveMessages(dir, msgs) === false && link.readMessages(dir).length === 2
+    && link.saveMessages(dir, []) === true && link.readMessages(dir).length === 0,
+    'Admin messages: kept on this PC from the last check-in; the page is told only when they change; an empty answer clears them');
+
+  // Banner: info / warning close for good, urgent only until the app opens again.
+  const list = [
+    { id: 'a', scope: 'key', text: 'A', level: 'info', until: null },
+    { id: 'b', scope: 'all', text: 'B', level: 'urgent', until: null },
+    { id: 'c', scope: 'all', text: 'C', level: 'warning', until: new Date(now - 1).toISOString() },
+  ] as AdminMessage[];
+  assert(visibleAdminMessages(list, [], [], now).map((m) => m.id).join() === 'a,b'
+    && visibleAdminMessages(list, ['a', 'b'], [], now).map((m) => m.id).join() === 'b'
+    && visibleAdminMessages(list, [], ['b'], now).map((m) => m.id).join() === 'a',
+    'Message banner: a closed info / warning message stays closed; an urgent one comes back when the app opens again; ended ones never show');
+  const banner = readSource('components/admin/AdminMessageBanner.tsx');
+  assert(/\{m\.text\}/.test(banner) && !/dangerouslySetInnerHTML/.test(banner) && /whitespace-pre-line/.test(banner) && /const offMessages = api\.onAdminMessages\?\.\(setMessages\);/.test(banner) && /offMessages\?\.\(\);/.test(banner),
+    "Message banner: the Admin's text is shown as plain text (never HTML), line breaks kept; new messages appear while the app is open");
+
+  // The real check-in with a signed licence (needs the signing key on this PC — Rahul's dev PC has it).
+  const pem = path.join(os.homedir(), 'KamaiPlus-Secrets', 'desktop_licence_private.pem');
+  if (fs.existsSync(pem)) {
+    const sign = (payload: object) => {
+      const bytes = Buffer.from(JSON.stringify(payload), 'utf8');
+      return { licence: bytes.toString('base64url'), signature: crypto.sign(null, bytes, crypto.createPrivateKey(fs.readFileSync(pem, 'utf8'))).toString('base64url') };
+    };
+    const base = { v: 1, key: 'KPD-AAAA-BBBB-CCCC-DDDD', machine_id: lic.getMachineId(), shop_name: 'Sharma Kirana', issued_at: new Date(now - day).toISOString() };
+    const udir = fs.mkdtempSync(path.join(os.tmpdir(), 'kp-sim-checkin-'));
+    fs.writeFileSync(path.join(udir, 'licence.json'), JSON.stringify(sign(base)));
+    let sent: { action?: string; health?: Record<string, unknown> } = {};
+    const server = (answer: object) => async (_url: string, opts: { body: string }) => {
+      sent = JSON.parse(opts.body);
+      return { ok: true, status: 200, json: async () => answer };
+    };
+    const renewed = { ...base, issued_at: new Date(now).toISOString(), valid_until: new Date(now + 5 * day + 3600000).toISOString() };
+    pendingAsyncChecks.push((async () => {
+      const r1 = await lic.refresh({ userDataDir: udir, appVersion: '4.98.0', fetchImpl: server({ ...sign(renewed), messages: [{ id: 'm1', scope: 'key', text: 'Hi', level: 'info', until: null }] }), health: { bills_today: 3 } });
+      const firstSent = sent;
+      const r2 = await lic.refresh({ userDataDir: udir, appVersion: '4.98.0', fetchImpl: server(sign(renewed)) });
+      assert(r1.ok && firstSent.action === 'refresh' && (firstSent.health as { bills_today?: number })?.bills_today === 3 && r1.messages.length === 1 && r1.status.daysLeft === 5
+        && r2.ok && r2.messages === undefined && !('health' in sent),
+        "Check-in: health goes with the request, the Admin's messages and a new end date come back; an older server (no messages) changes nothing");
+    })());
+  } else {
+    assert(true, 'Check-in with a signed licence: skipped (no signing key on this PC)');
+  }
+
+  // Wiring: hourly check-in with health, messages to the page, any licence change (a renewal too)
+  // reaches the page, the new module is in the installer, the reporter waits for an idle moment.
+  const mainSrc3 = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+  const preloadSrc3 = fs.readFileSync(path.join(__dirname, '..', 'preload.js'), 'utf8');
+  assert(/const LICENCE_CHECKIN_MS = 60 \* 60 \* 1000;/.test(mainSrc3) && /adminLink\.buildHealth\(\{ userDataDir, backupInfo: backup\.getInfo\(backupPaths\(\)\), errors: errorlog\.readRecent\(1000\) \}\)/.test(mainSrc3)
+    && /if \(res\.ok && res\.messages !== undefined\)/.test(mainSrc3) && /webContents\.send\('kp:admin-messages'/.test(mainSrc3)
+    && /ipcMain\.handle\('kp:report-health'/.test(mainSrc3) && /const licenceShown = \(s\) => JSON\.stringify\(\[s\.state, s\.validUntil \|\| null, s\.daysLeft \?\? null, s\.reason \|\| null\]\);/.test(mainSrc3)
+    && /reportHealth: \(counts\) => ipcRenderer\.invoke\('kp:report-health', counts\)/.test(preloadSrc3) && /ipcRenderer\.on\('kp:admin-messages', listener\)/.test(preloadSrc3)
+    && (pkgJson.build?.files || []).includes('adminLink.js'),
+    'Main process: check-in every hour (was 6 h) with the health report; messages reach the page; a renewal or a new day updates the licence note; adminLink.js ships in the installer');
+  const reporter = readSource('components/admin/ShopHealthReporter.tsx');
+  const counts = readSource('lib/admin/shopCounts.ts');
+  const shell = readSource('components/layout/AppShell.tsx');
+  assert(/const FIRST_MS = 30 \* 1000;/.test(reporter) && /requestIdleCallback/.test(reporter) && /db\.sales\.where\('created_at'\)\.aboveOrEqual\(startOfToday\.toISOString\(\)\)/.test(counts)
+    && /filter\(realBill\)/.test(counts) && /<AdminMessageBanner \/>/.test(shell) && /<ShopHealthReporter \/>/.test(shell),
+    'Health counts: read by the date index (estimates are not bills), 30 s after opening at an idle moment, then every 30 min');
+  const ending = readSource('components/licence/LicenceEndedScreen.tsx');
+  const bannerSrc = readSource('components/admin/AdminMessageBanner.tsx');
+  assert(/const last = daysLeft <= 2;/.test(ending) && /tr\('Please renew my KamaiPlus licence:'\)\} \$\{licenceKey\}/.test(ending)
+    && /daysLeft === 1 \? tr\('Your licence ends tomorrow'\)/.test(ending) && !/fixed bottom/.test(ending)
+    && /<LicenceEndingNotice validUntil=\{ending\.validUntil!\} daysLeft=\{ending\.daysLeft!\} licenceKey=\{ending\.key\}/.test(bannerSrc)
+    && !/LicenceEndingNotice/.test(readSource('components/licence/LicenceGate.tsx')),
+    'Renewal note (last 7 days): a strip under the top bar (as a corner note it covered "Complete Sale"), WhatsApp / email to renew with the key filled in; red in the last 2 days; "tomorrow", never "1 days"');
 }
 
 // 8b. No Pro gating, payment upsell or AI scan anywhere in the source.

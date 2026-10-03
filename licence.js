@@ -215,7 +215,7 @@ async function verifyOwnKey({ userDataDir, key }) {
 }
 
 /** POSTs to the licence server. Never throws: { res, body } or { offline: true }. */
-async function callServer({ action, key, appVersion, fetchImpl, timeoutMs = 20000 }) {
+async function callServer({ action, key, appVersion, fetchImpl, timeoutMs = 20000, health = null }) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -228,6 +228,8 @@ async function callServer({ action, key, appVersion, fetchImpl, timeoutMs = 2000
         machine_id: getMachineId(),
         machine_name: getMachineName(),
         app_version: appVersion,
+        // v4.98.0: counts only (adminLink.js) — sent at a check-in, never at activation.
+        ...(health ? { health } : {}),
       }),
       signal: controller.signal,
     });
@@ -283,17 +285,19 @@ async function activate({ userDataDir, key, appVersion, fetchImpl }) {
 
 /**
  * Online check-in (v4.85.0). Never throws. Returns:
- *   { ok: true, status }                 fresh licence saved (new end date, if any)
+ *   { ok: true, status, messages }       fresh licence saved (new end date, if any); messages =
+ *                                        the Admin's messages for this PC (v4.98.0; undefined
+ *                                        from an older server)
  *   { ok: false, stopped: true, status } key blocked / moved: the app must stop
  *   { ok: false, offline: true }         no internet — nothing changes
  *   { ok: false, error }                 any other answer — nothing changes
  */
-async function refresh({ userDataDir, appVersion, fetchImpl, timeoutMs }) {
+async function refresh({ userDataDir, appVersion, fetchImpl, timeoutMs, health = null }) {
   const record = readJson(licencePath(userDataDir));
   const current = record && verifyLicence(record);
   if (!current) return { ok: false, error: 'no-licence' };
 
-  const call = await callServer({ action: 'refresh', key: current.key, appVersion, fetchImpl, timeoutMs });
+  const call = await callServer({ action: 'refresh', key: current.key, appVersion, fetchImpl, timeoutMs, health });
   if (call.offline) return { ok: false, offline: true };
   const { res, body } = call;
 
@@ -322,7 +326,7 @@ async function refresh({ userDataDir, appVersion, fetchImpl, timeoutMs }) {
   } catch (err) {
     return { ok: false, error: err.message };
   }
-  return { ok: true, status: statusFor(payload, licenceNow(userDataDir, payload)) };
+  return { ok: true, status: statusFor(payload, licenceNow(userDataDir, payload)), messages: Array.isArray(body.messages) ? body.messages : undefined };
 }
 
 module.exports = { getMachineId, getMachineName, maskKey, verifyLicence, getStatus, activate, refresh, verifyOwnKey, statusFor, licenceNow, LICENCE_PUBLIC_KEY };

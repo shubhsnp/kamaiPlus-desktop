@@ -42,6 +42,25 @@ export type LicenceActivationResult =
   | { ok: true; status: LicenceStatus }
   | { ok: false; error: string };
 
+/** Counts only — what the Admin Console sees about this shop (adminLink.js, v4.98.0). */
+export interface ShopCounts {
+  bills_today: number;
+  bills_7d: number;
+  products: number;
+  customers: number;
+  last_bill_at: string | null;
+  cloud_sync: boolean;
+}
+
+/** A message from the Admin Console: for this key ('key') or every Desktop ('all'). */
+export interface AdminMessage {
+  id: string;
+  scope: 'key' | 'all';
+  text: string;
+  level: 'info' | 'warning' | 'urgent';
+  until: string | null;
+}
+
 /** Auto-update state from `updater.js` in the Electron main process. */
 export interface UpdateStatus {
   enabled: boolean;
@@ -95,6 +114,12 @@ export interface KamaiDesktopApi {
   refreshLicence?(): Promise<LicenceRefreshResult>;
   /** The licence changed while the app is open (ended, blocked, renewed). */
   onLicenceChanged?(callback: (status: LicenceStatus) => void): () => void;
+  /** Counts for the Admin Console's health view, sent at the next check-in (v4.98.0). */
+  reportHealth?(counts: ShopCounts): Promise<{ ok: boolean; error?: string }>;
+  /** The Admin's messages for this PC, kept from the last check-in (v4.98.0). */
+  getAdminMessages?(): Promise<AdminMessage[]>;
+  /** New messages arrived at a check-in. Returns an unsubscribe. */
+  onAdminMessages?(callback: (messages: AdminMessage[]) => void): () => void;
   /** Master-password recovery: is this the key of the licence activated on this PC? */
   verifyLicenceKey(key: string): Promise<{ ok: boolean; error?: string }>;
   /** Google sign-in in the shop's browser (googleSignIn.js). `stub` only in the Electron E2E. */

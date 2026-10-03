@@ -7,7 +7,7 @@ import { tr } from '@/lib/i18n/core';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
 import { SupportContactLine } from '@/components/support/SupportContact';
 import { supportGreeting } from '@/lib/support/contact';
-import { LicenceEndedScreen, LicenceEndingNotice } from './LicenceEndedScreen';
+import { LicenceEndedScreen } from './LicenceEndedScreen';
 
 /**
  * Nothing in the app opens until this computer holds a valid licence.
@@ -39,10 +39,8 @@ export const LicenceGate: React.FC<{ children: React.ReactNode }> = ({ children 
 
   if (status === 'checking') return <main className="min-h-screen bg-slate-950" />;
   if (status === 'no-desktop') return <>{children}</>;
-  if (status.state === 'active') {
-    const ending = status.validUntil && status.daysLeft != null && status.daysLeft <= 7;
-    return <>{children}{ending && <LicenceEndingNotice validUntil={status.validUntil!} daysLeft={status.daysLeft!} />}</>;
-  }
+  // The "licence ends within a week" note is a strip under the top bar (AdminMessageBanner, v4.98.0).
+  if (status.state === 'active') return <>{children}</>;
   if (status.state === 'expired') return <LicenceEndedScreen status={status} onChecked={setStatus} />;
   return <ActivationScreen status={status} onActivated={setStatus} />;
 };

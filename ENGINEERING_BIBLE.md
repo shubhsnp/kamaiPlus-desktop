@@ -114,7 +114,9 @@ Defined in `main.js` (`ipcMain.handle`), exposed in `preload.js`, typed in
 | `kp:show-in-folder` | `showItemInFolder(target)` | Same path restriction |
 | `kp:app-info` | `getAppInfo()` | `{version, documentsDir}` |
 | `kp:licence-status` | `getLicenceStatus()` | Offline licence check (§2.1) → `{state:'active',…, validUntil, daysLeft}`, `{state:'expired',…, validUntil}` (v4.85.0) or `{state:'required', machineName, reason?}` |
-| `kp:licence-refresh` | `refreshLicence()` | v4.85.0: online check-in now ("Check again" on the licence-ended screen) → `{ok, offline?, stopped?, status}` (§2.1). The main process also checks in by itself (installed app, every 6 h) and sends `kp:licence-changed` (`onLicenceChanged`) when the state changes. |
+| `kp:licence-refresh` | `refreshLicence()` | v4.85.0: online check-in now ("Check again" on the licence-ended screen) → `{ok, offline?, stopped?, status}` (§2.1). The main process also checks in by itself (installed app, every hour since v4.98.0, was 6 h) and sends `kp:licence-changed` (`onLicenceChanged`) when the state, end date or days left change (v4.98.0: a renewal too). Since v4.98.0 the answer may carry `messages` (§2.1b). |
+| `kp:report-health` | `reportHealth(counts)` | v4.98.0: the page's counts (bills today / 7 days, items, customers, last bill, cloud sync on) → `adminLink.js` keeps them in `<userData>/shop_counts.json` for the next check-in (§2.1b) |
+| `kp:admin-messages` | `getAdminMessages()` | v4.98.0: the Admin's messages kept from the last check-in (`<userData>/admin_messages.json`); new ones are pushed as `kp:admin-messages` (`onAdminMessages`) (§2.1b) |
 | `kp:licence-activate` | `activateLicence(key)` | One-time online activation (§2.1) → `{ok, status}` or `{ok:false, error}` |
 | `kp:licence-verify-key` | `verifyLicenceKey(key)` | Forgot master password: `{ok}` only if `key` is the key of the signed licence on THIS PC (offline). The login screen then clears the password so a new one can be set — data untouched. |
 | `kp:google-signin` | `googleSignIn({clientId, clientSecret})` | Google sign-in (§2.6): `googleSignIn.js` opens the shop's browser, takes the answer on a one-time `127.0.0.1` server (PKCE S256 + `state`), swaps the code for an ID token → `{ok, idToken, email, name, picture}`. The Electron E2E (unpackaged + `KAMAI_E2E_GOOGLE_STUB=1`) gets a stand-in `{stub: true}`. |
@@ -171,7 +173,7 @@ Admin Console (KamaiPlus Android repo, admin_console/) → Desktop Licences
     — turning the PC clock back does not help. Past the end → `{state:'expired'}` →
     `LicenceEndedScreen` ("Check again", data untouched). ≤ 7 days left → a closable note.
   - **Online check-in** (`refresh()`, action `refresh` on the same Cloud Function): installed app
-    only, 1 min after start and every 6 h (`startLicenceWatch` in main.js; every 30 min the
+    only, 1 min after start and every hour (v4.98.0; was 6 h) (`startLicenceWatch` in main.js; every 30 min the
     status is re-checked for a passed end date). Same computer only — it never binds a key. A
     fresh licence (new end date) is saved. `403 revoked` / `409 moved` (key blocked, or freed /
     moved to another PC) **stop the app**: `licence.json` → `licence.blocked.json` (kept for
@@ -183,6 +185,38 @@ Admin Console (KamaiPlus Android repo, admin_console/) → Desktop Licences
     with an ended licence).
 - `licence.js` must stay in `package.json` → `build.files`, or the installer ships
   without it and the app cannot start.
+
+### 2.1b Admin Console ↔ Desktop: renewal note, messages, health (v4.98.0)
+
+Owner's request: "Renewal se pehle chetavani, Desktop par Admin ka message / banner, Desktop ka
+health dikhana". All three ride on the hourly licence check-in — no new server, no new login.
+
+- **Renewal note** (`LicenceEndingNotice` in `LicenceEndedScreen.tsx`, rendered by `AdminMessageBanner`):
+  ≤ 7 days left → a strip under the top bar (it was a corner note — it covered "Complete Sale" on
+  the billing counter) with WhatsApp / email to renew (key + shop filled in), red in the last 2
+  days, "tomorrow" on the last-but-one day; ✕ = until the app opens again.
+  main.js `licenceShown` sends `kp:licence-changed` on any change of state / end date / days
+  left, so a renewal hides it and a new day updates it while the app is open. The Admin
+  Console's Desktop Licences screen lists keys ending in 30 days and has "Copy renewal reminder".
+- **Messages**: the Admin writes `admin_message` on `desktop_licences/{KEY}` (one PC) or
+  `platform_settings/desktop_message` (every Desktop), each `{id, text, level: info|warning|urgent,
+  until}`. The check-in answer carries `messages` (server: `pickDesktopMessages`);
+  `adminLink.js` keeps them; `AdminMessageBanner` (under the top bar, AppShell) shows at most 2 as
+  plain text. Info / warning ✕ = closed for good (`localStorage kp_admin_messages_dismissed`);
+  urgent ✕ = until the app opens again. A changed text gets a new id, so it shows again.
+- **Health** (counts only — never names, amounts or bills): `ShopHealthReporter` (AppShell; 30 s
+  after opening at an idle moment, then every 30 min) → `collectShopCounts()`
+  (`lib/admin/shopCounts.ts`, by the `created_at` index, estimates are not bills) →
+  `kp:report-health`. At the check-in `adminLink.buildHealth` adds the last backup, backups kept,
+  extra copy on, errors in 7 days, free disk and the Windows version; counts older than 2 days
+  and yesterday's "bills today" are left out. The server keeps only known fields
+  (`cleanHealth`) as `health` + `health_at` on the key's doc; the Admin Console shows them with
+  warnings (no backup for 3 days, offline 3 days, errors, disk < 5 GB).
+- Old Desktop + new server: no health sent, `messages` ignored. New Desktop + old server: no
+  `messages` in the answer → the kept messages are left as they are.
+- Privacy: these counts must be in the privacy policy before real shops depend on it (K-P13).
+- `adminLink.js` must stay in `build.files`. Tests: Suite 9 §9j(ag); server
+  `functions/test/licence_core.test.js` (Android repo, branch `feat/desktop-health-message`).
 
 ### 2.2 Auto-update (v4.45.0)
 
@@ -434,6 +468,7 @@ backup.js                   Daily automatic backup files (main process, §2.3)
 googleSignIn.js             Google sign-in in the browser, loopback + PKCE (main process, §2.6) — must stay in build.files
 printers.js                 Windows printer facts via Get-Printer (main process, §9.10) — must stay in build.files
 psWorker.js                 v4.97.0: runs printers.js' PowerShell in an Electron utility process (never on the main thread, §8.9) — must stay in build.files
+adminLink.js                v4.98.0: health counts for the Admin Console + the Admin's messages from the check-in (main process, §2.1b) — must stay in build.files
 whatsapp.js                 Opens WhatsApp Desktop / wa.me (main process, §9.11) — must stay in build.files
 scripts/prepare_release.js  dist/ → release/ for the update site (§2.2)
 next.config.js              output:'export', images.unoptimized, TS errors NOT ignored

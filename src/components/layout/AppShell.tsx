@@ -19,6 +19,8 @@ import { UpdateReadyBanner } from './UpdateReadyBanner';
 import { FeatureGate } from '@/components/features/FeatureGate';
 import { AutoBackupScheduler } from './AutoBackupScheduler';
 import { CloudSyncScheduler } from './CloudSyncScheduler';
+import { AdminMessageBanner } from '@/components/admin/AdminMessageBanner';
+import { ShopHealthReporter } from '@/components/admin/ShopHealthReporter';
 import { tr } from '@/lib/i18n/core';
 import { SupportContactLine } from '@/components/support/SupportContact';
 import { supportGreeting } from '@/lib/support/contact';
@@ -251,6 +253,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
 
       <Navbar />
+      <AdminMessageBanner />
       <div className="flex-1 flex w-full overflow-hidden min-h-0">
         <Sidebar />
         <main className="flex-1 p-3 sm:p-5 overflow-y-auto w-full min-h-0 bg-slate-50/40 animate-in fade-in duration-300">
@@ -264,6 +267,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       <UpdateReadyBanner />
       <AutoBackupScheduler />
       <CloudSyncScheduler />
+      <ShopHealthReporter />
       <IdleLock />
       <WhatsNewModal />
     </div>

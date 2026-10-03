@@ -1399,6 +1399,9 @@ async function run() {
 
   // ── 3. Restart: data survives, password is asked, licence works offline ──
   {
+    // v4.98.0: a message kept from the last licence check-in (adminLink.js) shows after unlock.
+    fs.writeFileSync(path.join(dataDir, 'userData', 'admin_messages.json'), JSON.stringify([{ id: 'e2e-1', scope: 'key', text: 'E2E message from the KamaiPlus admin', level: 'warning', until: null }]));
+    const launchedAt = Date.now();
     const { app, page } = await launch(dataDir);
     try {
       // Lock on launch (v4.58.0): a signed-in shop still needs the password after a restart.
@@ -1417,6 +1420,14 @@ async function run() {
         await pw.fill(PASSWORD);
         await pw.press('Enter');
         check(await textVisible(page, 'E2E Kirana Store'), 'The right password opens the shop with its own name (signed-in user kept)');
+        const strip = page.locator('[data-admin-message="warning"]');
+        const stripShown = await strip.waitFor({ timeout: 10000 }).then(() => true, () => false);
+        check(stripShown && (await strip.innerText()).includes('E2E message from the KamaiPlus admin'), "The Admin's message (kept from the last check-in) shows as a strip after unlock");
+        if (stripShown) {
+          await page.locator('[data-admin-message-close]').first().click();
+          await page.waitForTimeout(400);
+          check(!(await strip.count()), 'Closing the Admin message hides it');
+        }
 
         // Lock now (v4.65.0): store menu → password screen → back on the same page.
         // Let the unlock finish its own redirect first: a click in the same instant can be
@@ -1442,6 +1453,12 @@ async function run() {
           if (!(backPath === '/products' && asideCount > 0)) await shot(page, 'failed-lock-return');
         }
       }
+      // v4.98.0: the page's counts reach the main process for the next check-in (30 s after opening).
+      const countsFile = path.join(dataDir, 'userData', 'shop_counts.json');
+      while (!fs.existsSync(countsFile) && Date.now() - launchedAt < 90000) await page.waitForTimeout(1000);
+      const counts = fs.existsSync(countsFile) ? JSON.parse(fs.readFileSync(countsFile, 'utf8')) : null;
+      check(Boolean(counts && counts.bills_today >= 1 && counts.bills_today <= expectedSales && counts.products > 0 && counts.bills_7d >= counts.bills_today && !('shop_name' in counts)),
+        `Health counts reach the main process for the check-in (${counts ? `${counts.bills_today} bills today, ${counts.products} items` : 'no file after 90 s'})`);
       const sales = await readStore(page, 'sales');
       const product = (await readStore(page, 'products')).find((p) => p.id === productId);
       check(sales.length === expectedSales && product && Number(product.current_stock) === stockBefore - 1, `The ${expectedSales} bills and the new stock are still there after closing and reopening the app`);
