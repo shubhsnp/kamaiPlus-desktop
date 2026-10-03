@@ -169,7 +169,8 @@ async function run() {
       'product_cost_price',
       'product_hsn',
       'product_gst_rate',
-      'product_variants'
+      'product_variants',
+      'payment_keys'
     ];
     for (const key of switchesToEnable) {
       const input = page.locator(`input[data-feature="${key}"]`);
@@ -299,7 +300,7 @@ async function run() {
     if (await pendingBillsTab.isVisible()) {
       await pendingBillsTab.click();
       await page.waitForTimeout(500);
-      const settleTrigger = page.locator('button', { hasText: /Settle/i }).first();
+      const settleTrigger = page.locator('button[title="Settle this specific invoice"]').first();
       if (await settleTrigger.isVisible()) {
         await settleTrigger.click();
         await page.waitForTimeout(600);
@@ -351,7 +352,7 @@ async function run() {
     await page.waitForURL(/\/purchases/, { timeout: 10000 });
     await page.waitForTimeout(1000);
     await takeShot(page, '09_purchases_page');
-    check(await page.getByText('Restock Items', { exact: false }).first().isVisible(), 'Purchases inward overview rendered');
+    check(await page.getByText('Items Needing Restock', { exact: false }).first().isVisible(), 'Purchases inward overview rendered');
 
     // ── STEP 10: Cash Register & Denominations ──
     console.log('\n--- 9. Cash Register & Day-End Closing ---');
@@ -360,26 +361,27 @@ async function run() {
     await page.waitForTimeout(1000);
     await takeShot(page, '10_cash_register_page');
 
-    const openShiftBtn = page.getByRole('button', { name: /Open New Register Shift|Open Shift/i }).first();
+    const openShiftBtn = page.getByRole('button', { name: /Open Drawer/i }).first();
     if (await openShiftBtn.isVisible().catch(() => false)) {
       await openShiftBtn.click();
       await page.waitForTimeout(500);
-      await page.getByRole('button', { name: /Confirm & Open Register/i }).first().click();
+      await page.getByPlaceholder('e.g. 2000.00').fill('500');
+      await page.getByRole('button', { name: /Start Shift/i }).first().click();
       await page.waitForTimeout(800);
     }
-    const registerOpenStatus = await page.getByText('REGISTER IS OPEN', { exact: false }).first().isVisible();
+    const registerOpenStatus = await page.getByText('Drawer Open', { exact: false }).first().isVisible();
     check(registerOpenStatus, 'Cash register shift opened and active');
 
     // Test Tally Counter (Denomination modal)
-    const countCashBtn = page.getByRole('button', { name: /Count Physical Cash|Tally Counter/i }).first();
+    const countCashBtn = page.getByRole('button', { name: /Close Shift/i }).first();
     if (await countCashBtn.isVisible().catch(() => false)) {
       await countCashBtn.click();
       await page.waitForTimeout(500);
-      const denomModal = await page.getByText('Denomination Calculator', { exact: false }).first().isVisible();
+      const denomModal = await page.getByText('Denomination Tally Counter', { exact: false }).first().isVisible();
       check(denomModal, 'Denomination Calculator modal opens with all currency denominations');
       await takeShot(page, '11_denomination_modal');
-      const closeDenom = page.getByRole('button', { name: /Cancel|Close/i }).first();
-      if (await closeDenom.isVisible()) await closeDenom.click();
+      // Esc closes the modal (a /Close/ button match is the Close Shift button behind it)
+      await page.keyboard.press('Escape');
       await page.waitForTimeout(300);
     }
 
@@ -390,13 +392,13 @@ async function run() {
     await page.waitForTimeout(1000);
     await takeShot(page, '12_sales_reports');
 
-    const revenueMetric = await page.getByText('Net Revenue', { exact: false }).first().isVisible();
+    const revenueMetric = await page.getByText('Total Revenue', { exact: false }).first().isVisible();
     check(revenueMetric, 'Sales Analytics Net Revenue and KPI ribbon rendered');
-    const itemsTab = page.getByRole('button', { name: /Items/i }).first();
+    const itemsTab = page.getByRole('button', { name: /^Items \(/ }).first();
     if (await itemsTab.isVisible()) {
       await itemsTab.click();
       await page.waitForTimeout(500);
-      const itemsListed = await page.locator('div[data-item-row], tr').count();
+      const itemsListed = await page.getByText(sampleItem.name, { exact: false }).count();
       check(itemsListed > 0, 'Items breakdown tab rendered with sales ranking');
     }
 
@@ -409,7 +411,7 @@ async function run() {
 
     const gstr1Heading = await page.getByText('GSTR-1', { exact: false }).first().isVisible();
     check(gstr1Heading, 'GSTR-1 report overview rendered');
-    const jsonBtn = page.getByRole('button', { name: /Download GSTR-1 JSON/i }).first();
+    const jsonBtn = page.getByRole('button', { name: /GSTR-1 JSON/i }).first();
     check(await jsonBtn.isVisible(), 'GSTR-1 JSON export button present');
 
     // ── STEP 13: Barcode Studio & Label Setup ──
@@ -429,7 +431,7 @@ async function run() {
     await page.waitForTimeout(1000);
     await takeShot(page, '15_invoice_designer');
 
-    const themeColors = await page.locator('button[data-color]').count();
+    const themeColors = await page.locator('button[style*="background-color"].rounded-full').count();
     check(themeColors >= 6, `Theme color options available (${themeColors} colors)`);
 
     // ── STEP 15: Cloud Backup & Data Maintenance ──
@@ -439,7 +441,7 @@ async function run() {
     await page.waitForTimeout(1000);
     await takeShot(page, '16_cloud_backup');
 
-    const backupCard = await page.getByText('Automatic Daily Backups', { exact: false }).first().isVisible();
+    const backupCard = await page.getByText('Automatic Backup', { exact: false }).first().isVisible();
     check(backupCard, 'Auto Backup card showing daily backup safety status');
 
     // ── STEP 16: Right Edge Global Drawers (Transactions) ──
