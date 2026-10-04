@@ -44,6 +44,11 @@ likhein (jaise `[x] v4.85.0`). Naya kaam mile to neeche jod dein (agla ID).
 | FS-26 | AMC / support plan (baar-baar aane wali kamai) | P2 | S | [ ] |
 | FS-27 | Doosre software (Vyapar / Marg) se data import | P3 | L | [ ] |
 | FS-28 | Naye Firebase projects mein CI/CD deploy script update (site auto-creation) | P3 | S | [ ] |
+| FS-29 | Admin se dikkat dekhna: error report on demand + diagnostics snapshot | P1 | M | [ ] |
+| FS-30 | Admin se PC par kaam: backup, update, restart, printer, cache, backup support ko | P2 | M | [ ] |
+| FS-31 | Admin se is PC ki settings badalna + Admin audit log | P2 | M | [ ] |
+| FS-32 | Poore platform par control: kill switch, minimum version, staged rollout | P2 | M | [ ] |
+| FS-33 | Licence / plan: offline grace, plan ke feature, ek dukaan ke kai PC | P3 | L | [ ] |
 
 ---
 
@@ -250,3 +255,51 @@ Niyam: AGENTS.md Rule 5 (400 lines). Ek-ek file, bina vyavahaar badle.
   (`lib/import/catalogImport.ts`). Purane customer, udhar balance, bill nahi aate.
 - **Kya karna hai:** customers + opening udhar ka Excel import (khata entry ke saath), phir
   zaroorat ho to un software ke export format.
+
+---
+
+## Admin Console → Desktop control (dikkat jaldi sulajhana) — 2026-10-04, v4.98.0 ke baad
+
+**Aaj kya hai (v4.85–v4.98):** key / validity / renew, block, move, last online + version, renewal
+patti, Admin message (ek PC / sab), health ginti + "Needs attention" (`licence.js` check-in,
+`adminLink.js`, Bible §2.1b). **Kami:** Admin ko sirf "errors: 4" dikhta hai — kaunsa error, kaunsa
+printer, kya setting, ye nahi; aur Admin se PC par koi kaam nahi karwa sakte.
+
+**Har item ke do hisse:** Desktop (is repo) + Admin Console aur `desktopLicence` function (Android
+repo). Desktop wala hissa pehle ban sakta hai — server jawab na de to chupchaap kuch nahi karta.
+Command check-in ke saath aata hai (har ghante); command baaki ho to check-in 5 min kar sakte hain.
+
+**Niyam (kabhi nahi):** door se data delete nahi; bill / grahak ka naam / rakam bina dukaandaar ki
+"Haan" ke nahi (DPDP Act 2023, K-P13 privacy policy) — sirf ginti aur technical jaankari; bill ke
+beech app band / restart nahi (counter khaali hone par hi); screen door se chalana (AnyDesk jaisa)
+khud nahi banana; har Admin action ka log.
+
+### FS-29 · Admin se dikkat dekhna (diagnosis) — P1 · M
+- **A1 Error report on demand:** Admin button → agle check-in par PC aakhri 50 error bhejta
+  (message, screen / route, version, samay) — `errorlog.js` ki file se, naam / rakam hata kar.
+- **A2 Diagnostics snapshot:** printers + default printer, label printer, silent print, invoice
+  theme, feature switches, database size / table ginti, cloud sync (aakhri sync, baaki queue),
+  update status (download hua version, channel), RAM, screen size.
+- **A3 Version history per PC** (kab kaunsa version aaya). **A4 Usage ginti** (kaunsi screen /
+  feature kitna chala — sirf ginti).
+
+### FS-30 · Admin se PC par kaam (remote actions) — P2 · M
+- B1 abhi backup lo · B2 update check / install (agli baar app khulne par) · B3 restart (sirf
+  counter khaali) · B4 printer dobara dhundho / print setting reset · B5 search / cache dobara
+  banao · B6 backup support ko bhejo — **sirf dukaandaar ki "Haan" ke baad**, encrypted.
+- Har command ek baar chale (id yaad rahe), nateeja agle check-in par Admin ko.
+
+### FS-31 · Admin se is PC ki settings + audit log — P2 · M
+- C1 update channel beta / stable (`updater.js` beta setting) · C2 PC ko ek version par rokna ·
+  C3 feature switch on / off, silent print off, label size reset · C4 dukaandaar ko patti: "Support
+  ne X badla".
+- E4 Admin audit log: kisne kab kaunsa control chalaya (Admin Console).
+
+### FS-32 · Poore platform par control — P2 · M
+- D1 kill switch: koi feature (jaise cloud sync beta) sab PCs par turant band ·
+  D2 minimum version ("isse purana ho to update zaroori") · D3 staged rollout (pehle 10% dukaan) ·
+  D4 Admin message mein button ("Update now", "WhatsApp support").
+
+### FS-33 · Licence / plan — P3 · L
+- E1 offline grace (bina internet kitne din chale — abhi seema nahi) · E2 plan ke hisaab se
+  feature (Basic / Pro, FS-26) · E3 ek dukaan ke kai PC ek group mein (FS-06).
