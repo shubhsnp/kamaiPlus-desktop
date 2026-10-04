@@ -138,7 +138,7 @@ Order zaroori hai: **pehle data surakshit → phir data ka ek format → phir lo
 
 ## 4. Kamiyan (count)
 
-**Total: 64** — Platform 17 · Android 17 · Desktop 30. **Open 47 · Done 17.**
+**Total: 65** — Platform 17 · Android 17 · Desktop 31. **Open 48 · Done 17.**
 🔴 = paisa / data / security / Play Store risk · 🟠 = galat ya adhoora behaviour · 🟢 = chhota / feature gap
 
 ### Platform / website (K-P)
@@ -218,6 +218,7 @@ Order zaroori hai: **pehle data surakshit → phir data ka ek format → phir lo
 | K-D28 | Phone aur PC par **pehle se alag-alag** type kiye gaye same items sync ke baad dohre dikhte (alag ID) — dedupe (barcode / naam) nahi. Abhi: doosra device pehle wale ke data se shuru karo | 🟢 | Open |
 | K-D29 | Badi dukaan (5,000 item / 30,000 bill) par Desktop dheema: Complete Sale 2.3–3.1 s, unlock → Home 5.8–7.0 s, Transactions 2.4 s (slow test PC) | 🟠 | ✅ Done v4.97.0 — Sale 0.2–0.6 s, unlock 1.1–1.5 s, Transactions 0.5 s (Bible §8.6–8.10, test §9j(af)) |
 | K-D23 | 16 files 400 line ke niyam se badi — `billing/page.tsx` **2,254**, `khata/page.tsx` 1,175, `products/page.tsx` 655 … Sabse zaroori screen mein har badlav sabse risky (FS-04, FS-15) | 🟠 | Open |
+| K-D31 | App ka font **Mukta** (`globals.css`: `'Mukta', 'Noto Sans Devanagari', 'Nirmala UI', 'Inter', …`) par font file app mein **bundle nahi** (`layout.tsx` `<head />` khaali, `out/` mein koi `@font-face` nahi). Dev PC par Mukta install hai isliye wahi dikhta; jis dukaan ke PC par Mukta install nahi, wahan Windows **Nirmala UI** dikhata — website (Mukta) se alag. Fix: Mukta woff2 (`src/assets/fonts` jaise) app mein bundle + `@font-face` (2026-10-04 website ke kaam mein mila) | 🟢 | Open |
 | K-D30 | Installer ke exe mein Electron ka "RunAsNode" fuse khula — `ELECTRON_RUN_AS_NODE=1` ke saath `KamaiPlus Desktop.exe` plain Node ban jaata hai (VS Code terminal se chalane par yahi dikha, 2026-10-03). Dukaan par khatra kam, par band karna chahiye (`@electron/fuses`, build ke `afterPack` mein) | 🟠 | Open |
 
 ---
@@ -278,3 +279,4 @@ Order zaroori hai: **pehle data surakshit → phir data ka ek format → phir lo
 | 2026-10-04 | **`www.kamaiplus.com` ✅** — Hostinger CNAME `www → kamaiplus-website.web.app`, Firebase redirect: `https://www.kamaiplus.com` 301 → `https://kamaiplus.com/`, SSL OK. Hostinger email paid hai → `support@` ke liye free raasta sujhaya (ImprovMX forwarding + Gmail "Send mail as"), Rahul ka faisla baaki. | Platform |
 | 2026-10-04 | **Website v1.1.0 (local, `918308b`, deploy NAHI):** andar ke saare pages Hindi mein (763 vaakya, `src/i18n/hi.json`; build khud key lagata hai; kanooni pages English), share card `og.png` 1200×630, check 1861/1861 (Hindi adhoora ho to fail). Preview v2 `claude.ai/artifact/BWYzBP3vGKX8w5He1FK4Yi`. | Platform |
 | 2026-10-04 | **Website SEO v1.2.0 — live** (Rahul: "complete website ka SEO ... blogs banao ... implement karo"). Website repo `dc4b3f7`, deploy `kamaiplus-website`: Hindi ab **asli pages `/hi/...`** (pehle sirf button se, Google nahi padhta tha) + hreflang; sitemap (git lastmod + alternates), RSS, IndexNow (90 URL → 202); schema (Organization, SoftwareApplication, BlogPosting, FAQPage, WebApplication…); fonts apni site se, CSS/JS 1 saal cache, HSTS; keyword titles / H1; **blog 16 lekh** (8 vishay × EN + HI: Diwali fataka checklist, GST invoice format, GSTR-1 JSON, offline vs online, kirana checklist, store-code labels, 58 vs 80 mm printer, udhar khata — GST tathya 2026-10-04 ko sarkari niyam se jaanche); **3 free tools** (GST calculator, barcode generator, udhar reminder) EN + HI. Check 8,815/8,815. Plan + Rahul ke steps: website repo `docs/SEO_PLAN.md` (Search Console, Bing, Play website link, profiles, directories, YouTube, reviews). | Platform |
+| 2026-10-04 | **Website v1.3.0 live (`a68d4b1`):** Rahul: "website me vahi font jo desktop app me" + tagline **"KamaiPlus - Aapki Dukaan ka Digital Sathi"**. Website ab sirf **Mukta** (app jaisa, 400–800 self-hosted) + app ka Consolas stack (numbers / codes); Bricolage / Hanken / JetBrains hataye. Tagline: header (Kamai+ ke neeche), footer, home hero pill + home title, About, schema `slogan`; Hindi pages par "आपकी दुकान का डिजिटल साथी". Share images ab Chromium se Mukta mein (default card par tagline). Check 8,911/8,911, IndexNow 200. Naya **K-D31**: Desktop app Mukta bundle nahi karta (dukaan PC par Nirmala UI). | Platform + Desktop |
