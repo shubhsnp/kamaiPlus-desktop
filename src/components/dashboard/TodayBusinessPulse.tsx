@@ -83,7 +83,7 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
 
       <div className="pt-1.5 mt-1.5 border-t border-amber-100/80 dark:border-amber-900/40 flex items-center justify-between text-[10px] sm:text-[11px]">
         <span className="text-slate-500 dark:text-slate-400 font-semibold truncate">
-          {tr('Cash Sales - Exp')}
+          {tr('Float + Cash Sales - Exp')}
         </span>
         {cashRegisterOn && (
           <span className="text-amber-700 dark:text-amber-400 font-bold inline-flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform text-[10px]">

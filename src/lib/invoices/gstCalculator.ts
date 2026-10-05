@@ -1,4 +1,5 @@
 import { CartItem } from '@/types';
+import { splitIntraStateTax } from '@/lib/gst/taxSplit';
 
 export interface GstTaxBreakup {
   hsnCode: string;
@@ -71,8 +72,7 @@ export function calculateGstSummary(
     } else {
       // Intra-state: 50% CGST + 50% SGST
       const halfRate = rate / 2;
-      const cgstAmount = Math.round(totalTax / 2);
-      const sgstAmount = totalTax - cgstAmount;
+      const { cgst: cgstAmount, sgst: sgstAmount } = splitIntraStateTax(totalTax);
       result.push({
         hsnCode: hsn,
         taxableAmountPaise: taxable,

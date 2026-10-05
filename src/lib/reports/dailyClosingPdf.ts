@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import { Business, Sale, CashExpense } from '@/types';
+import { Business, Sale, CashExpense, LedgerTransaction } from '@/types';
 import { formatINR } from '@/lib/utils';
 import { localDateKey, summarizeDay } from '@/lib/reports/cashDrawer';
 
@@ -7,11 +7,14 @@ export interface DailyClosingData {
   business: Business | null | undefined;
   sales: Sale[];
   expenses: CashExpense[];
+  /** That day's khata entries and morning float — same net cash as the Day Summary card (v4.99.0). */
+  ledger?: LedgerTransaction[];
+  openingCash?: number;
   dateStr: string; // YYYY-MM-DD
 }
 
 export function generateDailyClosingPDF(data: DailyClosingData): { blob: Blob; filename: string } {
-  const { business, sales, expenses, dateStr } = data;
+  const { business, sales, expenses, ledger, openingCash, dateStr } = data;
   const storeName = business?.name || 'Proventure Store';
   const ownerName = business?.owner_name || 'Store Owner';
   const phone = business?.phone || '';
@@ -29,7 +32,7 @@ export function generateDailyClosingPDF(data: DailyClosingData): { blob: Blob; f
   });
 
   // Calculations — same local-day and drawer rules as the Cash Register screen
-  const day = summarizeDay({ sales, expenses, dateKey: dateStr });
+  const day = summarizeDay({ sales, expenses, ledger, openingCash, dateKey: dateStr });
   const daysSales = day.sales;
   const daysExpenses = expenses.filter((e) => localDateKey(new Date(e.created_at)) === dateStr);
   const totalSalesPaise = day.netSalesPaise;

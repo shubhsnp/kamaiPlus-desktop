@@ -835,7 +835,10 @@ export default function BillingPage() {
   };
 
   // Calculations
-  const totalItemCount = cart.reduce((acc, item) => acc + item.quantity, 0);
+  // Items = bill lines, as on the bill and in "Sale completed"; units = the quantities added up
+  // (v4.99.0, K-D39 — a 7-line bill said "Cart Items (8)", and 1.5 kg of sugar made "1.5 items").
+  const totalItemCount = cart.length;
+  const totalUnits = Math.round(cart.reduce((acc, item) => acc + item.quantity, 0) * 1000) / 1000;
 
   // Bill-level discount: a % or flat amount off the lines' own amounts (MRP for
   // tax-inclusive items, base rate for tax-exclusive ones), like a line discount.
@@ -1780,7 +1783,7 @@ export default function BillingPage() {
                 {tr('Total Payable')}
               </span>
               <span className="text-[11px] font-mono text-slate-400 font-medium">
-                {totalItemCount} {totalItemCount === 1 ? tr('item') : tr('items')} • {cart.reduce((s, i) => s + i.quantity, 0)} {tr('units')}
+                {totalItemCount} {totalItemCount === 1 ? tr('item') : tr('items')} • {totalUnits} {tr('units')}
               </span>
             </div>
             <div className="text-right">

@@ -207,7 +207,7 @@ export default function GSTReportsPage() {
 
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
             {gstr1Data.b2b_invoices.map((inv, idx) => (
-              <div key={inv.invoice_number || idx} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
+              <div key={`${inv.invoice_number}-${inv.tax_rate}-${idx}`} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">

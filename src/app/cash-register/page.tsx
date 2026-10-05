@@ -19,7 +19,7 @@ const DayEndClosingReportModal = dynamic(
 );
 import { Unlock } from 'lucide-react';
 import { getLocalDayRange } from '@/lib/sales/saleMath';
-import { computeDrawerSummary, localDateKey } from '@/lib/reports/cashDrawer';
+import { computeDrawerSummary, dayOpeningFloat, localDateKey } from '@/lib/reports/cashDrawer';
 
 // Modular Sub-components
 import { CashRegisterHeaderActions } from '@/components/cash-register/CashRegisterHeaderActions';
@@ -53,6 +53,12 @@ export default function CashRegisterPage() {
     return await db.cash_expenses.where('created_at').between(todayStart, todayEnd, true, false).toArray();
   }, [todayStart, todayEnd]) || [];
 
+  // Today's shifts: after "Close Shift" the drawer keeps the day's morning float (K-D38, v4.99.0 —
+  // it showed "Opening Float ₹0" and an expected cash without the float).
+  const todayShifts = useLiveQuery(async () => {
+    return await db.cash_registers.where('opened_at').between(todayStart, todayEnd, true, false).toArray();
+  }, [todayStart, todayEnd]) || [];
+
   // Khata payments received today (cash ones are drawer money)
   const todayLedger = useLiveQuery(async () => {
     return await db.ledger_transactions.where('created_at').between(todayStart, todayEnd, true, false).toArray();
@@ -84,7 +90,7 @@ export default function CashRegisterPage() {
   }, []);
 
   // Calculations
-  const openingBalancePaise = activeShift?.opening_cash || 0;
+  const openingBalancePaise = activeShift ? activeShift.opening_cash || 0 : dayOpeningFloat(todayShifts, todayDatePrefix);
   // Cash kept from sales (change excluded, split cash included, estimates excluded)
   // plus khata cash collected, minus cash expenses and cash refunds.
   const drawer = useMemo(
@@ -267,6 +273,7 @@ export default function CashRegisterPage() {
         sales={todaySales}
         expenses={todayExpenses}
         ledger={todayLedger}
+        openingCash={openingBalancePaise}
         selectedDate={todayDatePrefix}
       />
       )}

@@ -5,6 +5,7 @@ import type { Business, Customer, Sale } from '@/types';
 import { getLineTaxablePaise, getReturnedQtyByLine, getSaleNetTotal, isEstimate, isRevenueSale } from '@/lib/sales/saleMath';
 import { stateCodeFromGstin } from '@/lib/gst/stateCodes';
 import { getGSTUQC } from '@/lib/gst/gstr1Generator';
+import { splitIntraStateTax } from '@/lib/gst/taxSplit';
 
 /** "MMYYYY" of the return period. Quarterly (QRMP) filers use the last month of the quarter. */
 export function gstReturnPeriod(month0: number, year: number): string {
@@ -68,25 +69,25 @@ export interface Gstr1JsonResult {
   fileName: string;
 }
 
+/** A row's amounts in paise. Intra-state tax stays one amount until the row is written
+ *  (K-D40, v4.99.0): splitting every line gave CGST the odd paisa line after line. */
 interface TaxSplit {
-  txval: number; // paise
+  txval: number;
   iamt: number;
-  camt: number;
-  samt: number;
+  intra: number;
 }
 
 const addSplit = (a: TaxSplit, b: TaxSplit) => {
   a.txval += b.txval;
   a.iamt += b.iamt;
-  a.camt += b.camt;
-  a.samt += b.samt;
+  a.intra += b.intra;
 };
 
 /** Amount keys the portal expects: IGST for inter-state, CGST + SGST within the state. */
 function amountFields(s: TaxSplit, inter: boolean) {
-  return inter
-    ? { txval: rupees(s.txval), iamt: rupees(s.iamt), csamt: 0 }
-    : { txval: rupees(s.txval), camt: rupees(s.camt), samt: rupees(s.samt), csamt: 0 };
+  if (inter) return { txval: rupees(s.txval), iamt: rupees(s.iamt), csamt: 0 };
+  const { cgst, sgst } = splitIntraStateTax(s.intra);
+  return { txval: rupees(s.txval), camt: rupees(cgst), samt: rupees(sgst), csamt: 0 };
 }
 
 /**
@@ -134,8 +135,7 @@ export function buildGstr1Json(params: {
       const rt = item.tax_rate || 0;
       const taxable = Math.round(getLineTaxablePaise(item) * kept);
       const tax = Math.round((item.tax_amount || 0) * kept);
-      const cgst = inter ? 0 : Math.round(tax / 2);
-      const split: TaxSplit = { txval: taxable, iamt: inter ? tax : 0, camt: cgst, samt: inter ? 0 : tax - cgst };
+      const split: TaxSplit = { txval: taxable, iamt: inter ? tax : 0, intra: inter ? 0 : tax };
 
       // Table 12 — HSN summary, separate for registered (B2B) and other buyers (B2C).
       const code = (item.hsn_code || '').trim();
@@ -178,19 +178,22 @@ export function buildGstr1Json(params: {
   }
 
   const hsnRows = (table: typeof hsn.b2b) =>
-    Array.from(table.values()).map((h, i) => ({
-      num: i + 1,
-      hsn_sc: h.hsn,
-      desc: h.desc,
-      uqc: h.uqc,
-      qty: qty2(h.qty),
-      rt: h.rt,
-      txval: rupees(h.split.txval),
-      iamt: rupees(h.split.iamt),
-      camt: rupees(h.split.camt),
-      samt: rupees(h.split.samt),
-      csamt: 0,
-    }));
+    Array.from(table.values()).map((h, i) => {
+      const { cgst, sgst } = splitIntraStateTax(h.split.intra);
+      return {
+        num: i + 1,
+        hsn_sc: h.hsn,
+        desc: h.desc,
+        uqc: h.uqc,
+        qty: qty2(h.qty),
+        rt: h.rt,
+        txval: rupees(h.split.txval),
+        iamt: rupees(h.split.iamt),
+        camt: rupees(cgst),
+        samt: rupees(sgst),
+        csamt: 0,
+      };
+    });
 
   // Table 13 — documents issued, one row per invoice series (prefix before the running number).
   const series = new Map<string, { nums: { n: number; label: string }[]; cancelled: number }>();

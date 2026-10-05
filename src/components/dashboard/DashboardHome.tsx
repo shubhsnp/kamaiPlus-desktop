@@ -11,7 +11,7 @@ import { tracksOwnStock } from '@/lib/products/variants';
 import dynamic from 'next/dynamic';
 import { AdvancedAnalyticsBanner } from '@/components/dashboard/AdvancedAnalyticsBanner';
 import { getLocalDayRange, getSaleNetTotal, isRevenueSale } from '@/lib/sales/saleMath';
-import { computeDrawerSummary } from '@/lib/reports/cashDrawer';
+import { computeDrawerSummary, dayOpeningFloat, localDateKey } from '@/lib/reports/cashDrawer';
 import { buildAdvancedReport, isProfitPartial } from '@/lib/reports/advancedReports';
 import { useFeatureSwitches } from '@/lib/features/featureSwitches';
 import { billStats, showProfitCard } from '@/lib/dashboard/homeTiles';
@@ -54,18 +54,20 @@ export default function DashboardHome() {
   // ── Batched query 2: Today's activity — sales, returns, ledger, expenses in ONE subscription ──
   const todayData = useLiveQuery(async () => {
     const { start, end } = getLocalDayRange();
-    const [sales, returns, ledger, expenses] = await Promise.all([
+    const [sales, returns, ledger, expenses, shifts] = await Promise.all([
       db.sales.where('created_at').between(start, end, true, false).toArray(),
       db.sales_returns.where('created_at').aboveOrEqual(start).toArray(),
       db.ledger_transactions.where('created_at').between(start, end, true, false).toArray(),
       db.cash_expenses.where('created_at').between(start, end, true, false).toArray(),
+      db.cash_registers.where('opened_at').between(start, end, true, false).toArray(),
     ]);
-    return { sales, returns, ledger, expenses };
+    return { sales, returns, ledger, expenses, openingFloat: dayOpeningFloat(shifts, localDateKey(new Date())) };
   });
   const todaysSales = todayData?.sales || [];
   const todaysReturns = todayData?.returns || [];
   const todaysLedger = todayData?.ledger || [];
   const todaysExpenses = todayData?.expenses || [];
+  const todaysOpeningFloat = todayData?.openingFloat || 0;
 
   // Revenue bills only: estimates and fully returned bills are not sales; partial returns count net.
   const todaysRevenueSales = useMemo(() => todaysSales.filter(isRevenueSale), [todaysSales]);
@@ -76,11 +78,12 @@ export default function DashboardHome() {
   const todaysSalesTotal = useMemo(() => todaysBillTotals.reduce((acc, n) => acc + n, 0), [todaysBillTotals]);
   const todaysBillStats = useMemo(() => billStats(todaysBillTotals), [todaysBillTotals]);
 
-  // Cash in hand: cash kept from sales (no change, split cash included) + khata cash − cash expenses & refunds
+  // Cash in hand: the morning float (Cash Register) + cash kept from sales (no change, split cash
+  // included) + khata cash − cash expenses & refunds — what the drawer holds (float added in v4.99.0, K-D38).
   const netCashInHand = useMemo(() => {
-    const drawer = computeDrawerSummary({ sales: todaysSales, expenses: todaysExpenses, ledger: todaysLedger });
+    const drawer = computeDrawerSummary({ sales: todaysSales, expenses: todaysExpenses, ledger: todaysLedger, openingCash: todaysOpeningFloat });
     return Math.max(0, drawer.expectedCash);
-  }, [todaysSales, todaysExpenses, todaysLedger]);
+  }, [todaysSales, todaysExpenses, todaysLedger, todaysOpeningFloat]);
 
   // Profit only over lines with a frozen buying price — same rule as Sales Analytics.
   const todaysProfit = useMemo(
@@ -233,6 +236,7 @@ export default function DashboardHome() {
           sales={todaysSales}
           expenses={todaysExpenses}
           ledger={todaysLedger}
+          openingCash={todaysOpeningFloat}
         />
       )}
       {isFastInwardOpen && <FastBarcodeInwardModal onClose={() => setIsFastInwardOpen(false)} />}

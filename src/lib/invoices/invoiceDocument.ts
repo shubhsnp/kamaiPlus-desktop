@@ -3,6 +3,7 @@ import { formatINR } from '@/lib/utils';
 import { numberToWordsINR } from '@/lib/invoices/gstCalculator';
 import { resolveInvoiceConfig } from '@/lib/invoices/themeDefaults';
 import { placeOfSupplyLabel, stateCodeFromGstin, stateNameFromCode } from '@/lib/gst/stateCodes';
+import { splitIntraStateTax } from '@/lib/gst/taxSplit';
 import {
   getLineGrossPaise,
   getLineTaxablePaise,
@@ -300,8 +301,7 @@ export function buildInvoiceDocument(sale: Sale, business: Business, options: Bu
   const taxSlabs: InvoiceTaxSlab[] = Array.from(slabMap.entries())
     .sort((a, b) => a[0] - b[0])
     .map(([rate, s]) => {
-      const cgst = isInterState ? 0 : Math.floor(s.tax / 2);
-      const sgst = isInterState ? 0 : s.tax - cgst;
+      const { cgst, sgst } = isInterState ? { cgst: 0, sgst: 0 } : splitIntraStateTax(s.tax);
       const hsnText = s.hsns.size > 0 ? Array.from(s.hsns).join(', ') : 'GST';
       return {
         label: `${hsnText} (${formatRate(rate)})`,
@@ -332,9 +332,9 @@ export function buildInvoiceDocument(sale: Sale, business: Business, options: Bu
     if (isInterState) {
       totals.push({ label: 'IGST:', value: formatINR(taxTotal) });
     } else if (taxTotal > 0) {
-      const cgst = Math.floor(taxTotal / 2);
+      const { cgst, sgst } = splitIntraStateTax(taxTotal);
       totals.push({ label: 'CGST:', value: formatINR(cgst) });
-      totals.push({ label: 'SGST:', value: formatINR(taxTotal - cgst) });
+      totals.push({ label: 'SGST:', value: formatINR(sgst) });
     }
   } else {
     const gross = items.reduce((acc, i) => acc + Math.round((i.unit_price || 0) * (i.quantity || 0)), 0);

@@ -480,7 +480,7 @@ src/components/<feature>/   Feature components, one folder per domain
 src/components/ui/          Button, Card, Input, Modal  (that is all of it)
 src/lib/<domain>/           Engines — see table below
 src/types/index.ts          All domain types. Single file.
-scripts/e2e_simulation.ts   The test suite (§11). 613 assertions.
+scripts/e2e_simulation.ts   The test suite (§11). 780 assertions.
 scripts/bump_version.ts     Version bumper (+0.1 minor)
 public/barcodes/*.json      5 shipped offline barcode dictionaries
 ```
@@ -644,7 +644,10 @@ GST, in `saleMath.ts`:
   `taxable = round(gross × 10000 / (10000 + rate×100))`, `tax = gross − taxable`
 - **Tax-exclusive** (GST added on top):
   `tax = round(base × rate / 100)`, `gross = base + tax`
-- CGST = `round(tax/2)`, SGST = `tax − CGST` (so the halves always re-sum exactly)
+- CGST = `round(tax/2)`, SGST = `tax − CGST` (so the halves always re-sum exactly) — via
+  `splitIntraStateTax` in `lib/gst/taxSplit.ts`, **on a row's total, never per bill line** (v4.99.0,
+  K-D40): an HSN row, one rate of one invoice, a B2C state row, one bill for Tally, a slab on the
+  printed bill. Split per line, CGST took every odd half-paisa and ran ahead of SGST over a month.
 
 Whether a line is inclusive is decided per line by `isLineTaxInclusive(item)`, falling
 back to the shop's `gst_pricing_mode`. **Since v4.38.0 there is exactly one rule:**
@@ -1561,6 +1564,7 @@ Each was a real bug that cost real time. The test suite guards most of them.
 | 34 | **The automatic backup held only yesterday's bills (before v4.82.0).** One file per day, written 2 min after launch and never again that day — a disk that died in the evening took every bill of the day. | §2.3: the day's file is refreshed hourly while data changes (DBCore middleware `backupChangeMiddleware`), when the counter is free, at most 2 h late. Suite 9 §9j(r). Do not go back to "skip if today's file exists". |
 | 36 | **Barcode Studio showed no preview until an item was added, and a custom roll size could not be typed (before v4.85.0).** Empty list = a grey box with a line of text; saving "3" on the way to "38" was clamped back to 50 by the settings event. | Sample label preview + sticky frame; `LabelSetupPanel` draft values saved only inside `CUSTOM_LIMITS`. **v4.86.0:** the frame is re-created for new content (`key={frameKey}`) — changing `srcdoc` twice fast (sample → the real list) left Chromium a grey document it never laid out (Electron E2E caught it). Suite 9 §9j(w), Electron E2E "Barcode Studio preview". |
 | 35 | **Desktop and Android spoke different cloud languages (before v4.83.0; sync off, so nothing broke yet).** The Desktop sent raw Dexie rows: prices / bill totals / udhar in paise under names the phone reads as rupees (₹100 bill → ₹10,000), `current_stock` the phone never reads (stock 0), plan fields the rules refuse, and it saved the phone's documents as Dexie rows unchanged. | `lib/cloud/cloudContract.ts` `toCloud` / `fromCloud` for all 14 tables (`docs/CLOUD_DATA_CONTRACT.md` v1.0); `firestoreSync.ts`, `cloudMerge`, onboarding use nothing else. Suite 9 §9j(s): round-trips exact, the phone's real documents read right. |
+| 37 | **Four gaps found while making the website help guides (before v4.99.0).** (K-D40) CGST was split from every bill line with `round(tax / 2)`, so the GST screen, CA files, Tally and the GSTR-1 JSON gave CGST every odd half-paisa (demo HSN 0713: CGST ₹16.31, SGST ₹16.27), and the GST screen listed a B2B invoice once per line. (K-D37) Every A4 bill footer printed the retired "Kamai+" name and an unprovable "#1 in India" claim. (K-D38) Day Summary, its PDF / WhatsApp and Home "Cash in Hand" left out the morning float (₹435 shown, drawer ₹2,435); after Close Shift the Cash Register showed "Opening Float ₹0"; the PDF also left out khata cash. (K-D39) The counter's "items" was the quantities added up ("Cart Items (8)" on a 7-line bill that "Sale completed" calls 7 items). | `splitIntraStateTax` on row totals; B2B rows per invoice + rate. Footer "KamaiPlus • Aapki Dukaan ka Digital Sathi". `dayOpeningFloat(shifts, day)` (first shift opened that day) → `summarizeDay({ openingCash })`, Home and the Cash Register (also when no shift is open); Home card says "Float + Cash Sales - Exp". Items = `cart.length`, units = quantities. Suite 21 "v4.99.0" block (12 checks). |
 ---
 
 ## 11. Verification protocol (AGENTS.md Rule 6)
@@ -1569,7 +1573,7 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 613/613, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 780/780, 0 failures
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
 git push origin main
@@ -1621,7 +1625,7 @@ bypassed; without the key only the no-licence checks run. The script removes
 `ELECTRON_RUN_AS_NODE` (set by VS Code terminals), which otherwise stops Electron
 launching. Failure screenshots go to `%TEMP%\kamaiplus-e2e-shots\`.
 
-### Test suite map — `scripts/e2e_simulation.ts` (613 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (780 assertions)
 
 | Suite | Covers |
 | :--- | :--- |

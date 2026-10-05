@@ -3,6 +3,7 @@ import { Sale, Business, Customer } from '@/types';
 import { isEstimate, isRevenueSale, getLineTaxablePaise, getReturnedQtyByLine, getSaleNetTotal } from '@/lib/sales/saleMath';
 import { stateCodeFromGstin, stateNameFromCode } from '@/lib/gst/stateCodes';
 import { localDateKey } from '@/lib/reports/cashDrawer';
+import { splitIntraStateTax } from '@/lib/gst/taxSplit';
 
 export interface HSNRecord {
   hsn_code: string;
@@ -99,14 +100,16 @@ export function generateGSTR1Report(
   // 1. Process HSN Summary (Table 12)
   const hsnMap = new Map<string, HSNRecord>();
   let totalTaxablePaise = 0;
-  let totalCgstPaise = 0;
-  let totalSgstPaise = 0;
-  let totalIgstPaise = 0;
   let nilRatedPaise = 0;
 
-  // 2. Process B2B (Table 4) vs B2CS (Table 7)
-  const b2bList: B2BRecord[] = [];
+  // 2. Process B2B (Table 4, one row per invoice and rate) vs B2CS (Table 7)
+  const b2bMap = new Map<string, B2BRecord>();
   const b2csMap = new Map<string, B2CSRecord>();
+
+  // Intra-state tax of each row, split into CGST + SGST only once the row is complete (K-D40,
+  // v4.99.0): splitting every line gave CGST the odd paisa line after line.
+  const intraTax = new Map<HSNRecord | B2BRecord | B2CSRecord, number>();
+  const addIntra = (row: HSNRecord | B2BRecord | B2CSRecord, tax: number) => intraTax.set(row, (intraTax.get(row) || 0) + tax);
 
   validSales.forEach((sale) => {
     const cust = sale.customer_id ? customerMap.get(sale.customer_id) : null;
@@ -133,14 +136,10 @@ export function generateGSTR1Report(
         nilRatedPaise += totalAmount;
       }
 
-      const cgst = isInterState ? 0 : Math.round(tax / 2);
-      const sgst = isInterState ? 0 : tax - cgst;
+      const intra = isInterState ? 0 : tax;
       const igst = isInterState ? tax : 0;
 
       totalTaxablePaise += taxable;
-      totalCgstPaise += cgst;
-      totalSgstPaise += sgst;
-      totalIgstPaise += igst;
 
       // Update HSN map
       const hsnKey = `${hsn}_${rate}`;
@@ -149,11 +148,10 @@ export function generateGSTR1Report(
         existing.total_qty += item.quantity * kept;
         existing.total_value += totalAmount;
         existing.taxable_value += taxable;
-        existing.cgst_amount += cgst;
-        existing.sgst_amount += sgst;
         existing.igst_amount += igst;
+        addIntra(existing, intra);
       } else {
-        hsnMap.set(hsnKey, {
+        const row: HSNRecord = {
           hsn_code: hsn,
           description: item.product_name,
           uqc: getGSTUQC(item.unit),
@@ -161,16 +159,26 @@ export function generateGSTR1Report(
           total_value: totalAmount,
           taxable_value: taxable,
           tax_rate: rate,
-          cgst_amount: cgst,
-          sgst_amount: sgst,
+          cgst_amount: 0,
+          sgst_amount: 0,
           igst_amount: igst,
           cess_amount: 0,
-        });
+        };
+        hsnMap.set(hsnKey, row);
+        addIntra(row, intra);
       }
 
       // If B2B (Table 4)
       if (hasGstin) {
-        b2bList.push({
+        const b2bKey = `${sale.id}_${rate}`;
+        const existing = b2bMap.get(b2bKey);
+        if (existing) {
+          existing.taxable_value += taxable;
+          existing.igst_amount += igst;
+          addIntra(existing, intra);
+          return;
+        }
+        const row: B2BRecord = {
           customer_gstin: customerGstin,
           customer_name: cust!.name,
           invoice_number: sale.invoice_number,
@@ -180,10 +188,12 @@ export function generateGSTR1Report(
           reverse_charge: 'N',
           tax_rate: rate,
           taxable_value: taxable,
-          cgst_amount: cgst,
-          sgst_amount: sgst,
+          cgst_amount: 0,
+          sgst_amount: 0,
           igst_amount: igst,
-        });
+        };
+        b2bMap.set(b2bKey, row);
+        addIntra(row, intra);
       } else {
         // B2CS Retail (Table 7)
         const b2csKey = `${pos}_${rate}`;
@@ -191,24 +201,34 @@ export function generateGSTR1Report(
           const existing = b2csMap.get(b2csKey)!;
           existing.total_value += totalAmount;
           existing.taxable_value += taxable;
-          existing.cgst_amount += cgst;
-          existing.sgst_amount += sgst;
           existing.igst_amount += igst;
+          addIntra(existing, intra);
         } else {
-          b2csMap.set(b2csKey, {
+          const row: B2CSRecord = {
             place_of_supply: pos,
             tax_rate: rate,
             total_value: totalAmount,
             taxable_value: taxable,
-            cgst_amount: cgst,
-            sgst_amount: sgst,
+            cgst_amount: 0,
+            sgst_amount: 0,
             igst_amount: igst,
             cess_amount: 0,
-          });
+          };
+          b2csMap.set(b2csKey, row);
+          addIntra(row, intra);
         }
       }
     });
   });
+
+  intraTax.forEach((tax, row) => {
+    const { cgst, sgst } = splitIntraStateTax(tax);
+    row.cgst_amount = cgst;
+    row.sgst_amount = sgst;
+  });
+  // Totals are the HSN rows added up: every billed line is in exactly one of them.
+  const hsnRows = Array.from(hsnMap.values());
+  const sum = (key: 'cgst_amount' | 'sgst_amount' | 'igst_amount') => hsnRows.reduce((acc, h) => acc + h[key], 0);
 
   // Documents issued: real tax invoices only (estimates are not documents under GST).
   const sortedSales = sales
@@ -222,14 +242,14 @@ export function generateGSTR1Report(
     business_gstin: businessGstin,
     business_name: business.name,
     period: periodLabel,
-    hsn_summary: Array.from(hsnMap.values()),
-    b2b_invoices: b2bList,
+    hsn_summary: hsnRows,
+    b2b_invoices: Array.from(b2bMap.values()),
     b2cs_summary: Array.from(b2csMap.values()),
     nil_rated_value: nilRatedPaise,
     total_taxable_value: totalTaxablePaise,
-    total_cgst: totalCgstPaise,
-    total_sgst: totalSgstPaise,
-    total_igst: totalIgstPaise,
+    total_cgst: sum('cgst_amount'),
+    total_sgst: sum('sgst_amount'),
+    total_igst: sum('igst_amount'),
     // Table 13 "total number": every tax invoice of the series, cancelled ones included
     // (net issued = total − cancelled). Before v4.78.0 cancelled bills were left out here
     // and then subtracted again.

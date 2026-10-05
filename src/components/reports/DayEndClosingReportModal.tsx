@@ -30,6 +30,8 @@ interface DayEndClosingReportModalProps {
   expenses: CashExpense[];
   /** That day's khata entries — cash collections count as drawer money. */
   ledger?: LedgerTransaction[];
+  /** The day's morning float (`dayOpeningFloat`): net cash in hand is what the drawer holds (K-D38). */
+  openingCash?: number;
   selectedDate?: string; // YYYY-MM-DD
 }
 
@@ -40,6 +42,7 @@ export const DayEndClosingReportModal: React.FC<DayEndClosingReportModalProps> =
   sales,
   expenses,
   ledger,
+  openingCash,
   selectedDate,
 }) => {
   const [copied, setCopied] = useState(false);
@@ -47,7 +50,7 @@ export const DayEndClosingReportModal: React.FC<DayEndClosingReportModalProps> =
   const targetPhone = business?.phone || '';
   // Local calendar day (the old UTC date put 12–5:30 AM bills on the previous day).
   const datePrefix = selectedDate || localDateKey(new Date());
-  const day = summarizeDay({ sales, expenses, ledger, dateKey: datePrefix });
+  const day = summarizeDay({ sales, expenses, ledger, openingCash, dateKey: datePrefix });
 
   // Estimates, cancelled and fully returned bills are not sales; change handed back is not cash kept.
   const daysSales = day.sales;
@@ -129,6 +132,8 @@ export const DayEndClosingReportModal: React.FC<DayEndClosingReportModalProps> =
         business,
         sales,
         expenses,
+        ledger,
+        openingCash,
         dateStr: datePrefix,
       });
 

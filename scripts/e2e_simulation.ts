@@ -72,7 +72,8 @@ import {
   getSalePaymentBreakdown,
   isRevenueSale,
 } from '../src/lib/sales/saleMath';
-import { computeDrawerSummary, localDateKey } from '../src/lib/reports/cashDrawer';
+import { computeDrawerSummary, dayOpeningFloat, localDateKey, summarizeDay } from '../src/lib/reports/cashDrawer';
+import { splitIntraStateTax } from '../src/lib/gst/taxSplit';
 import { cartBeyond, makeEmptyTab, nextBillTabId, tabsAfterClosing, tabsAfterSale, tabsAfterUndo, tabsForNewBill } from '../src/lib/billing/billTabs';
 import { scrollDeltaToShow } from '../src/lib/billing/cartFocus';
 import { counterPace, hourRangeLabel, topDebtors, topItemsToday } from '../src/lib/dashboard/todayInsights';
@@ -3638,6 +3639,67 @@ assert(getStateName('29') === 'Karnataka' && getStateName('88') === '88', 'State
     'The GST page uses the new builder and warns before download; the old builder (always 082026) is gone');
 }
 assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.499 - Dettol - ?', 'ESC/POS text maps ₹ / • / — to ASCII and never sends raw UTF-8 bytes');
+
+// v4.99.0 — four gaps found while making the website help guides (tracker K-D37…K-D40).
+{
+  // K-D40: CGST was split from every bill line with round(tax / 2), so CGST took every odd
+  // half-paisa and ran ahead of SGST (demo HSN 0713: ₹16.31 vs ₹16.27). Rows are split once.
+  const odd = splitIntraStateTax(35), even = splitIntraStateTax(32);
+  assert(odd.cgst === 18 && odd.sgst === 17 && even.cgst === 16 && even.sgst === 16,
+    'K-D40: tax splits into equal CGST + SGST halves; an odd paisa makes them differ by one, never more, and they add up exactly');
+  const on = new Date(2026, 9, 5, 10, 0).toISOString();
+  const tiny = (id: string): any => ({ ...discLine(id, 105, 5, true), hsn_code: '0713', unit: 'pcs' }); // ₹1.05 at 5 % → 5 paise GST
+  const sevenBills: any[] = Array.from({ length: 7 }, (_, i) => ({ ...mk(`t${i}`, undefined, [tiny(`dal${i}`)]), created_at: on }));
+  assert(sevenBills.every((b) => b.items[0].tax_amount === 5), 'K-D40 setup: seven bills, each with 5 paise of GST');
+  const rep = generateGSTR1Report(sevenBills, [], invBiz, 'Oct 2026');
+  const dal = rep.hsn_summary.find((h) => h.hsn_code === '0713')!;
+  assert(dal.cgst_amount === 18 && dal.sgst_amount === 17 && rep.total_cgst === 18 && rep.total_sgst === 17,
+    'K-D40: GST screen — 7 lines × 5 paise = 35 paise give CGST 18 + SGST 17 (was 21 + 14)', `got ${dal.cgst_amount} / ${dal.sgst_amount}`);
+  const json: any = buildGstr1Json({ sales: sevenBills, customers: [], business: invBiz, fp: '102026' }).json;
+  const hsnRow = json.hsn.hsn_b2c.find((h: any) => h.hsn_sc === '0713');
+  assert(json.b2cs[0].camt === 0.18 && json.b2cs[0].samt === 0.17 && hsnRow.camt === 0.18 && hsnRow.samt === 0.17,
+    'K-D40: GSTR-1 JSON — the B2C row and the HSN row carry CGST 0.18 + SGST 0.17 (was 0.21 + 0.14)');
+  const b2bBill: any = { ...mk('b1', 'cB', [tiny('a'), tiny('b'), tiny('c')]), created_at: on, customer_gstin: '27AAACB1234C1Z5' };
+  const b2bRep = generateGSTR1Report([b2bBill], [{ id: 'cB', name: 'Arihant' } as any], invBiz, 'Oct 2026');
+  assert(b2bRep.b2b_invoices.length === 1 && b2bRep.b2b_invoices[0].cgst_amount === 8 && b2bRep.b2b_invoices[0].sgst_amount === 7,
+    'K-D40: a B2B invoice is one row per rate on the GST screen (not one per line), split once: 15 paise → 8 + 7');
+  const tally = breakupSales([b2bBill], { shopGstin: invBiz.gstin, customers: [], returns: [] });
+  assert(tally[0].cgst === 8 && tally[0].sgst === 7 && tally[0].cgst + tally[0].sgst + tally[0].taxable === tally[0].total,
+    'K-D40: Tally / CA register split the bill’s tax once (8 + 7) and the voucher still balances');
+  const splitSrc = ['lib/gst/gstr1Json.ts', 'lib/gst/gstr1Generator.ts', 'lib/tally/saleBreakup.ts', 'lib/invoices/invoiceDocument.ts', 'lib/invoices/gstCalculator.ts'].map(readSource).join('\n');
+  assert(!/Math\.(round|floor)\(\s*(s\.)?tax(Total)?\s*\/\s*2\s*\)/.test(splitSrc) && (splitSrc.match(/splitIntraStateTax\(/g) || []).length >= 6,
+    'K-D40: every CGST / SGST split goes through splitIntraStateTax (no per-line round(tax / 2) left)');
+
+  // K-D37: every A4 bill carried "⚡ KAMAI+ POS • India's #1 Retail POS & GST Billing App".
+  const a4Src = readSource('components/invoices/print/A4TaxInvoice.tsx');
+  assert(!/KAMAI\+|India&apos;s #1|India's #1/.test(a4Src) && />KamaiPlus</.test(a4Src) && /Aapki Dukaan ka Digital Sathi/.test(a4Src),
+    'K-D37: the A4 bill footer says "KamaiPlus • Aapki Dukaan ka Digital Sathi" — no "KAMAI+", no "India\'s #1" claim');
+
+  // K-D38: Day Summary / Home "Net Cash in Hand" left the morning float out (₹435 shown, drawer ₹2,435).
+  const day = '2026-10-05';
+  const at = (h: number) => new Date(2026, 9, 5, h, 0).toISOString();
+  const shifts = [{ opened_at: at(14), opening_cash: 50000 }, { opened_at: at(8), opening_cash: 200000 }, { opened_at: new Date(2026, 9, 4, 9).toISOString(), opening_cash: 99900 }];
+  assert(dayOpeningFloat(shifts, day) === 200000 && dayOpeningFloat([], day) === 0,
+    "K-D38: the day's float is the first shift opened that day (another day's shift does not count; no shift = 0)");
+  const cashBill: any = { ...mk('d1', undefined, [li('x', 1, 264300)]), created_at: at(10), amount_received: 264300 };
+  const out = [{ amount: 220800, payment_mode: 'cash', category: 'other', created_at: at(12) }] as any;
+  const summary = summarizeDay({ sales: [cashBill], expenses: out, dateKey: day, openingCash: dayOpeningFloat(shifts, day) });
+  assert(summary.netCashInTillPaise === 243500 && summarizeDay({ sales: [cashBill], expenses: out, dateKey: day }).netCashInTillPaise === 43500,
+    'K-D38: demo day — ₹2,000 float + ₹2,643 cash − ₹2,208 out = ₹2,435 in the drawer (₹435 without a Cash Register shift)');
+  const homeSrc = readSource('components/dashboard/DashboardHome.tsx');
+  const regSrc = readSource('app/cash-register/page.tsx');
+  const modalSrc = readSource('components/reports/DayEndClosingReportModal.tsx');
+  assert(/openingCash: todaysOpeningFloat/.test(homeSrc) && /openingCash=\{todaysOpeningFloat\}/.test(homeSrc)
+    && /dayOpeningFloat\(todayShifts, todayDatePrefix\)/.test(regSrc) && /openingCash=\{openingBalancePaise\}/.test(regSrc)
+    && /summarizeDay\(\{ sales, expenses, ledger, openingCash/.test(modalSrc) && /ledger,\s*openingCash,\s*dateStr/.test(modalSrc)
+    && /summarizeDay\(\{ sales, expenses, ledger, openingCash/.test(readSource('lib/reports/dailyClosingPdf.ts')),
+    'K-D38: Home, the Cash Register (also after Close Shift), the Day Summary card and its PDF all count the float (the PDF also khata cash)');
+
+  // K-D39: the counter's "items" was the quantities added up ("Cart Items (8)" on a 7-line bill).
+  const posSrc = readSource('app/billing/page.tsx');
+  assert(/const totalItemCount = cart\.length;/.test(posSrc) && /• \{totalUnits\} \{tr\('units'\)\}/.test(posSrc),
+    'K-D39: counter items = bill lines (as on "Sale completed"), units = quantities added up');
+}
 
 // -------------------------------------------------------------
 // SUITE 22: Retail Pro Upgrades (Denomination Tally, Old Khata Warning & Reports)

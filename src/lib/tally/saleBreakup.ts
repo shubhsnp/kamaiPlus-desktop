@@ -1,6 +1,7 @@
 import { Customer, Sale, SalesReturn } from '@/types';
 import { getLineTaxablePaise, getNetPaymentBreakdown, getReturnedQtyByLine, getReturnsForSale, isRevenueSale } from '@/lib/sales/saleMath';
 import { placeOfSupplyLabel, stateCodeFromGstin } from '@/lib/gst/stateCodes';
+import { splitIntraStateTax } from '@/lib/gst/taxSplit';
 
 /*
  * One bill as the accountant sees it (v4.78.0) — shared by the CA sales register and the
@@ -69,21 +70,16 @@ function breakupSale(sale: Sale, shopState: string, byId: Map<string, Customer>,
   const saleReturns = getReturnsForSale(sale.id, allReturns);
   const returnedQty = getReturnedQtyByLine(sale, saleReturns);
   let taxable = 0;
-  let cgst = 0;
-  let sgst = 0;
-  let igst = 0;
+  let tax = 0;
   (sale.items || []).forEach((item, i) => {
     const kept = item.quantity > 0 ? Math.max(0, item.quantity - (returnedQty[i] || 0)) / item.quantity : 1;
     if (kept <= 0) return;
-    const tax = Math.round((item.tax_amount || 0) * kept);
+    tax += Math.round((item.tax_amount || 0) * kept);
     taxable += Math.round(getLineTaxablePaise(item) * kept);
-    if (inter) igst += tax;
-    else {
-      const c = Math.round(tax / 2);
-      cgst += c;
-      sgst += tax - c;
-    }
   });
+  // The bill's tax is split once (K-D40, v4.99.0) — per line, CGST got every odd paisa.
+  const igst = inter ? tax : 0;
+  const { cgst, sgst } = inter ? { cgst: 0, sgst: 0 } : splitIntraStateTax(tax);
   const total = taxable + cgst + sgst + igst;
   if (total <= 0) return null;
 

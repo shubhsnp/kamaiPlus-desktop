@@ -1,4 +1,4 @@
-import { CashExpense, LedgerTransaction, Sale } from '@/types';
+import { CashExpense, CashRegister, LedgerTransaction, Sale } from '@/types';
 import { getSaleNetTotal, getSalePaymentBreakdown, isEstimate, isRevenueSale } from '@/lib/sales/saleMath';
 
 /** "2026-09-21" in the shop's local time (never the UTC date of an ISO string). */
@@ -17,19 +17,33 @@ export interface DaySummary extends DrawerSummary {
   netCashInTillPaise: number;
 }
 
+/**
+ * The morning float of a shop day: the opening cash of the first drawer shift opened that day
+ * (0 when the Cash Register was not used). v4.99.0 (K-D38): the Day Summary and Home left it out,
+ * so "Net Cash in Hand" showed ₹435 while the drawer held ₹2,435.
+ */
+export function dayOpeningFloat(shifts: Pick<CashRegister, 'opened_at' | 'opening_cash'>[], dateKey: string): number {
+  const first = shifts
+    .filter((s) => s.opened_at && localDateKey(new Date(s.opened_at)) === dateKey)
+    .sort((a, b) => a.opened_at.localeCompare(b.opened_at))[0];
+  return Math.max(0, first?.opening_cash || 0);
+}
+
 /** Day-End / Z-report figures for one local calendar day, from the same drawer rules as the Cash Register. */
 export function summarizeDay(params: {
   sales: Sale[];
   expenses: CashExpense[];
   ledger?: LedgerTransaction[];
   dateKey?: string;
+  /** The day's morning float (`dayOpeningFloat`), so net cash is what the drawer holds. */
+  openingCash?: number;
 }): DaySummary {
   const dateKey = params.dateKey || localDateKey(new Date());
   const onDay = (iso: string) => localDateKey(new Date(iso)) === dateKey;
   const daySalesAll = params.sales.filter((s) => onDay(s.created_at));
   const dayExpenses = params.expenses.filter((e) => onDay(e.created_at));
   const dayLedger = (params.ledger || []).filter((t) => onDay(t.created_at));
-  const drawer = computeDrawerSummary({ sales: daySalesAll, expenses: dayExpenses, ledger: dayLedger });
+  const drawer = computeDrawerSummary({ sales: daySalesAll, expenses: dayExpenses, ledger: dayLedger, openingCash: params.openingCash || 0 });
 
   const sales = daySalesAll.filter(isRevenueSale);
   const freq = new Map<string, { qty: number; totalPaise: number }>();
