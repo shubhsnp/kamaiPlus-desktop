@@ -138,7 +138,7 @@ Order zaroori hai: **pehle data surakshit → phir data ka ek format → phir lo
 
 ## 4. Kamiyan (count)
 
-**Total: 74** — Platform 17 · Android 17 · Desktop 40. **Open 46 · Done 28.**
+**Total: 74** — Platform 17 · Android 17 · Desktop 40. **Open 41 · Done 33.**
 🔴 = paisa / data / security / Play Store risk · 🟠 = galat ya adhoora behaviour · 🟢 = chhota / feature gap
 
 ### Platform / website (K-P)
@@ -190,12 +190,12 @@ Order zaroori hai: **pehle data surakshit → phir data ka ek format → phir lo
 | ID | Kami | Level | Status |
 | :--- | :--- | :--- | :--- |
 | K-D01 | `src/lib/payments/` (UPI notification parser, soundbox) kisi screen se juda nahi — bekaar code | 🟢 | Open |
-| K-D02 | Purani cash shifts ki history nahi | 🟢 | Open |
-| K-D03 | Customer credit limit warning nahi | 🟢 | Open |
+| K-D02 | Purani cash shifts ki history nahi | 🟢 | Done v4.102.0 (Cash Register → "Past shifts", aakhri 30) |
+| K-D03 | Customer credit limit warning nahi | 🟢 | Done v4.102.0 (customer form "Udhar limit", counter poochta hai; phone ke `credit_limit_paise` se juda) |
 | K-D04 | GSTR-1 JSON mein credit notes (cdnr / cdnur) nahi — partial return net report hota hai | 🟠 | Done v4.101.0 |
 | K-D05 | GSTIN online verify nahi (sirf format check) | 🟢 | Open |
-| K-D06 | Favourite (star) items POS mein upar nahi aate | 🟢 | Open |
-| K-D07 | Estimate / quotation bana nahi sakte (sirf pehchaanta hai) | 🟢 | Open |
+| K-D06 | Favourite (star) items POS mein upar nahi aate | 🟢 | Done v4.102.0 |
+| K-D07 | Estimate / quotation bana nahi sakte (sirf pehchaanta hai) | 🟢 | Done v4.102.0 (counter "Save as Estimate" → EST-001; Transactions "Convert to Bill") |
 | K-D08 | Installer unsigned — Windows "protected your PC" warning (certificate chahiye, Bible §2.2) | 🟠 | Open |
 | K-D09 | Cloud sync band — ek dukaan mein 2 counter / 2 PC ek data nahi | 🟠 | ✅ Done v4.86.0 — dono taraf sync (beta switch); Step 4 |
 | K-D10 | TSC par "plug wapas = green" aur calibrate ke baad frame photo check baaki (installer wala hissa ho gaya — 4.80.0 live tha, 4.81.0 2026-09-30 ko publish) | 🟠 | Open |
@@ -209,7 +209,7 @@ Order zaroori hai: **pehle data surakshit → phir data ka ek format → phir lo
 | K-D18 | Automatic backup din mein sirf **ek** baar — app khulne ke 2 min baad (`AutoBackupScheduler.tsx`, "one backup per calendar day"). Matlab aaj ke bill kal subah tak kisi auto backup mein nahi; shaam ko disk / PC kharab = poore din ke bill gaye (FS-03) | 🔴 | ✅ Done v4.82.0 — din ki file har ghante nayi (data badla ho + counter 30 s khaali; rush mein bhi max 2 ghante), Bible §2.3 / §10 #34, test §9j(r) |
 | K-D19 | Staff login / roles nahi — kaun sa cashier kaunsa bill kaata, record nahi; cashier ko discount / return / delete se rok nahi sakte (sirf owner PIN profit chhupata hai). `staff_id` sirf `lib/auth/session.ts` mein (FS-07) | 🟠 | Open |
 | K-D20 | Batch / expiry nahi — product type mein field hi nahi (pharmacy / FMCG ke liye zaroori) (FS-08) | 🟠 | Open |
-| K-D21 | Purchase return / debit note / purchase order nahi (FS-09) | 🟢 | Open |
+| K-D21 | Purchase return / debit note / purchase order nahi (FS-09) | 🟢 | Done v4.102.0 (Purchases → "Return to Supplier" DN-001, "Purchase Order" PO-001 + WhatsApp + "Received") |
 | K-D22 | GSTR-3B summary, e-invoice (IRN), e-way bill nahi — `src` mein koi code nahi (FS-10, FS-11, FS-12) | 🟢 | Done v4.101.0 (GSTR-3B summary; e-invoice / e-way bill ko IRP / GSP API account chahiye — offline nahi ho sakta) |
 | K-D24 | Electron E2E ka "Transactions tab drag, phir click se khule" check kabhi-kabhi fail (v4.82.0 par 2 run mein 1 baar: click ke 600 ms baad drawer screen par nahi) — doosre run mein 71/71. Wait badhana / drawer ke khulne ka intezaar karna hai | 🟢 | ✅ Done v4.83.0 — test ab drawer ke khulne ka 3 s tak intezaar karta hai (300 ms slide), fail par overlay / path / tab likhta hai; 71/71 |
 | K-D25 | Barcode Studio mein preview tab tak dikhta hi nahi tha jab tak item na jode (khaali list = grey dabba + ek line) — size / "On the label" badlo to asar nahi dikhta | 🟠 | ✅ Done v4.85.0 — khaali list par sample label, preview sticky, frame labels jitna uncha (Bible §9, §10 #36) |
@@ -296,3 +296,4 @@ Order zaroori hai: **pehle data surakshit → phir data ka ek format → phir lo
 | 2026-10-05 | **Desktop v4.99.0 (local commit, push / release nahi):** Rahul: "K-D40, K-D37, K-D38, K-D39 sort karo". **K-D40** GST: CGST/SGST ab har row (HSN, invoice + rate, B2C, Tally ka bill, bill ka slab) ke total se ek baar bantta (`lib/gst/taxSplit.ts`) — demo HSN 0713 ab 16.29 / 16.29 jaisa barabar (odd paisa par max 1 paisa farak); GST screen par B2B invoice ab har line nahi, invoice + rate ek row. **K-D37** A4 bill footer: "KamaiPlus • Aapki Dukaan ka Digital Sathi". **K-D38** Day Summary / PDF / WhatsApp / Home "Cash in Hand" mein subah ka float (din ki pehli shift) jud gaya; shift close ke baad bhi Cash Register float dikhata; PDF mein khata cash bhi. **K-D39** counter par items = bill ki lines, units alag. Tests 768 → 780 (sab pass), tsc 0. Website help mein "Cash in Hand mein float nahi" wali line ab purani — app update customer tak pahunchne par badalni hai. | Desktop |
 | 2026-10-05 | **Help guides app ke saath chalenge (system):** Rahul: "jaise jaise kuch change karenge, help page bhi change hona chahiye". Desktop: `docs/help-map.json` (kaunsi guide kaunsi files ko describe karti), `node scripts/help_impact.mjs` (change se kaunsi guides par asar), `docs/HELP_SYNC.md` (har version ki queue: pending → released → on website), AGENTS.md **Rule 7**; Suite 9 §9j(ai) — version ki row nahi to tests fail (784/784). Website (`d9bb2f4`): `npm run check` fail jab koi row `released` ho aur guide update na hui ho; website ka naya `AGENTS.md`. 4.99.0 ki row queue mein `pending` (5 guides). | Platform + Desktop |
 | 2026-10-05 | **Website v1.8.0 LIVE (`1f3c09b`, Rahul: "website live kardo"):** legal / privacy pass — naya `/cookie-policy` (site koi cookie, tracking, bahar ki script nahi rakhti, isliye banner ki zaroorat nahi), privacy mein DPDP breach-notice, legal basis aur Data Protection Board complaint, terms mein website / free tools / demo data / trademarks, demo form par consent line + privacy link, muted text WCAG AA, Mukta ka OFL licence, support email clickable, footer "Made in Love with India" (dil + tiranga, Hindi bhi), label demo app jaisa center. `check.mjs` §14 ab yeh sab pakadta (16,205 checks). IndexNow 119 URL 200. **Rahul se poochna:** (1) address ka PIN code; (2) licence "One-time" wording — Admin Console end-date wali key bhi deta hai, to agar sab licence lifetime nahi, home table / licence title / site description badalne honge. | Platform |
+| 2026-10-05 | **Desktop v4.102.0 (local commit, push / release nahi):** Rahul ki list ka batch 3 — **K-D07** counter par "Save as Estimate" (EST-001, stock / udhar / cash nahi badalta; EST- number ab bill number aage nahi badhata), **K-D03** customer ki udhar limit (counter chetavni deta, dukaan tay karti; cloud `credit_limit_paise`), **K-D02** Cash Register par pichli 30 shifts, **K-D06** star items upar, **K-D21** Purchases → "Return to Supplier" (debit note DN-001: stock kam, supplier ka bakaya kam — ek transaction) aur "Purchase Order" (PO-001, WhatsApp par bhejo, "Received" = normal inward). Tests 823/823. HELP_SYNC row 4.102.0 pending (billing-counter, khata-udhar, cash-register, purchases-suppliers). | Desktop |

@@ -29,6 +29,8 @@ interface AddEditCustomerModalProps {
     loyalty_points: number;
     opening_balance: number;
     current_balance: number;
+    /** Udhar limit, paise (0 = none) — v4.102.0, K-D03. */
+    credit_limit: number;
     notes?: string;
   }) => Promise<void>;
   onDeleteCustomer: (id: string, name: string) => Promise<void>;
@@ -54,6 +56,7 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
   const [loyaltyPoints, setLoyaltyPoints] = useState<string>('0');
   const [openingBalance, setOpeningBalance] = useState('');
   const [currentBalance, setCurrentBalance] = useState('');
+  const [creditLimit, setCreditLimit] = useState('');
   const [notes, setNotes] = useState('');
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -73,6 +76,7 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
       setLoyaltyPoints(editingCustomer.loyalty_points ? String(editingCustomer.loyalty_points) : '0');
       setOpeningBalance(editingCustomer.opening_balance ? (editingCustomer.opening_balance / 100).toFixed(2) : '0.00');
       setCurrentBalance(editingCustomer.current_balance ? (editingCustomer.current_balance / 100).toFixed(2) : '0.00');
+      setCreditLimit(editingCustomer.credit_limit ? String(editingCustomer.credit_limit / 100) : '');
       setNotes(editingCustomer.notes || '');
     } else {
       setName('');
@@ -87,6 +91,7 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
       setLoyaltyPoints('0');
       setOpeningBalance('');
       setCurrentBalance('');
+      setCreditLimit('');
       setNotes('');
     }
   }, [editingCustomer, isOpen]);
@@ -127,6 +132,7 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
         loyalty_points: pts,
         opening_balance: opBalPaise,
         current_balance: curBalPaise,
+        credit_limit: Math.max(0, Math.round((parseFloat(creditLimit) || 0) * 100)),
         notes: notes.trim() || undefined,
       });
       onClose();
@@ -253,7 +259,18 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
               value={currentBalance} 
               onChange={(e) => setCurrentBalance(e.target.value)} 
             />
+            <Input
+              label={tr('Udhar limit (₹)')}
+              placeholder={tr('No limit')}
+              type="number"
+              step="1"
+              min="0"
+              value={creditLimit}
+              onChange={(e) => setCreditLimit(e.target.value)}
+              data-customer-credit-limit
+            />
           </div>
+          <p className="text-[10.5px] text-slate-500">{tr('The billing counter warns before a bill takes this customer past the limit. Empty = no limit.')}</p>
         </div>
 
         <div>

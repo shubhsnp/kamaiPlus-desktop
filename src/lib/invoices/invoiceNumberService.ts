@@ -51,7 +51,8 @@ async function getMaxUsedInvoiceSeq(): Promise<number> {
   const keys = await db.sales.orderBy('invoice_number').uniqueKeys();
   let maxSeq = 0;
   for (const key of keys) {
-    const parsed = typeof key === 'string' ? parseInvoiceSequenceNumber(key) : null;
+    // Estimates (EST-007, v4.102.0) have their own series: they never push the bill number on.
+    const parsed = typeof key === 'string' && !key.toUpperCase().startsWith('EST-') ? parseInvoiceSequenceNumber(key) : null;
     if (parsed !== null && parsed > maxSeq) maxSeq = parsed;
   }
   maxSeqCache = { count, maxSeq };

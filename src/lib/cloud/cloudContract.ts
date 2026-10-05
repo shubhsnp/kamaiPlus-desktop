@@ -145,7 +145,8 @@ const SPECS: Record<CloudTable, TableSpec> = {
     },
   },
   customers: {
-    money: ['current_balance', 'opening_balance', 'total_spent'],
+    // credit_limit ↔ the phone's credit_limit_paise (v4.102.0, K-D03).
+    money: ['current_balance', 'opening_balance', 'total_spent', 'credit_limit'],
     bools: ['is_wholesale'],
     // state_code: worked out from the GSTIN on the way out; the phone's copy stays in the cloud (merge writes).
     ignoreIn: ['is_vip', 'birthday', 'state_code'],

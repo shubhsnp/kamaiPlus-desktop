@@ -15,6 +15,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.102.0',
+    items: [
+      msg('Billing: "Save as Estimate" saves the bill as a quotation (EST-001) without touching stock, udhar or cash. Turn it into a bill later from Transactions → "Convert to Bill".'),
+      msg('Customers: set an udhar limit. The counter warns before a bill takes the customer past it.'),
+      msg('Purchases: "Return to Supplier" makes a debit note (stock and what you owe go down) and "Purchase Order" sends your order on WhatsApp; mark it received when the goods come.'),
+      msg('Cash Register: past shifts are listed with what was counted and any shortage. Starred items come first on the billing screen.'),
+    ],
+  },
+  {
     version: '4.101.0',
     items: [
       msg('GST: goods returned are now a credit note in the month they came back. Returns by GSTIN buyers go in GSTR-1 table 9B; the bill itself stays as issued.'),

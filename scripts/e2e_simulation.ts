@@ -70,6 +70,7 @@ import {
   getReturnedQtyByLine,
   getSaleNetTotal,
   getSalePaymentBreakdown,
+  isEstimate,
   isRevenueSale,
 } from '../src/lib/sales/saleMath';
 import { computeDrawerSummary, dayOpeningFloat, localDateKey, summarizeDay } from '../src/lib/reports/cashDrawer';
@@ -146,6 +147,12 @@ import { DEFAULT_IDLE_LOCK_MINUTES, parseIdleLockMinutes, safeReturnPath, should
 import { buildGstr1Json, gstPeriodRange } from '../src/lib/gst/gstr1Json';
 import { CHANGELOG, WHATS_NEW_BASELINE, compareVersions, unseenReleases } from '../src/lib/whatsNew/changelog';
 import { APP_VERSION } from '../src/lib/constants/version';
+import { SHIFT_HISTORY_LIMIT, shiftDifferenceLabel } from '../src/components/cash-register/CashShiftHistory';
+import { checkCreditLimit, udharOfBill } from '../src/lib/billing/creditLimit';
+import { favouritesFirst } from '../src/lib/billing/posLayout';
+import { buildEstimateSale, ESTIMATE_NOTE, nextEstimateNumber } from '../src/lib/billing/estimate';
+import { cleanDocLines, DEBIT_NOTE_PREFIX, docLinesTotal, nextSupplierDocNumber, purchaseOrderText, PURCHASE_ORDER_PREFIX, stockAfterReturn, supplierDocKind, supplierDocLabel } from '../src/lib/purchases/supplierDocs';
+import { supplierBalanceAfterReturn } from '../src/lib/suppliers/supplierLedger';
 
 let totalTests = 0;
 let passedTests = 0;
@@ -2267,8 +2274,8 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(same(fromCloud('customers', cc, null, ctx), customer), 'Cloud contract: a customer comes back exactly as it went out');
   const phoneCust = fromCloud('customers', { id: 'c1', name: 'Ramesh', phone: '9876543210', current_balance_paise: 70000, current_balance: 70000, opening_balance: 0, is_vip: true,
     birthday: '08-15', credit_limit_paise: 500000 }, customer, ctx);
-  assert(phoneCust.opening_balance === 20000 && phoneCust.current_balance === 70000 && phoneCust.date_of_birth === '1990-08-15' && phoneCust.credit_limit_paise === 500000 && phoneCust.loyalty_points === 3,
-    "Cloud contract: the phone's customer save updates the udhar but never zeroes the opening balance, keeps the birth year and what the phone does not send");
+  assert(phoneCust.opening_balance === 20000 && phoneCust.current_balance === 70000 && phoneCust.date_of_birth === '1990-08-15' && phoneCust.credit_limit === 500000 && !('credit_limit_paise' in phoneCust) && phoneCust.loyalty_points === 3,
+    "Cloud contract: the phone's customer save updates the udhar but never zeroes the opening balance, keeps the birth year and what the phone does not send; its udhar limit is the Desktop's credit_limit (v4.102.0)");
   const cleared = fromCloud('customers', { id: 'c1', address: '' }, { ...customer, address: 'Main Road' }, ctx);
   assert(cleared.address === '' && cleared.phone === '9876543210', 'Cloud contract: a field sent empty is cleared; a field not sent keeps this computer\'s value');
 
@@ -3888,6 +3895,93 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
 
   // Bottle / Can / Bag have GST unit codes.
   assert(getGSTUQC('bottle') === 'BTL' && getGSTUQC('can') === 'CAN' && getGSTUQC('bag') === 'BAG' && getGSTUQC('kg') === 'KGS', 'GST units: Bottle BTL, Can CAN, Bag BAG (were OTH)');
+}
+
+// v4.102.0 — open gaps from the tracker: K-D02 shift history, K-D03 udhar limit, K-D06 favourites first,
+// K-D07 estimates from the counter, K-D21 debit notes + purchase orders.
+{
+  // K-D02: closed shifts can be seen again.
+  const sh = readSource('components/cash-register/CashShiftHistory.tsx');
+  assert(shiftDifferenceLabel(0).tone === 'ok' && shiftDifferenceLabel(-2000).tone === 'short' && shiftDifferenceLabel(-2000).text.includes('20')
+    && shiftDifferenceLabel(1500).tone === 'extra' && shiftDifferenceLabel(undefined).tone === 'ok' && SHIFT_HISTORY_LIMIT === 30
+    && sh.includes("where('status').equals('closed')") && readSource('app/cash-register/page.tsx').includes('<CashShiftHistory'),
+    'K-D02: Cash Register lists the last 30 closed shifts — opening float, expected, counted, and "₹20 short" / "₹15 extra" / "Exact"');
+
+  // K-D03: udhar limit per customer — a warning at the counter, same field as the phone.
+  assert(!checkCreditLimit({ credit_limit: 0, current_balance: 900000 }, 50000).over && !checkCreditLimit({ current_balance: 900000 }, 50000).over,
+    'K-D03: no limit set (0 / empty) = never warns');
+  const lim = checkCreditLimit({ credit_limit: 500000, current_balance: 480000 }, 30000);
+  assert(lim.over && lim.after === 510000 && lim.limit === 500000 && !checkCreditLimit({ credit_limit: 500000, current_balance: 480000 }, 20000).over
+    && !checkCreditLimit({ credit_limit: 500000, current_balance: 600000 }, 0).over,
+    'K-D03: ₹4,800 owed + ₹300 udhar on a ₹5,000 limit warns (after ₹5,100); exactly at the limit or a fully paid bill does not');
+  assert(udharOfBill({ method: 'credit', grandTotalPaise: 10000 }) === 10000 && udharOfBill({ method: 'upi', grandTotalPaise: 10000 }) === 0
+    && udharOfBill({ method: 'cash', grandTotalPaise: 10000, typedCashPaise: 6000 }) === 4000 && udharOfBill({ method: 'cash', grandTotalPaise: 10000, typedCashPaise: null }) === 0
+    && udharOfBill({ method: 'split', grandTotalPaise: 10000, splitPaise: { cash: 3000, upi: 2000, card: 0, credit: 1000 } }) === 5000,
+    'K-D03: the udhar of a bill is counted as the counter saves it (credit = all; short cash = the shortfall; split = credit part + what is not split)');
+  const bill = readSource('app/billing/page.tsx');
+  const limAt = bill.indexOf('checkCreditLimit(targetCustomer, udhar)');
+  assert(limAt > 0 && limAt < bill.indexOf('getNextUniqueInvoiceNumber(businessId)') && bill.slice(limAt, limAt + 600).includes('showConfirm(')
+    && bill.slice(limAt, limAt + 900).includes('if (!go) return;'),
+    'K-D03: the counter asks before saving a bill that takes the customer past the limit (Cancel = nothing saved)');
+  const cm = readSource('components/customers/AddEditCustomerModal.tsx');
+  const cc = toCloud('customers', { id: 'c1', name: 'Dealer', credit_limit: 500000 }, { bizId: 'biz_u' }) as any;
+  const back = fromCloud('customers', { id: 'c1', name: 'Dealer', credit_limit_paise: 250000 }, null, { bizId: 'biz_u' }) as any;
+  assert(cm.includes('data-customer-credit-limit') && cm.includes('credit_limit: Math.max(0, Math.round((parseFloat(creditLimit) || 0) * 100))')
+    && cc.credit_limit_paise === 500000 && cc.credit_limit === undefined && back.credit_limit === 250000,
+    'K-D03: the customer form saves the limit in paise; the cloud carries it as credit_limit_paise, the phone app\'s field');
+
+  // K-D06: starred items first on the counter.
+  const fav = favouritesFirst([{ id: 'a' }, { id: 'b', is_favorite: true }, { id: 'c' }, { id: 'd', is_favorite: true }] as any[]);
+  assert(fav.map((p: any) => p.id).join() === 'b,d,a,c' && bill.includes('favouritesFirst('),
+    'K-D06: favourite (starred) items come first in the counter\'s product grid, in their own order');
+
+  // K-D07: an estimate / quotation from the counter.
+  const en = nextEstimateNumber(['INV-004', 'EST-002', 'est-009', undefined as any, 'EST-X']);
+  assert(en.number === 'EST-010' && en.seq === 10 && nextEstimateNumber([]).number === 'EST-001' && nextEstimateNumber(['EST-002'], 7).number === 'EST-008',
+    'K-D07: estimates have their own EST- series; a converted estimate\'s number is never handed out again (floor)');
+  const est = buildEstimateSale({ id: 's1', businessId: 'b', estimateNumber: 'EST-001', customer: { name: 'Ramesh', phone: '9800000000' },
+    items: [{ product_id: 'p', product_name: 'Rice', quantity: 2, unit_price: 5000, total_amount: 10000 } as any], subtotal: 10000, discountTotal: 0, taxTotal: 0, grandTotal: 10000, now: '2026-10-05T10:00:00.000Z' });
+  assert(isEstimate(est) && !isRevenueSale(est) && est.amount_received === 0 && est.balance_due === 0 && est.notes === ESTIMATE_NOTE && est.customer_name === 'Ramesh' && est.customer_id === undefined,
+    'K-D07: the estimate is a draft — not revenue, nothing paid, nothing owed; a new customer is only named on it');
+  const estFn = bill.slice(bill.indexOf('const handleSaveEstimate = async'), bill.indexOf('// The highlighted (or first) search result goes into the bill.'));
+  assert(estFn.length > 200 && estFn.includes('buildEstimateSale(') && estFn.includes('await db.sales.put(estimate)') && !estFn.includes('inventory_movements')
+    && !estFn.includes('ledger_transactions') && !estFn.includes('commitNextInvoiceNumber') && !estFn.includes('db.customers.put') && bill.includes('data-save-estimate'),
+    'K-D07: "Save as Estimate" saves the bill as priced — no stock, khata, bill number or new customer — and Transactions "Convert to Bill" does the rest');
+  const ins = readSource('lib/invoices/invoiceNumberService.ts');
+  assert(/!key\.toUpperCase\(\)\.startsWith\('EST-'\) \? parseInvoiceSequenceNumber\(key\)/.test(ins),
+    'K-D07: EST-012 does not push the next bill number to INV-013');
+
+  // K-D21: debit note (goods back to the supplier) and purchase order.
+  assert(nextSupplierDocNumber(DEBIT_NOTE_PREFIX, ['DN-003', 'PO-007', 'B-55', undefined]) === 'DN-004' && nextSupplierDocNumber(PURCHASE_ORDER_PREFIX, ['DN-003', 'PO-007']) === 'PO-008'
+    && nextSupplierDocNumber(PURCHASE_ORDER_PREFIX, []) === 'PO-001',
+    'K-D21: debit notes (DN-) and purchase orders (PO-) have their own number series');
+  const lines = [{ productId: 'p1', name: 'Oil', qty: 2, costPaise: 15050 }, { productId: 'p2', name: 'Soap', qty: 0, costPaise: 3000 }, { productId: '', name: 'x', qty: 3, costPaise: 100 }];
+  assert(cleanDocLines(lines).length === 1 && docLinesTotal(lines) === 30100,
+    'K-D21: only lines with an item and a quantity count; value = qty × cost (₹301)');
+  assert(stockAfterReturn({ current_stock: 10, is_unlimited_stock: false }, 3).next === 7 && stockAfterReturn({ current_stock: 2, is_unlimited_stock: false }, 5).next === 0
+    && !stockAfterReturn({ current_stock: 0, is_unlimited_stock: true }, 5).changes && stockAfterReturn({ current_stock: 1.5, is_unlimited_stock: false }, 0.25).next === 1.25,
+    'K-D21: returned goods leave stock (never below 0); an uncounted item is unchanged');
+  assert(supplierBalanceAfterReturn(50000, 30100) === 19900 && supplierBalanceAfterReturn(10000, 30100) === -20100,
+    'K-D21: a debit note takes its value off what the shop owes (more than owed = advance with the supplier)');
+  assert(supplierDocKind({}) === 'bill' && supplierDocKind({ kind: 'debit_note' }) === 'debit_note' && supplierDocKind({ kind: 'order' }) === 'order'
+    && supplierDocLabel({ kind: 'order', status: 'pending_review' }) === 'Order open' && supplierDocLabel({ kind: 'order', status: 'confirmed' }) === 'Order received' && supplierDocLabel({ status: 'confirmed' }) === 'Confirmed',
+    'K-D21: old purchase bills (no kind) stay bills; an order shows open / received / cancelled');
+  const poText = purchaseOrderText({ bill_number: 'PO-002', bill_date: '2026-10-05', total_amount: 30100, notes: 'Deliver by Monday',
+    line_items: [{ raw_name: 'Oil', quantity: 2, unit: 'litre', unit_price: 15050, total_price: 30100, is_new_product: false, confidence: 'high' }] }, 'Sharma Kirana');
+  assert(poText.startsWith('Purchase Order PO-002\nFrom: Sharma Kirana\nDate: 05-10-2026') && poText.includes('1. Oil — 2 litre @ ') && poText.includes('Note: Deliver by Monday') && !/\n\n\n/.test(poText),
+    'K-D21: the order goes to the supplier as a plain WhatsApp message (items, quantity, cost, note)');
+  const sd = readSource('lib/purchases/supplierDocs.ts');
+  const dn = sd.slice(sd.indexOf('export async function saveDebitNote'), sd.indexOf('export async function savePurchaseOrder'));
+  const po = sd.slice(sd.indexOf('export async function savePurchaseOrder'), sd.indexOf('export async function receivePurchaseOrder'));
+  const rc = sd.slice(sd.indexOf('export async function receivePurchaseOrder'), sd.indexOf('export async function cancelPurchaseOrder'));
+  assert(dn.includes("db.transaction('rw', [db.products, db.inventory_movements, db.purchase_bills, db.suppliers, db.ledger_transactions]") && dn.includes("movement_type: 'ADJUSTMENT'")
+    && dn.includes('await writeSupplierReturn(') && dn.includes('input.adjustAccount') && readSource('lib/suppliers/supplierLedger.ts').includes("transaction_type: 'ADJUSTMENT',") && !po.includes('db.products') && !po.includes('ledger')
+    && rc.includes("order.status !== 'pending_review'") && rc.includes('stockAfterInward(prod, l.quantity)') && rc.includes("status: 'confirmed'") && rc.includes("kind: 'purchase'"),
+    'K-D21: a debit note changes stock, the purchase record and the supplier account together; an order changes nothing until received (then a normal inward, once)');
+  const pp = readSource('app/purchases/page.tsx');
+  assert(pp.includes('data-new-debit-note') && pp.includes('data-new-purchase-order') && pp.includes('<PurchaseOrdersCard') && pp.includes('supplierDocLabel(bill)')
+    && readSource('components/suppliers/SupplierDetailPanel.tsx').includes("tr('Goods returned')"),
+    'K-D21: Purchases has "Return to Supplier" and "Purchase Order"; open orders are listed; Suppliers shows a debit note as "Goods returned"');
 }
 
 // -------------------------------------------------------------

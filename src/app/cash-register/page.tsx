@@ -25,6 +25,7 @@ import { computeDrawerSummary, dayOpeningFloat, localDateKey } from '@/lib/repor
 import { CashRegisterHeaderActions } from '@/components/cash-register/CashRegisterHeaderActions';
 import { CashRegisterMetricsRibbon } from '@/components/cash-register/CashRegisterMetricsRibbon';
 import { CashExpensesList } from '@/components/cash-register/CashExpensesList';
+import { CashShiftHistory } from '@/components/cash-register/CashShiftHistory';
 import { AddExpenseModal } from '@/components/cash-register/AddExpenseModal';
 import { tr } from '@/lib/i18n/core';
 const DenominationCalculatorModal = dynamic(
@@ -213,6 +214,9 @@ export default function CashRegisterPage() {
         expenses={todayExpenses}
         onDeleteExpense={handleDeleteExpense}
       />
+
+      {/* 4. Past shifts (K-D02) */}
+      <CashShiftHistory />
 
       {/* ---------------- MODALS ---------------- */}
       {/* Open Drawer Modal */}

@@ -1,5 +1,6 @@
 'use client';
 
+import { DEBIT_NOTE_LEDGER_NOTE, supplierDocKind, supplierDocLabel } from '@/lib/purchases/supplierDocs';
 import React from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { ArrowDownRight, ArrowUpRight, Edit3, Phone, Trash2, Truck, FileText } from 'lucide-react';
@@ -97,7 +98,7 @@ export function SupplierDetailPanel({ supplier, onPurchase, onPayment, onEdit, o
                   <div key={t.id} className="px-3 py-2.5 flex items-center justify-between gap-3 text-xs">
                     <div className="min-w-0">
                       <div className="font-bold text-slate-900">
-                        {TYPE_LABEL[t.transaction_type] ? tr(TYPE_LABEL[t.transaction_type]) : t.transaction_type}
+                        {t.transaction_type === 'ADJUSTMENT' && t.notes?.startsWith(DEBIT_NOTE_LEDGER_NOTE) ? tr('Goods returned') : TYPE_LABEL[t.transaction_type] ? tr(TYPE_LABEL[t.transaction_type]) : t.transaction_type}
                         {t.payment_method && <span className="ml-1.5 text-[10px] font-black uppercase text-slate-500">{paymentMethodLabel(t.payment_method)}</span>}
                       </div>
                       <div className="text-[11px] text-slate-500 truncate">
@@ -129,7 +130,7 @@ export function SupplierDetailPanel({ supplier, onPurchase, onPayment, onEdit, o
                   <div className="flex items-center gap-2 min-w-0">
                     <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                     <span className="truncate">
-                      {b.bill_number ? tr('Bill #{bill_number}', { bill_number: b.bill_number }) : tr('Bill')} • {b.line_items?.length || 0} {tr('items •')}{' '}
+                      {supplierDocKind(b) !== 'bill' ? `${supplierDocLabel(b)} ${b.bill_number || ''}` : b.bill_number ? tr('Bill #{bill_number}', { bill_number: b.bill_number }) : tr('Bill')} • {b.line_items?.length || 0} {tr('items •')}{' '}
                       {new Date(b.created_at).toLocaleDateString('en-IN')}
                     </span>
                   </div>

@@ -166,3 +166,38 @@ export async function recordSupplierEntry(input: SupplierEntryInput): Promise<{ 
   }
   return { ok: true, balance: balanceAfter };
 }
+
+/** What the shop owes after a debit note (v4.102.0): less by the returned value; below 0 = advance. */
+export function supplierBalanceAfterReturn(balancePaise: number, returnedPaise: number): number {
+  return Math.round((balancePaise || 0) - Math.max(0, returnedPaise));
+}
+
+/**
+ * A debit note (goods returned to the supplier, v4.102.0, K-D21 — lib/purchases/supplierDocs.ts):
+ * takes the returned value off what the shop owes, with its ledger row (ADJUSTMENT, the type the
+ * phone app knows). Called INSIDE the caller's transaction (suppliers + ledger_transactions), so the
+ * stock, the debit note and the account change together. No cash moves.
+ */
+export async function writeSupplierReturn(input: { supplierId: string; amountPaise: number; note: string; referenceId: string; date: string }): Promise<void> {
+  const amount = Math.round(input.amountPaise);
+  if (!(amount > 0)) return;
+  const supplier = await db.suppliers.get(input.supplierId);
+  if (!supplier) return;
+  const after = supplierBalanceAfterReturn(supplier.current_balance || 0, amount);
+  await db.suppliers.update(supplier.id, { current_balance: after, updated_at: input.date, sync_status: 'pending' });
+  const entry: LedgerTransaction = {
+    id: newId('ledg_sup'),
+    business_id: supplier.business_id,
+    party_type: 'supplier',
+    party_id: supplier.id,
+    party_name: supplier.name,
+    transaction_type: 'ADJUSTMENT',
+    amount,
+    reference_id: input.referenceId,
+    notes: input.note,
+    balance_after: after,
+    created_at: input.date,
+    sync_status: 'pending',
+  };
+  await db.ledger_transactions.put(entry);
+}

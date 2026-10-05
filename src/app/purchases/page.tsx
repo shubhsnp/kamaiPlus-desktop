@@ -33,6 +33,9 @@ import { useFeatureSwitches } from '@/lib/features/featureSwitches';
 import { inwardMovement, labelCopiesFor, stockAfterInward } from '@/lib/inward/stockEntry';
 import { InwardLabelOffer, InwardLabels } from '@/components/purchases/InwardLabelOffer';
 import { FastBarcodeInwardModal } from '@/components/inward/FastBarcodeInwardModal';
+import { SupplierDocModal } from '@/components/purchases/SupplierDocModal';
+import { PurchaseOrdersCard } from '@/components/purchases/PurchaseOrdersCard';
+import { supplierDocKind, supplierDocLabel } from '@/lib/purchases/supplierDocs';
 
 export default function PurchasesPage() {
   // Settings → Features → Barcode Studio & Labels off: no "New items + labels", no label offer.
@@ -51,6 +54,8 @@ export default function PurchasesPage() {
   const [labelOffer, setLabelOffer] = useState<InwardLabels | null>(null);
   const [fastInwardOpen, setFastInwardOpen] = useState(false);
   const [excelOpen, setExcelOpen] = useState(false);
+  // Debit note / purchase order window (v4.102.0, K-D21).
+  const [docKind, setDocKind] = useState<'debit_note' | 'order' | null>(null);
 
   // A variant parent holds no stock of its own — restock its sizes / colours instead.
   const products = (useLiveQuery(async () => db.products.toArray()) || []).filter((p) => !isVariantParent(p));
@@ -164,6 +169,12 @@ export default function PurchasesPage() {
 
       {labelOffer && labelsOn && <InwardLabelOffer offer={labelOffer} onDismiss={() => setLabelOffer(null)} />}
       {fastInwardOpen && <FastBarcodeInwardModal onClose={() => setFastInwardOpen(false)} />}
+      {docKind && (
+        <SupplierDocModal kind={docKind} businessId={business?.id || 'biz_default'} onClose={() => setDocKind(null)} onSaved={(bill) => {
+          setDocKind(null);
+          showToast(supplierDocKind(bill) === 'order' ? tr('Purchase order {number} saved.', { number: bill.bill_number || '' }) : tr('Debit note {number} saved — stock updated.', { number: bill.bill_number || '' }));
+        }} />
+      )}
 
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
@@ -193,8 +204,12 @@ export default function PurchasesPage() {
 
           {/* v4.93.0: one "Stock Inward ▾" menu instead of four buttons in a row */}
           <PurchaseInwardMenu onManual={() => setIsModalOpen(true)} onExcel={() => setExcelOpen(true)} onFast={() => setFastInwardOpen(true)} labelsOn={labelsOn} />
+          <Button size="sm" variant="outline" className="h-10 text-xs font-bold" onClick={() => setDocKind('order')} data-new-purchase-order>{tr('Purchase Order')}</Button>
+          <Button size="sm" variant="outline" className="h-10 text-xs font-bold" onClick={() => setDocKind('debit_note')} data-new-debit-note>{tr('Return to Supplier')}</Button>
         </div>
       </div>
+
+      <PurchaseOrdersCard shopName={business?.name} onMessage={showToast} />
 
       {/* Grid: Low Stock Alert & Scanned Bill History */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -264,7 +279,7 @@ export default function PurchasesPage() {
                       {bill.supplier_name_raw || tr('Wholesale Supplier')}
                     </div>
                     <div className="text-[11px] text-slate-500 font-mono">
-                      {bill.bill_number ? tr('Bill #{bill_number} • ', { bill_number: bill.bill_number }) : ''}
+                      {bill.bill_number ? (supplierDocKind(bill) === 'bill' ? tr('Bill #{bill_number} • ', { bill_number: bill.bill_number }) : `${bill.bill_number} • `) : ''}
                       {bill.line_items?.length || 0} {tr('items •')} {new Date(bill.created_at).toLocaleDateString()}
                     </div>
                   </div>
@@ -274,7 +289,7 @@ export default function PurchasesPage() {
                       <ProfitMask>{formatINR(bill.total_amount || 0)}</ProfitMask>
                     </div>
                     <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                      {tr('Confirmed')}
+                      {supplierDocLabel(bill)}
                     </span>
                   </div>
                 </div>

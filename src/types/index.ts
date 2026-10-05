@@ -195,6 +195,8 @@ export interface Customer {
   customer_type: CustomerType;
   /** Buys at wholesale prices: picking this customer turns the bill to wholesale (v4.87.0). */
   is_wholesale?: boolean;
+  /** Udhar limit in paise; 0 / unset = none. The counter warns past it (v4.102.0; Android `credit_limit_paise`). */
+  credit_limit?: number;
   notes?: string;
   created_at: string;
   updated_at: string;
@@ -455,6 +457,14 @@ export interface PurchaseBill {
   raw_ai_response: string;          // JSON string for audit/debug
   line_items: PurchaseBillLineItem[];
   total_amount: number;             // in paise
+  /**
+   * v4.102.0 (K-D21, lib/purchases/supplierDocs.ts): unset = a supplier's bill (stock in);
+   * 'debit_note' = goods returned to the supplier (bill_number DN-001); 'order' = a purchase
+   * order sent to the supplier (PO-001) — status pending_review = open, confirmed = received,
+   * discarded = cancelled.
+   */
+  kind?: 'bill' | 'debit_note' | 'order';
+  notes?: string;
   status: 'pending_review' | 'confirmed' | 'discarded';
   ai_model_used: string;
   created_at: string;

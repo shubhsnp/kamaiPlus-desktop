@@ -1,6 +1,7 @@
 'use client';
-import { showAlert } from '@/lib/ui/dialogs';
-
+import { showAlert, showConfirm } from '@/lib/ui/dialogs';
+import { checkCreditLimit, udharOfBill } from '@/lib/billing/creditLimit';
+import { buildEstimateSale, ESTIMATE_PREFIX, nextEstimateNumber } from '@/lib/billing/estimate';
 import React, { useState, useEffect } from 'react';
 import { db, ensureStarterBusinessIfEmpty, seedBusinessStarterData } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -84,7 +85,7 @@ import { PosCategoryTabs } from '@/components/billing/PosCategoryTabs';
 import { PosCartLines } from '@/components/billing/PosCartLines';
 import { PosUndoBar } from '@/components/billing/PosUndoBar';
 import { PosBillDiscount } from '@/components/billing/PosBillDiscount';
-import { showProductList } from '@/lib/billing/posLayout';
+import { favouritesFirst, showProductList } from '@/lib/billing/posLayout';
 import { scrollIntoContainer } from '@/lib/billing/cartFocus';
 import { generalCategoryId } from '@/lib/products/defaultCategory';
 import { BillingToast, BillingToastData, FullscreenUpiQrModal, QuickAddScannedProductModal } from '@/components/billing/PosDialogs';
@@ -94,6 +95,8 @@ import { isFeatureOn, useFeatureSwitches } from '@/lib/features/featureSwitches'
 import { PrintFailureBar, useBackgroundBillPrint, warmBillPrinting } from '@/components/billing/BillPrintQueue';
 import { tr } from '@/lib/i18n/core';
 
+/** The last estimate number handed out on this PC (see nextEstimateNumber). */
+const ESTIMATE_SEQ_KEY = 'kamai_last_estimate_seq';
 
 export default function BillingPage() {
   const { language, t } = useTranslation();
@@ -461,7 +464,7 @@ export default function BillingPage() {
         const all = await prods.toArray();
         // Name, barcode or category — typed in English or हिंदी / मराठी (lib/search/productSearch.ts),
         // best matches first.
-        const data = searching ? searchProducts(all, debouncedSearch, { category: true }) : all;
+        const data = searching ? searchProducts(all, debouncedSearch, { category: true }) : favouritesFirst(all);
         if (isMounted) {
           setProducts(data);
         }
@@ -997,6 +1000,24 @@ export default function BillingPage() {
       }
     }
 
+    // Udhar limit of a saved customer (v4.102.0, K-D03): a warning — the shop decides.
+    if (targetCustomer && udharAllowed) {
+      const p = (v: string) => (v ? Math.round((parseFloat(v) || 0) * 100) : 0);
+      const udhar = udharOfBill({
+        method: paymentMethod, grandTotalPaise, typedCashPaise,
+        splitPaise: paymentMethod === 'split' ? { cash: p(splitCash), upi: p(splitUpi), card: p(splitCard), credit: p(splitCredit) } : undefined,
+      });
+      const limit = checkCreditLimit(targetCustomer, udhar);
+      if (limit.over) {
+        playBeepSound('alert');
+        const go = await showConfirm(
+          tr('{name} has an udhar limit of {limit}. After this bill they will owe {after}. Give the udhar anyway?', { name: targetCustomer.name, limit: formatINR(limit.limit), after: formatINR(limit.after) }),
+          { title: tr('Udhar limit'), confirmLabel: tr('Give udhar'), cancelLabel: tr('Cancel') }
+        );
+        if (!go) return;
+      }
+    }
+
     try {
       const currentBiz = business || (await ensureStarterBusinessIfEmpty());
       const businessId = currentBiz?.id || 'biz_default';
@@ -1231,6 +1252,66 @@ export default function BillingPage() {
     } catch (saleErr) {
       console.error('Sale completion encountered an error:', saleErr);
       showAlert(tr('Encountered an unexpected error completing the sale. Please verify inventory.'));
+    }
+  };
+
+  // Estimate / quotation (v4.102.0, K-D07, lib/billing/estimate.ts): the bill as priced, saved with an
+  // EST- number — no stock, khata or cash. Transactions → "Convert to Bill" makes it a tax invoice.
+  const handleSaveEstimate = async () => {
+    if (cart.length === 0 || completingSaleRef.current) return;
+    const unpriced = cart.find((line) => !(line.unit_price > 0));
+    if (unpriced) {
+      playBeepSound('alert');
+      showBillingToast(tr('Enter the price of "{name}" — it has no price yet.', { name: unpriced.product_name }), 'error');
+      handleOpenEditItem(unpriced);
+      return;
+    }
+    completingSaleRef.current = true;
+    try {
+      const soldTabId = activeTabId;
+      const soldCart = cart;
+      let customer: Parameters<typeof buildEstimateSale>[0]['customer'] = selectedCustomer || (selectedCustomerId ? await db.customers.get(selectedCustomerId) : undefined);
+      if (!customer && !isDraftEmpty(customerDraft)) {
+        const typed = resolveBillCustomer(await db.customers.toArray(), customerDraft);
+        if (typed.kind === 'error') {
+          playBeepSound('alert');
+          showBillingToast(typed.message, 'error');
+          focusPosCustomerName(typed.field);
+          return;
+        }
+        // Someone new is only named on the estimate — saved as a customer when it becomes a bill.
+        customer = typed.kind === 'existing' ? typed.customer : undefined;
+        if (typed.kind === 'new') customer = { name: typed.name, phone: typed.phone || undefined };
+      }
+      const currentBiz = business || (await ensureStarterBusinessIfEmpty());
+      const businessId = currentBiz?.id || 'biz_default';
+      let floor = 0;
+      try { floor = Number(localStorage.getItem(ESTIMATE_SEQ_KEY)) || 0; } catch { /* no storage: the saved estimates decide */ }
+      const est = nextEstimateNumber((await db.sales.where('invoice_number').startsWithIgnoreCase(ESTIMATE_PREFIX).keys()) as string[], floor);
+      const estimate = buildEstimateSale({
+        id: newId('sale'), businessId, estimateNumber: est.number, customer,
+        items: billLines, subtotal: subtotalPaise, discountTotal: discountTotalPaise, taxTotal: taxTotalPaise, grandTotal: grandTotalPaise,
+        priceMode: isFeatureOn('wholesale_price') ? priceMode : 'retail', now: new Date().toISOString(),
+      });
+      await db.sales.put(estimate);
+      try { localStorage.setItem(ESTIMATE_SEQ_KEY, String(est.seq)); } catch { /* see above */ }
+      void cloudSyncSoon(businessId);
+
+      const newTabId = `tab_${Date.now()}`;
+      const nextTabId = tabsAfterClosing(tabs, soldTabId, newTabId).activeTabId;
+      setTabs((prev) => tabsAfterSale(prev, soldTabId, soldCart, newTabId, retotalLine).tabs);
+      setActiveTabId(nextTabId);
+      activeTabIdRef.current = nextTabId;
+      setIsMobileCartOpen(false);
+      setCompletedSaleDetails({ invoiceNumber: est.number, customerName: customer?.name, customerPhone: customer?.phone, grandTotalPaise, balanceDuePaise: 0, items: [...soldCart] });
+      setActiveSaleForInvoice(estimate);
+      searchInputRef.current?.blur();
+      setIsInvoiceModalOpen(true);
+    } catch (estErr) {
+      console.error('Saving the estimate failed:', estErr);
+      showAlert(tr('Could not save the estimate. Please try again.'));
+    } finally {
+      completingSaleRef.current = false;
     }
   };
 
@@ -1868,6 +1949,17 @@ export default function BillingPage() {
           <span>{tr('Complete Sale & Print')}</span>
           <kbd className="ml-1 px-1.5 py-0.5 rounded bg-emerald-700 text-emerald-100 font-mono text-[10px] font-bold border border-emerald-500">Enter ↵</kbd>
         </Button>
+        {/* Estimate / quotation (v4.102.0, K-D07): no stock, khata or cash until converted to a bill. */}
+        <button
+          type="button"
+          disabled={cart.length === 0}
+          onClick={() => handleSaveEstimate()}
+          data-save-estimate
+          className="w-full text-xs font-bold py-2 rounded-xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-1.5"
+        >
+          <FileText className="w-3.5 h-3.5" />
+          <span>{tr('Save as Estimate')}</span>
+        </button>
       </div>
     </div>
   );

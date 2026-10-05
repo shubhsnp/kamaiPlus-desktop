@@ -102,6 +102,7 @@ export default function CustomersPage() {
     loyalty_points: number;
     opening_balance: number;
     current_balance: number;
+    credit_limit: number;
     notes?: string;
   }) => {
     const now = new Date().toISOString();

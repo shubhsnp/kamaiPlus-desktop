@@ -107,3 +107,14 @@ export function showProductList(layout: Pick<PosLayout, 'scanMode'>, searchText:
   if (!t || /^\d+$/.test(t) || looksLikeBarcode(t)) return false;
   return true;
 }
+
+/**
+ * The counter's item grid without a search (v4.102.0, tracker K-D06): starred items (☆ on
+ * Products) first, the rest in their usual order. A search keeps its best-match order.
+ */
+export function favouritesFirst<T extends { is_favorite?: boolean }>(items: T[]): T[] {
+  const fav: T[] = [];
+  const rest: T[] = [];
+  for (const p of items) (p.is_favorite ? fav : rest).push(p);
+  return fav.length ? fav.concat(rest) : items;
+}
