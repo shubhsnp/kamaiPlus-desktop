@@ -1,5 +1,5 @@
 require('v8-compile-cache');
-const { app, BrowserWindow, clipboard, dialog, ipcMain, net, protocol, shell } = require('electron');
+const { app, BrowserWindow, clipboard, dialog, ipcMain, net, Notification, protocol, shell } = require('electron');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -431,12 +431,34 @@ ipcMain.handle('kp:licence-status', async () =>
 const licenceRefresh = async () => {
   const userDataDir = app.getPath('userData');
   let health = null;
+  let report = null;
   try {
     health = adminLink.buildHealth({ userDataDir, backupInfo: backup.getInfo(backupPaths()), errors: errorlog.readRecent(1000) });
   } catch {
     health = null;
   }
-  const res = await licence.refresh({ userDataDir, appVersion: app.getVersion(), fetchImpl: (url, opts) => net.fetch(url, opts), health });
+  // v4.105.0: features, update state, commands run, and the error report when the Admin asked.
+  try {
+    const licenceStatus = licence.getStatus({ userDataDir, dev: isDevServer });
+    const licenceText = licenceStatus.state === 'active' ? `${licenceStatus.key || 'dev'} (${licenceStatus.shopName || 'no shop name'})` : 'not activated';
+    report = adminLink.buildReport({
+      userDataDir,
+      updateStatus: updaterApi ? updaterApi.status() : null,
+      errorReportText: errorlog.buildReport({ appVersion: app.getVersion(), licence: licenceText }),
+    });
+  } catch {
+    report = null;
+  }
+  const res = await licence.refresh({ userDataDir, appVersion: app.getVersion(), fetchImpl: (url, opts) => net.fetch(url, opts), health, report });
+  if (res.ok && report && report.commands_done) {
+    try {
+      adminLink.clearSentResults(userDataDir, report.commands_done.map((r) => r.id));
+    } catch {}
+  } else if (res.ok && report && report.error_report) {
+    try {
+      adminLink.clearSentResults(userDataDir, []);
+    } catch {}
+  }
   if (res.ok && res.messages !== undefined) {
     let changed = false;
     try {
@@ -445,9 +467,148 @@ const licenceRefresh = async () => {
       changed = false;
     }
     if (changed && mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('kp:admin-messages', adminLink.readMessages(userDataDir));
+    if (changed) notifyNewMessages(adminLink.readMessages(userDataDir));
+  }
+  if (res.ok && res.control !== undefined) {
+    let changed = false;
+    try {
+      changed = adminLink.saveControl(userDataDir, res.control);
+    } catch {
+      changed = false;
+    }
+    if (changed) sendToPage('kp:admin-control', adminControlForPage());
+    void runAdminCommands();
   }
   return res;
 };
+
+// ---------------------------------------------------------------------------
+// Remote control (v4.105.0) — adminLink.js "Remote control". The Admin Console can force
+// features, put the PC in read-only / locked mode, ask for a minimum version, change the
+// check-in interval and send one-off commands. Restart and install wait for an idle counter.
+// ---------------------------------------------------------------------------
+
+let updaterApi = null;
+const sendToPage = (channel, payload) => {
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, payload);
+};
+const adminControlForPage = () => ({ ...adminLink.readControl(app.getPath('userData')), appVersion: app.getVersion() });
+
+ipcMain.handle('kp:admin-control', async () => adminControlForPage());
+
+// Windows notification for a new urgent or pop-up message (once per message, per app run).
+const notifiedMessages = new Set();
+function notifyNewMessages(messages) {
+  for (const m of messages || []) {
+    if (notifiedMessages.has(m.id) || !(m.level === 'urgent' || m.style === 'popup')) continue;
+    notifiedMessages.add(m.id);
+    try {
+      if (Notification.isSupported()) new Notification({ title: 'KamaiPlus', body: String(m.text).slice(0, 220) }).show();
+    } catch {}
+  }
+}
+
+// The page does what only it can (a backup of the shop data; "is a bill open?").
+const pageWaiters = new Map();
+function askPage(type, timeoutMs) {
+  return new Promise((resolve) => {
+    if (!mainWindow || mainWindow.isDestroyed()) return resolve({ noAnswer: true });
+    const id = `${type}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const timer = setTimeout(() => {
+      pageWaiters.delete(id);
+      resolve({ noAnswer: true });
+    }, timeoutMs);
+    pageWaiters.set(id, (answer) => {
+      clearTimeout(timer);
+      resolve(answer);
+    });
+    mainWindow.webContents.send('kp:admin-command', { id, type });
+  });
+}
+ipcMain.handle('kp:admin-command-done', async (_event, answer) => {
+  const waiter = answer && pageWaiters.get(answer.id);
+  if (waiter) {
+    pageWaiters.delete(answer.id);
+    waiter({ ok: Boolean(answer.ok), note: String(answer.note || '').slice(0, 200) });
+  }
+  return true;
+});
+
+const RETRY_FOR_MS = 24 * 60 * 60 * 1000;
+
+/** One command → { ok, note } (recorded), or { retry } (the counter is busy: try again later). */
+async function runAdminCommand(cmd) {
+  const stale = cmd.at && Date.now() - Date.parse(cmd.at) > RETRY_FOR_MS;
+  const idleOrRetry = async () => {
+    const idle = await askPage('idle_check', 15000);
+    if (idle.ok) return null;
+    return stale ? { ok: false, note: 'A bill was open for 24 hours — not done' } : { retry: true };
+  };
+  switch (cmd.type) {
+    case 'check_update': {
+      if (!updaterApi || !updaterApi.status().enabled) return { ok: false, note: 'Updates are off on this computer' };
+      const st = await updaterApi.check();
+      const lc = st.lastCheck || {};
+      return { ok: lc.result !== 'error', note: lc.result === 'error' ? `Error: ${lc.error || ''}` : `${lc.result || 'checked'}${lc.version ? ` ${lc.version}` : ''}` };
+    }
+    case 'install_update': {
+      if (!updaterApi || !updaterApi.status().enabled) return { ok: false, note: 'Updates are off on this computer' };
+      if (!updaterApi.status().readyVersion) {
+        await updaterApi.check();
+        if (!updaterApi.status().readyVersion) return stale ? { ok: false, note: 'No update downloaded in 24 hours' } : { retry: true };
+      }
+      const busy = await idleOrRetry();
+      if (busy) return busy;
+      const version = updaterApi.status().readyVersion;
+      return { ok: true, note: `Installing ${version}`, after: () => updaterApi.install() };
+    }
+    case 'backup_now': {
+      const r = await askPage('backup_now', 120000);
+      if (r.noAnswer) return stale ? { ok: false, note: 'The app did not answer' } : { retry: true };
+      return r;
+    }
+    case 'send_report':
+      return { ok: true, note: `Error report sent (${errorlog.readRecent(1000).length} entries)`, sendReport: true, after: () => scheduleCheckIn(5000) };
+    case 'restart_app': {
+      const busy = await idleOrRetry();
+      if (busy) return busy;
+      return { ok: true, note: 'Restarted', after: () => setTimeout(() => { app.relaunch(); app.exit(0); }, 1500) };
+    }
+    default:
+      return { ok: false, note: 'Unknown command' };
+  }
+}
+
+let commandsRunning = false;
+async function runAdminCommands() {
+  if (commandsRunning) return;
+  commandsRunning = true;
+  const userDataDir = app.getPath('userData');
+  try {
+    for (const cmd of adminLink.pendingCommands(userDataDir, adminLink.readControl(userDataDir))) {
+      let res;
+      try {
+        res = await runAdminCommand(cmd);
+      } catch (err) {
+        res = { ok: false, note: (err && err.message) || 'Failed' };
+      }
+      if (res.retry) continue;
+      adminLink.recordCommand(userDataDir, cmd.id, res.ok, res.note, { sendReport: res.sendReport });
+      if (res.after) res.after();
+    }
+  } finally {
+    commandsRunning = false;
+  }
+}
+
+let scheduledCheckIn = null;
+function scheduleCheckIn(ms) {
+  if (!app.isPackaged || isDevServer || scheduledCheckIn) return;
+  scheduledCheckIn = setTimeout(() => {
+    scheduledCheckIn = null;
+    void licenceRefresh().catch(() => {});
+  }, ms);
+}
 
 // The page's counts for the health report (v4.98.0) — kept for the next check-in.
 ipcMain.handle('kp:report-health', async (_event, counts) => {
@@ -467,9 +628,15 @@ ipcMain.handle('kp:licence-refresh', async () => {
   return { ...res, status: res.status || licence.getStatus({ userDataDir: app.getPath('userData'), dev: isDevServer }) };
 });
 
-const LICENCE_TICK_MS = 30 * 60 * 1000; // the end date can pass while the app is open
-// v4.98.0: hourly (was 6 h) — the Admin's messages, a renewal and a block arrive within the hour.
+// v4.105.0: every 5 min (was 30): the end date can pass while the app is open, and a command
+// waiting for an idle counter is tried again.
+const LICENCE_TICK_MS = 5 * 60 * 1000;
+// v4.98.0: hourly (was 6 h). v4.105.0: the Admin can set 15 min … 6 h (control.checkin_minutes).
 const LICENCE_CHECKIN_MS = 60 * 60 * 1000;
+const checkInEveryMs = () => {
+  const minutes = adminLink.readControl(app.getPath('userData')).checkin_minutes;
+  return minutes ? minutes * 60 * 1000 : LICENCE_CHECKIN_MS;
+};
 
 /** What the page shows about the licence: a change in any of it (a renewal too) is sent. */
 const licenceShown = (s) => JSON.stringify([s.state, s.validUntil || null, s.daysLeft ?? null, s.reason || null]);
@@ -481,9 +648,11 @@ function startLicenceWatch() {
   let lastCheckIn = 0;
   const tick = async () => {
     // Installed app only: a test or source run never calls the licence server on its own.
-    if (app.isPackaged && Date.now() - lastCheckIn >= LICENCE_CHECKIN_MS) {
+    if (app.isPackaged && Date.now() - lastCheckIn >= checkInEveryMs()) {
       lastCheckIn = Date.now();
       await licenceRefresh().catch(() => {});
+    } else {
+      void runAdminCommands();
     }
     const status = licence.getStatus({ userDataDir: app.getPath('userData'), dev: false });
     // v4.98.0: a renewal or a new day also counts (it was only "active" ↔ "ended").
@@ -596,7 +765,7 @@ if (!app.requestSingleInstanceLock()) {
     errorlog.init(app.getPath('userData'));
     if (!isDevServer) registerAppProtocol();
     createWindow();
-    initAutoUpdate({
+    updaterApi = initAutoUpdate({
       ipcMain,
       getWindow: () => mainWindow,
       enabled: app.isPackaged && !isDevServer,

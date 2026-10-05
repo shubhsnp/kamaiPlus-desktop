@@ -21,6 +21,7 @@ import { AutoBackupScheduler } from './AutoBackupScheduler';
 import { CloudSyncScheduler } from './CloudSyncScheduler';
 import { AdminMessageBanner } from '@/components/admin/AdminMessageBanner';
 import { ShopHealthReporter } from '@/components/admin/ShopHealthReporter';
+import { AdminControlHost } from '@/components/admin/AdminControlHost';
 import { tr } from '@/lib/i18n/core';
 import { SupportContactLine } from '@/components/support/SupportContact';
 import { supportGreeting } from '@/lib/support/contact';
@@ -269,6 +270,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       <AutoBackupScheduler />
       <CloudSyncScheduler />
       <ShopHealthReporter />
+      {/* v4.105.0: the Admin Console's remote control (features, lock, read-only, update, jobs) */}
+      <AdminControlHost />
       <IdleLock />
       <WhatsNewModal />
     </div>

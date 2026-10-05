@@ -50,6 +50,8 @@ export interface ShopCounts {
   customers: number;
   last_bill_at: string | null;
   cloud_sync: boolean;
+  /** v4.105.0: the feature switches as they are now, for the Admin Console. */
+  features?: Record<string, boolean>;
 }
 
 /** A message from the Admin Console: for this key ('key') or every Desktop ('all'). */
@@ -59,6 +61,30 @@ export interface AdminMessage {
   text: string;
   level: 'info' | 'warning' | 'urgent';
   until: string | null;
+  /** v4.105.0: 'popup' opens a window once (and a Windows notification); default = a strip. */
+  style?: 'popup';
+  /** v4.105.0: one https link (a page, or a wa.me chat) with its button text. */
+  link?: string;
+  link_label?: string;
+}
+
+/** The Admin Console's remote control for this PC (v4.105.0, adminLink.js "Remote control"). */
+export interface AdminControl {
+  mode: 'normal' | 'read_only' | 'locked';
+  mode_reason?: string;
+  /** Features forced on / off; a feature not listed is the shop's own choice. */
+  features?: Record<string, boolean>;
+  min_version?: string;
+  checkin_minutes?: number;
+  commands?: { id: string; type: string; at: string | null }[];
+  /** This app's version (added by the main process). */
+  appVersion?: string;
+}
+
+/** A job the main process hands the page: a backup, or "is a bill open?". */
+export interface AdminPageCommand {
+  id: string;
+  type: 'backup_now' | 'idle_check';
 }
 
 /** Auto-update state from `updater.js` in the Electron main process. */
@@ -120,6 +146,12 @@ export interface KamaiDesktopApi {
   getAdminMessages?(): Promise<AdminMessage[]>;
   /** New messages arrived at a check-in. Returns an unsubscribe. */
   onAdminMessages?(callback: (messages: AdminMessage[]) => void): () => void;
+  /** v4.105.0 — the Admin's remote control kept from the last check-in, and its changes. */
+  getAdminControl?(): Promise<AdminControl>;
+  onAdminControl?(callback: (control: AdminControl) => void): () => void;
+  /** A job from the main process; answer with adminCommandDone({ id, ok, note }). */
+  onAdminCommand?(callback: (command: AdminPageCommand) => void): () => void;
+  adminCommandDone?(answer: { id: string; ok: boolean; note: string }): Promise<boolean>;
   /** Master-password recovery: is this the key of the licence activated on this PC? */
   verifyLicenceKey(key: string): Promise<{ ok: boolean; error?: string }>;
   /** Google sign-in in the shop's browser (googleSignIn.js). `stub` only in the Electron E2E. */

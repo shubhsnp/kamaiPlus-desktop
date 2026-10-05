@@ -118,6 +118,8 @@ Defined in `main.js` (`ipcMain.handle`), exposed in `preload.js`, typed in
 | `kp:licence-refresh` | `refreshLicence()` | v4.85.0: online check-in now ("Check again" on the licence-ended screen) → `{ok, offline?, stopped?, status}` (§2.1). The main process also checks in by itself (installed app, every hour since v4.98.0, was 6 h) and sends `kp:licence-changed` (`onLicenceChanged`) when the state, end date or days left change (v4.98.0: a renewal too). Since v4.98.0 the answer may carry `messages` (§2.1b). |
 | `kp:report-health` | `reportHealth(counts)` | v4.98.0: the page's counts (bills today / 7 days, items, customers, last bill, cloud sync on) → `adminLink.js` keeps them in `<userData>/shop_counts.json` for the next check-in (§2.1b) |
 | `kp:admin-messages` | `getAdminMessages()` | v4.98.0: the Admin's messages kept from the last check-in (`<userData>/admin_messages.json`); new ones are pushed as `kp:admin-messages` (`onAdminMessages`) (§2.1b) |
+| `kp:admin-control` | `getAdminControl()` | v4.105.0: the Admin's remote control kept from the last check-in (`<userData>/admin_control.json`) + this app's version; a change is pushed as `kp:admin-control` (`onAdminControl`) (§2.1c) |
+| `kp:admin-command-done` | `adminCommandDone(answer)` | v4.105.0: the page's answer to a job the main process sent as `kp:admin-command` (`onAdminCommand`): `backup_now`, `idle_check` (§2.1c) |
 | `kp:licence-activate` | `activateLicence(key)` | One-time online activation (§2.1) → `{ok, status}` or `{ok:false, error}` |
 | `kp:licence-verify-key` | `verifyLicenceKey(key)` | Forgot master password: `{ok}` only if `key` is the key of the signed licence on THIS PC (offline). The login screen then clears the password so a new one can be set — data untouched. |
 | `kp:google-signin` | `googleSignIn({clientId, clientSecret})` | Google sign-in (§2.6): `googleSignIn.js` opens the shop's browser, takes the answer on a one-time `127.0.0.1` server (PKCE S256 + `state`), swaps the code for an ID token → `{ok, idToken, email, name, picture}`. The Electron E2E (unpackaged + `KAMAI_E2E_GOOGLE_STUB=1`) gets a stand-in `{stub: true}`. |
@@ -218,6 +220,42 @@ health dikhana". All three ride on the hourly licence check-in — no new server
 - Privacy: these counts must be in the privacy policy before real shops depend on it (K-P13).
 - `adminLink.js` must stay in `build.files`. Tests: Suite 9 §9j(ag); server
   `functions/test/licence_core.test.js` (Android repo, branch `feat/desktop-health-message`).
+
+### 2.1c Remote control from the Admin Console (v4.105.0)
+
+Owner's request: "desktop app ka maximum control — feature on/off, notification bhejna …". Same hourly
+check-in, no new server or login. The Admin writes `admin_control` on `desktop_licences/{KEY}` (one PC) or
+`platform_settings/desktop_control` (every Desktop); `desktopLicence` merges them (server
+`licence_core.js` `pickDesktopControl`: the key's features / mode win, the higher minimum version, the
+shorter check-in, commands not yet reported done) and answers `control`.
+
+- **Features forced on / off** → `adminLink.saveControl` (`admin_control.json`, so it holds offline) →
+  `kp:admin-control` → `AdminControlHost` (AppShell) → `applyFeatureOverrides` → localStorage
+  `kamai_admin_feature_overrides`; `readFeatureSwitches` = shop's switches + these on top. The shop's own
+  choice is never overwritten (`setFeatureSwitch` stores the shop's map). Settings → Features shows a
+  forced switch disabled, "Set by KamaiPlus support for this computer".
+- **Mode**: `read_only` → `BillingPausedScreen` over `/billing` only; `locked` → `AdminLockScreen` over
+  the whole app (data untouched). **Minimum version**: older app → `UpdateRequiredScreen` (checks for the
+  update at once, "Restart & update" when downloaded). Lock first, then update (`adminBlock`).
+- **Check-in**: `checkin_minutes` 15…360 (default 60); the watch ticks every 5 min.
+- **Commands** (`runAdminCommands` in main.js; each id runs once, `admin_commands.json`):
+  `check_update`, `install_update` and `restart_app` (both wait for `idle_check`: no open bill tab with
+  items; retried each tick for 24 h), `backup_now` (the page runs `runAutoBackup({ force: true })`),
+  `send_report` (the error report goes with an extra check-in 5 s later). Results go back as
+  `report.commands_done`; the server keeps the last 30 in `command_results`.
+- **Report** (with health at each check-in): feature switches as they are now, update state, commands
+  done, error report only when asked. Server: `cleanReport` → `features_state`, `update_state`,
+  `command_results`, `error_report(_at)`.
+- **Messages** gained `style: 'popup'` (a window once, + Windows notification — also for urgent),
+  one `https` link with a button, and `from` (start time; the server leaves it out until then).
+- Admin Console (Android repo `admin_console/`): Desktop Licences → per card "Control" and header
+  "Control all Desktops" (`DesktopControlDialog`, `DesktopCommandsPanel`: commands with results, error
+  report viewer), online dot, filters Online now / Remote control set, stats Online now / Locked-paused.
+  Its feature list (`desktopFeatures` in `admin_models.dart`) must match `DEFAULT_FEATURE_SWITCHES` —
+  Suite 21 "v4.105.0" checks it when the Android repo is on the PC.
+- Tests: Suite 21 "v4.105.0"; server `functions/test/licence_core.test.js` (91); console
+  `admin_console/test/desktop_control_test.dart`. **Needs the `desktopLicence` function + Admin Console
+  deployed to work** (older server: no `control` → the app keeps what it had).
 
 ### 2.2 Auto-update (v4.45.0)
 
@@ -481,7 +519,7 @@ src/components/<feature>/   Feature components, one folder per domain
 src/components/ui/          Button, Card, Input, Modal  (that is all of it)
 src/lib/<domain>/           Engines — see table below
 src/types/index.ts          All domain types. Single file.
-scripts/e2e_simulation.ts   The test suite (§11). 829 assertions.
+scripts/e2e_simulation.ts   The test suite (§11). 842 assertions.
 scripts/bump_version.ts     Version bumper (+0.1 minor)
 public/barcodes/*.json      5 shipped offline barcode dictionaries
 ```
@@ -1596,7 +1634,7 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 829/829, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 842/842, 0 failures
 node scripts/help_impact.mjs        # which help guides the change touches → row in docs/HELP_SYNC.md (Rule 7)
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
@@ -1649,7 +1687,7 @@ bypassed; without the key only the no-licence checks run. The script removes
 `ELECTRON_RUN_AS_NODE` (set by VS Code terminals), which otherwise stops Electron
 launching. Failure screenshots go to `%TEMP%\kamaiplus-e2e-shots\`.
 
-### Test suite map — `scripts/e2e_simulation.ts` (829 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (842 assertions)
 
 | Suite | Covers |
 | :--- | :--- |

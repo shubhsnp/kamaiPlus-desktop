@@ -6,6 +6,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import ts from 'typescript';
 
 // Load .env.local if present in development / simulation
@@ -83,7 +84,8 @@ import { generalCategoryId } from '../src/lib/products/defaultCategory';
 import { nextSupplierBalance } from '../src/lib/suppliers/supplierLedger';
 import { cleanVariantLabels, DEFAULT_COUNTED_STOCK, summarizeVariants, tracksOwnStock } from '../src/lib/products/variants';
 import { buildBillCustomer, cleanCustomerNameInput, cleanMobileInput, isDraftEmpty, resolveBillCustomer, splitDraft, suggestCustomers } from '../src/lib/billing/billCustomer';
-import { DEFAULT_FEATURE_SWITCHES, FEATURES, featureForPath, isPathEnabled, parseFeatureSwitches, showSellingPriceField } from '../src/lib/features/featureSwitches';
+import { DEFAULT_FEATURE_SWITCHES, FEATURES, featureForPath, isPathEnabled, parseAdminOverrides, parseFeatureSwitches, showSellingPriceField } from '../src/lib/features/featureSwitches';
+import { adminBlock, blocksBilling, cleanFeatureOverrides, counterHasOpenBill, needsUpdate } from '../src/lib/admin/adminControl';
 import { matchesProductDetails } from '../src/lib/products/detailSearch';
 import { buildImportRows, buildItemName, COLUMN_ROLES, findHeaderRow, guessColumnRoles, mapUnit, parseAmount, planImport } from '../src/lib/import/catalogImport';
 import { hasWholesalePrice, modeForCustomer, repriceCart, unitPriceFor } from '../src/lib/billing/priceMode';
@@ -694,7 +696,8 @@ assert((pkgJson.build?.files || []).includes('updater.js'), 'updater.js is packa
 assert(Boolean(pkgJson.dependencies?.['electron-updater']), 'electron-updater is a runtime dependency (packaged)');
 assert(pkgJson.build?.publish?.[0]?.url === 'https://kamaiplus-desktop.web.app/', 'Updates come from kamaiplus-desktop.web.app');
 assert(!/\s/.test(pkgJson.build?.nsis?.artifactName || ' '), 'Installer file name has no spaces (latest.yml URLs must resolve)');
-assert(/quitAndInstall/.test(updaterJs) && /ipcMain\.handle\('kp:update-install'/.test(updaterJs) && (updaterJs.match(/quitAndInstall\(/g) || []).length === 1, 'The app restarts for an update only when the user clicks Restart & Update');
+assert(/quitAndInstall/.test(updaterJs) && /ipcMain\.handle\('kp:update-install', async \(\) => \(install\(\)/.test(updaterJs) && (updaterJs.match(/quitAndInstall\(/g) || []).length === 1,
+  'The app restarts for an update only when the user clicks Restart & Update (or, v4.105.0, the Admin\'s install command on an idle counter) — one install path');
 assert(/enabled: app\.isPackaged && !isDevServer/.test(fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8')), 'Auto-update is off in development');
 assert(pkgJson.build?.win?.icon === 'build/icon.ico' && fs.existsSync(path.join(__dirname, '..', 'build', 'icon.ico')), 'Windows icon is a ready .ico (electron-builder\'s PNG→ICO step fails with EINVAL on this PC)');
 const firebaseJson = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'firebase.json'), 'utf8'));
@@ -2484,10 +2487,10 @@ assert(readSource('app/billing/page.tsx').split('\n').length <= 401, `POS page s
   assert(/if \(body\.code === 'revoked' \|\| body\.code === 'moved'\)/.test(licSrc) && /if \(call\.offline\) return \{ ok: false, offline: true \};/.test(licSrc)
     && /payload\.key !== current\.key/.test(licSrc) && licSrc.includes("callServer({ action: 'refresh', key: current.key"),
     'Check-in: only "revoked" / "moved" stop the app; offline or any other answer changes nothing; a licence for another key is refused');
-  assert(/ipcMain\.handle\('kp:licence-refresh'/.test(mainSrc2) && /if \(app\.isPackaged && Date\.now\(\) - lastCheckIn >= LICENCE_CHECKIN_MS\)/.test(mainSrc2)
+  assert(/ipcMain\.handle\('kp:licence-refresh'/.test(mainSrc2) && /if \(app\.isPackaged && Date\.now\(\) - lastCheckIn >= checkInEveryMs\(\)\)/.test(mainSrc2) && /const LICENCE_CHECKIN_MS = 60 \* 60 \* 1000;/.test(mainSrc2)
     && /startLicenceWatch\(\);/.test(mainSrc2) && /webContents\.send\('kp:licence-changed', status\)/.test(mainSrc2)
     && /refreshLicence: \(\) => ipcRenderer\.invoke\('kp:licence-refresh'\)/.test(preloadSrc) && /ipcRenderer\.on\('kp:licence-changed', listener\)/.test(preloadSrc),
-    'Check-in runs in the installed app only (every hour while online since v4.98.0); every 30 min the licence is re-checked and the page told of a change');
+    'Check-in runs in the installed app only (every hour while online since v4.98.0; the Admin can set 15 min – 6 h since v4.105.0); every 5 min the licence is re-checked and the page told of a change');
   const gateSrc2 = readSource('components/licence/LicenceGate.tsx');
   assert(/return api\.onLicenceChanged\?\.\(setStatus\);/.test(gateSrc2) && /if \(status\.state === 'expired'\) return <LicenceEndedScreen/.test(gateSrc2)
     && /licence\.daysLeft <= 7/.test(readSource('components/admin/AdminMessageBanner.tsx')) && /data-licence-check-again/.test(readSource('components/licence/LicenceEndedScreen.tsx')),
@@ -4027,6 +4030,82 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
     && /export \* from '@\/lib\/reports\/reportPeriod';/.test(readSource('lib/reports/advancedReports.ts'))
     && /export \{ SettingsReviewModal \} from '@\/components\/settings\/SettingsReviewModal';/.test(readSource('components/settings/SettingsChangeDialogue.tsx')),
     'K-D23: types, invoice document shapes, report periods and the settings review window moved with a re-export — every import path still works');
+}
+
+// v4.105.0 — Admin Console remote control: features, read-only / locked, minimum version,
+// check-in interval, one-off commands with results, pop-up messages with a link.
+{
+  const adminLinkJs = require('../adminLink.js');
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kp-admin-'));
+  const ctl = adminLinkJs.cleanControl({
+    mode: 'locked', mode_reason: 'Payment pending\u0007', features: { khata: false, whatsapp: true, 'Bad Key': true, gst_reports: 'yes' },
+    min_version: '4.105.0', checkin_minutes: 5, commands: [{ id: 'c1', type: 'backup_now', at: '2026-10-05T09:00:00Z' }, { id: 'c2', type: 'rm_rf', at: '2026-10-05T09:00:00Z' }],
+    machine_id: 'evil',
+  });
+  assert(ctl.mode === 'locked' && ctl.mode_reason === 'Payment pending' && JSON.stringify(ctl.features) === '{"khata":false,"whatsapp":true}' && ctl.min_version === '4.105.0'
+    && ctl.checkin_minutes === 15 && ctl.commands.length === 1 && ctl.commands[0].type === 'backup_now' && !('machine_id' in ctl)
+    && adminLinkJs.cleanControl(null).mode === 'normal' && adminLinkJs.cleanControl({ mode: 'explode' }).mode === 'normal',
+    'Remote control: only known fields reach the app (unknown commands / features / modes dropped; check-in 15–360 min); nothing readable = normal');
+  assert(adminLinkJs.saveControl(tmpDir, { mode: 'read_only', mode_reason: 'x' }) === true && adminLinkJs.saveControl(tmpDir, { mode: 'read_only', mode_reason: 'x' }) === false
+    && adminLinkJs.readControl(tmpDir).mode === 'read_only',
+    'Remote control is kept on the computer (it holds offline) and a repeat is not a change');
+  adminLinkJs.saveControl(tmpDir, { commands: [{ id: 'a', type: 'check_update', at: '2026-10-05T09:00:00Z' }, { id: 'b', type: 'send_report', at: '2026-10-05T09:01:00Z' }] });
+  adminLinkJs.recordCommand(tmpDir, 'a', true, 'up-to-date');
+  const pend = adminLinkJs.pendingCommands(tmpDir, adminLinkJs.readControl(tmpDir));
+  adminLinkJs.recordCommand(tmpDir, 'b', true, 'Error report sent', { sendReport: true });
+  const rep1 = adminLinkJs.buildReport({ userDataDir: tmpDir, updateStatus: { readyVersion: '4.106.0', lastCheck: { at: '2026-10-05T09:02:00Z', result: 'downloading' }, beta: false }, errorReportText: 'ERR LOG' });
+  adminLinkJs.clearSentResults(tmpDir, rep1.commands_done.map((r: any) => r.id));
+  const rep2 = adminLinkJs.buildReport({ userDataDir: tmpDir, updateStatus: null, errorReportText: 'ERR LOG' });
+  assert(pend.length === 1 && pend[0].id === 'b' && rep1.commands_done.length === 2 && rep1.error_report === 'ERR LOG' && rep1.update.ready_version === '4.106.0'
+    && !rep2.commands_done && !rep2.error_report && adminLinkJs.pendingCommands(tmpDir, adminLinkJs.readControl(tmpDir)).length === 0,
+    'Commands run once: the result and (when asked) the error report go with the next check-in, then are not sent again; a done command never runs twice');
+  adminLinkJs.saveCounts(tmpDir, { bills_today: 3, features: { khata: true, bad: 1 } });
+  const withFeatures = adminLinkJs.buildReport({ userDataDir: tmpDir, updateStatus: null, errorReportText: '' });
+  const health = adminLinkJs.buildHealth({ userDataDir: tmpDir, backupInfo: null, errors: [] });
+  assert(JSON.stringify(withFeatures.features) === '{"khata":true}' && !('features' in health) && health.bills_today === 3,
+    'The page\'s feature switches go in the report (for the Control window), never in the health counts');
+  const msgs = adminLinkJs.cleanMessages([{ id: 'p', text: 'Offer', style: 'popup', link: 'https://wa.me/918669997711', link_label: 'Chat' }, { id: 'j', text: 'x', link: 'javascript:alert(1)' }]);
+  assert(msgs[0].style === 'popup' && msgs[0].link === 'https://wa.me/918669997711' && msgs[0].link_label === 'Chat' && msgs[1].link === undefined && msgs[1].style === undefined,
+    'Messages: a pop-up with one https link; any other link is dropped');
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+
+  // Page side.
+  assert(needsUpdate('4.104.0', '4.105.0') && !needsUpdate('4.105.0', '4.105.0') && !needsUpdate('4.110.0', '4.105.0') && !needsUpdate('4.104.0', undefined)
+    && adminBlock({ mode: 'locked', appVersion: '4.104.0', min_version: '4.105.0' }) === 'locked' && adminBlock({ mode: 'normal', appVersion: '4.104.0', min_version: '4.105.0' }) === 'update'
+    && adminBlock({ mode: 'read_only' }) === null && adminBlock(null) === null,
+    'Lock covers the app first, then "please update" (only when this version is older than the minimum)');
+  assert(blocksBilling({ mode: 'read_only' }, '/billing') && blocksBilling({ mode: 'read_only' }, '/billing/') && !blocksBilling({ mode: 'read_only' }, '/khata') && !blocksBilling({ mode: 'normal' }, '/billing'),
+    'Billing paused (read-only) covers only the counter — khata, stock, reports stay open');
+  assert(!counterHasOpenBill(null) && !counterHasOpenBill('[{"cart":[]},{"cart":[]}]') && counterHasOpenBill('[{"cart":[]},{"cart":[{"product_id":"p"}]}]') && !counterHasOpenBill('junk'),
+    'A restart / update install from the Admin waits while any open bill has items');
+  assert(JSON.stringify(parseAdminOverrides('{"khata":false,"unknown":true,"whatsapp":"no"}')) === '{"khata":false}' && JSON.stringify(cleanFeatureOverrides({ khata: false, 'X Y': true })) === '{"khata":false}',
+    'Forced features: only real switch ids, true / false');
+  const fsSrc = readSource('lib/features/featureSwitches.ts');
+  assert(/\{ \.\.\.parseFeatureSwitches\(localStorage\.getItem\(FEATURE_SWITCHES_KEY\)\), \.\.\.readAdminFeatureOverrides\(\) \}/.test(fsSrc)
+    && /JSON\.stringify\(\{ \.\.\.parseFeatureSwitches\(localStorage\.getItem\(FEATURE_SWITCHES_KEY\)\), \[id\]: on \}\)/.test(fsSrc),
+    'The Admin\'s switches win over the shop\'s; the shop\'s own choice is stored untouched and comes back when the Admin lets go');
+  const ft = readSource('components/settings/FeaturesTab.tsx');
+  assert(ft.includes('disabled={locked}') && ft.includes('data-feature-admin-locked') && readSource('components/layout/AppShell.tsx').includes('<AdminControlHost />'),
+    'Settings → Features shows a forced switch locked ("Set by KamaiPlus support"); AppShell applies the control');
+
+  // Main process wiring.
+  const mainJs = fs.readFileSync(path.join(SRC_ROOT, '..', 'main.js'), 'utf8');
+  const pre = fs.readFileSync(path.join(SRC_ROOT, '..', 'preload.js'), 'utf8');
+  const lic = fs.readFileSync(path.join(SRC_ROOT, '..', 'licence.js'), 'utf8');
+  assert(mainJs.includes('Date.now() - lastCheckIn >= checkInEveryMs()') && /case 'restart_app': \{\s*const busy = await idleOrRetry\(\);/.test(mainJs)
+    && /case 'install_update':[\s\S]{0,600}const busy = await idleOrRetry\(\);/.test(mainJs) && mainJs.includes("new Notification({ title: 'KamaiPlus'")
+    && mainJs.includes("sendToPage('kp:admin-control', adminControlForPage())") && lic.includes('...(report && Object.keys(report).length ? { report } : {}),')
+    && ['getAdminControl', 'onAdminControl', 'onAdminCommand', 'adminCommandDone'].every((n) => pre.includes(`${n}:`)),
+    'Main process: check-in every N minutes as the Admin set, restart / install only on an idle counter, Windows notification for urgent / pop-up, the control reaches the page');
+
+  // The Admin Console offers exactly the Desktop's switches (Android repo, when present on this PC).
+  const consoleModels = path.join(SRC_ROOT, '..', '..', 'KamaiPlus Android', 'admin_console', 'lib', 'models', 'admin_models.dart');
+  if (fs.existsSync(consoleModels)) {
+    const dart = fs.readFileSync(consoleModels, 'utf8');
+    const consoleIds = Array.from(dart.matchAll(/\('([a-z_]+)', '[^']+', '(?:Screens|Product form|Buttons|Privacy)'\)/g)).map((m) => m[1]).sort();
+    const appIds = Object.keys(DEFAULT_FEATURE_SWITCHES).sort();
+    assert(JSON.stringify(consoleIds) === JSON.stringify(appIds), `The Admin Console's feature list matches this app's switches (console: ${consoleIds.length}, app: ${appIds.length})`);
+  }
 }
 
 // -------------------------------------------------------------

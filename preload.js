@@ -30,6 +30,19 @@ contextBridge.exposeInMainWorld('kamaiDesktop', {
     ipcRenderer.on('kp:admin-messages', listener);
     return () => ipcRenderer.removeListener('kp:admin-messages', listener);
   },
+  // v4.105.0 — the Admin's remote control: features, mode, minimum version, commands.
+  getAdminControl: () => ipcRenderer.invoke('kp:admin-control'),
+  onAdminControl: (callback) => {
+    const listener = (_event, control) => callback(control);
+    ipcRenderer.on('kp:admin-control', listener);
+    return () => ipcRenderer.removeListener('kp:admin-control', listener);
+  },
+  onAdminCommand: (callback) => {
+    const listener = (_event, command) => callback(command);
+    ipcRenderer.on('kp:admin-command', listener);
+    return () => ipcRenderer.removeListener('kp:admin-command', listener);
+  },
+  adminCommandDone: (answer) => ipcRenderer.invoke('kp:admin-command-done', answer),
   googleSignIn: (opts) => ipcRenderer.invoke('kp:google-signin', opts),
   logError: (entry) => ipcRenderer.invoke('kp:log-error', entry),
   getErrorReport: () => ipcRenderer.invoke('kp:error-report'),

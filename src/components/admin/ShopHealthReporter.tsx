@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { getDesktopApi } from '@/lib/desktop/desktopBridge';
 import { collectShopCounts } from '@/lib/admin/shopCounts';
+import { readFeatureSwitches } from '@/lib/features/featureSwitches';
 
 const FIRST_MS = 30 * 1000;
 const EVERY_MS = 30 * 60 * 1000;
@@ -22,7 +23,8 @@ export function ShopHealthReporter() {
       const ric = (window as any).requestIdleCallback as ((cb: () => void, o?: { timeout: number }) => number) | undefined;
       const go = () => {
         void collectShopCounts()
-          .then((counts) => (alive ? api.reportHealth?.(counts) : undefined))
+          // v4.105.0: the feature switches as they are now (the Admin Console's Control window).
+          .then((counts) => (alive ? api.reportHealth?.({ ...counts, features: readFeatureSwitches() }) : undefined))
           .catch(() => {});
       };
       if (ric) ric(go, { timeout: 10000 });

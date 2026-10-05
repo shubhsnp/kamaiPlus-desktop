@@ -62,7 +62,7 @@ function initAutoUpdate({ ipcMain, getWindow, enabled, userDataDir, currentVersi
       writeBeta(userDataDir, beta);
       return status();
     });
-    return;
+    return { status, check: async () => status(), install: () => false };
   }
 
   // Loaded only in the packaged app, so `electron . --dev` never needs it.
@@ -120,12 +120,16 @@ function initAutoUpdate({ ipcMain, getWindow, enabled, userDataDir, currentVersi
     return status();
   });
 
-  ipcMain.handle('kp:update-install', async () => {
-    if (!readyVersion) return { ok: false, error: 'No update is ready yet.' };
-    // Silent install, then start the app again.
+  // Silent install, then start the app again. Only on "Restart & Update", or (v4.105.0) the
+  // Admin's install command once the counter is idle (main.js runAdminCommand).
+  const install = () => {
+    if (!readyVersion) return false;
     setImmediate(() => autoUpdater.quitAndInstall(true, true));
-    return { ok: true };
-  });
+    return true;
+  };
+
+  ipcMain.handle('kp:update-install', async () => (install() ? { ok: true } : { ok: false, error: 'No update is ready yet.' }));
+  return { status, check, install };
 }
 
 module.exports = { initAutoUpdate, readBeta, writeBeta };

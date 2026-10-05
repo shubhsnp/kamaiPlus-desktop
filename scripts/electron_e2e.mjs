@@ -1478,6 +1478,106 @@ async function run() {
       await app.close();
     }
   }
+
+  // ── 4. Remote control from the Admin Console (v4.105.0) — kept from the last check-in ──
+  {
+    const userData = path.join(dataDir, 'userData');
+    const setControl = (control, messages = []) => {
+      fs.writeFileSync(path.join(userData, 'admin_control.json'), JSON.stringify(control));
+      fs.writeFileSync(path.join(userData, 'admin_messages.json'), JSON.stringify(messages));
+    };
+    const openShop = async (page) => {
+      const pw = page.getByPlaceholder('••••••••');
+      await pw.waitFor({ state: 'visible', timeout: 30000 });
+      await pw.fill(PASSWORD);
+      await pw.press('Enter');
+      await page.waitForURL((u) => !u.pathname.startsWith('/auth'), { timeout: 15000 }).catch(() => {});
+      await page.waitForTimeout(1500);
+    };
+
+    // a) Locked: the whole app is covered, with the Admin's reason.
+    setControl({ mode: 'locked', mode_reason: 'E2E lock: renewal payment pending' });
+    {
+      const { app, page } = await launch(dataDir);
+      try {
+        await openShop(page);
+        const lock = page.locator('[data-admin-block="locked"]');
+        const shown = await lock.waitFor({ timeout: 15000 }).then(() => true, () => false);
+        await page.evaluate(() => { window.location.href = '/billing/'; });
+        await page.waitForTimeout(2500);
+        check(shown && (await lock.innerText()).includes('E2E lock: renewal payment pending') && (await page.locator('[data-admin-block="locked"]').count()) === 1,
+          'Remote control "Locked": the whole app is covered with the reason, also on /billing (data untouched)');
+        if (!shown) await shot(page, 'failed-admin-lock');
+      } catch (err) {
+        check(false, `Remote lock check failed: ${err.message.split('\n')[0]}`);
+      } finally {
+        await app.close();
+      }
+    }
+
+    // b) Billing paused + a forced feature + a pop-up message with a link.
+    setControl({ mode: 'read_only', mode_reason: 'E2E billing pause', features: { khata: false } },
+      [{ id: 'e2e-pop', scope: 'all', text: 'E2E pop-up from KamaiPlus', level: 'info', until: null, style: 'popup', link: 'https://wa.me/918669997711', link_label: 'Chat now' }]);
+    {
+      const { app, page } = await launch(dataDir);
+      try {
+        await openShop(page);
+        const pop = page.locator('[data-admin-popup]');
+        const popShown = await pop.waitFor({ timeout: 15000 }).then(() => true, () => false);
+        const linkOk = popShown && (await pop.locator('[data-admin-message-link]').getAttribute('href')) === 'https://wa.me/918669997711';
+        if (popShown) await page.locator('[data-admin-popup-close]').click();
+        await page.waitForTimeout(500);
+        check(popShown && linkOk && !(await pop.count()), 'A pop-up message from the Admin opens once with its button link, and OK closes it');
+        check((await page.locator('aside a[href="/khata"]').count()) === 0, 'A feature forced off by the Admin (Khata) is gone from the menu');
+        await page.evaluate(() => { window.location.href = '/billing/'; });
+        const paused = await page.locator('[data-admin-block="read-only"]').waitFor({ timeout: 15000 }).then(() => true, () => false);
+        check(paused && (await page.locator('[data-admin-block="read-only"]').innerText()).includes('E2E billing pause'), 'Remote control "Billing paused": the counter is covered with the reason');
+        await page.evaluate(() => { window.location.href = '/settings/?tab=features'; });
+        const lockedRow = await page.locator('[data-feature-admin-locked="khata"]').waitFor({ timeout: 15000 }).then(() => true, () => false);
+        check(lockedRow && (await page.locator('input[data-feature="khata"]').isDisabled()) && !(await page.locator('input[data-feature="khata"]').isChecked())
+          && !(await page.locator('[data-admin-block="read-only"]').count()),
+          'Settings → Features shows Khata locked off "Set by KamaiPlus support"; other screens stay open while billing is paused');
+        if (!lockedRow) await shot(page, 'failed-admin-features');
+      } catch (err) {
+        check(false, `Remote read-only / features check failed: ${err.message.split('\n')[0]}`);
+        await shot(page, 'failed-admin-readonly');
+      } finally {
+        await app.close();
+      }
+    }
+
+    // c) Minimum version newer than this app: "Please update".
+    setControl({ mode: 'normal', min_version: '99.0.0' });
+    {
+      const { app, page } = await launch(dataDir);
+      try {
+        await openShop(page);
+        const upd = page.locator('[data-admin-block="update"]');
+        const shown = await upd.waitFor({ timeout: 15000 }).then(() => true, () => false);
+        check(shown && (await upd.innerText()).includes('99.0.0'), 'Remote control "minimum version": an older app shows "Please update KamaiPlus" with the version needed');
+      } catch (err) {
+        check(false, `Remote minimum-version check failed: ${err.message.split('\n')[0]}`);
+      } finally {
+        await app.close();
+      }
+    }
+
+    // d) Everything released: the shop's own switches come back.
+    setControl({ mode: 'normal' });
+    {
+      const { app, page } = await launch(dataDir);
+      try {
+        await openShop(page);
+        await page.waitForTimeout(1500);
+        check(!(await page.locator('[data-admin-block]').count()) && (await page.locator('aside a[href="/khata"]').count()) > 0,
+          'When the Admin lets go, nothing covers the app and the shop\'s own Khata switch is back');
+      } catch (err) {
+        check(false, `Remote release check failed: ${err.message.split('\n')[0]}`);
+      } finally {
+        await app.close();
+      }
+    }
+  }
   fs.rmSync(dataDir, { recursive: true, force: true });
 }
 

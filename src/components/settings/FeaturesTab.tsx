@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { KeyRound, LayoutGrid, Lock, MessageCircle, PackagePlus, ShieldCheck } from 'lucide-react';
-import { FEATURES, FeatureInfo, setFeatureSwitch, useFeatureSwitches } from '@/lib/features/featureSwitches';
+import { FEATURES, FeatureInfo, readAdminFeatureOverrides, setFeatureSwitch, useFeatureSwitches } from '@/lib/features/featureSwitches';
 import { hasOwnerPin, setProfitHidden } from '@/lib/auth/cashierPrivacy';
 import { OwnerPinPrompt } from '@/components/privacy/OwnerPinPrompt';
 import { msg, tr } from '@/lib/i18n/core';
@@ -21,6 +21,8 @@ const GROUPS: { id: FeatureInfo['group']; title: string; hint: string; icon: typ
  */
 export function FeaturesTab() {
   const switches = useFeatureSwitches();
+  // v4.105.0: switches the KamaiPlus Admin set for this computer — shown, not changeable here.
+  const forced = readAdminFeatureOverrides();
   const [unlocked, setUnlocked] = useState(() => !hasOwnerPin());
   const [pinOpen, setPinOpen] = useState(false);
 
@@ -77,11 +79,18 @@ export function FeaturesTab() {
               </div>
             </div>
             <div className="divide-y divide-slate-100">
-              {FEATURES.filter((f) => f.group === group.id).map((f) => (
-                <label key={f.id} className="px-4 py-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-50/70">
+              {FEATURES.filter((f) => f.group === group.id).map((f) => {
+                const locked = typeof forced[f.id] === 'boolean';
+                return (
+                <label key={f.id} className={`px-4 py-3 flex items-center justify-between gap-3 ${locked ? 'cursor-not-allowed bg-slate-50/60' : 'cursor-pointer hover:bg-slate-50/70'}`}>
                   <span className="min-w-0">
                     <span className="block text-xs font-bold text-slate-900">{tr(f.label)}</span>
                     <span className="block text-[10.5px] text-slate-500 leading-snug">{tr(f.description)}</span>
+                    {locked && (
+                      <span className="mt-1 inline-flex items-center gap-1 text-[10.5px] font-bold text-indigo-700" data-feature-admin-locked={f.id}>
+                        <Lock className="w-3 h-3" /> {tr('Set by KamaiPlus support for this computer')}
+                      </span>
+                    )}
                   </span>
                   <span className="relative inline-flex items-center shrink-0">
                     <input
@@ -90,13 +99,15 @@ export function FeaturesTab() {
                       aria-label={tr(f.label)}
                       data-feature={f.id}
                       checked={switches[f.id]}
+                      disabled={locked}
                       onChange={(e) => change(f.id, e.target.checked)}
                     />
-                    <span className="w-9 h-5 rounded-full bg-slate-300 peer-checked:bg-emerald-600 transition-colors" />
+                    <span className={`w-9 h-5 rounded-full bg-slate-300 peer-checked:bg-emerald-600 transition-colors ${locked ? 'opacity-60' : ''}`} />
                     <span className="absolute left-0.5 top-0.5 w-4 h-4 rounded-full bg-white transition-transform peer-checked:translate-x-4" />
                   </span>
                 </label>
-              ))}
+                );
+              })}
             </div>
           </section>
         );

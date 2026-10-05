@@ -45,6 +45,12 @@ export interface FeatureInfo {
 
 export const FEATURE_SWITCHES_KEY = 'kamai_feature_switches';
 export const FEATURE_SWITCHES_EVENT = 'feature_switches_changed';
+/**
+ * v4.105.0: switches the KamaiPlus Admin Console forces on / off for this computer (remote
+ * control, lib/admin/adminControl.ts). They win over the shop's own choice, which is kept and
+ * comes back when the Admin lets go. Empty / missing = the shop decides everything.
+ */
+export const ADMIN_FEATURES_KEY = 'kamai_admin_feature_overrides';
 
 /**
  * A new shop starts simple: Cash Register, Purchases, Suppliers, GST and the extra product
@@ -132,10 +138,35 @@ export function parseFeatureSwitches(raw: string | null | undefined): FeatureSwi
   return result;
 }
 
+/** The Admin's forced switches (known features only). */
+export function parseAdminOverrides(raw: string | null | undefined): Partial<FeatureSwitches> {
+  const out: Partial<FeatureSwitches> = {};
+  if (!raw) return out;
+  try {
+    const stored = JSON.parse(raw);
+    if (stored && typeof stored === 'object') {
+      for (const id of Object.keys(DEFAULT_FEATURE_SWITCHES) as FeatureId[]) {
+        if (typeof stored[id] === 'boolean') out[id] = stored[id];
+      }
+    }
+  } catch {}
+  return out;
+}
+
+export function readAdminFeatureOverrides(): Partial<FeatureSwitches> {
+  if (typeof window === 'undefined') return {};
+  try {
+    return parseAdminOverrides(localStorage.getItem(ADMIN_FEATURES_KEY));
+  } catch {
+    return {};
+  }
+}
+
 export function readFeatureSwitches(): FeatureSwitches {
   if (typeof window === 'undefined') return { ...DEFAULT_FEATURE_SWITCHES };
   try {
-    return parseFeatureSwitches(localStorage.getItem(FEATURE_SWITCHES_KEY));
+    // The shop's own switches, with the Admin's forced ones on top (v4.105.0).
+    return { ...parseFeatureSwitches(localStorage.getItem(FEATURE_SWITCHES_KEY)), ...readAdminFeatureOverrides() };
   } catch {
     return { ...DEFAULT_FEATURE_SWITCHES };
   }
@@ -146,7 +177,7 @@ export const isFeatureOn = (id: FeatureId): boolean => readFeatureSwitches()[id]
 export function setFeatureSwitch(id: FeatureId, on: boolean) {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.setItem(FEATURE_SWITCHES_KEY, JSON.stringify({ ...readFeatureSwitches(), [id]: on }));
+    localStorage.setItem(FEATURE_SWITCHES_KEY, JSON.stringify({ ...parseFeatureSwitches(localStorage.getItem(FEATURE_SWITCHES_KEY)), [id]: on }));
   } catch {}
   window.dispatchEvent(new Event(FEATURE_SWITCHES_EVENT));
 }
