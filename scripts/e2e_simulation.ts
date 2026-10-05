@@ -529,6 +529,23 @@ function walkSource(dir: string, out: string[] = []): string[] {
 
 const ALL_SOURCE = walkSource(SRC_ROOT);
 const readSource = (rel: string) => fs.readFileSync(path.join(SRC_ROOT, rel), 'utf8');
+// The billing counter, split over several files in v4.104.0 (K-D23): the page plus the parts moved
+// out of it unchanged. Checks of "the counter's code" read all of them.
+const COUNTER_FILES = ['app/billing/page.tsx', 'components/billing/PosCheckoutPanel.tsx', 'components/billing/PosCheckoutFooter.tsx', 'components/billing/posSaleActions.ts', 'components/billing/posEstimateAction.ts', 'components/billing/usePosKeyboard.ts', 'components/billing/posCartActions.ts', 'components/billing/PosCatalogPanel.tsx', 'components/billing/usePosScanning.ts', 'components/billing/PosMobileCart.tsx', 'components/billing/PosCounterDialogs.tsx', 'components/billing/usePosCatalogData.ts', 'components/billing/usePosBillTabs.ts', 'components/billing/usePosUpiQr.ts'];
+const readCounter = () => COUNTER_FILES.filter((f) => fs.existsSync(path.join(SRC_ROOT, f))).map(readSource).join('\n');
+// The Khata page, split the same way (v4.104.0, K-D23).
+const KHATA_FILES = ['app/khata/page.tsx', 'components/khata/KhataCustomerList.tsx', 'components/khata/KhataCustomerDetail.tsx', 'components/khata/KhataDialogs.tsx', 'components/khata/khataActions.ts'];
+const readKhata = () => KHATA_FILES.filter((f) => fs.existsSync(path.join(SRC_ROOT, f))).map(readSource).join('\n');
+// The Products page, split the same way (v4.104.0, K-D23).
+const PRODUCTS_FILES = ['app/products/page.tsx', 'components/products/productActions.ts', 'components/products/ProductPageDialogs.tsx'];
+const readProductsPage = () => PRODUCTS_FILES.filter((f) => fs.existsSync(path.join(SRC_ROOT, f))).map(readSource).join('\n');
+// The Settings page, split the same way (v4.104.0, K-D23).
+const SETTINGS_FILES = ['app/settings/page.tsx', 'components/settings/settingsSave.ts', 'components/settings/SettingsReviewDialogs.tsx', 'components/settings/useSettingsChanges.ts'];
+const readSettingsPage = () => SETTINGS_FILES.filter((f) => fs.existsSync(path.join(SRC_ROOT, f))).map(readSource).join('\n');
+// The Add / Edit Product form, split the same way (v4.104.0, K-D23).
+const readProductForm = () => ['components/products/AddEditProductModal.tsx', 'components/products/ProductFormDetails.tsx'].map(readSource).join('\n');
+// Onboarding, split the same way (v4.104.0, K-D23).
+const readOnboarding = () => ['app/onboarding/page.tsx', 'components/onboarding/onboardingSubmit.ts'].map(readSource).join('\n');
 
 // 1. No screen may branch on the shop's business type ever again.
 const VERTICAL_BRANCH = /business_type\s*===|businessType\s*===|\bisRestaurant\b|\bisPharmacy\b|\bisClothing\b|\bisGrocery\b|featureToggles/;
@@ -550,21 +567,22 @@ assert(!/ModuleId/.test(readSource('types/index.ts')), 'types/index.ts no longer
 
 // 4. The POS checkout panel must keep its pay button reachable: a scrolling body
 //    plus a pinned footer. This is the bug where a long bill hid the totals.
-const billingSrc = readSource('app/billing/page.tsx');
+const billingSrc = readCounter();
 assert(
-  /const renderCheckoutPanel = \(\) => \(\s*\n\s*<div className="flex flex-col flex-1 min-h-0">/.test(billingSrc),
+  /export function PosCheckoutPanel\(props: PosCheckoutPanelProps\) \{[\s\S]{0,1500}?return \(\s*\n\s*<div className="flex flex-col flex-1 min-h-0">/.test(readSource('components/billing/PosCheckoutPanel.tsx')),
   'POS checkout panel root is a bounded flex column (flex-1 min-h-0)'
 );
 {
   // v4.93.0: the scrolling body also carries data-pos-bill-scroll / ref (it is what a scan scrolls).
-  const panel = billingSrc.slice(billingSrc.indexOf('const renderCheckoutPanel = () => ('), billingSrc.indexOf('// v4.92.0 — Scan mode hides the product list'));
+  const panel = (readSource('components/billing/PosCheckoutPanel.tsx') + '\n' + readSource('components/billing/PosCheckoutFooter.tsx'));
   assert(
     /<div className="flex-1 min-h-0 overflow-y-auto space-y-3 pr-1 -mr-1"[^>]*data-pos-bill-scroll/.test(panel) && (panel.match(/overflow-y-auto/g) || []).length === 1,
     'POS checkout panel has exactly one scrolling body region'
   );
 }
 assert(
-  /Bottom Total & Checkout Button \(always visible\)[\s\S]{0,120}flex-shrink-0/.test(billingSrc),
+  /Bottom Total & Checkout Button \(always visible\) \*\/\}\s*<PosCheckoutFooter/.test(readSource('components/billing/PosCheckoutPanel.tsx'))
+    && /return \(\s*<div className="pt-2\.5 mt-2\.5 border-t border-slate-200 space-y-2 flex-shrink-0">/.test(readSource('components/billing/PosCheckoutFooter.tsx')),
   'POS grand total + Complete Sale button stay pinned (flex-shrink-0)'
 );
 
@@ -649,7 +667,7 @@ assert(
 // 8d. Cloud writes are switched off until the desktop app has a Firebase login
 //     (the rules reject every unauthenticated write), and every entry point obeys it.
 assert(/export const CLOUD_SYNC_ENABLED = false;/.test(readSource('lib/firebase/cloudAvailability.ts')), 'Cloud sync stays off until a cloud login exists');
-for (const rel of ['lib/firebase/lazyCloud.ts', 'lib/firebase/backgroundSync.ts', 'lib/sync/syncEngine.ts', 'app/onboarding/page.tsx']) {
+for (const rel of ['lib/firebase/lazyCloud.ts', 'lib/firebase/backgroundSync.ts', 'lib/sync/syncEngine.ts', 'components/onboarding/onboardingSubmit.ts']) {
   assert(readSource(rel).includes('CLOUD_SYNC_ENABLED'), `${rel} checks CLOUD_SYNC_ENABLED before touching the cloud`);
 }
 assert(!/await setDoc/.test(readSource('components/khata/SettleInvoicesModal.tsx')), 'Khata settlement never waits on a cloud write');
@@ -657,7 +675,7 @@ assert(!/await setDoc/.test(readSource('components/khata/SettleInvoicesModal.tsx
 // 8e. Big-history screens stay light.
 assert(/filteredSales\.slice\(0, visibleCount\)/.test(readSource('app/transactions/page.tsx')), 'Transactions renders bills page by page, not the whole history');
 assert(/useMemo\(/.test(readSource('components/transactions/useTransactionFilters.ts')), 'Transaction filters are memoised, not recomputed on every render');
-assert(!/db\.sales\.orderBy\('created_at'\)\.reverse\(\)\.toArray\(\)/.test(readSource('app/khata/page.tsx')), 'Khata loads only the selected customer\'s bills');
+assert(!/db\.sales\.orderBy\('created_at'\)\.reverse\(\)\.toArray\(\)/.test(readKhata()), 'Khata loads only the selected customer\'s bills');
 
 // 8f. Licence gate (one key = one computer, no trial). Nothing may open without it.
 const layoutSrc = readSource('app/layout.tsx');
@@ -697,7 +715,7 @@ for (const [key] of [['F1'], ['F2'], ['F4'], ['F8'], ['F9'], ['F10']]) {
   assert(billingSrc.includes(`e.key === '${key}'`), `Advertised shortcut ${key} is really handled on the billing screen`);
 }
 assert(/pathname === '\/pay'/.test(readSource('components/layout/AppShell.tsx')), '/pay (customer UPI link) opens without a shop login');
-assert(/\+ Add size \/ colour/.test(readSource('components/products/AddEditProductModal.tsx')), 'Size / colour can be added to a new product');
+assert(/\+ Add size \/ colour/.test(readProductForm()), 'Size / colour can be added to a new product');
 
 // 8j. Supplier accounts: paise math, one transaction per change, cash payments hit the drawer.
 assert(nextSupplierBalance(500000, 'purchase', 120050) === 620050, 'Supplier purchase on credit adds to what the shop owes (paise)');
@@ -719,7 +737,7 @@ assert(summarizeVariants([{ selling_price: 64900, current_stock: 2 }, { selling_
 assert(/if \(product\.has_variants\) \{\s*setVariantPick/.test(billingSrc), 'Every POS add path opens the variant picker for a parent (never sells the parent)');
 assert(/if \(variantPick\) return;/.test(billingSrc) && /if \(counterCovered\) return;/.test(billingSrc), 'Billing shortcuts (Enter = complete sale) are off while the variant picker is open');
 assert(/searching \|\| !p\.parent_id/.test(billingSrc), 'POS grid hides variants under their parent unless searching');
-assert(/\.\.\.editingProduct,\s*\.\.\.productPayload/.test(readSource('app/products/page.tsx')), 'Editing a product keeps its variant links (parent_id / has_variants)');
+assert(/\.\.\.editingProduct,\s*\.\.\.productPayload/.test(readProductsPage()), 'Editing a product keeps its variant links (parent_id / has_variants)');
 for (const rel of ['app/inventory/page.tsx', 'app/purchases/page.tsx', 'components/dashboard/DashboardHome.tsx']) {
   assert(readSource(rel).includes('tracksOwnStock('), `${rel} leaves variant parents out of stock alerts`);
 }
@@ -781,7 +799,7 @@ assert(
     !/const PosProductCard = React\.memo|function getInitialTabs/.test(billingSrc),
   'POS page imports its product card, dialogs, payment panels and bill-tab storage instead of defining them inline'
 );
-assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (now ${billingSrc.split('\n').length})`);
+assert(readSource('app/billing/page.tsx').split('\n').length <= 401, `POS page stays within 400 lines (now ${readSource('app/billing/page.tsx').split('\n').length})`);
 
 // 8s. The Electron E2E data folder hook can never redirect an installed shop's data,
 // and no update-publisher lock is set before a signed build exists (Bible §2.2).
@@ -813,7 +831,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   // Split overpay arithmetic: 848.00 bill, 900 cash + 0 UPI -> 52.00 change, 848.00 kept.
   const grand = 84800; const cash = 90000; const excess = cash - grand;
   assert(excess === 5200 && cash - excess === grand, 'Split overpay: cash kept + change = cash tendered, kept cash = bill');
-  const productsSrc = readSource('app/products/page.tsx');
+  const productsSrc = readProductsPage();
   const importSrc = readSource('lib/import/catalogImportDb.ts');
   assert(/is_tax_inclusive: editingProduct\?\.is_tax_inclusive \?\? business\?\.gst_pricing_mode !== 'exclusive'/.test(productsSrc) && /is_tax_inclusive: ctx\.taxInclusive/.test(importSrc), 'New and imported products follow Settings → Default GST Calculation (the setting is wired)');
   assert(!/hsn_code: r\.hsn_code \|\| '1905'/.test(importSrc) && /hsn_code: r\.hsn \|\| undefined/.test(importSrc), 'Excel import never invents an HSN code');
@@ -835,7 +853,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(after2.activeTabId === 't_wait' && after2.tabs.length === 2, 'After a sale an open (not held) bill is shown next');
   const after3 = tabsAfterClosing([done], 't_done', 't_new');
   assert(after3.tabs.length === 1 && after3.tabs[0].tabNumber === 1 && after3.tabs[0].cart.length === 0, 'Single bill: completing it leaves one blank bill');
-  const billingPos = readSource('app/billing/page.tsx');
+  const billingPos = readCounter();
   assert(!/onNewBill=\{\(\) => \{[\s\S]{0,300}setCart\(\[\]\)/.test(billingPos), '"New Bill" after a sale never clears the cart of the bill now on screen');
 
   // (b) Khata payments clear bills oldest-first and are never counted twice in the drawer.
@@ -848,7 +866,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(paid.balance_due === 10000 && paid.payment_status === 'partial' && bd.credit === 12000 && bd.cash === 0, 'A later khata payment is not turned into a cash sale on the bill date (no double count in the drawer)');
   const undone = applyPaymentToBill(paid, -2000, '2026-09-04');
   assert(undone.balance_due === 12000 && undone.payment_status === 'unpaid' && undone.amount_received === 0, 'Deleting a khata payment puts the bill back to unpaid');
-  const khataSrc = readSource('app/khata/page.tsx');
+  const khataSrc = readKhata();
   const settleSrc = readSource('components/khata/SettleInvoicesModal.tsx');
   assert(/allocatePaymentToOpenBills\(/.test(khataSrc) && (khataSrc.match(/undoBillAllocations\(/g) || []).length >= 2 && /balance_due_at_sale: sale\.balance_due_at_sale \?\? currentSaleDue/.test(settleSrc),
     'Khata payment / edit / delete and Settle Invoices keep bills and the drawer consistent');
@@ -871,13 +889,13 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(mojibake.length === 0, `No source file has broken characters (wrong encoding)${mojibake.length ? ': ' + mojibake.join(', ') : ''}`);
 
   // (g) Products land in the real "General" category; HSN can be entered; current GST slabs.
-  assert(generalCategoryId([{ id: 'cat_x', name: 'FMCG' }, { id: 'cat_123_0', name: 'General' }]) === 'cat_123_0' && !/category_id: 'cat_general'/.test(readSource('app/billing/page.tsx') + readSource('app/products/page.tsx') + readSource('components/purchases/BillScanReviewModal.tsx')),
+  assert(generalCategoryId([{ id: 'cat_x', name: 'FMCG' }, { id: 'cat_123_0', name: 'General' }]) === 'cat_123_0' && !/category_id: 'cat_general'/.test(readCounter() + readProductsPage() + readSource('components/purchases/BillScanReviewModal.tsx')),
     'New products go into the shop\'s real "General" category (not a missing id)');
-  const productForm = readSource('components/products/AddEditProductModal.tsx');
-  assert(/HSN \/ SAC Code/.test(productForm) && /hsn_code: formHsn\.trim\(\) \|\| undefined/.test(readSource('app/products/page.tsx')), 'The product form takes an HSN / SAC code');
+  const productForm = readProductForm();
+  assert(/HSN \/ SAC Code/.test(productForm) && /hsn_code: formHsn\.trim\(\) \|\| undefined/.test(readProductsPage()), 'The product form takes an HSN / SAC code');
   assert(/<option value=\{40\}>/.test(productForm) && /<option value=\{3\}>/.test(productForm) && validateProductData({ name: 'Premium Cigar Box', sellingPricePaise: 45000, mrpPaise: 50000, purchasePricePaise: 40000, currentStock: 20, minStockLevel: 5, taxRate: 40 }).isValid,
     'GST slabs include 3% and the 40% slab (22 Sep 2025 rates)');
-  assert(!/8 popular items for General Retail/.test(readSource('app/onboarding/page.tsx')), 'Onboarding describes the starter catalogue it really adds');
+  assert(!/8 popular items for General Retail/.test(readOnboarding()), 'Onboarding describes the starter catalogue it really adds');
 }
 
 // 8v. Page changes stay inside the app: the app:// handler serves Next.js RSC
@@ -894,7 +912,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   const mrDict = JSON.parse(readSource('locales/mr.json')) as Record<string, string>;
   const holes = (s: string) => (s.match(/\{\w+\}/g) || []).sort().join(',');
   // Print documents, the invoice/pay pages and the base UI kit stay English on purpose.
-  const NOT_TRANSLATED_UI = /(app[\\/](layout|invoice[\\/]page|pay[\\/]page)\.tsx|components[\\/](invoices[\\/](print[\\/]|InvoicePreview)|reports[\\/]print[\\/]|pwa[\\/]|payments[\\/]PaymentCelebrationModal|ui[\\/](Button|Card|Input)\.tsx|layout[\\/]LanguageSwitcher)|lib[\\/].*\.tsx$)/;
+  const NOT_TRANSLATED_UI = /(app[\\/](layout|invoice[\\/]page|pay[\\/]page)\.tsx|components[\\/](invoices[\\/](print[\\/]|InvoicePreview|SharedInvoiceSheet)|reports[\\/]print[\\/]|pwa[\\/]|payments[\\/]PaymentCelebrationModal|ui[\\/](Button|Card|Input)\.tsx|layout[\\/]LanguageSwitcher)|lib[\\/].*\.tsx$)/;
   const BRANDS = new Set(['KamaiPlus', 'Kamai+', 'Google Pay', 'PhonePe', 'Paytm', 'BHIM', 'BHIM UPI', 'WhatsApp', 'Tally Prime', 'Excel', 'Enter ↵']);
   const needsTr = (text: string) => {
     const t = text.replace(/\s+/g, ' ').trim();
@@ -941,13 +959,13 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     && /paymentMethodLabel\(sale\.payment_method\)/.test(readSource('components/transactions/TransactionBillCard.tsx'))
     && /expenseCategoryLabel\(e\.category\)/.test(readSource('components/cash-register/CashExpensesList.tsx')),
     'Payment-mode and expense badges show a translated name, not the raw "cash" / "tea_snacks" id');
-  assert(/\{tr\(p\)\}/.test(readSource('app/reports/page.tsx')) && /msg\('This Month'\)/.test(readSource('lib/reports/advancedReports.ts')), 'Report period chips are translated (the English id stays the key)');
+  assert(/\{tr\(p\)\}/.test(readSource('app/reports/page.tsx')) && /msg\('This Month'\)/.test(readSource('lib/reports/reportPeriod.ts')), 'Report period chips are translated (the English id stays the key)');
   for (const f of ['app/auth/page.tsx', 'app/onboarding/page.tsx', 'components/licence/LicenceGate.tsx']) {
     assert(/<LanguageSwitcher/.test(readSource(f)), `${f.split('/').slice(-2).join('/')} lets the shop pick English / हिंदी / मराठी before the app opens`);
   }
   const layoutSrc = readSource('app/layout.tsx');
   assert(layoutSrc.indexOf('<I18nProvider>') > -1 && layoutSrc.indexOf('<I18nProvider>') < layoutSrc.indexOf('<LicenceGate>'), 'The language provider wraps the licence screen too');
-  assert(/language: getLanguage\(\)/.test(readSource('app/onboarding/page.tsx')), 'A new store saves the language picked on the setup screen (not always Hindi)');
+  assert(/language: getLanguage\(\)/.test(readOnboarding()), 'A new store saves the language picked on the setup screen (not always Hindi)');
 }
 
 // 8y. Support contacts (v4.64.0): WhatsApp / call +91 86699 97711, kamaiplus.app@gmail.com —
@@ -1001,7 +1019,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(fromOld.length > 0 && fromOld.every((v) => compareVersions(v, WHATS_NEW_BASELINE) > 0) && !fromOld.includes('4.61.0'), 'A shop updating from before "What\'s new" sees the releases since 4.62');
   assert(unseenReleases('4.65.0', '4.67.0').map((r) => r.version).join() === '4.67.0,4.66.0' && unseenReleases('4.67.0', '4.67.0').length === 0 && unseenReleases('4.60.0', '4.61.0').map((r) => r.version).join() === '4.61.0',
     'Only releases after the last seen one and up to the running version are shown');
-  assert(/markWhatsNewSeen\(APP_VERSION\);\s*setStoredUser\(completeAuthUser\)/.test(readSource('app/onboarding/page.tsx')), 'A new shop is marked up to date before its first screen (no pop-up on day one)');
+  assert(/markWhatsNewSeen\(APP_VERSION\);\s*setStoredUser\(completeAuthUser\)/.test(readOnboarding()), 'A new shop is marked up to date before its first screen (no pop-up on day one)');
   assert(/<WhatsNewModal \/>/.test(readSource('components/layout/AppShell.tsx')) && /onClick=\{openWhatsNew\}/.test(readSource('components/layout/DesktopStatusBar.tsx')) && /<WhatsNewCard \/>/.test(readSource('components/settings/HelpSupportTab.tsx')),
     '"What\'s new" opens after an update, from the status-bar version and from Help & Support');
 }
@@ -1041,7 +1059,9 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   // (c) No pop-up; the customer is saved with the bill, before the invoice number is taken.
   const pos = billingSrc;
   assert(!/QuickAddCustomerModal|setIsAddCustomerModalOpen|CustomerSearchAutocomplete/.test(pos + readSource('components/billing/PosDialogs.tsx')) && /<PosCustomerRow/.test(pos), 'Billing takes the customer in one row on the screen — no "Add customer" pop-up');
-  const saleFn = pos.slice(pos.indexOf('const completeSale = async'), pos.indexOf('// Desktop POS High-Speed Keyboard Shortcuts'));
+  // The sale flow lives in components/billing/posSaleActions.ts since v4.104.0 (K-D23).
+  const saleSrc = readSource('components/billing/posSaleActions.ts');
+  const saleFn = saleSrc.slice(saleSrc.indexOf('const completeSale = async'), saleSrc.indexOf('const { handleSaveEstimate } = createEstimateAction(deps);'));
   assert(saleFn.indexOf('resolveBillCustomer(') > -1 && saleFn.indexOf('await db.customers.put(targetCustomer)') > -1 && saleFn.indexOf('await db.customers.put(targetCustomer)') < saleFn.indexOf('getNextUniqueInvoiceNumber(businessId)') && saleFn.indexOf('getNextUniqueInvoiceNumber(businessId)') < saleFn.indexOf('await db.sales.put(newSale)'),
     'Complete Sale: typed customer is resolved / saved first, then the invoice number, then the bill');
   assert(/isCreditMode && !hasCustomer/.test(saleFn) && /focusPosCustomerName\(typed\.field\)/.test(saleFn) && /focusPosCustomerName\(\);/.test(saleFn), 'Udhar with no customer (or a wrong mobile) puts the cursor in the name box instead of opening a pop-up');
@@ -1052,8 +1072,8 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(billingSrc.includes("e.key === 'Escape'") && billingSrc.includes("e.key === '/'") && /\{ id: 'credit', label: tr\('Credit'\), icon: BookOpen, shortcut: 'F9' \}/.test(pos), 'Esc and / work on the counter; the Credit button shows its F9 key like Cash (F4) and UPI (F8)');
 
   // (e) New products are "Unlimited stock" by default; switching it off gives 10 / 10.
-  const productsSrc = readSource('app/products/page.tsx');
-  const formSrc = readSource('components/products/AddEditProductModal.tsx');
+  const productsSrc = readProductsPage();
+  const formSrc = readProductForm();
   const openAdd = productsSrc.slice(productsSrc.indexOf('const handleOpenAddModal'), productsSrc.indexOf('const handleOpenEditModal'));
   assert(DEFAULT_COUNTED_STOCK === 10 && /setFormIsUnlimitedStock\(true\)/.test(openAdd) && /setFormIsUnlimitedStock\(Boolean\(p\.is_unlimited_stock\)\)/.test(productsSrc), 'Add Product opens with Unlimited stock ON; editing keeps the product\'s own setting');
   assert(/setFormStock\(counted \? String\(editingProduct\.current_stock\) : String\(DEFAULT_COUNTED_STOCK\)\)/.test(formSrc) && /setFormMinStock\(counted \? String\(editingProduct\.min_stock_level \|\| 5\) : String\(DEFAULT_COUNTED_STOCK\)\)/.test(formSrc),
@@ -1091,12 +1111,12 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     && /const unlocked = pinUnlocked \|\| !privacyOn;/.test(readSource('app/reports/page.tsx')),
     'Privacy switch off: no "Cashier Privacy" button, no profit lock, reports show profit without a PIN');
   const featuresTabSrc = readSource('components/settings/FeaturesTab.tsx');
-  assert(/useState\(\(\) => !hasOwnerPin\(\)\)/.test(featuresTabSrc) && /<OwnerPinPrompt/.test(featuresTabSrc) && /<FeaturesTab \/>/.test(readSource('app/settings/page.tsx')),
+  assert(/useState\(\(\) => !hasOwnerPin\(\)\)/.test(featuresTabSrc) && /<OwnerPinPrompt/.test(featuresTabSrc) && /<FeaturesTab \/>/.test(readSettingsPage()),
     'Settings → Features needs the owner PIN when one is set (staff cannot switch profit privacy off)');
-  const formSrc = readSource('components/products/AddEditProductModal.tsx');
+  const formSrc = readProductForm();
   assert(['product_cost_price', 'product_hsn', 'product_gst_rate', 'product_size_colour', 'product_variants'].every((id) => formSrc.includes(`switches.${id} &&`)) && /\{showSellingPrice && \(/.test(formSrc) && /required=\{!showSellingPrice\}/.test(formSrc),
     'Add Product: cost price, HSN, GST rate, size / colour and variants appear only when switched on; MRP is required when it is the only price');
-  const productsSrc = readSource('app/products/page.tsx');
+  const productsSrc = readProductsPage();
   assert(/const sellingPricePaise = sellingShown \? parseRupeesToPaise\(formSellingPrice\) : parseRupeesToPaise\(formMrp\);/.test(productsSrc)
     && (productsSrc.match(/onOpenInwardSheet=\{switches\.purchases \?/g) || []).length === 2,
     'An item saved without a separate selling price sells at its MRP; Bulk Inward (part of Purchases) hides with Purchases');
@@ -1168,7 +1188,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   const pricedLabel = buildLabelHtml([{ name: 'Anar', barcode: '2000000000022', pricePaise: 59000 }], LABEL_STOCKS[0], DEFAULT_LABEL_SETTINGS.content);
   assert(!/class="price"/.test(noPriceLabel) && /class="bars"/.test(noPriceLabel) && /class="price"/.test(pricedLabel),
     'A label for an item without a price prints the name and barcode but no ₹0 price');
-  const posNoPrice = readSource('app/billing/page.tsx');
+  const posNoPrice = readCounter();
   assert(posNoPrice.includes('const unpriced = cart.find((line) => !(line.unit_price > 0));') && posNoPrice.includes('handleOpenEditItem(unpriced);')
     && posNoPrice.includes("const needsPrice = !product.has_variants && !(unitPriceFor(product, 'retail') > 0)"),
     'Counter: an item without a price opens the price box when added, and a bill never completes with a ₹0 line');
@@ -1189,7 +1209,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     'Labels always carry the item\'s saved barcode (an item without one gets its own code first) — a label scanned at the counter finds the item');
   const importModalSrc = readSource('components/import/CatalogImportModal.tsx');
   assert(/await import\('xlsx'\)/.test(importModalSrc) && !/from 'xlsx'/.test(importModalSrc)
-    && ['app/products/page.tsx', 'app/inventory/page.tsx'].every((f) => /\{isExcelImporterOpen && \(\s*<CatalogImportModal/.test(readSource(f)))
+    && ['components/products/ProductPageDialogs.tsx', 'app/inventory/page.tsx'].every((f) => /\{isExcelImporterOpen && \(\s*<CatalogImportModal/.test(readSource(f)))
     && !fs.existsSync(path.join(SRC_ROOT, 'components/inventory/ExcelInventoryImporter.tsx')),
     'Excel import loads xlsx only when a file is opened, is mounted only while open, and the old importer is gone');
   assert(/is_unlimited_stock: !counted/.test(readSource('lib/import/catalogImportDb.ts')) && /onOpenExcelImporter && \(/.test(readSource('components/products/ProductHeaderActions.tsx')),
@@ -1265,7 +1285,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(looksLikeBarcode('8901234567897') && looksLikeBarcode('SKU-00123') && looksLikeBarcode('123456') && !looksLikeBarcode('maggi2') && !looksLikeBarcode('12345') && !looksLikeBarcode('Parle-G 2024'),
     'A code is 6+ digits or 6+ capitals / digits / dashes with 4+ digits; words with a number are not');
 
-  const pos = readSource('app/billing/page.tsx');
+  const pos = readCounter();
   const listener = readSource('lib/hardware/barcodeScannerListener.ts');
   assert(/searchFocused && e\.key === 'Enter' && \(!counterCovered \|\| onlySaleWindowOpen\)\) \{\s*e\.preventDefault\(\);\s*void handleSearchEnter\(\);/.test(pos)
     && /if \(isInvoiceModalOpen && action !== 'add-exact' && action !== 'unknown-code'\) return;/.test(pos),
@@ -1311,8 +1331,8 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(wordSoundKey('सिल्वर') === wordSoundKey('silver') && wordSoundKey('फटाका') === wordSoundKey('phataka') && wordSoundKey('फटाका') === wordSoundKey('fataka') && soundKeys('Rocket 2 Sound').join(' ') === soundKeys('रॉकेट २ साऊंड').join(' '),
     'Sound keys: सिल्वर = silver, फटाका = phataka = fataka, Devanagari digits = 0–9');
 
-  const pos = readSource('app/billing/page.tsx');
-  assert(/searchProducts\(all, debouncedSearch, \{ category: true \}\)/.test(pos) && /productSearchScore\(p, productQuery\) < 0/.test(readSource('app/products/page.tsx'))
+  const pos = readCounter();
+  assert(/searchProducts\(all, debouncedSearch, \{ category: true \}\)/.test(pos) && /productSearchScore\(p, productQuery\) < 0/.test(readProductsPage())
     && /searchProducts\(products, search\)\.slice\(0, 6\)/.test(readSource('components/labels/LabelQueuePanel.tsx')) && /productSearchScore\(p, catalogQuery\) >= 0/.test(readSource('components/invoices/EditInvoiceModal.tsx')),
     'Billing, Products, Barcode Studio and Edit Invoice all search with productSearch (English or हिंदी / मराठी)');
   assert(!/BarcodeScannerModal|RapidScanMode|HardwareManagerModal|isBarcodeModalOpen|isHardwareModalOpen|Scan Barcode via Camera/.test(pos)
@@ -1343,7 +1363,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(r2.activeTabId === 't4' && show(r2.tabs.find((t) => t.id === 't4')!.cart) === 'A2,C1' && JSON.stringify(tabsAfterSale(plain, 't1', sold, 't6', retotal)) === JSON.stringify(tabsAfterClosing(plain, 't1', 't6')),
     'Going on to a waiting bill merges the extra items into it; nothing scanned meanwhile = exactly the old closing');
 
-  const pos = readSource('app/billing/page.tsx');
+  const pos = readCounter();
   const queue = readSource('components/billing/BillPrintQueue.tsx');
   const closeAt = pos.indexOf('tabsAfterSale(prev, soldTabId, soldCart, newTabId, retotalLine)');
   assert(closeAt > 0 && closeAt < pos.indexOf('billPrint.print({ sale: newSale') && !/await desktopApi\.print|await getDesktopApi\(\)/.test(pos) && !/await api\.print[\s\S]*setTabs/.test(queue),
@@ -1512,7 +1532,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
 
   // (f) Wiring.
   const studio = readSource('app/barcode-generator/page.tsx');
-  const pos = readSource('app/billing/page.tsx');
+  const pos = readCounter();
   assert(!fs.existsSync(path.join(SRC_ROOT, 'components/labels/CustomLabelModal.tsx')) && !/custom_\$\{|KP\$\{Date\.now/.test(studio + readSource('components/labels/LabelQueuePanel.tsx')) && /<StockEntryModal/.test(studio) && /get\('new'\) === '1'/.test(studio) && /get\('from'\) !== 'inward'/.test(studio) && /readLabelHandoff\(\)/.test(studio),
     'Barcode Studio: no print-only label with a code nobody knows; "New stock + labels" (?new=1) and Purchases\' labels (?from=inward) open there');
   const entryModal = readSource('components/labels/StockEntryModal.tsx');
@@ -1557,7 +1577,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   const typedName = tabsForNewBill([t('t1', { customerName: 'Anil' })], 't1', 'tn');
   assert(keep.activeTabId === 't1' && keep.tabs.length === 1 && busy.activeTabId === 'tn' && busy.tabs.length === 2 && busy.tabs[0].cart.length === 1 && busy.tabs[1].tabNumber === 2
     && other.activeTabId === 't3' && other.tabs.length === 3 && typedName.activeTabId === 'tn'
-    && /tabsForNewBill\(tabs, activeTabId,/.test(readSource('app/billing/page.tsx')) && /get\('new'\) !== '1'/.test(readSource('app/billing/page.tsx')),
+    && /tabsForNewBill\(tabs, activeTabId,/.test(readCounter()) && /get\('new'\) !== '1'/.test(readCounter()),
     'F1 from another page: Billing uses an open blank bill, else adds a new one — a bill with items or a typed customer is kept, never cleared');
 }
 
@@ -1575,7 +1595,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     && globalShortcutHints('/products/').join() === globalShortcutHints('/products').join() && /pagePath\(pathname\) === '\/billing'/.test(readSource('components/layout/DesktopStatusBar.tsx')),
     `Status bar: F1 New bill everywhere (Billing lists its own), Ctrl+H Home off Home, Ctrl+L Lock — every advertised key works${dead.length ? ` (dead: ${dead.join(', ')})` : ''}`);
   const bar = readSource('components/layout/DesktopStatusBar.tsx');
-  const settingsPage = readSource('app/settings/page.tsx');
+  const settingsPage = readSettingsPage();
   assert(/globalShortcutHints\(pathname\)/.test(bar) && /openSettingsTab\('invoicing', pathname, router\.push\)/.test(bar) && /openSettingsTab\('help', pathname, router\.push\)/.test(bar)
     && settingsTabFromQuery('invoice') === 'invoicing' && settingsTabFromQuery('HELP') === 'help' && settingsTabFromQuery('nope') === null
     && /addEventListener\(SETTINGS_TAB_EVENT, onTab\)/.test(settingsPage) && /tabChangeRef\.current\(tab\)/.test(settingsPage),
@@ -1595,7 +1615,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
 // their unsaved changes still stop a tab switch, and old ?tab=upi links land there.
 {
   const nav = readSource('components/settings/SettingsNavTabs.tsx');
-  const page = readSource('app/settings/page.tsx');
+  const page = readSettingsPage();
   const profileAt = page.indexOf("{activeTab === 'profile' && (\n        <StoreProfileTab");
   const upiAt = page.indexOf('<UpiBankingTab');
   assert(!/id: 'upi'/.test(nav) && profileAt > 0 && upiAt > profileAt && page.lastIndexOf("{activeTab === 'profile' && (", upiAt) > profileAt && !/activeTab === 'upi'/.test(page)
@@ -1620,8 +1640,8 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
 // labels (a new counted item: one per piece).
 {
   const field = readSource('components/products/ProductBarcodeField.tsx');
-  const form = readSource('components/products/AddEditProductModal.tsx');
-  const productsPage = readSource('app/products/page.tsx');
+  const form = readProductForm();
+  const productsPage = readProductsPage();
   assert(/nextStoreBarcodes\(await barcodesInUse\(\), 1\)/.test(field) && /\{!value\.trim\(\) && \(/.test(field) && /<ProductBarcodeField/.test(form),
     'Product form: "Generate" gives the next unused store barcode, shown only while the barcode box is empty');
   assert(/data-save-action="print"/.test(form) && /\.dataset\?\.saveAction === 'print'/.test(productsPage) && /if \(printAfterSave && saved\) \{/.test(productsPage)
@@ -1645,7 +1665,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(box.step === 'any' && box.chips.map((c) => c.val).slice(0, 3).join() === '0.25,0.5,0.75' && dozen.chips.some((c) => c.val === '0.25') && dozen.chips.some((c) => c.val === '0.75')
     && piece.step === '1' && piece.chips.every((c) => Number.isInteger(Number(c.val))),
     'The ✏️ window offers ¼ ½ ¾ for a box, ¼ ½ ¾ dozen, and only whole numbers for pieces');
-  const pos = readSource('app/billing/page.tsx');
+  const pos = readCounter();
   const edit = readSource('components/billing/PosItemEditModal.tsx');
   assert(/const qty = roundQty\(parseFloat\(editItemQty\)\);/.test(pos) && /!Number\.isInteger\(qty\) && !allowsFractionalQty\(editingCartItem\.unit, product\?\.allow_decimal\)/.test(pos)
     && /formatCartQty\(item\.quantity\)\}<\/span>/.test(pos + readSource('components/billing/PosCartLines.tsx')) && /setEditItemQty\(String\(dozenFromPieces\(n\)\)\)/.test(edit) && /lineAmountPaise\(qtyNow, ratePaise\)/.test(edit),
@@ -1685,7 +1705,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(/is_unlimited_stock: received \? false : fresh\.is_unlimited_stock/.test(entryDb) && /if \(received\) moves\.push/.test(entryDb) && /if \(counted\) moves\.push/.test(entryDb) && /labels\.filter\(\(l\) => l\.copies > 0\)/.test(entryDb),
     'Saving: no quantity = a new item "Unlimited", a saved item\'s stock untouched, no stock movement and no labels for it');
   assert(/scanIntoRows\(rowsRef\.current, clean,/.test(modal) && /qtyOptional: true/.test(modal) && /source: 'Fast barcode inward'/.test(modal) && /FAST_INWARD_DRAFT_KEY/.test(modal)
-    && /onOpenFastInward=\{\(\) => setIsFastInwardOpen\(true\)\}/.test(readSource('app/products/page.tsx')) && /<FastBarcodeInwardModal/.test(readSource('app/purchases/page.tsx')),
+    && /onOpenFastInward=\{\(\) => setIsFastInwardOpen\(true\)\}/.test(readProductsPage()) && /<FastBarcodeInwardModal/.test(readSource('app/purchases/page.tsx')),
     'Every scan starts from the latest rows (quick scans are never lost); scanned rows survive as a draft; Products and Purchases open it');
 }
 
@@ -1835,7 +1855,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     'Home tiles re-flow (no fixed 4-column grid), so a hidden screen leaves no gap; GST off → Backup & CA exports');
   const printersWin = readSource('components/printers/PrintersWindow.tsx');
   assert(/onOpenPrinters=\{openPrintersWindow\}/.test(home) && /<FastBarcodeInwardModal onClose/.test(home) && /showProfit=\{showProfit\}/.test(home)
-    && SILENT_PRINT_KEY === 'kamai_silent_print' && /onAutoPrintChange=\{saveSilentPrint\}/.test(printersWin) && /'kamai_silent_print'/.test(readSource('app/billing/page.tsx'))
+    && SILENT_PRINT_KEY === 'kamai_silent_print' && /onAutoPrintChange=\{saveSilentPrint\}/.test(printersWin) && /'kamai_silent_print'/.test(readCounter())
     && /<LabelSetupPanel/.test(printersWin) && /\{children\}/.test(readSource('components/billing/BillPrinterSetup.tsx')),
     'Printer setup on Home: bill printer + label printer, and "print straight away" is the same switch the counter uses');
 }
@@ -1950,7 +1970,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(/ipcMain\.handle\('kp:printer-status'/.test(main) && /getPrinterStatus: \(\) => ipcRenderer\.invoke\('kp:printer-status'\)/.test(preload)
     && (pkgJson.build?.files || []).includes('printers.js') && /<PrinterWatcher \/>/.test(readSource('components/layout/AppShell.tsx'))
     && /onClick=\{openPrintersWindow\}/.test(readSource('components/layout/DesktopStatusBar.tsx'))
-    && /addEventListener\(SILENT_PRINT_EVENT/.test(readSource('app/billing/page.tsx')),
+    && /addEventListener\(SILENT_PRINT_EVENT/.test(readCounter()),
     'kp:printer-status is wired (main, preload, packaged); the watcher runs in the app shell; the status bar opens Printers; Billing follows the switch');
 }
 
@@ -2029,7 +2049,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     'WhatsApp window sits above other windows, Esc closes only it, F1 / Ctrl+H stay off, the PDF engine loads only when a PDF is asked for');
   const places: [string, RegExp][] = [
     ['components/invoices/InvoiceModal.tsx', /kind: 'bill'/], ['components/transactions/TransactionBillCard.tsx', /kind: 'bill'/],
-    ['app/khata/page.tsx', /kind: 'khata'/], ['components/khata/CustomerLedgerTimelineTab.tsx', /kind: 'slip'/],
+    ['components/khata/KhataCustomerDetail.tsx', /kind: 'khata'/], ['components/khata/CustomerLedgerTimelineTab.tsx', /kind: 'slip'/],
     ['components/customers/CustomerCard.tsx', /kind: 'customer'/], ['components/customers/CustomerTableView.tsx', /kind: 'customer'/],
     ['components/suppliers/SupplierDetailPanel.tsx', /kind: 'supplier'/], ['components/billing/PosDialogs.tsx', /kind: 'payment'/],
     ['components/reports/DayEndClosingReportModal.tsx', /remember: 'owner'/], ['components/cash-register/DenominationCalculatorModal.tsx', /cashTallyMessage\(/],
@@ -2039,7 +2059,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   const missing = places.filter(([rel, re]) => !re.test(readSource(rel))).map(([rel]) => rel);
   assert(missing.length === 0 && !/wa\.me/.test(readSource('components/suppliers/SupplierDetailPanel.tsx')),
     `WhatsApp is on every screen the Android app has it (missing: ${missing.join(', ') || 'none'}); no hand-made wa.me links left`);
-  assert(/document\.activeElement === searchInputRef\.current \|\| Boolean\(document\.querySelector\('\[data-whatsapp-composer\]'\)\)/.test(readSource('app/billing/page.tsx')),
+  assert(/document\.activeElement === searchInputRef\.current \|\| Boolean\(document\.querySelector\('\[data-whatsapp-composer\]'\)\)/.test(readCounter()),
     'On Billing the barcode listener stands aside while the WhatsApp window is open (a typed number is not a scan)');
 }
 
@@ -2053,7 +2073,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(matchesProductDetails(shirt, '6205') && matchesProductDetails(shirt, 'red xl') && matchesProductDetails(shirt, 'shirt RED') && matchesProductDetails({ name: 'Kurta', size: 'M' }, 'm')
     && !matchesProductDetails({ name: 'Mango Pickle' }, 'm') && !matchesProductDetails(shirt, 'blue') && !matchesProductDetails(shirt, '   '),
     'Products search finds HSN, size and colour (every word somewhere in the item); a one-letter word must be a whole size, not any "m" in a name');
-  const page = readSource('app/products/page.tsx');
+  const page = readProductsPage();
   const toolbar = readSource('components/products/ProductFilterToolbar.tsx');
   const field = readSource('components/products/ProductBarcodeField.tsx');
   assert(!fs.existsSync(path.join(SRC_ROOT, 'components/barcode/BarcodeScannerModal.tsx')) && !ALL_SOURCE.some((f) => /BarcodeScannerModal|onOpenScanner|Scan Camera/.test(fs.readFileSync(f, 'utf8'))),
@@ -2084,7 +2104,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(FEATURES.find((f) => f.id === 'whatsapp')?.group === 'tools' && /\{ id: 'tools', title: msg\('Buttons across the app'\)/.test(readSource('components/settings/FeaturesTab.tsx')),
     'Settings → Features lists WhatsApp under "Buttons across the app"');
 
-  const pos = readSource('app/billing/page.tsx');
+  const pos = readCounter();
   assert(/\.filter\(\(m\) => khataOn \|\| m\.id !== 'credit'\)/.test(pos) && /if \(!isFeatureOn\('khata'\)\) return; \/\/ Khata off/.test(pos) && /creditAllowed=\{khataOn\}/.test(pos)
     && /if \(isCreditMode && !udharAllowed\)/.test(pos) && /\(!hasCustomer \|\| !udharAllowed\)/.test(pos) && /const udharTarget = Boolean\(targetCustomer\) && udharAllowed;/.test(pos)
     && /if \(paymentMethod === 'credit'\) setPaymentMethod\('cash'\);/.test(pos)
@@ -2100,7 +2120,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     && /\{switches\.sales_reports && <AdvancedAnalyticsBanner \/>\}/.test(readSource('components/dashboard/DashboardHome.tsx')),
     'Home cards open Khata / Sales Analytics only while those screens are on; the analytics banner hides with its screen');
 
-  const khataPage = readSource('app/khata/page.tsx');
+  const khataPage = readKhata();
   assert(/\{khataOn && \(/.test(readSource('components/customers/CustomerCard.tsx')) && /\{khataOn && <Link href=\{`\/khata/.test(readSource('components/customers/CustomerTableView.tsx'))
     && /\{khataOn && \(/.test(readSource('components/customers/CustomerHeaderActions.tsx')) && (khataPage.match(/\{customersOn && \(/g) || []).length === 2,
     'Khata / Customers off: the Customers page has no Khata buttons, the Khata page no Customers links');
@@ -2115,9 +2135,9 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     && !ALL_SOURCE.some((f) => !/(components|lib)[\\/]whatsapp[\\/]/.test(f) && /openWhatsAppComposer\(/.test(fs.readFileSync(f, 'utf8'))),
     'WhatsApp off hides every WhatsApp button — all of them are WhatsAppButton / RestockOrderButton (no screen opens the window itself) — and the message settings');
 
-  assert(/on1ClickBarcodePrint=\{switches\.barcode_studio \? handle1ClickBarcodePrint : undefined\}/.test(readSource('app/products/page.tsx'))
+  assert(/on1ClickBarcodePrint=\{switches\.barcode_studio \? handle1ClickBarcodePrint : undefined\}/.test(readProductsPage())
     && /\{on1ClickBarcodePrint && <button/.test(readSource('components/products/ProductTableView.tsx'))
-    && /\{switches\.barcode_studio && !\(variantsEnabled && !editingProduct\) && \(/.test(readSource('components/products/AddEditProductModal.tsx'))
+    && /\{switches\.barcode_studio && !\(variantsEnabled && !editingProduct\) && \(/.test(readProductForm())
     && /\{switches\.barcode_studio && \(\s*<button[\s\S]{0,300}?save\(true\)/.test(readSource('components/inward/FastBarcodeInwardModal.tsx'))
     && /labelCount > 0 && switches\.barcode_studio/.test(readSource('components/inward/FastBarcodeInwardModal.tsx'))
     && /const labels = labelsOn \?/.test(readSource('components/purchases/BillInwardDone.tsx'))
@@ -2293,8 +2313,8 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     && !/\.data\(\) as (Product|Customer|Sale|Category|Business)/.test(syncSrc) && /for \(const table of DATA_TABLES\)/.test(syncSrc)
     && /data\.account_disabled === true/.test(syncSrc) && /if \(!cloudShopExists\) shopDoc\.business_type = 'grocery';/.test(syncSrc),
     'Cloud contract: the full sync writes and reads only through toCloud / fromCloud (no raw Dexie rows either way), covers every table and obeys the admin kill-switch');
-  assert(/toCloud\(table, data, \{ bizId \}\)/.test(readSource('lib/firebase/lazyCloud.ts')) && /toCloud\('businesses', businessDoc, \{ bizId: businessId \}\)/.test(readSource('app/onboarding/page.tsx'))
-    && !/subscription_tier: 'free'/.test(readSource('app/onboarding/page.tsx')),
+  assert(/toCloud\(table, data, \{ bizId \}\)/.test(readSource('lib/firebase/lazyCloud.ts')) && /toCloud\('businesses', businessDoc, \{ bizId: businessId \}\)/.test(readOnboarding())
+    && !/subscription_tier: 'free'/.test(readOnboarding()),
     'Cloud contract: the per-bill mirror (cloudMerge) and onboarding write contract documents too; onboarding sends no plan field');
   const contractSrc = readSource('lib/cloud/cloudContract.ts') + readSource('lib/cloud/cloudFormat.ts');
   assert(!/from '(firebase|@\/lib\/db|@\/lib\/firebase)/.test(contractSrc), 'Cloud contract: the mapping is pure (no Firebase, no Dexie) — tested here, safe to load anywhere');
@@ -2661,7 +2681,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     && fromCloud('products', wDoc, null, { bizId: 'biz_u' }).wholesale_price === 140000,
     'Cloud contract: wholesale_price travels as wholesale_price_paise (R2), a wholesale customer as is_wholesale');
 
-  const billSrc = readSource('app/billing/page.tsx');
+  const billSrc = readCounter();
   assert(/const price = unitPriceFor\(product, isFeatureOn\('wholesale_price'\) \? priceModeRef\.current : 'retail'\);/.test(billSrc)
     && /cart: repriceCart\(tab\.cart, found, tab\.priceMode \|\| 'retail', mode, calculateItemTax\)/.test(billSrc)
     && /modeForCustomer\(customers\.find\(\(c\) => c\.id === id\)\) === 'wholesale'/.test(billSrc)
@@ -2670,7 +2690,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     'Billing: a new line takes the bill\'s price (also from a scan), switching re-prices the cart, a wholesale customer switches the bill, the sale is marked wholesale; the switch shows only when on');
   assert(/sale\.price_mode === 'wholesale'/.test(readSource('components/transactions/TransactionBillCard.tsx'))
     && /unitPriceFor\(product, sale\?\.price_mode === 'wholesale' \? 'wholesale' : 'retail'\)/.test(readSource('components/invoices/EditInvoiceModal.tsx'))
-    && /data-customer-wholesale/.test(readSource('components/customers/AddEditCustomerModal.tsx')) && /data-product-wholesale/.test(readSource('components/products/AddEditProductModal.tsx')),
+    && /data-customer-wholesale/.test(readSource('components/customers/AddEditCustomerModal.tsx')) && /data-product-wholesale/.test(readProductForm()),
     'Wholesale shows on the bill in Transactions, an edited wholesale bill adds items at wholesale, customers and items get their wholesale fields');
 }
 
@@ -2698,7 +2718,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     && lastChangedLine(new Map([['a', 2], ['b', 1]]), [line('a', 1), line('b', 1)]) === null,
     'Scan mode "Last scanned": the line just added or whose quantity went up (a removal changes nothing)');
 
-  const billSrc = readSource('app/billing/page.tsx');
+  const billSrc = readCounter();
   const splitSrc = readSource('components/billing/PosSplitLayout.tsx');
   const scanSrc = readSource('components/billing/PosScanPanel.tsx');
   assert(billSrc.includes('<PosSplitLayout') && billSrc.includes('onDone={focusProductSearch}') && billSrc.includes('const listVisible = showProductList(posLayout, searchQuery);')
@@ -2744,10 +2764,10 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   assert(scrollDeltaToShow({ top: 0, bottom: 100 }, { top: 120, bottom: 150 }) === 58 && scrollDeltaToShow({ top: 0, bottom: 100 }, { top: -30, bottom: -10 }) === -38
     && scrollDeltaToShow({ top: 0, bottom: 100 }, { top: 10, bottom: 60 }) === 0 && scrollDeltaToShow({ top: 0, bottom: 100 }, { top: 120, bottom: 300 }) === 112,
     'Bill scroll: a line below or above the box scrolls just into view; a line taller than the box shows its top');
-  const pos = readSource('app/billing/page.tsx');
+  const pos = readCounter();
   const lines = readSource('components/billing/PosCartLines.tsx');
   const undoBar = readSource('components/billing/PosUndoBar.tsx');
-  const panel = pos.slice(pos.indexOf('const renderCheckoutPanel = () => ('), pos.indexOf('// v4.92.0 — Scan mode hides the product list'));
+  const panel = (readSource('components/billing/PosCheckoutPanel.tsx') + '\n' + readSource('components/billing/PosCheckoutFooter.tsx'));
   const at = (t: string) => panel.indexOf(t);
   assert(/keepForUndo\(tabs\.find\(\(t\) => t\.id === tabId\), 'closed'\);\s*if \(tabs\.length === 1\)/.test(pos) && /keepForUndo\(activeTab, 'cleared'\);\s*setCart\(\[\]\);/.test(pos)
     && panel.includes('onClick={handleClearCart}') && !panel.includes('onClick={() => setCart([])}') && panel.includes('<PosUndoBar discarded={discardedBill}')
@@ -2849,10 +2869,10 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
   const auth = readSource('components/auth/AuthForm.tsx');
   const setPwForm = auth.slice(auth.indexOf('<form onSubmit={handleSetPassword}'));
   assert(setPwForm.indexOf("tr('Set Password & Start')") > 0 && setPwForm.indexOf("tr('Set Password & Start')") < setPwForm.indexOf('data-google-step')
-    && /useState<boolean>\(false\);/.test(readSource('app/onboarding/page.tsx').slice(readSource('app/onboarding/page.tsx').indexOf('seedStarterCatalog') - 300)),
+    && /useState<boolean>\(false\);/.test(readOnboarding().slice(readOnboarding().indexOf('seedStarterCatalog') - 300)),
     'First run: the password and its button come first, the optional Google account under it; the fireworks sample catalog is not ticked by default');
-  const productsPage = readSource('app/products/page.tsx');
-  const form = readSource('components/products/AddEditProductModal.tsx');
+  const productsPage = readProductsPage();
+  const form = readProductForm();
   assert(/useState<ProductUnit>\('piece'\)/.test(productsPage) && /setFormUnit\('piece'\);/.test(productsPage) && !/useState<ProductUnit>\('packet'\)/.test(productsPage)
     && /!excelTipHidden && \(/.test(form) && /localStorage\.setItem\(EXCEL_TIP_KEY, '1'\)/.test(form) && form.includes('data-excel-tip-hide'),
     'Add Product: a new item starts as Piece (not Packet); the "wholesale bill in Excel?" tip can be closed for good');
@@ -2866,7 +2886,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     && ['components/billing/PosCategoryTabs.tsx', 'components/billing/PosProductCard.tsx', 'components/products/ProductFilterToolbar.tsx', 'components/products/AddEditProductModal.tsx', 'components/products/CategoryPicker.tsx']
       .every((f) => readSource(f).includes('categoryLabel(')),
     'Hindi / Marathi: the starter categories (General, FMCG, Loose Items …) show translated on Billing and Products; a category the shop typed stays as typed; the saved name stays English');
-  const tinyFiles = ALL_SOURCE.filter((f) => f.endsWith('.tsx') && !/(print|label|thermal|invoice[\\/]page|pwa)/i.test(path.relative(SRC_ROOT, f)))
+  const tinyFiles = ALL_SOURCE.filter((f) => f.endsWith('.tsx') && !/(print|label|thermal|invoice[\\/]page|SharedInvoiceSheet|pwa)/i.test(path.relative(SRC_ROOT, f)))
     .filter((f) => /text-\[(9|9\.5|8|8\.5|7|7\.5)px\]/.test(fs.readFileSync(f, 'utf8'))).map((f) => path.relative(SRC_ROOT, f));
   assert(/focus-visible:ring-2 focus-visible:ring-amber-500/.test(readSource('components/ui/Button.tsx')) && tinyFiles.length === 0,
     `Keyboard focus shows on buttons (amber ring); no screen text under 10 px (print documents keep their sizes)${tinyFiles.length ? ` — still tiny: ${tinyFiles.join(', ')}` : ''}`);
@@ -2880,7 +2900,7 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
 
 // 9j(af). Speed (v4.97.0) — measured on a shop with 5,000 items, 30,000 bills, 2,000 customers.
 {
-  const pos = readSource('app/billing/page.tsx');
+  const pos = readCounter();
   const sale = pos.slice(pos.indexOf('const completeSale = async'), pos.indexOf('// 5. The counter moves on'));
   const txAt = sale.indexOf("await db.transaction('rw', db.products, db.inventory_movements, async () => {");
   assert(txAt > 0 && sale.indexOf('await db.products.put(updatedProd);') > txAt && sale.indexOf('stockForCloud.push(updatedProd);') > txAt
@@ -3435,11 +3455,11 @@ assert(longPages.reduce((a, p) => a + p.length, 0) === 40, 'Pagination keeps eve
   assert(prevSrc.includes('<ThermalReceipt doc={doc}') && outSrc.includes('<ThermalReceipt doc={doc}'),
     'Invoice Themes preview and the real print render the same ThermalReceipt — what you see is what prints');
 
-  const onbSrc = readSource('app/onboarding/page.tsx');
+  const onbSrc = readOnboarding();
   assert(!onbSrc.includes('It is compulsory for generating payment QR') && onbSrc.includes('if (cleanUpiId && !upiRegex.test(cleanUpiId))') && onbSrc.includes('upi_id: cleanUpiId || undefined,')
     && !/data-onboarding-upi[\s\S]{0,40}required/.test(onbSrc),
     'Sign-up: UPI ID is optional (blank is fine, a typed one must be valid)');
-  const setSrc = readSource('app/settings/page.tsx');
+  const setSrc = readSettingsPage();
   assert(setSrc.includes("validateIndianPhone(phone2, false,") && setSrc.includes('phone2: phone2.trim() ?') && readSource('components/settings/StoreProfileTab.tsx').includes('data-settings-phone2'),
     'Settings → Contact & Store Location: optional second number, checked like a mobile number, saved on the shop');
 }
@@ -3673,7 +3693,7 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
     'K-D38: Home, the Cash Register (also after Close Shift), the Day Summary card and its PDF all count the float (the PDF also khata cash)');
 
   // K-D39: the counter's "items" was the quantities added up ("Cart Items (8)" on a 7-line bill).
-  const posSrc = readSource('app/billing/page.tsx');
+  const posSrc = readCounter();
   assert(/const totalItemCount = cart\.length;/.test(posSrc) && /• \{totalUnits\} \{tr\('units'\)\}/.test(posSrc),
     'K-D39: counter items = bill lines (as on "Sale completed"), units = quantities added up');
 }
@@ -3857,7 +3877,7 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
     && udharOfBill({ method: 'cash', grandTotalPaise: 10000, typedCashPaise: 6000 }) === 4000 && udharOfBill({ method: 'cash', grandTotalPaise: 10000, typedCashPaise: null }) === 0
     && udharOfBill({ method: 'split', grandTotalPaise: 10000, splitPaise: { cash: 3000, upi: 2000, card: 0, credit: 1000 } }) === 5000,
     'K-D03: the udhar of a bill is counted as the counter saves it (credit = all; short cash = the shortfall; split = credit part + what is not split)');
-  const bill = readSource('app/billing/page.tsx');
+  const bill = readCounter();
   const limAt = bill.indexOf('checkCreditLimit(targetCustomer, udhar)');
   assert(limAt > 0 && limAt < bill.indexOf('getNextUniqueInvoiceNumber(businessId)') && bill.slice(limAt, limAt + 600).includes('showConfirm(')
     && bill.slice(limAt, limAt + 900).includes('if (!go) return;'),
@@ -3882,7 +3902,8 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
     items: [{ product_id: 'p', product_name: 'Rice', quantity: 2, unit_price: 5000, total_amount: 10000 } as any], subtotal: 10000, discountTotal: 0, taxTotal: 0, grandTotal: 10000, now: '2026-10-05T10:00:00.000Z' });
   assert(isEstimate(est) && !isRevenueSale(est) && est.amount_received === 0 && est.balance_due === 0 && est.notes === ESTIMATE_NOTE && est.customer_name === 'Ramesh' && est.customer_id === undefined,
     'K-D07: the estimate is a draft — not revenue, nothing paid, nothing owed; a new customer is only named on it');
-  const estFn = bill.slice(bill.indexOf('const handleSaveEstimate = async'), bill.indexOf('// The highlighted (or first) search result goes into the bill.'));
+  const estSrc = readSource('components/billing/posEstimateAction.ts');
+  const estFn = estSrc.slice(estSrc.indexOf('const handleSaveEstimate = async'), estSrc.indexOf('return { handleSaveEstimate };'));
   assert(estFn.length > 200 && estFn.includes('buildEstimateSale(') && estFn.includes('await db.sales.put(estimate)') && !estFn.includes('inventory_movements')
     && !estFn.includes('ledger_transactions') && !estFn.includes('commitNextInvoiceNumber') && !estFn.includes('db.customers.put') && bill.includes('data-save-estimate'),
     'K-D07: "Save as Estimate" saves the bill as priced — no stock, khata, bill number or new customer — and Transactions "Convert to Bill" does the rest');
@@ -3963,7 +3984,7 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
     && !validateGstin('27AZIPL7727P1ZD').isValid,
     'K-D05: a GSTIN whose check digit does not add up (one wrong letter, two digits swapped) is refused with the right last character; a real one passes');
   assert(/validateGstin\(input\.gstin, false\)/.test(readSource('lib/validation/validators.ts')) && readSource('components/suppliers/SupplierFormModal.tsx').includes('validateGstin(gstin, false)')
-    && readSource('app/settings/page.tsx').includes('validateGstin(gstin, false)'),
+    && readSettingsPage().includes('validateGstin(gstin, false)'),
     'K-D05: customers, suppliers and the shop\'s own GSTIN all go through the check');
 
   // K-D28: the same item twice.
@@ -3988,8 +4009,24 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
   const mfn = dsrc.slice(dsrc.indexOf('export async function mergeDuplicateProducts'));
   assert(mfn.includes("db.transaction('rw', [db.products, db.inventory_movements, db.sales, db.sales_returns, db.purchase_bills]")
     && mfn.indexOf('bulkDelete') > mfn.indexOf("where('product_id').anyOf") && mfn.includes('db.sales.filter(') && mfn.includes('db.sales_returns.filter(')
-    && readSource('app/products/page.tsx').includes('<DuplicateItemsReview products={allProducts} />'),
+    && readProductsPage().includes('<DuplicateItemsReview products={allProducts} />'),
     'K-D28: a merge moves bills, returns, stock history and purchase lines to the kept item and only then removes the copies — one transaction; Products shows the Review bar');
+}
+
+// v4.104.0 — K-D23: no source file over 400 lines (big screens split into parts, unchanged).
+{
+  const big = ALL_SOURCE.filter((f) => /\.(ts|tsx)$/.test(f))
+    .map((f) => ({ f: path.relative(SRC_ROOT, f).replace(/\\/g, '/'), n: fs.readFileSync(f, 'utf8').split('\n').length }))
+    .filter((x) => x.n > 401);
+  assert(big.length === 0, `K-D23: every src file stays within 400 lines (over: ${big.map((x) => `${x.f} ${x.n}`).join(', ') || 'none'})`);
+  const pageSrc = readSource('app/billing/page.tsx');
+  assert(['createSaleActions(', 'createCartActions(', 'usePosScanning(', 'usePosBillTabs()', 'usePosKeyboard(', 'usePosCatalogData(', 'usePosUpiQr(', '<PosCatalogPanel', '<PosCheckoutPanel', '<PosMobileCart', '<PosCounterDialogs'].every((x) => pageSrc.includes(x))
+    && readSource('components/billing/posSaleActions.ts').includes('const { handleSaveEstimate } = createEstimateAction(deps);'),
+    'K-D23: the billing counter is the page plus its parts (sale, estimate, lines, scanning, tabs, keyboard, catalogue, UPI QR, panels, dialogs)');
+  assert(/export \* from '\.\/records';/.test(readSource('types/index.ts')) && /export \* from '@\/lib\/invoices\/invoiceDocumentTypes';/.test(readSource('lib/invoices/invoiceDocument.ts'))
+    && /export \* from '@\/lib\/reports\/reportPeriod';/.test(readSource('lib/reports/advancedReports.ts'))
+    && /export \{ SettingsReviewModal \} from '@\/components\/settings\/SettingsReviewModal';/.test(readSource('components/settings/SettingsChangeDialogue.tsx')),
+    'K-D23: types, invoice document shapes, report periods and the settings review window moved with a re-export — every import path still works');
 }
 
 // -------------------------------------------------------------

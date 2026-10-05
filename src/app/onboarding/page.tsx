@@ -1,34 +1,14 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { db as localDb, seedBusinessStarterData } from '@/lib/db';
-import { BusinessType, Business } from '@/types';
-import { getStoredUser, setStoredUser, AuthUser } from '@/lib/auth';
-import { CLOUD_SYNC_ENABLED } from '@/lib/firebase/cloudAvailability';
-import { 
-  Store, 
-  ShoppingBag, 
-  Sparkles, 
-  CheckCircle2, 
-  ArrowRight, 
-  Pill, 
-  Wrench, 
-  Utensils, 
-  Tv, 
-  User, 
-  Phone, 
-  Building2, 
-  AlertCircle,
-  ShieldCheck,
-  ChevronDown,
-  QrCode
-} from 'lucide-react';
+import { BusinessType } from '@/types';
+import { getStoredUser, AuthUser } from '@/lib/auth';
+import { Store, Sparkles, ArrowRight, User, AlertCircle, QrCode } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { getLanguage, tr } from '@/lib/i18n/core';
+import { tr } from '@/lib/i18n/core';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
-import { markWhatsNewSeen } from '@/lib/whatsNew/changelog';
-import { APP_VERSION } from '@/lib/constants/version';
+import { createOnboardingSubmit } from '@/components/onboarding/onboardingSubmit';
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -64,193 +44,10 @@ export default function OnboardingPage() {
 
 
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    const cleanPhone = phone.replace(/\D/g, '').slice(-10);
-    const cleanStoreName = businessName.trim();
-    const cleanOwnerName = ownerName.trim() || 'Store Owner';
-    const cleanUpiId = upiId.trim();
-
-    if (!cleanStoreName) {
-      setError(tr('Please enter your Store / Business Name.'));
-      return;
-    }
-
-    if (!cleanPhone || cleanPhone.length !== 10) {
-      setError(tr('Please enter a valid 10-digit Store Contact Number.'));
-      return;
-    }
-
-    // UPI is optional (v4.91.0, Customer Change): a shop can add it later in Settings → UPI.
-    // When typed, it must still be a real UPI ID — a wrong one would put a dead QR on every bill.
-    const upiRegex = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
-    if (cleanUpiId && !upiRegex.test(cleanUpiId)) {
-      setError(tr('Please enter a valid UPI ID (e.g. yourname@upi, 9876543210@paytm, store@okaxis).'));
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      const user = currentUser || getStoredUser();
-      const rawUid = user?.uid || user?.id || `user_${cleanPhone}`;
-      const safeUidSlice = rawUid.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8) || 'merchant';
-      const businessId = `biz_${safeUidSlice}_${Date.now()}`;
-      const now = new Date().toISOString();
-
-      // 1. Initialize Default Store Record in Local IndexedDB (Dexie)
-      const newBusinessRecord: Business & { user_uid?: string; user_email?: string } = {
-        id: businessId,
-        name: cleanStoreName,
-        business_type: businessType,
-        owner_name: cleanOwnerName,
-        phone: cleanPhone,
-        upi_id: cleanUpiId || undefined,
-        email: user?.email || undefined,
-        user_email: user?.email || undefined,
-        user_uid: rawUid,
-        address: '',
-        currency: 'INR',
-        language: getLanguage(),
-        invoice_prefix: 'INV-',
-        next_invoice_number: 1,
-        terms_conditions: 'Thank you for your business! Goods once sold can be exchanged within 7 days with bill receipt.',
-        footer_message: 'Thank you for shopping with us! Please visit again.',
-        is_onboarded: true,
-        sync_status: 'synced',
-        created_at: now,
-        updated_at: now,
-      };
-
-      if (!localDb.isOpen()) {
-        await localDb.open();
-      }
-      await Promise.all([
-        localDb.businesses.clear().catch(() => {}),
-        localDb.products.clear().catch(() => {}),
-        localDb.sales.clear().catch(() => {}),
-        localDb.customers.clear().catch(() => {}),
-        localDb.categories.clear().catch(() => {}),
-        localDb.inventory_movements.clear().catch(() => {}),
-        localDb.suppliers.clear().catch(() => {}),
-        localDb.cash_registers.clear().catch(() => {}),
-        localDb.cash_expenses.clear().catch(() => {}),
-        localDb.ledger_transactions.clear().catch(() => {}),
-      ]);
-      await localDb.businesses.put(newBusinessRecord);
-
-      // Seed starter catalog products for selected category
-      if (seedStarterCatalog) {
-        try {
-          await seedBusinessStarterData(businessId);
-        } catch (seedErr) {
-          console.warn('Starter catalog seed warning:', seedErr);
-        }
-      }
-
-      // 2. Write Complete Merchant Document to Firestore `merchants/{uid}`.
-      // Firebase (~650 KB) is pulled in here, at the one moment onboarding needs
-      // it, rather than with the page — the shop is usable offline without it.
-      const [{ getFirestoreDb }, { doc, setDoc, deleteDoc }, { sanitizeForFirestore }, { toCloud }] = CLOUD_SYNC_ENABLED
-        ? await Promise.all([
-            import('@/lib/firebase/config'),
-            import('firebase/firestore'),
-            import('@/lib/firebase/firestoreSync'),
-            import('@/lib/cloud/cloudContract'),
-          ])
-        : [{ getFirestoreDb: () => null }, {} as any, {} as any, {} as any];
-      // Skipped while the desktop app has no cloud login: the writes are rejected, and
-      // awaiting them on a slow connection could stall first-time store setup.
-      const firestore = CLOUD_SYNC_ENABLED ? getFirestoreDb() : null;
-      if (firestore) {
-        try {
-          // Merchant Document
-          const merchantDoc = {
-            uid: rawUid,
-            business_id: businessId,
-            shop_name: cleanStoreName,
-            business_name: cleanStoreName,
-            owner_name: cleanOwnerName,
-            phone: cleanPhone,
-            email: user?.email || null,
-            business_type: businessType,
-            role: 'admin',
-            createdAt: now,
-            updatedAt: now,
-          };
-          await setDoc(doc(firestore, 'merchants', rawUid), sanitizeForFirestore(merchantDoc), { merge: true });
-
-          // Cross-index with WhatsApp phone prefix so WhatsApp OTP login resolves immediately to this store
-          if (cleanPhone && cleanPhone.length === 10) {
-            await setDoc(doc(firestore, 'merchants', `wa_${cleanPhone}`), sanitizeForFirestore({
-              ...merchantDoc,
-              uid: `wa_${cleanPhone}`,
-              linked_uid: rawUid,
-            }), { merge: true });
-            await setDoc(doc(firestore, 'merchants', `user_${cleanPhone}`), sanitizeForFirestore({
-              ...merchantDoc,
-              uid: `user_${cleanPhone}`,
-              linked_uid: rawUid,
-            }), { merge: true });
-          }
-
-          // Also write Business Document for full compatibility with email & phone bindings.
-          // In the cloud data contract's names; no plan fields (the rules reject any write carrying them).
-          const businessDoc = {
-            ...newBusinessRecord,
-            user_uid: rawUid,
-            email: user?.email || null,
-            user_email: user?.email || null,
-            phone: cleanPhone,
-            is_active: true,
-            created_at: now,
-            updated_at: now,
-          };
-          await setDoc(doc(firestore, 'businesses', businessId), sanitizeForFirestore(toCloud('businesses', businessDoc, { bizId: businessId })), { merge: true });
-
-          // Clear any legacy tombstones for this store ID and phone so it is immediately active and visible in Admin
-          await deleteDoc(doc(firestore, 'deleted_businesses', businessId)).catch(() => {});
-          if (cleanPhone) {
-            await deleteDoc(doc(firestore, 'deleted_phones', cleanPhone)).catch(() => {});
-          }
-        } catch (cloudErr) {
-          console.warn('Cloud Firestore merchant creation notice:', cloudErr);
-        }
-      }
-
-      // 3. Update localStorage via setStoredUser with complete AuthUser interface
-      const completeAuthUser: AuthUser = {
-        uid: rawUid,
-        id: rawUid,
-        phone: cleanPhone,
-        email: user?.email || null,
-        photoURL: user?.photoURL || null,
-        name: cleanOwnerName,
-        business_id: businessId,
-        business_name: cleanStoreName,
-        shop_name: cleanStoreName,
-        role: 'admin',
-      };
-      // A new shop starts up to date: no "What's new" pop-up on its first screen.
-      markWhatsNewSeen(APP_VERSION);
-      setStoredUser(completeAuthUser);
-
-      // Sync profile to cloud
-      try {
-        const { syncProfileToCloud } = await import('@/lib/sync/syncEngine');
-        await syncProfileToCloud(businessId);
-      } catch (e) {}
-
-      // 4. Navigate to dashboard
-      router.replace('/');
-    } catch (err: any) {
-      console.error('Failed to complete onboarding:', err);
-      setError(err?.message || tr('Error setting up your store. Please try again.'));
-      setIsLoading(false);
-    }
-  };
+  const { handleSubmit } = createOnboardingSubmit({
+    router, currentUser, setIsLoading, setError, businessName, ownerName,
+    phone, upiId, businessType, seedStarterCatalog,
+  });
 
   return (
     <main className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 sm:p-6 relative overflow-hidden">

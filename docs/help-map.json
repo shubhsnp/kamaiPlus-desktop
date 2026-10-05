@@ -9,6 +9,7 @@
         "licence.js",
         "src/app/auth/**",
         "src/app/onboarding/**",
+        "src/components/onboarding/**",
         "src/components/licence/**",
         "src/components/auth/**",
         "src/components/dashboard/**"
@@ -220,6 +221,7 @@
         "src/lib/ui/globalShortcuts.ts",
         "src/components/layout/DesktopStatusBar.tsx",
         "src/app/billing/page.tsx",
+        "src/components/billing/usePosKeyboard.ts",
         "src/components/labels/StockEntryModal.tsx",
         "src/components/whatsapp/**"
       ],

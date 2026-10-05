@@ -2739,5 +2739,6 @@
   "This GSTIN does not add up — its last character should be {expected}. Check every letter and digit against the GST certificate.": "यह GSTIN सही नहीं बैठता — इसका आखिरी अक्षर {expected} होना चाहिए। GST सर्टिफ़िकेट से हर अक्षर और अंक मिलाएँ।",
   "Products: if the same item is saved twice (same barcode, or same name and unit), a \"Review\" bar lets you merge them into one — bills and stock history move to the item you keep.": "प्रोडक्ट्स: कोई आइटम दो बार सेव हो (एक जैसा बारकोड, या एक जैसा नाम और यूनिट), तो \"Review\" पट्टी से उन्हें एक में मिलाएँ — बिल और स्टॉक हिस्ट्री रखे गए आइटम में आ जाती है।",
   "GSTIN: a mistyped letter or digit is now caught when you save (the last character is a check digit).": "GSTIN: गलत टाइप हुआ अक्षर या अंक अब सेव करते समय पकड़ा जाता है (आखिरी अक्षर एक चेक डिजिट है)।",
-  "The app now carries its own Mukta font, so text looks the same on every computer.": "ऐप अब अपना Mukta फ़ॉन्ट साथ रखता है, इसलिए हर कंप्यूटर पर लिखावट एक जैसी दिखती है।"
+  "The app now carries its own Mukta font, so text looks the same on every computer.": "ऐप अब अपना Mukta फ़ॉन्ट साथ रखता है, इसलिए हर कंप्यूटर पर लिखावट एक जैसी दिखती है।",
+  "Behind the scenes: the Billing, Khata, Products and Settings screens were split into smaller parts so future fixes are safer. Nothing changes in how they work.": "पर्दे के पीछे: बिलिंग, खाता, प्रोडक्ट्स और सेटिंग्स स्क्रीन को छोटे हिस्सों में बाँटा गया, ताकि आगे के सुधार ज़्यादा सुरक्षित हों। काम करने का तरीका वही है।"
 }

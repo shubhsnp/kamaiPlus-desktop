@@ -481,7 +481,7 @@ src/components/<feature>/   Feature components, one folder per domain
 src/components/ui/          Button, Card, Input, Modal  (that is all of it)
 src/lib/<domain>/           Engines — see table below
 src/types/index.ts          All domain types. Single file.
-scripts/e2e_simulation.ts   The test suite (§11). 826 assertions.
+scripts/e2e_simulation.ts   The test suite (§11). 829 assertions.
 scripts/bump_version.ts     Version bumper (+0.1 minor)
 public/barcodes/*.json      5 shipped offline barcode dictionaries
 ```
@@ -589,6 +589,23 @@ them readable — assume they touch everything:
 `lib/db/index.ts` (seeding), `lib/auth.ts` (`purgeLocalDeviceData` clears all),
 `lib/backup/cloudBackupService.ts` (restore), `lib/firebase/firestoreSync.ts` (cloud pull).
 
+**Since v4.104.0 (K-D23) a page named below means the page AND the files split out of it unchanged**
+(every file ≤ 400 lines; Suite 21 "v4.104.0" fails on a bigger one):
+
+| Page / component | Its code now also lives in |
+| :--- | :--- |
+| `app/billing/page.tsx` | `components/billing/` — `posSaleActions.ts` (Complete Sale, §6.1), `posEstimateAction.ts`, `posCartActions.ts` (bill lines, quick restock), `usePosScanning.ts` (scan, quick-add item), `usePosBillTabs.ts`, `usePosKeyboard.ts`, `usePosCatalogData.ts`, `usePosUpiQr.ts`, `PosCheckoutPanel.tsx` + `PosCheckoutFooter.tsx`, `PosCatalogPanel.tsx`, `PosMobileCart.tsx`, `PosCounterDialogs.tsx` |
+| `app/khata/page.tsx` | `components/khata/` — `khataActions.ts` (entries, new customer, edit / delete, clear), `KhataCustomerList.tsx`, `KhataCustomerDetail.tsx`, `KhataDialogs.tsx` |
+| `app/products/page.tsx` | `components/products/productActions.ts` (save / delete / star / quick stock & price, categories), `ProductPageDialogs.tsx`; the form's middle in `ProductFormDetails.tsx` |
+| `app/settings/page.tsx` | `components/settings/settingsSave.ts`, `useSettingsChanges.ts`, `SettingsReviewDialogs.tsx`; `SettingsReviewModal.tsx` (re-exported by `SettingsChangeDialogue.tsx`) |
+| `app/transactions/page.tsx` | `components/transactions/convertEstimate.ts` (Convert to Bill) |
+| `components/invoices/EditInvoiceModal.tsx` | `editInvoiceSave.ts`, `EditInvoiceItems.tsx` |
+| `components/sales/SalesReturnModal.tsx` | `components/sales/salesReturnSave.ts` |
+| `app/onboarding/page.tsx` | `components/onboarding/onboardingSubmit.ts` |
+| `app/invoice/page.tsx` | `components/invoices/SharedInvoiceSheet.tsx` |
+| `components/khata/ConsolidatedStatementModal.tsx` | `ConsolidatedStatementA4.tsx` |
+| `types/index.ts`, `lib/invoices/invoiceDocument.ts`, `lib/reports/advancedReports.ts` | `types/records.ts`, `invoiceDocumentTypes.ts`, `reportPeriod.ts` — re-exported, imports unchanged |
+
 | Table | Feature code that writes it |
 | :--- | :--- |
 | **`businesses`** | `app/invoice-designer/page.tsx` (update)<br>`app/settings/page.tsx` (update)<br>`components/layout/Navbar.tsx` (update)<br>`lib/invoices/invoiceNumberService.ts` (update) |
@@ -660,7 +677,7 @@ back to the shop's `gst_pricing_mode`. **Since v4.38.0 there is exactly one rule
 
 ## 6. Core workflows
 
-### 6.1 Completing a sale — `handleCompleteSale` in `src/app/billing/page.tsx`
+### 6.1 Completing a sale — `handleCompleteSale` in `src/app/billing/page.tsx` → `completeSale` in `src/components/billing/posSaleActions.ts` (since v4.104.0)
 
 This is the highest-risk function in the codebase. It writes **five tables** and touches
 three other screens. The order matters:
@@ -1570,6 +1587,7 @@ Each was a real bug that cost real time. The test suite guards most of them.
 | 39 | **GST & Tally treated returns as a quiet change to the old bill (before v4.101.0).** A partial return shrank the bill in its own month (a month the shop may have filed), a fully returned B2B bill vanished from GSTR-1 with no credit note (table 9B), Tally netted returns into the sale voucher on the bill's date, GSTR-3B was not in the app, Tally ledgers lacked NAME.LIST and udhar had no bill-wise allocation ("On Account"). (K-D04, K-D11, K-D22) | `lib/gst/periodSupplies.ts`: a period = its bills as issued + credit notes for returns dated in it (pre-record returns stay netted on the bill). GSTR-1 JSON (`cdnr`, B2CS / HSN net, doc 5), the GST screen (`b2b_credit_notes`, GSTR-3B tab via `lib/gst/gstr3b.ts`), and Tally (Sales + Credit Note vouchers, ISPARTYLEDGER + BILLALLOCATIONS, PERSISTEDVIEW) all read it. GST page loads returns in the period + of its bills, and the original bills. Suite 21 "v4.101.0" block (9 checks, Tally parsed with @xmldom). **Still to do on a real Tally company** (K-D11 stays open for that). E-invoice / e-way bill need an IRP / GSP account and API — not offline. |
 | 40 | **Open gaps the shop would hit (before v4.102.0).** (K-D07) An estimate could be converted but not made — and an EST- number would have pushed the next bill number (`getMaxUsedInvoiceSeq` read EST-012 as 12). (K-D03) No udhar limit. (K-D02) A closed shift could not be seen again. (K-D06) Starred items were not first. (K-D21) No way to send goods back to a supplier (debit note) or to keep a purchase order. | `lib/billing/estimate.ts` (`nextEstimateNumber` with a per-PC floor so a converted number is not reused, `buildEstimateSale` — draft, nothing paid / owed); `handleSaveEstimate` in the counter writes only `sales`; `invoiceNumberService` skips EST- keys. `lib/billing/creditLimit.ts` (warn, shop decides; `credit_limit` ↔ cloud `credit_limit_paise`). `CashShiftHistory.tsx`. `favouritesFirst` in `posLayout.ts`. `lib/purchases/supplierDocs.ts` (purchase_bills `kind`; debit note = stock + record + supplier account in one transaction; order changes nothing until "Received" = a normal inward, once). Suite 21 "v4.102.0" block (19 checks). |
 | 41 | **Loose ends (before v4.103.0).** (K-D12) The route guard listed 8 pages that never existed. (K-D31) The app named Mukta but did not ship it — PCs without it showed Nirmala UI. (K-D30) `ELECTRON_RUN_AS_NODE=1` turned the installed exe into plain Node. (K-D17) The E2E's first licensed launch failed at 20 s on a cold start. (K-D01) `src/lib/payments` (phone notification parser, Capacitor payment bridge, soundbox) was dead code. (K-D05) A mistyped GSTIN passed the format check. (K-D28) The same item typed on the phone and the PC showed twice after sync (also an Excel list imported twice). | AppShell names only real routes; `@font-face` ×15 in `globals.css` → `src/assets/fonts` (OFL); `build.electronFuses` (runAsNode / NODE_OPTIONS / inspect off); `FIRST_LAUNCH_WAIT_MS` 60 s; payments code deleted (dead-module list); `gstinCheckChar` in `validateGstin`; `lib/products/duplicates.ts` (`findDuplicateGroups`, `mergeDuplicateProducts` — one transaction, references moved before the copies are deleted) + `DuplicateItemsReview` on Products. Suite 21 "v4.103.0" block. |
+| 42 | **Files too big to change safely (before v4.104.0, K-D23).** `billing/page.tsx` 2,227 lines, `khata/page.tsx` 1,176, `products/page.tsx` 675 and 12 more over the 400-line rule — every change to the counter risked the rest of it. | Each moved verbatim (TypeScript-compiler free-variable list → props / deps typed from the checker, same hook order, values read per render as before) into the files listed just above the table-writers list; no behaviour change. Tests that read a page's code read the page + its parts (`readCounter`, `readKhata`, `readProductsPage`, `readSettingsPage`, `readProductForm`, `readOnboarding`). Suite 21 "v4.104.0": no `src` file over 400 lines. |
 ---
 
 ## 11. Verification protocol (AGENTS.md Rule 6)
@@ -1578,7 +1596,7 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 826/826, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 829/829, 0 failures
 node scripts/help_impact.mjs        # which help guides the change touches → row in docs/HELP_SYNC.md (Rule 7)
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
@@ -1631,7 +1649,7 @@ bypassed; without the key only the no-licence checks run. The script removes
 `ELECTRON_RUN_AS_NODE` (set by VS Code terminals), which otherwise stops Electron
 launching. Failure screenshots go to `%TEMP%\kamaiplus-e2e-shots\`.
 
-### Test suite map — `scripts/e2e_simulation.ts` (826 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (829 assertions)
 
 | Suite | Covers |
 | :--- | :--- |

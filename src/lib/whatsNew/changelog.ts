@@ -15,6 +15,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.104.0',
+    items: [
+      msg('Behind the scenes: the Billing, Khata, Products and Settings screens were split into smaller parts so future fixes are safer. Nothing changes in how they work.'),
+    ],
+  },
+  {
     version: '4.103.0',
     items: [
       msg('Products: if the same item is saved twice (same barcode, or same name and unit), a "Review" bar lets you merge them into one — bills and stock history move to the item you keep.'),
