@@ -85,7 +85,7 @@ export const PWAInstallBanner: React.FC = () => {
           <div className="bg-slate-900 border border-slate-700 text-white rounded-2xl max-w-sm w-full p-5 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
               <div className="flex items-center gap-2">
-                <img src="/logo.png" alt="Kamai+" className="w-7 h-7 object-contain" />
+                <img src="/logo.png" alt="KamaiPlus" className="w-7 h-7 object-contain" />
                 <span className="font-bold text-xs">Install on iPhone / iPad</span>
               </div>
               <button

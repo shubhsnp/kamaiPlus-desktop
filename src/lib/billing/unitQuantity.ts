@@ -1,15 +1,16 @@
 /*
  * Quantities by unit on the counter (v4.78.0) — what the ✏️ item window allows.
  *
- *   piece, pair, set, packet → whole numbers only (a piece cannot be cut)
- *   box, bundle, custom      → parts too: ¼, ½, ¾ box …
+ *   piece, pair, set, packet,
+ *   bottle, can              → whole numbers only (v4.100.0: bottle / can took 1.5 too)
+ *   box, bundle, bag, custom → parts too: ¼, ½, ¾ box, half a sack …
  *   dozen                    → parts, or pieces: 7 pcs = 7/12 dozen
  *   kg, litre, metre …       → any amount (250 g = 0.25 kg)
  *
  * The line amount is always rate × quantity (the rate is per unit), rounded to paise.
  */
 
-const WHOLE_ONLY = ['piece', 'pair', 'set', 'packet'];
+const WHOLE_ONLY = ['piece', 'pair', 'set', 'packet', 'bottle', 'can'];
 
 /** Can this unit be sold in parts? An item marked "decimals allowed" always can. */
 export function allowsFractionalQty(unit: string | undefined, allowDecimal?: boolean): boolean {

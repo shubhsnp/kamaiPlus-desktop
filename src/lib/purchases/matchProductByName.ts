@@ -16,32 +16,54 @@ export function normalizeName(text: string): string {
     .trim();
 }
 
+// Pack units written many ways on bills: "1 Ltr", "1L", "1 litre" are the same size.
+const UNIT_ALIASES: Record<string, string> = {
+  l: 'l', lt: 'l', ltr: 'l', ltrs: 'l', litre: 'l', litres: 'l', liter: 'l', liters: 'l',
+  ml: 'ml', mls: 'ml', kg: 'kg', kgs: 'kg', kilo: 'kg', g: 'g', gm: 'g', gms: 'g', gr: 'g', gram: 'g', grams: 'g',
+  pc: 'pc', pcs: 'pc', piece: 'pc', pieces: 'pc', m: 'm', mtr: 'm', mtrs: 'm', meter: 'm', metre: 'm',
+};
+
 /**
- * Computes a simple token overlap similarity score between 0 and 1
+ * A name split into its size ("500 ml", "1 l") and its words, for matching bill lines to items.
+ * Exported for the tests.
  */
-function computeTokenSimilarity(a: string, b: string): number {
-  const normA = normalizeName(a);
-  const normB = normalizeName(b);
-
-  if (!normA || !normB) return 0;
-  if (normA === normB) return 1.0;
-
-  const tokensA = normA.split(' ').filter((t) => t.length > 1);
-  const tokensB = normB.split(' ').filter((t) => t.length > 1);
-
-  if (tokensA.length === 0 || tokensB.length === 0) return 0;
-
-  const setB = new Set(tokensB);
-  let intersectionCount = 0;
-  for (let i = 0; i < tokensA.length; i++) {
-    if (setB.has(tokensA[i])) {
-      intersectionCount++;
+export function nameParts(text: string): { words: string[]; size: string } {
+  const prepared = (text || '').replace(/(\d)[.,](\d)/g, '$1p$2'); // 1.5 kg keeps its point
+  const tokens = normalizeName(prepared)
+    .replace(/(\d)(?!p\d)([a-z])/g, '$1 $2') // 500ml → 500 ml (but 1p5 = 1.5 stays one number)
+    .replace(/([a-z])(?<!\dp)(\d)/g, '$1 $2')
+    .split(' ')
+    .filter(Boolean);
+  const size: string[] = [];
+  const words: string[] = [];
+  tokens.forEach((t, i) => {
+    if (/^\d+(p\d+)?$/.test(t)) {
+      const unit = UNIT_ALIASES[tokens[i + 1]] || '';
+      size.push(t.replace(/^0+(?=\d)/, '') + unit);
+    } else if (UNIT_ALIASES[t] && i > 0 && /^\d+(p\d+)?$/.test(tokens[i - 1])) {
+      // the unit of the number before it — already in `size`
+    } else if (t.length > 1) {
+      words.push(t.length > 3 && t.endsWith('s') ? t.slice(0, -1) : t); // biscuits = biscuit
     }
-  }
+  });
+  return { words: Array.from(new Set(words)), size: size.sort().join(' ') };
+}
 
-  const allTokens = tokensA.concat(tokensB);
-  const unionCount = new Set(allTokens).size;
-  return unionCount === 0 ? 0 : intersectionCount / unionCount;
+/**
+ * How well a bill line's name fits a saved item (0 = not the same item), v4.100.0 (K-D32).
+ * Before, half the words in common was enough: "Sesame Oil 500 ml" went to "Coconut Oil 500 ml"
+ * and its stock landed on the wrong item. Now the size must be the same and every word of the
+ * shorter name must be in the longer one ("Sunflower Oil 1 L" = "Fortune Sunflower Oil 1 Ltr").
+ */
+export function nameMatchScore(a: string, b: string): number {
+  const pa = nameParts(a);
+  const pb = nameParts(b);
+  if (pa.size !== pb.size) return 0;
+  const [short, long] = pa.words.length <= pb.words.length ? [pa.words, pb.words] : [pb.words, pa.words];
+  if (short.length === 0) return 0;
+  const longSet = new Set(long);
+  if (!short.every((w) => longSet.has(w))) return 0;
+  return short.length / long.length;
 }
 
 /**
@@ -66,11 +88,13 @@ export function matchExtractedItemsWithProducts(
       highestScore = 1.0;
     }
 
+    let tie = false;
     for (const product of byCode ? [] : candidates) {
       // 1. Direct name match (an empty name never matches)
       if (itemName && normalizeName(product.name) === itemName) {
         bestMatch = product;
         highestScore = 1.0;
+        tie = false;
         break;
       }
 
@@ -78,16 +102,22 @@ export function matchExtractedItemsWithProducts(
       if (product.barcode && product.barcode === item.raw_name) {
         bestMatch = product;
         highestScore = 1.0;
+        tie = false;
         break;
       }
 
-      // 3. Token similarity match
-      const similarity = computeTokenSimilarity(product.name, item.raw_name);
-      if (similarity > highestScore && similarity >= 0.5) {
-        highestScore = similarity;
+      // 3. Same item written differently (same size, the shorter name's words all in the longer)
+      const score = nameMatchScore(product.name, item.raw_name);
+      if (score > highestScore) {
+        highestScore = score;
         bestMatch = product;
+        tie = false;
+      } else if (score > 0 && score === highestScore) {
+        tie = true;
       }
     }
+    // Two saved items fit equally well: the shop picks (a wrong guess puts stock on the wrong item).
+    if (tie) bestMatch = null;
 
     if (bestMatch) {
       return {

@@ -14,7 +14,7 @@ import {
   RefreshCw,
   Send
 } from 'lucide-react';
-import { Business, Sale, CashExpense, LedgerTransaction } from '@/types';
+import { Business, Sale, CashExpense, LedgerTransaction, SalesReturn } from '@/types';
 import { formatINR } from '@/lib/utils';
 import { generateDailyClosingPDF } from '@/lib/reports/dailyClosingPdf';
 import { localDateKey, summarizeDay } from '@/lib/reports/cashDrawer';
@@ -32,6 +32,8 @@ interface DayEndClosingReportModalProps {
   ledger?: LedgerTransaction[];
   /** The day's morning float (`dayOpeningFloat`): net cash in hand is what the drawer holds (K-D38). */
   openingCash?: number;
+  /** Returns of that day's bills: refunds come off how each bill was paid, as in Transactions. */
+  returns?: SalesReturn[];
   selectedDate?: string; // YYYY-MM-DD
 }
 
@@ -43,6 +45,7 @@ export const DayEndClosingReportModal: React.FC<DayEndClosingReportModalProps> =
   expenses,
   ledger,
   openingCash,
+  returns,
   selectedDate,
 }) => {
   const [copied, setCopied] = useState(false);
@@ -50,14 +53,15 @@ export const DayEndClosingReportModal: React.FC<DayEndClosingReportModalProps> =
   const targetPhone = business?.phone || '';
   // Local calendar day (the old UTC date put 12–5:30 AM bills on the previous day).
   const datePrefix = selectedDate || localDateKey(new Date());
-  const day = summarizeDay({ sales, expenses, ledger, openingCash, dateKey: datePrefix });
+  const day = summarizeDay({ sales, expenses, ledger, openingCash, returns, dateKey: datePrefix });
 
   // Estimates, cancelled and fully returned bills are not sales; change handed back is not cash kept.
   const daysSales = day.sales;
   const totalSalesPaise = day.netSalesPaise;
-  const cashSalesPaise = day.cashSales;
-  const upiSalesPaise = day.upiSales + day.cardSales;
-  const creditSalesPaise = day.creditSales;
+  // After returns (K-D35): these three add up to the total sales above.
+  const cashSalesPaise = day.paidBy.cash;
+  const upiSalesPaise = day.paidBy.upi + day.paidBy.card;
+  const creditSalesPaise = day.paidBy.credit;
   const totalItemsCount = day.itemsCount;
   const totalExpensePaise = day.totalExpensePaise;
   const cashExpensePaise = day.cashExpenses;
@@ -134,6 +138,7 @@ export const DayEndClosingReportModal: React.FC<DayEndClosingReportModalProps> =
         expenses,
         ledger,
         openingCash,
+        returns,
         dateStr: datePrefix,
       });
 

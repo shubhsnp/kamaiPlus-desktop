@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import { Business, Sale, CashExpense, LedgerTransaction } from '@/types';
+import { Business, Sale, CashExpense, LedgerTransaction, SalesReturn } from '@/types';
 import { formatINR } from '@/lib/utils';
 import { localDateKey, summarizeDay } from '@/lib/reports/cashDrawer';
 
@@ -10,11 +10,12 @@ export interface DailyClosingData {
   /** That day's khata entries and morning float — same net cash as the Day Summary card (v4.99.0). */
   ledger?: LedgerTransaction[];
   openingCash?: number;
+  returns?: SalesReturn[];
   dateStr: string; // YYYY-MM-DD
 }
 
 export function generateDailyClosingPDF(data: DailyClosingData): { blob: Blob; filename: string } {
-  const { business, sales, expenses, ledger, openingCash, dateStr } = data;
+  const { business, sales, expenses, ledger, openingCash, returns, dateStr } = data;
   const storeName = business?.name || 'Proventure Store';
   const ownerName = business?.owner_name || 'Store Owner';
   const phone = business?.phone || '';
@@ -32,13 +33,13 @@ export function generateDailyClosingPDF(data: DailyClosingData): { blob: Blob; f
   });
 
   // Calculations — same local-day and drawer rules as the Cash Register screen
-  const day = summarizeDay({ sales, expenses, ledger, openingCash, dateKey: dateStr });
+  const day = summarizeDay({ sales, expenses, ledger, openingCash, returns, dateKey: dateStr });
   const daysSales = day.sales;
   const daysExpenses = expenses.filter((e) => localDateKey(new Date(e.created_at)) === dateStr);
   const totalSalesPaise = day.netSalesPaise;
-  const cashSalesPaise = day.cashSales;
-  const upiSalesPaise = day.upiSales + day.cardSales;
-  const creditSalesPaise = day.creditSales;
+  const cashSalesPaise = day.paidBy.cash; // after returns, as on the Day Summary card (K-D35)
+  const upiSalesPaise = day.paidBy.upi + day.paidBy.card;
+  const creditSalesPaise = day.paidBy.credit;
   const totalItemsCount = day.itemsCount;
   const totalExpensePaise = day.totalExpensePaise;
   const cashExpensePaise = day.cashExpenses;

@@ -86,9 +86,11 @@ export function PurchaseInwardOptionsSheet({
       const totalAmountPaise = enrichedItems.reduce((sum, i) => sum + i.total_price, 0);
 
       setReviewData({
-        supplier_name_raw: file.name.replace(/\.[^/.]+$/, ''),
-        bill_number: `CSV_${Date.now().toString().slice(-4)}`,
-        bill_date: new Date().toISOString().split('T')[0],
+        // From the sheet's title rows when it has them; the file name only as a last resort, and
+        // no made-up bill number (it was "CSV_5805") — the shop types the real one if it is not there.
+        supplier_name_raw: sheet.heading.supplier || file.name.replace(/\.[^/.]+$/, ''),
+        bill_number: sheet.heading.billNumber || '',
+        bill_date: sheet.heading.billDate || new Date().toISOString().split('T')[0],
         total_amount: totalAmountPaise,
         line_items: enrichedItems,
         ai_model_used: 'csv-direct-parser',

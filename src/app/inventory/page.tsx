@@ -40,7 +40,9 @@ export default function InventoryPage() {
     return all.filter((p) => p.is_active !== false);
   }) || [];
   const suppliers = useLiveQuery(async () => db.suppliers.toArray()) || [];
-  const movements = useLiveQuery(async () => db.inventory_movements.reverse().limit(100).toArray()) || [];
+  // Newest first by time (v4.100.0, K-D34): `.reverse()` on the table ran on the random string id,
+  // so a sale made a minute ago or a fresh "+10 Stock" could sit anywhere in the list.
+  const movements = useLiveQuery(async () => db.inventory_movements.orderBy('created_at').reverse().limit(100).toArray()) || [];
 
   // Low stock products
   const lowStockProducts = useMemo(() => {

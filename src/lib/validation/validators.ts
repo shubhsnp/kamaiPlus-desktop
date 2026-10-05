@@ -1,6 +1,6 @@
 import { msg, tr } from '@/lib/i18n/core';
 /**
- * Enterprise Validation Engine for KamaiPlus (Kamai+)
+ * Enterprise Validation Engine for KamaiPlus
  * Standardized, strict, and user-friendly validation across all platform forms.
  */
 

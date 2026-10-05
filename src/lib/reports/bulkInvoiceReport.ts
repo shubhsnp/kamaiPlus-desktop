@@ -32,7 +32,7 @@ export async function generateBulkInvoicesPDF({
     return { ok: false, error: tr('No invoices selected to download.') };
   }
 
-  const storeName = business.name || 'Kamai+ Store';
+  const storeName = business.name || 'KamaiPlus Store';
   const storePhone = storePhones(business) ? `Ph: ${storePhones(business)}` : '';
   const storeGst = business.gstin ? `GSTIN: ${business.gstin}` : '';
   const storeAddress = business.address || '';

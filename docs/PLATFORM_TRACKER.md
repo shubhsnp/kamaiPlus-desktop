@@ -138,7 +138,7 @@ Order zaroori hai: **pehle data surakshit → phir data ka ek format → phir lo
 
 ## 4. Kamiyan (count)
 
-**Total: 74** — Platform 17 · Android 17 · Desktop 40. **Open 53 · Done 21.**
+**Total: 74** — Platform 17 · Android 17 · Desktop 40. **Open 48 · Done 26.**
 🔴 = paisa / data / security / Play Store risk · 🟠 = galat ya adhoora behaviour · 🟢 = chhota / feature gap
 
 ### Platform / website (K-P)
@@ -220,11 +220,11 @@ Order zaroori hai: **pehle data surakshit → phir data ka ek format → phir lo
 | K-D23 | 16 files 400 line ke niyam se badi — `billing/page.tsx` **2,254**, `khata/page.tsx` 1,175, `products/page.tsx` 655 … Sabse zaroori screen mein har badlav sabse risky (FS-04, FS-15) | 🟠 | Open |
 | K-D31 | App ka font **Mukta** (`globals.css`: `'Mukta', 'Noto Sans Devanagari', 'Nirmala UI', 'Inter', …`) par font file app mein **bundle nahi** (`layout.tsx` `<head />` khaali, `out/` mein koi `@font-face` nahi). Dev PC par Mukta install hai isliye wahi dikhta; jis dukaan ke PC par Mukta install nahi, wahan Windows **Nirmala UI** dikhata — website (Mukta) se alag. Fix: Mukta woff2 (`src/assets/fonts` jaise) app mein bundle + `@font-face` (2026-10-04 website ke kaam mein mila) | 🟢 | Open |
 | K-D30 | Installer ke exe mein Electron ka "RunAsNode" fuse khula — `ELECTRON_RUN_AS_NODE=1` ke saath `KamaiPlus Desktop.exe` plain Node ban jaata hai (VS Code terminal se chalane par yahi dikha, 2026-10-03). Dukaan par khatra kam, par band karna chahiye (`@electron/fuses`, build ke `afterPack` mein) | 🟠 | Open |
-| K-D32 | Supplier ka Excel bill: naya item kisi aur saved item se jud jaata hai jab naam ke zyada shabd milte hain ("Sesame Oil 500 ml" → "Coconut Oil 500 ml", 3/5 shabd = 0.6 ≥ 0.5) — stock galat item mein jaata. `lib/purchases/matchProductByName.ts` (website help ki demo tour mein mila, 2026-10-04) | 🔴 | Open |
-| K-D33 | App mein abhi bhi "Kamai+" likha (brand KamaiPlus) — 10 files mein 11 jagah, master-password screen ke logo ke saath bhi (`app/auth/page.tsx`, Sidebar, themeDefaults, validators, db, reports, firebase config, PWA banner, types) | 🟢 | Open |
-| K-D34 | Inventory → Stock Audit Trail "last 100 movements" time se nahi, id se ulta (`inventory_movements.reverse()` primary key par, `app/inventory/page.tsx:43`) — sale ki entries aur abhi kiya "+10 Stock" upar nahi dikhe | 🟠 | Open |
-| K-D35 | UPI bill ka cash refund: Transactions UPI total ghatata (₹2,190 → ₹2,102), Day Summary UPI ₹2,190 hi rakhta — Day Summary mein cash + UPI + udhar (₹6,312) ≠ total (₹6,224) | 🟠 | Open |
-| K-D36 | Excel import "Bottle / Can / Pouch / Jar / Tube / Cup" ko piece bana deta, jabki app mein Bottle aur Can unit hain (`mapUnit`, `lib/import/catalogImport.ts`) | 🟢 | Open |
+| K-D32 | Supplier ka Excel bill: naya item kisi aur saved item se jud jaata hai jab naam ke zyada shabd milte hain ("Sesame Oil 500 ml" → "Coconut Oil 500 ml", 3/5 shabd = 0.6 ≥ 0.5) — stock galat item mein jaata. `lib/purchases/matchProductByName.ts` (website help ki demo tour mein mila, 2026-10-04) | 🔴 | Done v4.100.0 |
+| K-D33 | App mein abhi bhi "Kamai+" likha (brand KamaiPlus) — 10 files mein 11 jagah, master-password screen ke logo ke saath bhi (`app/auth/page.tsx`, Sidebar, themeDefaults, validators, db, reports, firebase config, PWA banner, types) | 🟢 | Done v4.100.0 |
+| K-D34 | Inventory → Stock Audit Trail "last 100 movements" time se nahi, id se ulta (`inventory_movements.reverse()` primary key par, `app/inventory/page.tsx:43`) — sale ki entries aur abhi kiya "+10 Stock" upar nahi dikhe | 🟠 | Done v4.100.0 |
+| K-D35 | UPI bill ka cash refund: Transactions UPI total ghatata (₹2,190 → ₹2,102), Day Summary UPI ₹2,190 hi rakhta — Day Summary mein cash + UPI + udhar (₹6,312) ≠ total (₹6,224) | 🟠 | Done v4.100.0 |
+| K-D36 | Excel import "Bottle / Can / Pouch / Jar / Tube / Cup" ko piece bana deta, jabki app mein Bottle aur Can unit hain (`mapUnit`, `lib/import/catalogImport.ts`) | 🟢 | Done v4.100.0 |
 | K-D37 | Har A4 bill ke neeche (grahak ke haath mein) **"⚡ KAMAI+ POS • India's #1 Retail POS & GST Billing App"** chhapta — brand galat (KamaiPlus) aur "India's #1" ka koi saboot nahi (ASCI / galat-daava risk). `components/invoices/print/A4TaxInvoice.tsx:262`. Fix: "KamaiPlus" + tagline, bina #1 (2026-10-05 help guide ke invoice-themes screenshot mein dikha) | 🟠 | Done v4.99.0 |
 | K-D38 | Day Summary ka **"Net Cash in Hand"** (WhatsApp / PDF mein "Net Cash in Till") opening float nahi jodta: demo din ₹2,000 float + ₹2,643 cash − ₹2,208 = galla mein ₹2,435, par summary ₹435 dikhata. Shift close ke baad Cash Register bhi "Opening Float ₹0 · Expected ₹435". `lib/reports/cashDrawer.ts` `summarizeDay` (sessions / float nahi milta) | 🟠 | Done v4.99.0 |
 | K-D39 | Billing counter ka "items" asal mein units ka jod hai (`totalItemCount = Σ quantity`, `app/billing/page.tsx:838`): 7 line wala bill "Cart Items (8)" aur "8 items • 8 units" dikhata, jabki Sale Completed usi bill ko "7 items" (`sale.items.length`). Loose 1.5 kg par "items" bhi 1.5 jaisa aadha aata. Fix: items = lines, units = quantity | 🟢 | Done v4.99.0 |

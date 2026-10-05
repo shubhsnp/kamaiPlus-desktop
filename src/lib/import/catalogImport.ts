@@ -82,7 +82,11 @@ export function parseAmount(v: unknown): number | null {
 const UNIT_WORDS: [ProductUnit, string[]][] = [
   ['box', ['बॉक्स', 'box', 'boxes', 'डिब्बा', 'carton', 'ctn']],
   ['packet', ['पॅकेट', 'पैकेट', 'packet', 'packets', 'pkt', 'pack', 'pouch']],
-  ['bundle', ['थैली', 'bag', 'bags', 'bundle', 'bdl']],
+  ['bundle', ['थैली', 'bundle', 'bdl']],
+  // The app's own Bottle, Can / Tin and Bag / Sack units (v4.100.0, K-D36 — they all became "piece").
+  ['bottle', ['bottle', 'bottles', 'btl', 'बोतल', 'jar', 'jars']],
+  ['can', ['can', 'cans', 'tin', 'tins', 'टिन', 'कैन']],
+  ['bag', ['bag', 'bags', 'sack', 'sacks', 'बोरी', 'थैला']],
   ['piece', ['युनिट', 'unit', 'units', 'pc', 'pcs', 'piece', 'pieces', 'nos', 'no', 'नग', 'पिस', 'पीस', 'each']],
   ['kg', ['kg', 'kgs', 'किलो', 'kilo']],
   ['gram', ['g', 'gm', 'gms', 'gram', 'grams', 'ग्राम']],
@@ -104,7 +108,7 @@ export function mapUnit(text: unknown): { unit: ProductUnit; pack?: string } {
   const count = m ? Number(m[1]) : 1;
   const word = (m ? m[2] : s).toLowerCase().replace(/\.$/, '');
   const unit = UNIT_WORDS.find(([, ws]) => ws.includes(word))?.[0] || 'piece';
-  if (count > 1) return { unit: unit === 'piece' || unit === 'box' ? 'box' : 'bundle', pack: s };
+  if (count > 1) return { unit: ['piece', 'box', 'bottle', 'can'].includes(unit) ? 'box' : 'bundle', pack: s };
   return { unit };
 }
 

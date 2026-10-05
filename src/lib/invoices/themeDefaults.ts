@@ -24,7 +24,9 @@ export const INVOICE_HEADINGS = ['TAX INVOICE', 'RETAIL INVOICE', 'CASH MEMO', '
 export const DEFAULT_INVOICE_COLOR = '#0284C7';
 export const DEFAULT_INVOICE_HEADING = 'TAX INVOICE';
 export const DEFAULT_INVOICE_TERMS =
-  '1. Goods once sold cannot be taken back or exchanged.\n2. Electronic invoice generated via Kamai+ POS System.';
+  '1. Goods once sold cannot be taken back or exchanged.\n2. Bill made with KamaiPlus.';
+/** The old default's last line (before v4.100.0, K-D33): saved terms still carrying it print the new one. */
+const OLD_BRAND_TERMS_LINE = 'Electronic invoice generated via ' + 'Kamai' + '+ POS System.';
 export const DEFAULT_INVOICE_FOOTER = 'Thank you for shopping with us! Visit again.';
 
 export const DEFAULT_INVOICE_THEME_CONFIG: InvoiceThemeConfig = {
@@ -63,7 +65,7 @@ export function resolveInvoiceConfig(business?: Business | null): InvoiceThemeCo
   const merged: InvoiceThemeConfig = { ...DEFAULT_INVOICE_THEME_CONFIG, ...(saved || {}) };
   merged.primary_color = isHexColor(merged.primary_color) ? merged.primary_color : DEFAULT_INVOICE_COLOR;
   merged.custom_title = (merged.custom_title || '').trim() || DEFAULT_INVOICE_HEADING;
-  merged.custom_terms = (saved?.custom_terms || business?.terms_conditions || DEFAULT_INVOICE_TERMS).trim();
+  merged.custom_terms = (saved?.custom_terms || business?.terms_conditions || DEFAULT_INVOICE_TERMS).replace(OLD_BRAND_TERMS_LINE, 'Bill made with KamaiPlus.').trim();
   merged.custom_footer = (saved?.custom_footer || business?.footer_message || DEFAULT_INVOICE_FOOTER).trim();
   merged.drug_license_no = (merged.drug_license_no || business?.drug_license_no || '').trim();
   merged.pharmacist_reg_no = (merged.pharmacist_reg_no || business?.pharmacist_reg_no || '').trim();

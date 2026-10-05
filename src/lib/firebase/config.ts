@@ -105,7 +105,7 @@ export function getFirebaseRemoteConfig(): RemoteConfig | null {
         platform_ad_title: '⚡ Billed with KamaiPlus POS',
         platform_ad_subtitle: 'Free Retail Invoicing & Khata',
         platform_ad_desc: 'Get your free GST billing & WhatsApp invoicing app • kamaiplus.proventure.in',
-        platform_ad_badge: 'Kamai+',
+        platform_ad_badge: 'KamaiPlus',
         platform_ad_url: 'https://kamaiplus.proventure.in',
         platform_ad_enabled: true,
       };

@@ -15,6 +15,17 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.100.0',
+    items: [
+      msg('Home "Cash in Hand" and the Day Summary now count the morning cash you opened the drawer with, so they show what your galla really holds.'),
+      msg("Day Summary after a return: cash, UPI and udhar now add up to the day's total sales."),
+      msg('GST screen, GSTR-1 file and Tally: CGST and SGST are now equal halves (they used to differ by a few paise).'),
+      msg("Supplier's Excel bill: an item is matched only when its name and pack size really agree, so another oil or size is offered as a new item. The supplier, bill number and date are read from the top of the sheet."),
+      msg('Billing: "items" now counts the lines on the bill; "units" adds up the quantities. Bottles and cans are billed in whole numbers; a bag / sack can be sold in parts (¼, ½, ¾).'),
+      msg('Stock Audit Trail shows the newest change first. Excel price lists keep Bottle, Can / Tin and Bag / Sack units. Bills and screens say "KamaiPlus".'),
+    ],
+  },
+  {
     version: '4.81.0',
     items: [
       msg('Products: the search now finds items by HSN, size and colour too, and every category can be reached — “All categories” opens them all.'),

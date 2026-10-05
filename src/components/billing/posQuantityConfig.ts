@@ -100,7 +100,7 @@ export function getQuantityConfigForUnit(unit?: ProductUnit) {
   }
 
   // A box / bundle can be sold in parts (v4.78.0): ¼, ½, ¾ … — the amount follows the rate per unit.
-  if (normUnit === 'box' || normUnit === 'bundle' || normUnit === 'custom') {
+  if (normUnit === 'box' || normUnit === 'bundle' || normUnit === 'bag' || normUnit === 'custom') {
     return {
       unitLabel: tr('Quantity ({v1})', { v1: normUnit.charAt(0).toUpperCase() + normUnit.slice(1) }),
       step: 'any',

@@ -60,6 +60,52 @@ export interface BillSheetResult {
   columns: BillColumns;
   /** msg id when nothing could be read. */
   error?: string;
+  /** What the title rows above the headings say (supplier, bill number, date), when they say it. */
+  heading: BillHeading;
+}
+
+export interface BillHeading {
+  supplier?: string;
+  billNumber?: string;
+  /** yyyy-mm-dd */
+  billDate?: string;
+}
+
+// (?<![a-z]) not \b: \b never matches before a Hindi word such as "बिल".
+const BILL_NO = /(?<![a-z])(?:bill|invoice|inv|challan|बिल|बील)(?![a-z])\.?\s*(?:no\.?|number|num|#|नं\.?|क्र\.?)?\s*[:#\-–—]?\s*([A-Za-z0-9][A-Za-z0-9/\-]{0,24})/i;
+const DATE = /\b(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2}|\d{4})\b/;
+
+/**
+ * The supplier's name, bill number and date from the title rows of a bill sheet (v4.100.0).
+ * Before, the supplier was the file's name and the bill number a made-up "CSV_5805", though
+ * the sheet said "Shree Ganesh Distributors — Bill 2291".
+ */
+export function readBillHeading(rows: unknown[][]): BillHeading {
+  const heading: BillHeading = {};
+  for (const r of rows) {
+    for (const c of r || []) {
+      const text = clean(c);
+      if (!text) continue;
+      const no = BILL_NO.exec(text);
+      if (no && !heading.billNumber && /\d/.test(no[1])) heading.billNumber = no[1];
+      const d = DATE.exec(text);
+      if (d && !heading.billDate) {
+        const year = d[3].length === 2 ? 2000 + Number(d[3]) : Number(d[3]);
+        const month = Number(d[2]), day = Number(d[1]);
+        if (month >= 1 && month <= 12 && day >= 1 && day <= 31) heading.billDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      }
+      // The supplier: the first text that is not only a bill number / date / GSTIN line.
+      const name = text
+        .replace(BILL_NO, '')
+        .replace(DATE, '')
+        .replace(/\b(date|dated|दिनांक|तारीख)\b\s*[:\-]?/gi, '')
+        .replace(/[\s:|,–—-]+$/g, '')
+        .replace(/^[\s:|,–—-]+/g, '')
+        .trim();
+      if (!heading.supplier && name.length >= 3 && /[A-Za-zऀ-෿]/.test(name) && !/^(gstin|gst|phone|mobile|ph|address|tax invoice|invoice|bill)\b/i.test(name)) heading.supplier = name;
+    }
+  }
+  return heading;
 }
 
 /** Sheet grid (rows of cells, first sheet) → bill lines, prices in paise. */
@@ -67,7 +113,7 @@ export function readBillSheet(grid: unknown[][]): BillSheetResult {
   const headerIndex = findHeaderRow(grid);
   const headers = ((grid[headerIndex] as unknown[]) || []).map((h) => String(h ?? ''));
   const columns = guessBillColumns(headers);
-  const result: BillSheetResult = { items: [], skipped: 0, columns };
+  const result: BillSheetResult = { items: [], skipped: 0, columns, heading: readBillHeading(grid.slice(0, Math.max(0, headerIndex))) };
   if (columns.name < 0) {
     result.error = msg('No item-name column found. The first row should have headings like "Item", "Qty", "Rate".');
     return result;

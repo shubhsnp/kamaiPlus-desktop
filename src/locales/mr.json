@@ -2644,5 +2644,11 @@
   "FMCG": "FMCG",
   "Loose Items": "सुटे सामान",
   "Apparel": "कपडे",
-  "Accessories": "ॲक्सेसरीज"
+  "Accessories": "ॲक्सेसरीज",
+  "Home \"Cash in Hand\" and the Day Summary now count the morning cash you opened the drawer with, so they show what your galla really holds.": "Home वरील \"Cash in Hand\" आणि Day Summary आता सकाळी गल्ला उघडताना ठेवलेली रोकडही जोडतात, म्हणजे गल्ल्यात खरोखर जितके आहे तितके दिसते.",
+  "Day Summary after a return: cash, UPI and udhar now add up to the day's total sales.": "रिटर्ननंतर Day Summary: रोख, UPI आणि उधारी आता दिवसाच्या एकूण विक्रीइतकी होते.",
+  "GST screen, GSTR-1 file and Tally: CGST and SGST are now equal halves (they used to differ by a few paise).": "GST स्क्रीन, GSTR-1 फाइल आणि Tally: CGST आणि SGST आता बरोबर निम्मे आहेत (आधी काही पैशांचा फरक येत होता).",
+  "Supplier's Excel bill: an item is matched only when its name and pack size really agree, so another oil or size is offered as a new item. The supplier, bill number and date are read from the top of the sheet.": "सप्लायरचे Excel बिल: नाव आणि पॅक साइज खरोखर जुळले तरच आयटम जुळवला जातो, त्यामुळे दुसरे तेल किंवा दुसरा साइज नवीन आयटम म्हणून येतो. सप्लायर, बिल नंबर आणि तारीख शीटच्या वरून वाचली जाते.",
+  "Billing: \"items\" now counts the lines on the bill; \"units\" adds up the quantities. Bottles and cans are billed in whole numbers; a bag / sack can be sold in parts (¼, ½, ¾).": "बिलिंग: \"items\" आता बिलाच्या ओळी मोजतो; \"units\" प्रमाण जोडतो. बाटली आणि कॅन पूर्ण संख्येत विकले जातात; पोते भागांतही (¼, ½, ¾).",
+  "Stock Audit Trail shows the newest change first. Excel price lists keep Bottle, Can / Tin and Bag / Sack units. Bills and screens say \"KamaiPlus\".": "Stock Audit Trail सर्वात नवा बदल सर्वात वर दाखवतो. Excel किंमत यादीत Bottle, Can / Tin आणि Bag / Sack युनिट तसेच राहतात. बिल आणि स्क्रीनवर \"KamaiPlus\" दिसते."
 }

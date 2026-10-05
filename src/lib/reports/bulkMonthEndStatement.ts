@@ -28,7 +28,7 @@ export async function generateBulkMonthEndStatementPDF({
     return { ok: false, error: tr('No customers found to generate statement.') };
   }
 
-  const storeName = business.name || 'Kamai+ Store';
+  const storeName = business.name || 'KamaiPlus Store';
   const storePhone = business.phone ? `Ph: ${business.phone}` : '';
   const storeGst = business.gstin ? `GSTIN: ${business.gstin}` : '';
   const storeAddress = business.address || '';

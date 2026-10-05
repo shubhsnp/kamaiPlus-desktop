@@ -259,7 +259,7 @@ function BrandingStrip({ color, logoUrl }: { color: string; logoUrl?: string }) 
       }}
     >
       {logoUrl && <img src={logoUrl} alt="" style={{ width: 20, height: 20, objectFit: 'contain' }} />}
-      {/* v4.99.0 (K-D37): the old strip printed the retired "Kamai+" name and a "number one in
+      {/* v4.99.0 (K-D37): the old strip printed the retired brand name and a "number one in
           India" claim nobody can prove, on every customer's bill. */}
       <span style={text(10.5, 800, color)}>KamaiPlus</span>
       <span style={text(10, 400, C.slate600)}>• Aapki Dukaan ka Digital Sathi</span>

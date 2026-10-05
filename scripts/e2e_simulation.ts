@@ -98,8 +98,8 @@ import { expandCopies } from '../src/lib/labels/printLabels';
 import { looksLikeBarcode, searchEnterAction } from '../src/lib/billing/scanInput';
 import { emptyEntryRow, labelCopiesFor, lowStockAlertFor, planStockEntry, stockAfterInward, StockEntryRow } from '../src/lib/inward/stockEntry';
 import { parseStockEntryDraft } from '../src/lib/inward/stockEntryDraft';
-import { billLineProblem, guessBillColumns, readBillSheet } from '../src/lib/purchases/billSheet';
-import { matchExtractedItemsWithProducts, normalizeName } from '../src/lib/purchases/matchProductByName';
+import { billLineProblem, guessBillColumns, readBillHeading, readBillSheet } from '../src/lib/purchases/billSheet';
+import { matchExtractedItemsWithProducts, nameMatchScore, normalizeName } from '../src/lib/purchases/matchProductByName';
 import { encodeCostCode, isValidCostCodeWord, productLabelDetail, productLabelExtras } from '../src/lib/labels/labelExtras';
 import { formatPackAmount, makeWeighedBarcode, parseWeighedBarcode, weighedQuantity } from '../src/lib/barcode/weighedBarcode';
 import { globalShortcutFor, globalShortcutHints } from '../src/lib/ui/globalShortcuts';
@@ -3719,7 +3719,7 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
   const modalSrc = readSource('components/reports/DayEndClosingReportModal.tsx');
   assert(/openingCash: todaysOpeningFloat/.test(homeSrc) && /openingCash=\{todaysOpeningFloat\}/.test(homeSrc)
     && /dayOpeningFloat\(todayShifts, todayDatePrefix\)/.test(regSrc) && /openingCash=\{openingBalancePaise\}/.test(regSrc)
-    && /summarizeDay\(\{ sales, expenses, ledger, openingCash/.test(modalSrc) && /ledger,\s*openingCash,\s*dateStr/.test(modalSrc)
+    && /summarizeDay\(\{ sales, expenses, ledger, openingCash/.test(modalSrc) && /ledger,\s*openingCash,\s*(returns,\s*)?dateStr/.test(modalSrc)
     && /summarizeDay\(\{ sales, expenses, ledger, openingCash/.test(readSource('lib/reports/dailyClosingPdf.ts')),
     'K-D38: Home, the Cash Register (also after Close Shift), the Day Summary card and its PDF all count the float (the PDF also khata cash)');
 
@@ -3727,6 +3727,65 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
   const posSrc = readSource('app/billing/page.tsx');
   assert(/const totalItemCount = cart\.length;/.test(posSrc) && /• \{totalUnits\} \{tr\('units'\)\}/.test(posSrc),
     'K-D39: counter items = bill lines (as on "Sale completed"), units = quantities added up');
+}
+
+// v4.100.0 — the rest of the demo-tour gaps (K-D32…K-D36) and three loose ends from the help guides.
+{
+  // K-D32: a supplier bill line went to any saved item sharing half its words.
+  const p = (id: string, name: string): any => ({ id, name, unit: 'piece', selling_price: 10000, mrp: 10000, current_stock: 5, is_active: true });
+  const saved = [p('coco', 'Coconut Oil 500 ml'), p('sun', 'Sunflower Oil 1 L'), p('toor5', 'Toor Dal 5 kg'), p('basmati', 'Basmati Rice 1 kg'), p('sona', 'Sona Rice 1 kg')];
+  const line = (raw_name: string): any => ({ raw_name, is_new_product: true, quantity: 1, unit: 'piece', unit_price: 100, total_price: 100 });
+  const m = matchExtractedItemsWithProducts([line('Sesame Oil 500 ml'), line('Fortune Sunflower Oil 1 Ltr'), line('Toor Dal 1 kg'), line('Rice 1kg'), line('Coconut Oil 500ML')], saved);
+  assert(m[0].is_new_product && m[1].matched_product_id === 'sun' && m[2].is_new_product && m[3].is_new_product && m[4].matched_product_id === 'coco',
+    'K-D32: Sesame Oil is not put on Coconut Oil, 1 kg is not 5 kg, two equally good rices are left to the shop; "1 Ltr" = "1 L", "500ML" = "500 ml"');
+  assert(nameMatchScore('Glucose Biscuits 250 g', 'Glucose Biscuit 250g') === 1 && nameMatchScore('Sugar 1.5 kg', 'Sugar 15 kg') === 0 && nameMatchScore('Parle-G 80g', 'Parle G 80 gm') === 1,
+    'K-D32: plurals, glued units and decimal sizes are read right (1.5 kg is not 15 kg)');
+
+  // The supplier, bill number and date come from the sheet's title rows (were the file name and "CSV_5805").
+  const h1 = readBillHeading([['Shree Ganesh Distributors — Bill 2291']]);
+  const h2 = readBillHeading([['Metro Wholesale Traders'], ['Invoice No: MW-1182', 'Date: 05/10/2026'], ['GSTIN 27AABCM1234F1Z5']]);
+  const h3 = readBillHeading([['बालाजी ट्रेडर्स'], ['बिल नं 55', 'दिनांक 4-10-26']]);
+  const h4 = readBillHeading([['TAX INVOICE'], ['Balaji Traders | Bill No. 77']]);
+  assert(h1.supplier === 'Shree Ganesh Distributors' && h1.billNumber === '2291' && h2.supplier === 'Metro Wholesale Traders' && h2.billNumber === 'MW-1182' && h2.billDate === '2026-10-05'
+    && h3.supplier === 'बालाजी ट्रेडर्स' && h3.billNumber === '55' && h3.billDate === '2026-10-04' && h4.supplier === 'Balaji Traders' && h4.billNumber === '77',
+    'Supplier bill heading: supplier, bill number and date are read in English and Hindi; "TAX INVOICE" is not a supplier');
+  const inwardSrc = readSource('components/purchases/PurchaseInwardOptionsSheet.tsx');
+  assert(/sheet\.heading\.supplier \|\| file\.name/.test(inwardSrc) && !/CSV_\$\{/.test(inwardSrc) && readBillSheet([['Shree Ganesh Distributors — Bill 2291'], ['Item', 'Qty', 'Rate'], ['Ghee', '2', '500']]).heading.billNumber === '2291',
+    'Supplier bill: the review opens with the sheet\'s supplier and bill number, with no made-up "CSV_…" number');
+
+  // K-D35: a cash refund of a UPI bill — Day Summary's cash + UPI + udhar now equal its total.
+  const at = new Date(2026, 9, 5, 11, 0).toISOString();
+  const upiBill: any = { ...mk('u1', undefined, [li('paneer', 1, 8800), li('ghee', 1, 32500)]), payment_method: 'upi', created_at: at };
+  const cashBill: any = { ...mk('c1', undefined, [li('dal', 1, 17200)]), created_at: at };
+  const ret: any = { id: 'r1', original_sale_id: 'u1', refund_amount: 8800, refund_method: 'cash', created_at: at, items: [{ product_id: 'paneer', quantity: 1 }] };
+  const d = summarizeDay({ sales: [upiBill, cashBill], expenses: [], returns: [ret], dateKey: '2026-10-05' });
+  const paid = d.paidBy.cash + d.paidBy.upi + d.paidBy.card + d.paidBy.credit;
+  assert(d.netSalesPaise === 32500 + 17200 && paid === d.netSalesPaise,
+    'K-D35: after a ₹88 cash refund of a UPI bill, the Day Summary\'s cash + UPI + udhar add up to its total (as in Transactions)', `sales ${d.netSalesPaise}, paid ${paid}`);
+  const modal = readSource('components/reports/DayEndClosingReportModal.tsx');
+  assert(/day\.paidBy\.cash/.test(modal) && /day\.paidBy\.cash/.test(readSource('lib/reports/dailyClosingPdf.ts')) && /returns=\{todaysReturns\}/.test(readSource('components/dashboard/DashboardHome.tsx')) && /returns=\{todayReturns\}/.test(readSource('app/cash-register/page.tsx')),
+    'K-D35: the Day Summary card, its PDF and WhatsApp use the after-returns split; Home and the Cash Register pass the returns');
+
+  // K-D34: the audit trail was sorted by the random id.
+  assert(/inventory_movements\.orderBy\('created_at'\)\.reverse\(\)\.limit\(100\)/.test(readSource('app/inventory/page.tsx')),
+    'K-D34: Stock Audit Trail = the newest 100 movements by time');
+
+  // K-D33: the retired "Kamai+" name — on the password screen, the menu and every default bill's terms.
+  const kamaiPlusOld = ALL_SOURCE.filter((f) => /Kamai\+/.test(fs.readFileSync(f, 'utf8'))).map((f) => path.relative(SRC_ROOT, f));
+  const oldTerms = '1. Goods once sold cannot be taken back or exchanged.\n2. Electronic invoice generated via Kamai' + '+ POS System.';
+  assert(kamaiPlusOld.length === 0 && resolveInvoiceConfig({ ...invBiz, invoice_theme_config: { custom_terms: oldTerms } } as any).custom_terms?.endsWith('2. Bill made with KamaiPlus.') === true,
+    `K-D33: "Kamai+" appears nowhere in the app (found: ${kamaiPlusOld.join(', ') || 'none'}); bill terms saved with the old line print "Bill made with KamaiPlus."`);
+
+  // K-D36 + whole bottles: Excel units and the counter.
+  const unitOf = (t: string) => { const r = mapUnit(t); return `${r.unit}${r.pack ? ':' + r.pack : ''}`; };
+  assert([unitOf('Bottle'), unitOf('btl'), unitOf('Tin'), unitOf('Bag'), unitOf('बोरी'), unitOf('6 Bottle'), unitOf('10 थैली'), unitOf('Jar')].join() === 'bottle,bottle,can,bag,bag,box:6 Bottle,bundle:10 थैली,bottle',
+    'K-D36: Excel units Bottle / Can / Tin / Bag / Sack keep the app\'s own units (they all became "piece")');
+  assert(!allowsFractionalQty('bottle') && !allowsFractionalQty('can') && allowsFractionalQty('bag') && /normUnit === 'bag'/.test(readSource('components/billing/posQuantityConfig.ts')),
+    'Counter: bottles and cans are whole numbers (1.5 bottles was allowed); a bag / sack has the ¼ ½ ¾ chips');
+
+  // "What's new" stopped at 4.81.0 — shops on 4.98 saw old notes.
+  assert(CHANGELOG[0].version === APP_VERSION && CHANGELOG[0].items.length >= 5,
+    "What's new: the current version has its own notes (it showed 4.81.0's)");
 }
 
 // -------------------------------------------------------------

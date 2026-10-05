@@ -22,13 +22,13 @@ export default function AuthPage() {
           <div className="w-20 h-20 sm:w-22 sm:h-22 mb-3 rounded-2xl bg-slate-900/80 p-2 border border-slate-800 shadow-xl flex items-center justify-center">
             <img
               src="/logo.png"
-              alt="Kamai+ Logo"
+              alt="KamaiPlus logo"
               className="w-full h-full object-contain drop-shadow-md"
             />
           </div>
 
           <div className="flex items-center gap-2 justify-center">
-            <h1 className="text-3xl font-black text-amber-400 tracking-tight">Kamai+</h1>
+            <h1 className="text-3xl font-black text-amber-400 tracking-tight">KamaiPlus</h1>
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-400/10 text-amber-300 text-[10px] font-bold border border-amber-400/20">
               <ShieldCheck className="w-3 h-3 text-amber-400" />
               <span>{tr('Verified POS')}</span>

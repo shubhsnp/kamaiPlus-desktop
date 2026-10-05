@@ -59,6 +59,11 @@ export default function CashRegisterPage() {
     return await db.cash_registers.where('opened_at').between(todayStart, todayEnd, true, false).toArray();
   }, [todayStart, todayEnd]) || [];
 
+  // Returns made today (of today's bills) — the Day Summary splits sales after them (K-D35).
+  const todayReturns = useLiveQuery(async () => {
+    return await db.sales_returns.where('created_at').between(todayStart, todayEnd, true, false).toArray();
+  }, [todayStart, todayEnd]) || [];
+
   // Khata payments received today (cash ones are drawer money)
   const todayLedger = useLiveQuery(async () => {
     return await db.ledger_transactions.where('created_at').between(todayStart, todayEnd, true, false).toArray();
@@ -274,6 +279,7 @@ export default function CashRegisterPage() {
         expenses={todayExpenses}
         ledger={todayLedger}
         openingCash={openingBalancePaise}
+        returns={todayReturns}
         selectedDate={todayDatePrefix}
       />
       )}

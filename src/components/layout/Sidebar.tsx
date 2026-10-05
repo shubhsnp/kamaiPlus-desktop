@@ -229,7 +229,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           className="flex items-center gap-1.5 cursor-default"
           title={tr('KamaiPlus Desktop v{APP_VERSION}', { APP_VERSION: APP_VERSION })}
         >
-          <img src="/logo.png" alt="Kamai+" className="w-4 h-4 object-contain" />
+          <img src="/logo.png" alt="KamaiPlus" className="w-4 h-4 object-contain" />
           {!isCollapsed && <span className="font-bold text-slate-800">KamaiPlus</span>}
         </span>
         {!isCollapsed && (

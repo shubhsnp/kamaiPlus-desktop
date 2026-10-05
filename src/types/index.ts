@@ -1,4 +1,4 @@
-// Domain Types for KamaiPlus (Kamai+) Platform
+// Domain Types for the KamaiPlus Platform
 // Note: All monetary amounts (prices, totals, discounts, balances) are stored as integer PAISE (1 INR = 100 paise)
 
 export type BusinessType = string;

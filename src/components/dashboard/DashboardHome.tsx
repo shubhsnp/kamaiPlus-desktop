@@ -237,6 +237,7 @@ export default function DashboardHome() {
           expenses={todaysExpenses}
           ledger={todaysLedger}
           openingCash={todaysOpeningFloat}
+          returns={todaysReturns}
         />
       )}
       {isFastInwardOpen && <FastBarcodeInwardModal onClose={() => setIsFastInwardOpen(false)} />}

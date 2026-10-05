@@ -110,7 +110,7 @@ export async function ensureStarterBusinessIfEmpty(): Promise<Business> {
       invoice_prefix: 'INV-',
       next_invoice_number: 1,
       terms_conditions: 'Thank you for your business! Goods once sold will be exchanged within 7 days.',
-      footer_message: 'Powered by KamaiPlus (Kamai+)',
+      footer_message: 'Powered by KamaiPlus',
       is_onboarded: true,
       created_at: now,
       updated_at: now,

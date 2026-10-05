@@ -1,5 +1,5 @@
-import { CashExpense, CashRegister, LedgerTransaction, Sale } from '@/types';
-import { getSaleNetTotal, getSalePaymentBreakdown, isEstimate, isRevenueSale } from '@/lib/sales/saleMath';
+import { CashExpense, CashRegister, LedgerTransaction, Sale, SalesReturn } from '@/types';
+import { getNetPaymentBreakdown, getReturnsForSale, getSaleNetTotal, getSalePaymentBreakdown, isEstimate, isRevenueSale, PaymentBreakdown } from '@/lib/sales/saleMath';
 
 /** "2026-09-21" in the shop's local time (never the UTC date of an ISO string). */
 export function localDateKey(d: Date): string {
@@ -15,6 +15,12 @@ export interface DaySummary extends DrawerSummary {
   topItems: { name: string; qty: number; totalPaise: number }[];
   totalExpensePaise: number;
   netCashInTillPaise: number;
+  /**
+   * The day's bills by how they were paid, after returns — the same rule as Transactions, so
+   * cash + UPI + card + udhar = net sales (v4.100.0, K-D35: a cash refund of a UPI bill left the
+   * Day Summary at ₹6,312 against ₹6,224 sales). Drawer cash (`netCashInTillPaise`) is separate.
+   */
+  paidBy: PaymentBreakdown;
 }
 
 /**
@@ -37,6 +43,8 @@ export function summarizeDay(params: {
   dateKey?: string;
   /** The day's morning float (`dayOpeningFloat`), so net cash is what the drawer holds. */
   openingCash?: number;
+  /** Sales returns of those bills (refunds come off the way each bill was paid). */
+  returns?: SalesReturn[];
 }): DaySummary {
   const dateKey = params.dateKey || localDateKey(new Date());
   const onDay = (iso: string) => localDateKey(new Date(iso)) === dateKey;
@@ -63,7 +71,11 @@ export function summarizeDay(params: {
     ...drawer,
     dateKey,
     sales,
-    netSalesPaise: sales.reduce((acc, s) => acc + getSaleNetTotal(s), 0),
+    netSalesPaise: sales.reduce((acc, s) => acc + getSaleNetTotal(s, getReturnsForSale(s.id, params.returns || [])), 0),
+    paidBy: sales.reduce<PaymentBreakdown>((acc, s) => {
+      const p = getNetPaymentBreakdown(s, getReturnsForSale(s.id, params.returns || []));
+      return { cash: acc.cash + p.cash, upi: acc.upi + p.upi, card: acc.card + p.card, credit: acc.credit + p.credit };
+    }, { cash: 0, upi: 0, card: 0, credit: 0 }),
     itemsCount,
     topItems: Array.from(freq.entries())
       .map(([name, v]) => ({ name, ...v }))
