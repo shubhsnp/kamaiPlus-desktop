@@ -1,7 +1,8 @@
 // Comprehensive GSTR-1 & HSN Tax Engine for Indian GST Portal Compliance
-import { Sale, Business, Customer } from '@/types';
-import { isEstimate, isRevenueSale, getLineTaxablePaise, getReturnedQtyByLine, getSaleNetTotal } from '@/lib/sales/saleMath';
-import { stateCodeFromGstin, stateNameFromCode } from '@/lib/gst/stateCodes';
+import { Sale, Business, Customer, SalesReturn } from '@/types';
+import { isEstimate } from '@/lib/sales/saleMath';
+import { stateNameFromCode } from '@/lib/gst/stateCodes';
+import { periodSupplies } from '@/lib/gst/periodSupplies';
 import { localDateKey } from '@/lib/reports/cashDrawer';
 import { splitIntraStateTax } from '@/lib/gst/taxSplit';
 
@@ -45,12 +46,29 @@ export interface B2CSRecord {
   cess_amount: number;
 }
 
+/** A B2B credit note (goods returned by a registered buyer), one row per note and rate — GSTR-1 table 9B. */
+export interface CreditNoteRecord {
+  customer_gstin: string;
+  customer_name: string;
+  note_number: string;
+  note_date: string;
+  /** The bill the goods came from. */
+  invoice_number: string;
+  place_of_supply: string;
+  tax_rate: number;
+  taxable_value: number; // in paise
+  cgst_amount: number;
+  sgst_amount: number;
+  igst_amount: number;
+}
+
 export interface GSTR1ReportData {
   business_gstin: string;
   business_name: string;
   period: string; // e.g. "082026" or "August 2026"
   hsn_summary: HSNRecord[];
   b2b_invoices: B2BRecord[];
+  b2b_credit_notes: CreditNoteRecord[];
   b2cs_summary: B2CSRecord[];
   nil_rated_value: number; // in paise
   total_taxable_value: number; // in paise
@@ -61,6 +79,10 @@ export interface GSTR1ReportData {
   doc_from_num: string;
   doc_to_num: string;
   doc_cancelled_count: number;
+  /** Credit notes (returns) issued in the period. */
+  credit_notes_count: number;
+  credit_note_from: string;
+  credit_note_to: string;
 }
 
 // Convert units to standard GST Portal Unit Quantity Codes (UQC)
@@ -75,158 +97,138 @@ export function getGSTUQC(unit: string): string {
   if (u.includes('dozen')) return 'DOZ';
   if (u.includes('meter')) return 'MTR';
   if (u.includes('piece') || u.includes('pcs')) return 'PCS';
+  // GST's own codes for the app's Bottle, Can / Tin and Bag / Sack units (v4.101.0; they were OTH).
+  if (u.includes('bottle')) return 'BTL';
+  if (u === 'can' || u.includes('tin')) return 'CAN';
+  if (u === 'bag' || u.includes('sack')) return 'BAG';
   return 'OTH';
 }
 
 /**
- * Generate GSTR-1 & HSN breakdown from Sales and Customers
+ * GSTR-1 & HSN breakdown of a period, for the GST screen and its CSV. Built from the same
+ * lines as the GSTR-1 JSON (lib/gst/periodSupplies.ts): bills in full, goods returned in the
+ * period as credit notes — B2B ones listed as credit notes, B2C ones lowering the B2C rows,
+ * HSN net of both (v4.101.0, K-D04). Without `opts.returns` there are no credit notes.
  */
 export function generateGSTR1Report(
   sales: Sale[],
   customers: Customer[],
   business: Business,
-  periodLabel: string
+  periodLabel: string,
+  opts: { returns?: SalesReturn[]; originals?: Sale[]; start?: Date; end?: Date } = {}
 ): GSTR1ReportData {
   const customerMap = new Map<string, Customer>();
   customers.forEach((c) => customerMap.set(c.id, c));
-
-  // Outward supplies only: estimates are not supplies and fully returned bills are
-  // excluded (Android parity); partially returned bills count what the customer kept.
-  const validSales = sales.filter(isRevenueSale);
   // Never a made-up GSTIN: a report for a store without one shows it as missing.
   const businessGstin = (business.gstin || '').trim().toUpperCase();
-  const businessStateCode = stateCodeFromGstin(businessGstin);
+  const supplies = periodSupplies({
+    sales, customers, shopGstin: businessGstin,
+    returns: opts.returns || [], originals: opts.originals,
+    start: opts.start || new Date(0), end: opts.end || new Date(8.64e15),
+  });
 
-  // 1. Process HSN Summary (Table 12)
   const hsnMap = new Map<string, HSNRecord>();
+  const b2bMap = new Map<string, B2BRecord>();
+  const cnMap = new Map<string, CreditNoteRecord>();
+  const b2csMap = new Map<string, B2CSRecord>();
   let totalTaxablePaise = 0;
   let nilRatedPaise = 0;
 
-  // 2. Process B2B (Table 4, one row per invoice and rate) vs B2CS (Table 7)
-  const b2bMap = new Map<string, B2BRecord>();
-  const b2csMap = new Map<string, B2CSRecord>();
-
   // Intra-state tax of each row, split into CGST + SGST only once the row is complete (K-D40,
   // v4.99.0): splitting every line gave CGST the odd paisa line after line.
-  const intraTax = new Map<HSNRecord | B2BRecord | B2CSRecord, number>();
-  const addIntra = (row: HSNRecord | B2BRecord | B2CSRecord, tax: number) => intraTax.set(row, (intraTax.get(row) || 0) + tax);
+  type Row = HSNRecord | B2BRecord | B2CSRecord | CreditNoteRecord;
+  const intraTax = new Map<Row, number>();
+  const addIntra = (row: Row, tax: number) => intraTax.set(row, (intraTax.get(row) || 0) + tax);
 
-  validSales.forEach((sale) => {
-    const cust = sale.customer_id ? customerMap.get(sale.customer_id) : null;
-    const buyerGstin = (sale.customer_gstin || cust?.gstin || '').trim().toUpperCase();
-    const hasGstin = buyerGstin.length >= 15;
-    const customerGstin = hasGstin ? buyerGstin : '';
-    const custStateCode = (hasGstin ? stateCodeFromGstin(customerGstin) : '') || businessStateCode;
-    const isInterState = Boolean(custStateCode && businessStateCode && custStateCode !== businessStateCode);
-    const pos = custStateCode ? `${custStateCode}-${getStateName(custStateCode)}` : '';
-    const returnedByLine = getReturnedQtyByLine(sale);
+  for (const line of [...supplies.invoices, ...supplies.creditNotes]) {
+    const { sale, ret, rt } = line;
+    const registered = Boolean(line.buyerGstin);
+    const pos = line.pos ? `${line.pos}-${getStateName(line.pos)}` : '';
+    const totalAmount = line.taxable + line.tax;
+    if (rt <= 0) nilRatedPaise += totalAmount;
+    const intra = line.inter ? 0 : line.tax;
+    const igst = line.inter ? line.tax : 0;
+    totalTaxablePaise += line.taxable;
 
-    sale.items.forEach((item, lineIdx) => {
-      const hsn = (item.hsn_code || '').trim(); // left blank rather than guessed — fix it on the product
-      const rate = item.tax_rate || 0;
-      // Share of the line the customer kept (partial returns).
-      const kept = item.quantity > 0 ? Math.max(0, item.quantity - (returnedByLine[lineIdx] || 0)) / item.quantity : 1;
-      if (kept <= 0) return;
+    // HSN summary (Table 12), net of credit notes.
+    const hsnKey = `${line.hsn}_${rt}`;
+    const h = hsnMap.get(hsnKey);
+    if (h) {
+      h.total_qty += line.qty;
+      h.total_value += totalAmount;
+      h.taxable_value += line.taxable;
+      h.igst_amount += igst;
+      addIntra(h, intra);
+    } else {
+      const row: HSNRecord = {
+        hsn_code: line.hsn, description: line.desc, uqc: getGSTUQC(line.unit), total_qty: line.qty,
+        total_value: totalAmount, taxable_value: line.taxable, tax_rate: rt,
+        cgst_amount: 0, sgst_amount: 0, igst_amount: igst, cess_amount: 0,
+      };
+      hsnMap.set(hsnKey, row);
+      addIntra(row, intra);
+    }
 
-      // Taxable value and GST exactly as billed (inclusive or exclusive pricing, discounts applied).
-      const taxable = Math.round(getLineTaxablePaise(item) * kept);
-      const tax = Math.round((item.tax_amount || 0) * kept);
-      const totalAmount = taxable + tax;
-      if (rate <= 0) {
-        nilRatedPaise += totalAmount;
+    if (registered && ret) {
+      // B2B credit note (Table 9B): one row per note and rate, amounts shown positive.
+      const key = `${ret.id}_${rt}`;
+      const existing = cnMap.get(key);
+      if (existing) {
+        existing.taxable_value -= line.taxable;
+        existing.igst_amount -= igst;
+        addIntra(existing, -intra);
+      } else {
+        const row: CreditNoteRecord = {
+          customer_gstin: line.buyerGstin, customer_name: sale.customer_name || customerMap.get(sale.customer_id || '')?.name || '',
+          note_number: ret.return_number || ret.id, note_date: localDateKey(new Date(ret.created_at)), invoice_number: sale.invoice_number,
+          place_of_supply: pos, tax_rate: rt, taxable_value: -line.taxable, cgst_amount: 0, sgst_amount: 0, igst_amount: -igst,
+        };
+        cnMap.set(key, row);
+        addIntra(row, -intra);
       }
-
-      const intra = isInterState ? 0 : tax;
-      const igst = isInterState ? tax : 0;
-
-      totalTaxablePaise += taxable;
-
-      // Update HSN map
-      const hsnKey = `${hsn}_${rate}`;
-      if (hsnMap.has(hsnKey)) {
-        const existing = hsnMap.get(hsnKey)!;
-        existing.total_qty += item.quantity * kept;
-        existing.total_value += totalAmount;
-        existing.taxable_value += taxable;
+    } else if (registered) {
+      // B2B invoice (Table 4), one row per invoice and rate, as issued.
+      const key = `${sale.id}_${rt}`;
+      const existing = b2bMap.get(key);
+      if (existing) {
+        existing.taxable_value += line.taxable;
         existing.igst_amount += igst;
         addIntra(existing, intra);
       } else {
-        const row: HSNRecord = {
-          hsn_code: hsn,
-          description: item.product_name,
-          uqc: getGSTUQC(item.unit),
-          total_qty: item.quantity * kept,
-          total_value: totalAmount,
-          taxable_value: taxable,
-          tax_rate: rate,
-          cgst_amount: 0,
-          sgst_amount: 0,
-          igst_amount: igst,
-          cess_amount: 0,
-        };
-        hsnMap.set(hsnKey, row);
-        addIntra(row, intra);
-      }
-
-      // If B2B (Table 4)
-      if (hasGstin) {
-        const b2bKey = `${sale.id}_${rate}`;
-        const existing = b2bMap.get(b2bKey);
-        if (existing) {
-          existing.taxable_value += taxable;
-          existing.igst_amount += igst;
-          addIntra(existing, intra);
-          return;
-        }
         const row: B2BRecord = {
-          customer_gstin: customerGstin,
-          customer_name: cust!.name,
-          invoice_number: sale.invoice_number,
-          invoice_date: localDateKey(new Date(sale.created_at)),
-          invoice_value: getSaleNetTotal(sale),
-          place_of_supply: pos,
-          reverse_charge: 'N',
-          tax_rate: rate,
-          taxable_value: taxable,
-          cgst_amount: 0,
-          sgst_amount: 0,
-          igst_amount: igst,
+          customer_gstin: line.buyerGstin, customer_name: customerMap.get(sale.customer_id || '')?.name || sale.customer_name || '',
+          invoice_number: sale.invoice_number, invoice_date: localDateKey(new Date(sale.created_at)), invoice_value: sale.grand_total || 0,
+          place_of_supply: pos, reverse_charge: 'N', tax_rate: rt, taxable_value: line.taxable, cgst_amount: 0, sgst_amount: 0, igst_amount: igst,
         };
-        b2bMap.set(b2bKey, row);
+        b2bMap.set(key, row);
         addIntra(row, intra);
-      } else {
-        // B2CS Retail (Table 7)
-        const b2csKey = `${pos}_${rate}`;
-        if (b2csMap.has(b2csKey)) {
-          const existing = b2csMap.get(b2csKey)!;
-          existing.total_value += totalAmount;
-          existing.taxable_value += taxable;
-          existing.igst_amount += igst;
-          addIntra(existing, intra);
-        } else {
-          const row: B2CSRecord = {
-            place_of_supply: pos,
-            tax_rate: rate,
-            total_value: totalAmount,
-            taxable_value: taxable,
-            cgst_amount: 0,
-            sgst_amount: 0,
-            igst_amount: igst,
-            cess_amount: 0,
-          };
-          b2csMap.set(b2csKey, row);
-          addIntra(row, intra);
-        }
       }
-    });
-  });
+    } else {
+      // B2C small (Table 7), net of returns in the period.
+      const key = `${pos}_${rt}`;
+      const existing = b2csMap.get(key);
+      if (existing) {
+        existing.total_value += totalAmount;
+        existing.taxable_value += line.taxable;
+        existing.igst_amount += igst;
+        addIntra(existing, intra);
+      } else {
+        const row: B2CSRecord = {
+          place_of_supply: pos, tax_rate: rt, total_value: totalAmount, taxable_value: line.taxable,
+          cgst_amount: 0, sgst_amount: 0, igst_amount: igst, cess_amount: 0,
+        };
+        b2csMap.set(key, row);
+        addIntra(row, intra);
+      }
+    }
+  }
 
   intraTax.forEach((tax, row) => {
     const { cgst, sgst } = splitIntraStateTax(tax);
     row.cgst_amount = cgst;
     row.sgst_amount = sgst;
   });
-  // Totals are the HSN rows added up: every billed line is in exactly one of them.
+  // Totals are the HSN rows added up: every billed or returned line is in exactly one of them.
   const hsnRows = Array.from(hsnMap.values());
   const sum = (key: 'cgst_amount' | 'sgst_amount' | 'igst_amount') => hsnRows.reduce((acc, h) => acc + h[key], 0);
 
@@ -234,9 +236,7 @@ export function generateGSTR1Report(
   const sortedSales = sales
     .filter((s) => !isEstimate(s))
     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-  const docFrom = sortedSales.length > 0 ? sortedSales[0].invoice_number : '';
-  const docTo = sortedSales.length > 0 ? sortedSales[sortedSales.length - 1].invoice_number : '';
-  const cancelledCount = sales.filter((s) => s.status === 'cancelled').length;
+  const notes = supplies.notes.slice().sort((a, b) => a.created_at.localeCompare(b.created_at));
 
   return {
     business_gstin: businessGstin,
@@ -244,6 +244,7 @@ export function generateGSTR1Report(
     period: periodLabel,
     hsn_summary: hsnRows,
     b2b_invoices: Array.from(b2bMap.values()),
+    b2b_credit_notes: Array.from(cnMap.values()),
     b2cs_summary: Array.from(b2csMap.values()),
     nil_rated_value: nilRatedPaise,
     total_taxable_value: totalTaxablePaise,
@@ -254,9 +255,12 @@ export function generateGSTR1Report(
     // (net issued = total − cancelled). Before v4.78.0 cancelled bills were left out here
     // and then subtracted again.
     total_invoices_count: sortedSales.length,
-    doc_from_num: docFrom,
-    doc_to_num: docTo,
-    doc_cancelled_count: cancelledCount,
+    doc_from_num: sortedSales.length > 0 ? sortedSales[0].invoice_number : '',
+    doc_to_num: sortedSales.length > 0 ? sortedSales[sortedSales.length - 1].invoice_number : '',
+    doc_cancelled_count: sales.filter((s) => s.status === 'cancelled').length,
+    credit_notes_count: notes.length,
+    credit_note_from: notes[0]?.return_number || '',
+    credit_note_to: notes[notes.length - 1]?.return_number || '',
   };
 }
 
@@ -305,10 +309,19 @@ export function generateGSTR1CSV(data: GSTR1ReportData): string {
   });
   csv += `\n`;
 
+  // SECTION 3b: TABLE 9B CREDIT NOTES (goods returned by registered buyers, v4.101.0)
+  csv += `=== TABLE 9B: CREDIT NOTES (B2B RETURNS) ===\n`;
+  csv += `GSTIN of Recipient,Receiver Name,Credit Note No,Credit Note Date,Against Invoice,Place of Supply,Rate (%),Taxable Value (Rs),CGST (Rs),SGST (Rs),IGST (Rs)\n`;
+  data.b2b_credit_notes.forEach((c) => {
+    csv += `"${c.customer_gstin}","${c.customer_name}",${c.note_number},${c.note_date},${c.invoice_number},"${c.place_of_supply}",${c.tax_rate}%,${(c.taxable_value / 100).toFixed(2)},${(c.cgst_amount / 100).toFixed(2)},${(c.sgst_amount / 100).toFixed(2)},${(c.igst_amount / 100).toFixed(2)}\n`;
+  });
+  csv += `\n`;
+
   // SECTION 4: TABLE 13 DOCUMENTS ISSUED
   csv += `=== TABLE 13: DOCUMENTS ISSUED SUMMARY ===\n`;
   csv += `Nature of Document,From Serial No,To Serial No,Total Number,Cancelled Number,Net Issued\n`;
   csv += `Invoices for Outward Supply,${data.doc_from_num},${data.doc_to_num},${data.total_invoices_count},${data.doc_cancelled_count},${data.total_invoices_count - data.doc_cancelled_count}\n`;
+  if (data.credit_notes_count) csv += `Credit Note,${data.credit_note_from},${data.credit_note_to},${data.credit_notes_count},0,${data.credit_notes_count}\n`;
 
   return csv;
 }

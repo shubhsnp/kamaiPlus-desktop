@@ -57,12 +57,16 @@ export function AccountingExportsCard({ business }: { business?: Business | null
       db.customers.toArray(),
       db.sales_returns.toArray(),
     ]);
-    return { sales, customers, returns };
+    // Goods returned in the period from bills of an earlier one: their credit notes need the bill.
+    const known = new Set(sales.map((s) => s.id));
+    const missing = Array.from(new Set(returns.filter((r) => !range || (r.created_at >= range.start.toISOString() && r.created_at <= range.end.toISOString())).map((r) => r.original_sale_id).filter((id) => !known.has(id))));
+    const originals = (missing.length ? await db.sales.bulkGet(missing) : []).filter((s): s is NonNullable<typeof s> => Boolean(s));
+    return { sales, customers, returns, originals };
   };
 
   const exportTally = async () => {
     const data = await load();
-    const { xml, filename, count } = generateTallyPrimeXML({ business, ...data, periodName });
+    const { xml, filename, count } = generateTallyPrimeXML({ business, ...data, periodName, range: range ? { start: range.start, end: range.end } : undefined });
     if (!count) return showAlert(tr('No bills to export in this period.'));
     download(xml, 'application/xml;charset=utf-8', filename);
   };

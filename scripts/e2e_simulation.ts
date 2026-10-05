@@ -139,7 +139,8 @@ import {
   resolveReportPeriod,
   sortReport,
 } from '../src/lib/reports/advancedReports';
-import { generateGSTR1Report, getStateName } from '../src/lib/gst/gstr1Generator';
+import { generateGSTR1Report, getGSTUQC, getStateName } from '../src/lib/gst/gstr1Generator';
+import { buildGstr3bSummary } from '../src/lib/gst/gstr3b';
 import { SUPPORT_EMAIL, SUPPORT_PHONE_DIGITS, supportEmailUrl, supportWhatsAppUrl } from '../src/lib/support/contact';
 import { DEFAULT_IDLE_LOCK_MINUTES, parseIdleLockMinutes, safeReturnPath, shouldIdleLock } from '../src/lib/auth/idleLock';
 import { buildGstr1Json, gstPeriodRange } from '../src/lib/gst/gstr1Json';
@@ -1820,8 +1821,10 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     'CA register: BOM for Excel, the buyer\'s own GSTIN (never the shop\'s), inter-state marked, no estimate, a totals row with IGST');
   const tally = generateTallyPrimeXML({ business: shop, sales, customers: cust, returns });
   const vouchers = tally.xml.split('<VOUCHER ').slice(1);
-  const unbalanced = vouchers.filter((v) => Math.round(Array.from(v.matchAll(/<AMOUNT>(-?[\d.]+)<\/AMOUNT>/g)).reduce((n, m) => n + Number(m[1]) * 100, 0)) !== 0);
-  assert(vouchers.length === 4 && unbalanced.length === 0 && !/ALLINVENTORYENTRIES/.test(tally.xml) && /<LEDGERNAME>Output IGST<\/LEDGERNAME>/.test(tally.xml) && /<GSTDUTYHEAD>Integrated Tax<\/GSTDUTYHEAD>/.test(tally.xml)
+  // Ledger lines only — a party line's BILLALLOCATIONS repeats its amount (v4.101.0).
+  const unbalanced = vouchers.filter((v) => Math.round(Array.from(v.replace(/<BILLALLOCATIONS\.LIST>[\s\S]*?<\/BILLALLOCATIONS\.LIST>/g, '').matchAll(/<AMOUNT>(-?[\d.]+)<\/AMOUNT>/g)).reduce((n, m) => n + Number(m[1]) * 100, 0)) !== 0);
+  // 4 bills + the return of bill 5 as a Credit Note voucher (K-D11, v4.101.0).
+  assert(vouchers.length === 5 && vouchers.filter((v) => v.startsWith('VCHTYPE="Credit Note"')).length === 1 && unbalanced.length === 0 && !/ALLINVENTORYENTRIES/.test(tally.xml) && /<LEDGERNAME>Output IGST<\/LEDGERNAME>/.test(tally.xml) && /<GSTDUTYHEAD>Integrated Tax<\/GSTDUTYHEAD>/.test(tally.xml)
     && !/LEDGER NAME="Bank Accounts"/.test(tally.xml) && !/LEDGER NAME="Cash"/.test(tally.xml) && /LEDGER NAME="Kaveri Traders"/.test(tally.xml) && !tally.xml.includes('EST-3'),
     'Tally: one balanced Sales voucher per bill (debits = credits to the paisa), no stock lines Tally could reject, GST ledgers with their duty head, no clash with Tally\'s own "Bank Accounts" / "Cash"');
 
@@ -3786,6 +3789,105 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
   // "What's new" stopped at 4.81.0 — shops on 4.98 saw old notes.
   assert(CHANGELOG[0].version === APP_VERSION && CHANGELOG[0].items.length >= 5,
     "What's new: the current version has its own notes (it showed 4.81.0's)");
+}
+
+// v4.101.0 — GST & Tally (K-D04 credit notes in GSTR-1, K-D11 Tally import, K-D22 GSTR-3B).
+{
+  const two = (id: string, rate = 18): any => ({ ...discLine(id, 23600, rate, true), quantity: 2, unit_price: 11800, hsn_code: '3401', unit: 'piece' });
+  const one = (id: string): any => ({ ...discLine(id, 11800, 18, true), hsn_code: '3401', unit: 'piece' });
+  const sep = new Date(2026, 8, 5, 10, 0).toISOString();
+  const oct = (d: number) => new Date(2026, 9, d, 10, 0).toISOString();
+  const b2bSep: any = { ...mk('B1', 'cB', [two('soapB')]), created_at: sep, customer_gstin: '27AAACB1234C1Z5' };
+  const b2cOct: any = { ...mk('C1', undefined, [two('soapC')]), created_at: oct(2) };
+  const b2cOct2: any = { ...mk('C2', undefined, [one('soapD')]), created_at: oct(6) };
+  const rets: any[] = [
+    { id: 'r1', return_number: 'RET-1', original_sale_id: 'B1', items: [{ product_id: 'soapB', quantity: 1 }], refund_amount: 11800, refund_method: 'store_credit', created_at: oct(3) },
+    { id: 'r2', return_number: 'RET-2', original_sale_id: 'C1', items: [{ product_id: 'soapC', quantity: 1 }], refund_amount: 11800, refund_method: 'cash', created_at: oct(4) },
+  ];
+  const custs: any[] = [{ id: 'cB', name: 'Arihant & Sons', gstin: '27AAACB1234C1Z5' }];
+  const octRange = { start: new Date(2026, 9, 1), end: new Date(2026, 9, 31, 23, 59, 59, 999) };
+  const sepRange = { start: new Date(2026, 8, 1), end: new Date(2026, 8, 30, 23, 59, 59, 999) };
+
+  // K-D04: GSTR-1 JSON — bills as issued in their month, returns as credit notes in the return's month.
+  const octJson: any = buildGstr1Json({ sales: [b2cOct, b2cOct2], customers: custs, business: invBiz, fp: '102026', returns: rets, originals: [b2bSep], ...octRange }).json;
+  const sepJson: any = buildGstr1Json({ sales: [b2bSep], customers: custs, business: invBiz, fp: '092026', returns: rets, ...sepRange }).json;
+  const note = octJson.cdnr?.[0]?.nt?.[0];
+  assert(octJson.cdnr?.length === 1 && octJson.cdnr[0].ctin === '27AAACB1234C1Z5' && note.ntty === 'C' && note.nt_num === 'RET-1' && note.nt_dt === '03-10-2026'
+    && note.val === 118 && note.itms[0].itm_det.txval === 100 && note.itms[0].itm_det.camt === 9 && note.itms[0].itm_det.samt === 9 && !octJson.b2b,
+    'K-D04: goods a GSTIN buyer returned in October are an October credit note (table 9B "cdnr", ₹100 + ₹9 + ₹9), not a change to the September bill');
+  assert(sepJson.b2b[0].inv[0].val === 236 && sepJson.b2b[0].inv[0].itms[0].itm_det.txval === 200 && !sepJson.cdnr,
+    'K-D04: the September B2B bill is reported as issued (₹236), even though part came back in October');
+  const b2cs = octJson.b2cs[0];
+  assert(octJson.b2cs.length === 1 && b2cs.txval === 200 && b2cs.camt === 18 && b2cs.samt === 18,
+    'K-D04: B2C returns lower the B2C row of their month (₹200 + ₹100 sold − ₹100 returned = ₹200 taxable)');
+  const hsn = octJson.hsn.hsn_b2c.find((h: any) => h.hsn_sc === '3401');
+  const hsnB2b = octJson.hsn.hsn_b2b.find((h: any) => h.hsn_sc === '3401');
+  assert(hsn.qty === 2 && hsn.txval === 200 && hsnB2b.qty === -1 && hsnB2b.txval === -100
+    && octJson.doc_issue.doc_det.length === 2 && octJson.doc_issue.doc_det[1].doc_num === 5 && octJson.doc_issue.doc_det[1].docs[0].from === 'RET-1' && octJson.doc_issue.doc_det[1].docs[0].totnum === 2,
+    'K-D04: HSN summary is net of the credit notes; "documents issued" lists the credit note series (doc 5)');
+
+  // The GST screen reads the same lines.
+  const octRep = generateGSTR1Report([b2cOct, b2cOct2], custs, invBiz, 'Oct 2026', { returns: rets, originals: [b2bSep], ...octRange });
+  assert(octRep.b2b_credit_notes.length === 1 && octRep.b2b_credit_notes[0].taxable_value === 10000 && octRep.b2b_credit_notes[0].invoice_number === 'INV-B1'
+    && octRep.credit_notes_count === 2 && octRep.credit_note_from === 'RET-1' && octRep.total_taxable_value === 10000 && octRep.total_cgst === 900 && octRep.total_sgst === 900,
+    'K-D04: the GST screen shows the B2B credit note, counts both credit notes in "documents issued", and its totals match the JSON');
+
+  // K-D22: GSTR-3B outward tax from the same lines.
+  const g3 = buildGstr3bSummary({ sales: [b2cOct, b2cOct2], customers: custs, business: invBiz, returns: rets, originals: [b2bSep], ...octRange });
+  assert(g3.outwardTaxable.taxable === 10000 && g3.outwardTaxable.cgst === 900 && g3.outwardTaxable.sgst === 900 && g3.taxPayable === 1800 && g3.creditNotes.count === 2 && g3.creditNotes.taxable === 20000 && g3.bills === 2,
+    'K-D22: GSTR-3B 3.1(a) = October sales ₹300 − October returns ₹200 (B2C and B2B) = ₹100 taxable, CGST ₹9 + SGST ₹9 — the same as the GST screen');
+
+  // K-D11: Tally file — well-formed XML, Tally's structure, credit notes, every voucher balanced.
+  const tx = generateTallyPrimeXML({ business: { ...invBiz, name: 'Sharma & Sons <Kirana>' }, sales: [b2cOct, b2cOct2], customers: custs, returns: rets, originals: [b2bSep], range: octRange });
+  let parsed: any = null;
+  const xmlErrors: string[] = [];
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { DOMParser } = require('@xmldom/xmldom');
+    parsed = new DOMParser({ onError: (level: string, m: string) => { if (level !== 'warning') xmlErrors.push(m); } }).parseFromString(tx.xml, 'text/xml');
+  } catch (e: any) { xmlErrors.push(String(e?.message || e)); }
+  const txt = (el: any, tag: string) => el.getElementsByTagName(tag)[0]?.textContent || '';
+  const ledgerNames = new Set<string>(['Cash']);
+  const vouchers: any[] = [];
+  if (parsed) {
+    const ls = parsed.getElementsByTagName('LEDGER');
+    for (let i = 0; i < ls.length; i++) ledgerNames.add(ls[i].getAttribute('NAME'));
+    const vs = parsed.getElementsByTagName('VOUCHER');
+    for (let i = 0; i < vs.length; i++) vouchers.push(vs[i]);
+  }
+  const problems: string[] = [...xmlErrors];
+  if (parsed && txt(parsed, 'TALLYREQUEST') !== 'Import Data') problems.push('TALLYREQUEST');
+  for (const v of vouchers) {
+    const no = txt(v, 'VOUCHERNUMBER');
+    if (!/^\d{8}$/.test(txt(v, 'DATE'))) problems.push(`${no}: date`);
+    if (!['Sales', 'Credit Note'].includes(txt(v, 'VOUCHERTYPENAME')) || v.getAttribute('VCHTYPE') !== txt(v, 'VOUCHERTYPENAME')) problems.push(`${no}: type`);
+    if (!ledgerNames.has(txt(v, 'PARTYLEDGERNAME'))) problems.push(`${no}: party ledger not created`);
+    let sum = 0;
+    const entries = v.getElementsByTagName('ALLLEDGERENTRIES.LIST');
+    for (let i = 0; i < entries.length; i++) {
+      const e = entries[i];
+      const name = e.getElementsByTagName('LEDGERNAME')[0].textContent;
+      const a = Number(e.getElementsByTagName('AMOUNT')[0].textContent);
+      const debit = e.getElementsByTagName('ISDEEMEDPOSITIVE')[0].textContent === 'Yes';
+      if (!ledgerNames.has(name)) problems.push(`${no}: ledger ${name} not created`);
+      if (debit !== a < 0) problems.push(`${no}: ${name} sign`);
+      const bills = e.getElementsByTagName('BILLALLOCATIONS.LIST');
+      if (bills.length && Number(bills[0].getElementsByTagName('AMOUNT')[0].textContent) !== a) problems.push(`${no}: bill amount`);
+      sum += Math.round(a * 100);
+    }
+    if (sum !== 0) problems.push(`${no}: not balanced (${sum})`);
+  }
+  assert(Boolean(parsed) && problems.length === 0 && vouchers.length === 4,
+    'K-D11: Tally file parses as XML (shop name with & and < escaped), Import Data, every ledger used is created (or Cash), debit = negative, voucher dates YYYYMMDD, every voucher balanced', problems.join('; '));
+  const notes = vouchers.filter((v) => txt(v, 'VOUCHERTYPENAME') === 'Credit Note');
+  const khata = notes.find((v) => txt(v, 'VOUCHERNUMBER') === 'RET-1');
+  const cashBack = notes.find((v) => txt(v, 'VOUCHERNUMBER') === 'RET-2');
+  assert(notes.length === 2 && txt(khata, 'PARTYLEDGERNAME') === 'Arihant' && /soapB x 1/.test(txt(khata, 'NARRATION')) && /<BILLTYPE>Agst Ref<\/BILLTYPE>/.test(tx.xml) && txt(khata, 'PARTYGSTIN') === '27AAACB1234C1Z5'
+    && txt(cashBack, 'PARTYLEDGERNAME') === 'Cash' && txt(khata, 'DATE') === '20261003' && /LANGUAGENAME\.LIST/.test(tx.xml) && /<PERSISTEDVIEW>Accounting Voucher View<\/PERSISTEDVIEW>/.test(tx.xml),
+    'K-D11: returns are Credit Note vouchers on the return date — store credit against the customer\'s bill (Agst Ref), a cash refund from Cash; ledgers named the way Tally exports them');
+
+  // Bottle / Can / Bag have GST unit codes.
+  assert(getGSTUQC('bottle') === 'BTL' && getGSTUQC('can') === 'CAN' && getGSTUQC('bag') === 'BAG' && getGSTUQC('kg') === 'KGS', 'GST units: Bottle BTL, Can CAN, Bag BAG (were OTH)');
 }
 
 // -------------------------------------------------------------

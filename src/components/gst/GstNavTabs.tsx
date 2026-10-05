@@ -5,12 +5,13 @@ import {
   Layers, 
   Building2, 
   ShoppingBag, 
-  FileText 
+  FileText,
+  Calculator,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
 
-export type GstTabType = 'hsn' | 'b2b' | 'b2cs' | 'doc_issue';
+export type GstTabType = 'hsn' | 'b2b' | 'b2cs' | 'doc_issue' | 'gstr3b';
 
 interface GstNavTabsProps {
   activeTab: GstTabType;
@@ -32,6 +33,7 @@ export const GstNavTabs: React.FC<GstNavTabsProps> = ({
     { id: 'b2b' as GstTabType, label: tr('B2B Invoices ({b2bCount})', { b2bCount: b2bCount }), icon: Building2 },
     { id: 'b2cs' as GstTabType, label: tr('B2C Retail ({b2csCount})', { b2csCount: b2csCount }), icon: ShoppingBag },
     { id: 'doc_issue' as GstTabType, label: tr('Docs Issued'), icon: FileText },
+    { id: 'gstr3b' as GstTabType, label: tr('GSTR-3B'), icon: Calculator },
   ];
 
   return (

@@ -1,11 +1,11 @@
 // GSTR-1 JSON for upload on the GST portal (Returns → GSTR-1 → Prepare offline → Upload)
 // or for import into the GSTN offline tool. Built straight from the bills so that every
 // invoice appears once, with its items grouped by tax rate.
-import type { Business, Customer, Sale } from '@/types';
-import { getLineTaxablePaise, getReturnedQtyByLine, getSaleNetTotal, isEstimate, isRevenueSale } from '@/lib/sales/saleMath';
-import { stateCodeFromGstin } from '@/lib/gst/stateCodes';
+import type { Business, Customer, Sale, SalesReturn } from '@/types';
+import { isEstimate } from '@/lib/sales/saleMath';
 import { getGSTUQC } from '@/lib/gst/gstr1Generator';
 import { splitIntraStateTax } from '@/lib/gst/taxSplit';
+import { GSTIN_PATTERN, periodSupplies, SupplyLine } from '@/lib/gst/periodSupplies';
 
 /** "MMYYYY" of the return period. Quarterly (QRMP) filers use the last month of the quarter. */
 export function gstReturnPeriod(month0: number, year: number): string {
@@ -49,7 +49,7 @@ export function gstInvoiceDate(iso: string): string {
   return `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
 }
 
-export const GSTIN_PATTERN = /^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+export { GSTIN_PATTERN };
 /** Invoice numbers on the portal: at most 16 characters, letters / digits / "-" / "/". */
 export const GST_INVOICE_NO_PATTERN = /^[A-Za-z0-9/-]{1,16}$/;
 
@@ -91,90 +91,92 @@ function amountFields(s: TaxSplit, inter: boolean) {
 }
 
 /**
- * sales: every bill dated inside the return period (any status — estimates are left
- * out here, cancelled bills only count in "documents issued").
+ * sales: every bill dated inside the return period (any status — estimates are left out here,
+ * cancelled bills only count in "documents issued"). returns (+ originals, start, end): goods
+ * that came back in the period become credit notes — B2B ones in table 9B ("cdnr"), B2C ones
+ * lower the B2C rows — and the bills themselves are reported in full (v4.101.0, K-D04).
  */
 export function buildGstr1Json(params: {
   sales: Sale[];
   customers: Customer[];
   business: Pick<Business, 'gstin' | 'name'>;
   fp: string;
+  returns?: SalesReturn[];
+  originals?: Sale[];
+  start?: Date;
+  end?: Date;
 }): Gstr1JsonResult {
   const { sales, customers, business, fp } = params;
   const gstin = (business.gstin || '').trim().toUpperCase();
-  const shopState = stateCodeFromGstin(gstin);
-  const customerById = new Map(customers.map((c) => [c.id, c]));
+  const supplies = periodSupplies({
+    sales, customers, shopGstin: gstin,
+    returns: params.returns || [], originals: params.originals,
+    start: params.start || new Date(0), end: params.end || new Date(8.64e15),
+  });
 
   const missingHsn = new Set<string>();
   const longInvoiceNos = new Set<string>();
   const badBuyerGstins = new Set<string>();
 
-  // ctin → invoice number → { invoice head, rate → split }
-  const b2b = new Map<string, Map<string, { sale: Sale; pos: string; inter: boolean; rates: Map<number, TaxSplit> }>>();
+  // ctin → invoice / note number → { head, rate → split }
+  type Doc = { sale: Sale; ret?: SalesReturn; pos: string; inter: boolean; rates: Map<number, TaxSplit> };
+  const b2b = new Map<string, Map<string, Doc>>();
+  const cdnr = new Map<string, Map<string, Doc>>();
   const b2cs = new Map<string, { pos: string; inter: boolean; rt: number; split: TaxSplit }>();
   const nil = new Map<string, number>(); // sply_ty → paise
   type HsnRow = { hsn: string; desc: string; uqc: string; rt: number; qty: number; split: TaxSplit };
   const hsn = { b2b: new Map<string, HsnRow>(), b2c: new Map<string, HsnRow>() };
 
-  for (const sale of sales) {
-    if (!isRevenueSale(sale)) continue;
-    const cust = sale.customer_id ? customerById.get(sale.customer_id) : undefined;
-    const rawBuyer = (sale.customer_gstin || cust?.gstin || '').trim().toUpperCase();
-    const buyerGstin = GSTIN_PATTERN.test(rawBuyer) ? rawBuyer : '';
-    if (rawBuyer && !buyerGstin) badBuyerGstins.add(`${sale.invoice_number}: ${rawBuyer}`);
-    const registered = Boolean(buyerGstin);
-    // Unregistered buyers at the counter are treated as within the shop's state.
-    const pos = (registered ? stateCodeFromGstin(buyerGstin) : '') || shopState;
-    const inter = Boolean(pos && shopState && pos !== shopState);
-    if (registered && !GST_INVOICE_NO_PATTERN.test(sale.invoice_number || '')) longInvoiceNos.add(sale.invoice_number);
-    const returned = getReturnedQtyByLine(sale);
+  const addTo = (map: Map<string, Map<string, Doc>>, line: SupplyLine, docNo: string, split: TaxSplit) => {
+    if (!map.has(line.buyerGstin)) map.set(line.buyerGstin, new Map());
+    const docs = map.get(line.buyerGstin)!;
+    if (!docs.has(docNo)) docs.set(docNo, { sale: line.sale, ret: line.ret, pos: line.pos, inter: line.inter, rates: new Map() });
+    const doc = docs.get(docNo)!;
+    // Credit notes carry positive amounts in table 9B (the note type "C" says they reduce).
+    const amount = line.ret ? { txval: -split.txval, iamt: -split.iamt, intra: -split.intra } : split;
+    const r = doc.rates.get(line.rt);
+    if (r) addSplit(r, amount);
+    else doc.rates.set(line.rt, { ...amount });
+  };
 
-    (sale.items || []).forEach((item, i) => {
-      const kept = item.quantity > 0 ? Math.max(0, item.quantity - (returned[i] || 0)) / item.quantity : 1;
-      if (kept <= 0) return;
-      const rt = item.tax_rate || 0;
-      const taxable = Math.round(getLineTaxablePaise(item) * kept);
-      const tax = Math.round((item.tax_amount || 0) * kept);
-      const split: TaxSplit = { txval: taxable, iamt: inter ? tax : 0, intra: inter ? 0 : tax };
+  for (const line of [...supplies.invoices, ...supplies.creditNotes]) {
+    const registered = Boolean(line.buyerGstin);
+    if (line.badBuyerGstin) badBuyerGstins.add(`${line.sale.invoice_number}: ${line.badBuyerGstin}`);
+    if (registered && !line.ret && !GST_INVOICE_NO_PATTERN.test(line.sale.invoice_number || '')) longInvoiceNos.add(line.sale.invoice_number);
+    if (registered && line.ret && !GST_INVOICE_NO_PATTERN.test(line.ret.return_number || '')) longInvoiceNos.add(line.ret.return_number);
+    const split: TaxSplit = { txval: line.taxable, iamt: line.inter ? line.tax : 0, intra: line.inter ? 0 : line.tax };
 
-      // Table 12 — HSN summary, separate for registered (B2B) and other buyers (B2C).
-      const code = (item.hsn_code || '').trim();
-      if (!code) missingHsn.add(item.product_name);
-      const uqc = getGSTUQC(item.unit);
-      const table = registered ? hsn.b2b : hsn.b2c;
-      const hKey = `${code}|${uqc}|${rt}`;
-      const h = table.get(hKey);
-      if (h) {
-        h.qty += item.quantity * kept;
-        addSplit(h.split, split);
-      } else {
-        table.set(hKey, { hsn: code, desc: (item.product_name || '').slice(0, 30), uqc, rt, qty: item.quantity * kept, split: { ...split } });
-      }
+    // Table 12 — HSN summary (net of credit notes), separate for registered (B2B) and other buyers (B2C).
+    if (!line.hsn) missingHsn.add(line.desc);
+    const uqc = getGSTUQC(line.unit);
+    const table = registered ? hsn.b2b : hsn.b2c;
+    const hKey = `${line.hsn}|${uqc}|${line.rt}`;
+    const h = table.get(hKey);
+    if (h) {
+      h.qty += line.qty;
+      addSplit(h.split, split);
+    } else {
+      table.set(hKey, { hsn: line.hsn, desc: line.desc.slice(0, 30), uqc, rt: line.rt, qty: line.qty, split: { ...split } });
+    }
 
-      // Table 8 — nil rated (0 % GST) lines are not reported in B2B / B2CS.
-      if (rt <= 0) {
-        const ty = `${inter ? 'INTR' : 'INTRA'}${registered ? 'B2B' : 'B2C'}`;
-        nil.set(ty, (nil.get(ty) || 0) + taxable);
-        return;
-      }
+    // Table 8 — nil rated (0 % GST) lines are not reported in B2B / B2CS / CDNR.
+    if (line.rt <= 0) {
+      const ty = `${line.inter ? 'INTR' : 'INTRA'}${registered ? 'B2B' : 'B2C'}`;
+      nil.set(ty, (nil.get(ty) || 0) + line.taxable);
+      continue;
+    }
 
-      if (registered) {
-        // Table 4A — one invoice per bill, items per tax rate.
-        if (!b2b.has(buyerGstin)) b2b.set(buyerGstin, new Map());
-        const invoices = b2b.get(buyerGstin)!;
-        if (!invoices.has(sale.invoice_number)) invoices.set(sale.invoice_number, { sale, pos, inter, rates: new Map() });
-        const inv = invoices.get(sale.invoice_number)!;
-        const r = inv.rates.get(rt);
-        if (r) addSplit(r, split);
-        else inv.rates.set(rt, { ...split });
-      } else {
-        // Table 7 — B2C (small), one row per place of supply and rate.
-        const key = `${inter ? 'INTER' : 'INTRA'}|${pos}|${rt}`;
-        const row = b2cs.get(key);
-        if (row) addSplit(row.split, split);
-        else b2cs.set(key, { pos, inter, rt, split: { ...split } });
-      }
-    });
+    if (registered) {
+      // Table 4A — one invoice per bill, items per tax rate; table 9B — one note per return.
+      if (line.ret) addTo(cdnr, line, line.ret.return_number || line.ret.id, split);
+      else addTo(b2b, line, line.sale.invoice_number, split);
+    } else {
+      // Table 7 — B2C (small), one row per place of supply and rate, net of returns in the period.
+      const key = `${line.inter ? 'INTER' : 'INTRA'}|${line.pos}|${line.rt}`;
+      const row = b2cs.get(key);
+      if (row) addSplit(row.split, split);
+      else b2cs.set(key, { pos: line.pos, inter: line.inter, rt: line.rt, split: { ...split } });
+    }
   }
 
   const hsnRows = (table: typeof hsn.b2b) =>
@@ -195,29 +197,25 @@ export function buildGstr1Json(params: {
       };
     });
 
-  // Table 13 — documents issued, one row per invoice series (prefix before the running number).
-  const series = new Map<string, { nums: { n: number; label: string }[]; cancelled: number }>();
-  for (const s of sales) {
-    if (isEstimate(s) || !s.invoice_number) continue;
-    const m = s.invoice_number.match(/^(.*?)(\d+)$/);
-    const prefix = m ? m[1] : s.invoice_number;
-    const n = m ? parseInt(m[2], 10) : 0;
-    if (!series.has(prefix)) series.set(prefix, { nums: [], cancelled: 0 });
-    const row = series.get(prefix)!;
-    row.nums.push({ n, label: s.invoice_number });
-    if (s.status === 'cancelled') row.cancelled += 1;
-  }
-  const docs = Array.from(series.values()).map((row, i) => {
-    const sorted = row.nums.sort((a, b) => a.n - b.n);
-    return {
-      num: i + 1,
-      from: sorted[0].label,
-      to: sorted[sorted.length - 1].label,
-      totnum: sorted.length,
-      cancel: row.cancelled,
-      net_issue: sorted.length - row.cancelled,
-    };
-  });
+  // Table 13 — documents issued, one row per series (prefix before the running number):
+  // invoices (doc 1) and, since v4.101.0, credit notes (doc 5).
+  const seriesRows = (docs: { label: string; cancelled: boolean }[]) => {
+    const series = new Map<string, { nums: { n: number; label: string }[]; cancelled: number }>();
+    for (const d of docs) {
+      const m = d.label.match(/^(.*?)(\d+)$/);
+      const prefix = m ? m[1] : d.label;
+      if (!series.has(prefix)) series.set(prefix, { nums: [], cancelled: 0 });
+      const row = series.get(prefix)!;
+      row.nums.push({ n: m ? parseInt(m[2], 10) : 0, label: d.label });
+      if (d.cancelled) row.cancelled += 1;
+    }
+    return Array.from(series.values()).map((row, i) => {
+      const sorted = row.nums.sort((a, b) => a.n - b.n);
+      return { num: i + 1, from: sorted[0].label, to: sorted[sorted.length - 1].label, totnum: sorted.length, cancel: row.cancelled, net_issue: sorted.length - row.cancelled };
+    });
+  };
+  const invoiceDocs = seriesRows(sales.filter((s) => !isEstimate(s) && s.invoice_number).map((s) => ({ label: s.invoice_number, cancelled: s.status === 'cancelled' })));
+  const noteDocs = seriesRows(supplies.notes.map((r) => ({ label: r.return_number || r.id, cancelled: false })));
 
   const json: Record<string, unknown> = {
     gstin,
@@ -231,7 +229,23 @@ export function buildGstr1Json(params: {
       inv: Array.from(invoices.values()).map(({ sale, pos, inter, rates }) => ({
         inum: sale.invoice_number,
         idt: gstInvoiceDate(sale.created_at),
-        val: rupees(getSaleNetTotal(sale)),
+        // The bill as issued: its returns are credit notes of their own period.
+        val: rupees(sale.grand_total || 0),
+        pos,
+        rchrg: 'N',
+        inv_typ: 'R',
+        itms: Array.from(rates.entries()).map(([rt, s], i) => ({ num: i + 1, itm_det: { rt, ...amountFields(s, inter) } })),
+      })),
+    }));
+  }
+  if (cdnr.size) {
+    json.cdnr = Array.from(cdnr.entries()).map(([ctin, notes]) => ({
+      ctin,
+      nt: Array.from(notes.values()).map(({ ret, pos, inter, rates }) => ({
+        ntty: 'C',
+        nt_num: ret!.return_number || ret!.id,
+        nt_dt: gstInvoiceDate(ret!.created_at),
+        val: rupees(Array.from(rates.values()).reduce((a, s) => a + s.txval + s.iamt + s.intra, 0)),
         pos,
         rchrg: 'N',
         inv_typ: 'R',
@@ -254,8 +268,11 @@ export function buildGstr1Json(params: {
   if (hsn.b2b.size || hsn.b2c.size) {
     json.hsn = { hsn_b2b: hsnRows(hsn.b2b), hsn_b2c: hsnRows(hsn.b2c) };
   }
-  if (docs.length) {
-    json.doc_issue = { doc_det: [{ doc_num: 1, docs }] };
+  if (invoiceDocs.length || noteDocs.length) {
+    const docDet = [];
+    if (invoiceDocs.length) docDet.push({ doc_num: 1, docs: invoiceDocs });
+    if (noteDocs.length) docDet.push({ doc_num: 5, docs: noteDocs });
+    json.doc_issue = { doc_det: docDet };
   }
 
   const issues: Gstr1JsonIssue[] = [];

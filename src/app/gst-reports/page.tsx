@@ -21,6 +21,9 @@ import { GstHeaderActions } from '@/components/gst/GstHeaderActions';
 import { GstMetricsRibbon } from '@/components/gst/GstMetricsRibbon';
 import { GstNavTabs, GstTabType } from '@/components/gst/GstNavTabs';
 import { GstHsnSummaryTable } from '@/components/gst/GstHsnSummaryTable';
+import { GstCreditNotes } from '@/components/gst/GstCreditNotes';
+import { GstGstr3bSummary } from '@/components/gst/GstGstr3bSummary';
+import { buildGstr3bSummary } from '@/lib/gst/gstr3b';
 import { ProfitMask } from '@/components/privacy/ProfitMask';
 import { msg, tr } from '@/lib/i18n/core';
 import { gstForCaMessage } from '@/lib/whatsapp/businessMessages';
@@ -64,11 +67,36 @@ export default function GSTReportsPage() {
   );
   const sales = useMemo(() => (periodSales || []).filter((s) => s.status !== 'cancelled'), [periodSales]);
 
+  // Returns (K-D04, v4.101.0): those dated in the period are its credit notes; those of the period's
+  // bills tell old (pre-record) returns apart. Bills of earlier periods that goods came back from too.
+  const returnData = useLiveQuery(async () => {
+    const ids = (periodSales || []).map((s) => s.id);
+    const [inPeriod, ofBills] = await Promise.all([
+      db.sales_returns.where('created_at').between(dateRange.startStr, dateRange.endStr, true, true).toArray(),
+      ids.length ? db.sales_returns.where('original_sale_id').anyOf(ids).toArray() : Promise.resolve([]),
+    ]);
+    const returns = Array.from(new Map([...inPeriod, ...ofBills].map((r) => [r.id, r])).values());
+    const known = new Set(ids);
+    const missing = Array.from(new Set(inPeriod.map((r) => r.original_sale_id).filter((id) => !known.has(id))));
+    const originals = (missing.length ? await db.sales.bulkGet(missing) : []).filter((s): s is NonNullable<typeof s> => Boolean(s));
+    return { returns, originals };
+  }, [periodSales, dateRange]);
+  const returnOpts = useMemo(
+    () => ({ returns: returnData?.returns || [], originals: returnData?.originals || [], start: dateRange.start, end: dateRange.end }),
+    [returnData, dateRange]
+  );
+
   // Generate GSTR-1 Data — from every bill of the period: it leaves out estimates and returned
   // bills itself and needs the cancelled ones for "documents issued" (they were always 0 before v4.78.0).
   const gstr1Data: GSTR1ReportData = useMemo(() => {
-    return generateGSTR1Report(periodSales || [], customers, business || ({} as any), periodPreset);
-  }, [periodSales, customers, business, periodPreset]);
+    return generateGSTR1Report(periodSales || [], customers, business || ({} as any), periodPreset, returnOpts);
+  }, [periodSales, customers, business, periodPreset, returnOpts]);
+
+  // GSTR-3B outward tax from the same lines (K-D22, v4.101.0).
+  const gstr3b = useMemo(
+    () => buildGstr3bSummary({ sales: periodSales || [], customers, business: business || { gstin: '' }, ...returnOpts }),
+    [periodSales, customers, business, returnOpts]
+  );
 
   // B2B rows are one per invoice *and* tax rate; the count shown is distinct invoices.
   const b2bInvoiceCount = useMemo(
@@ -96,11 +124,14 @@ export default function GSTReportsPage() {
   };
 
   const handleExportTallyXML = async () => {
+    // Same lines as GSTR-1: bills as issued + credit notes for goods returned in the period (K-D11).
     const { xml, filename } = generateTallyPrimeXML({
       business,
       sales,
       customers,
       returns: await db.sales_returns.toArray(),
+      originals: returnOpts.originals,
+      range: { start: dateRange.start, end: dateRange.end },
       periodName: periodPreset,
     });
     const blob = new Blob([xml], { type: 'application/xml;charset=utf-8;' });
@@ -118,7 +149,7 @@ export default function GSTReportsPage() {
       await showAlert(tr('GSTR-1 is filed for one month (or one quarter under QRMP). Choose a month or a quarter, then download the JSON.'), { title: tr('GSTR-1 JSON') });
       return;
     }
-    const { json, issues, fileName } = buildGstr1Json({ sales: periodSales || [], customers, business: business || { gstin: '', name: '' }, fp: dateRange.fp });
+    const { json, issues, fileName } = buildGstr1Json({ sales: periodSales || [], customers, business: business || { gstin: '', name: '' }, fp: dateRange.fp, ...returnOpts });
     if (issues.length) {
       const go = await showConfirm(
         `${tr('Please fix these before filing on the GST portal:')}\n\n${issues.map(describeIssue).join('\n')}\n\n${tr('Download the JSON anyway?')}`,
@@ -239,6 +270,7 @@ export default function GSTReportsPage() {
               </div>
             )}
           </div>
+          <GstCreditNotes notes={gstr1Data.b2b_credit_notes} />
         </Card>
       )}
 
@@ -285,6 +317,8 @@ export default function GSTReportsPage() {
         </Card>
       )}
 
+      {activeTab === 'gstr3b' && <GstGstr3bSummary summary={gstr3b} />}
+
       {activeTab === 'doc_issue' && (
         <Card className="p-4 sm:p-5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xs space-y-3">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
@@ -306,6 +340,12 @@ export default function GSTReportsPage() {
               <span className="text-slate-500">{tr('Cancelled / Void Bills:')}</span>
               <span className="font-bold text-rose-600">{gstr1Data.doc_cancelled_count}</span>
             </div>
+            {gstr1Data.credit_notes_count > 0 && (
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl flex items-center justify-between" data-gst-doc-credit-notes>
+                <span className="text-slate-500">{tr('Credit notes (returns):')}</span>
+                <span className="font-bold text-slate-900 dark:text-slate-100">{gstr1Data.credit_notes_count} · {gstr1Data.credit_note_from} ➔ {gstr1Data.credit_note_to}</span>
+              </div>
+            )}
           </div>
         </Card>
       )}

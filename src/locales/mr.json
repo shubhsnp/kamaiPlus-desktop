@@ -2650,5 +2650,20 @@
   "GST screen, GSTR-1 file and Tally: CGST and SGST are now equal halves (they used to differ by a few paise).": "GST स्क्रीन, GSTR-1 फाइल आणि Tally: CGST आणि SGST आता बरोबर निम्मे आहेत (आधी काही पैशांचा फरक येत होता).",
   "Supplier's Excel bill: an item is matched only when its name and pack size really agree, so another oil or size is offered as a new item. The supplier, bill number and date are read from the top of the sheet.": "सप्लायरचे Excel बिल: नाव आणि पॅक साइज खरोखर जुळले तरच आयटम जुळवला जातो, त्यामुळे दुसरे तेल किंवा दुसरा साइज नवीन आयटम म्हणून येतो. सप्लायर, बिल नंबर आणि तारीख शीटच्या वरून वाचली जाते.",
   "Billing: \"items\" now counts the lines on the bill; \"units\" adds up the quantities. Bottles and cans are billed in whole numbers; a bag / sack can be sold in parts (¼, ½, ¾).": "बिलिंग: \"items\" आता बिलाच्या ओळी मोजतो; \"units\" प्रमाण जोडतो. बाटली आणि कॅन पूर्ण संख्येत विकले जातात; पोते भागांतही (¼, ½, ¾).",
-  "Stock Audit Trail shows the newest change first. Excel price lists keep Bottle, Can / Tin and Bag / Sack units. Bills and screens say \"KamaiPlus\".": "Stock Audit Trail सर्वात नवा बदल सर्वात वर दाखवतो. Excel किंमत यादीत Bottle, Can / Tin आणि Bag / Sack युनिट तसेच राहतात. बिल आणि स्क्रीनवर \"KamaiPlus\" दिसते."
+  "Stock Audit Trail shows the newest change first. Excel price lists keep Bottle, Can / Tin and Bag / Sack units. Bills and screens say \"KamaiPlus\".": "Stock Audit Trail सर्वात नवा बदल सर्वात वर दाखवतो. Excel किंमत यादीत Bottle, Can / Tin आणि Bag / Sack युनिट तसेच राहतात. बिल आणि स्क्रीनवर \"KamaiPlus\" दिसते.",
+  "Table 9B: Credit notes (returns by GSTIN buyers)": "टेबल 9B: क्रेडिट नोट (GSTIN असलेल्या ग्राहकांचे रिटर्न)",
+  "Credit note {note} • {date} • against {invoice}": "क्रेडिट नोट {note} • {date} • बिल {invoice} वर",
+  "Credit notes (returns):": "क्रेडिट नोट (रिटर्न):",
+  "Table": "टेबल",
+  "Taxable value": "करपात्र रक्कम",
+  "GSTR-3B": "GSTR-3B",
+  "GSTR-3B: tax on your sales": "GSTR-3B: तुमच्या विक्रीवरील कर",
+  "3.1 (a) Outward taxable supplies": "3.1 (a) करपात्र विक्री",
+  "3.1 (c) Nil rated and exempted": "3.1 (c) शून्य दर आणि सूट असलेली विक्री",
+  "Tax payable before input tax credit": "इनपुट टॅक्स क्रेडिटपूर्वी देय कर",
+  "Includes {count} credit notes (goods returned this period): taxable −{taxable}, tax −{tax}.": "यात {count} क्रेडिट नोट समाविष्ट आहेत (या कालावधीत परत आलेला माल): करपात्र −{taxable}, कर −{tax}.",
+  "Input tax credit (table 4) is not worked out here: take it from GSTR-2B on the GST portal, which fills it for you. Check the figures with your CA before filing.": "इनपुट टॅक्स क्रेडिट (टेबल 4) येथे काढला जात नाही: तो GST पोर्टलवरील GSTR-2B मधून घ्या, जो आपोआप भरतो. फाइल करण्यापूर्वी आकडे तुमच्या CA कडून तपासा.",
+  "GST: goods returned are now a credit note in the month they came back. Returns by GSTIN buyers go in GSTR-1 table 9B; the bill itself stays as issued.": "GST: परत आलेला माल आता त्याच महिन्याची क्रेडिट नोट आहे ज्यात तो परत आला. GSTIN असलेल्या ग्राहकांचे रिटर्न GSTR-1 च्या टेबल 9B मध्ये जातात; बिल जसे बनले तसेच राहते.",
+  "New GSTR-3B tab on the GST screen: tax on your sales for the month, the same figures as GSTR-1.": "GST स्क्रीनवर नवीन GSTR-3B टॅब: महिन्याच्या विक्रीवरील कर, GSTR-1 सारखेच आकडे.",
+  "Tally file: returns come as Credit Note vouchers, and udhar is tracked bill by bill.": "Tally फाइल: रिटर्न Credit Note व्हाउचर म्हणून येतात, आणि उधारी बिलानुसार चालते."
 }

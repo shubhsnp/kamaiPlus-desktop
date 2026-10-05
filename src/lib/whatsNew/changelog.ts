@@ -15,6 +15,14 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.101.0',
+    items: [
+      msg('GST: goods returned are now a credit note in the month they came back. Returns by GSTIN buyers go in GSTR-1 table 9B; the bill itself stays as issued.'),
+      msg('New GSTR-3B tab on the GST screen: tax on your sales for the month, the same figures as GSTR-1.'),
+      msg('Tally file: returns come as Credit Note vouchers, and udhar is tracked bill by bill.'),
+    ],
+  },
+  {
     version: '4.100.0',
     items: [
       msg('Home "Cash in Hand" and the Day Summary now count the morning cash you opened the drawer with, so they show what your galla really holds.'),

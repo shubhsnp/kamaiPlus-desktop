@@ -138,7 +138,7 @@ Order zaroori hai: **pehle data surakshit → phir data ka ek format → phir lo
 
 ## 4. Kamiyan (count)
 
-**Total: 74** — Platform 17 · Android 17 · Desktop 40. **Open 48 · Done 26.**
+**Total: 74** — Platform 17 · Android 17 · Desktop 40. **Open 46 · Done 28.**
 🔴 = paisa / data / security / Play Store risk · 🟠 = galat ya adhoora behaviour · 🟢 = chhota / feature gap
 
 ### Platform / website (K-P)
@@ -192,14 +192,14 @@ Order zaroori hai: **pehle data surakshit → phir data ka ek format → phir lo
 | K-D01 | `src/lib/payments/` (UPI notification parser, soundbox) kisi screen se juda nahi — bekaar code | 🟢 | Open |
 | K-D02 | Purani cash shifts ki history nahi | 🟢 | Open |
 | K-D03 | Customer credit limit warning nahi | 🟢 | Open |
-| K-D04 | GSTR-1 JSON mein credit notes (cdnr / cdnur) nahi — partial return net report hota hai | 🟠 | Open |
+| K-D04 | GSTR-1 JSON mein credit notes (cdnr / cdnur) nahi — partial return net report hota hai | 🟠 | Done v4.101.0 |
 | K-D05 | GSTIN online verify nahi (sirf format check) | 🟢 | Open |
 | K-D06 | Favourite (star) items POS mein upar nahi aate | 🟢 | Open |
 | K-D07 | Estimate / quotation bana nahi sakte (sirf pehchaanta hai) | 🟢 | Open |
 | K-D08 | Installer unsigned — Windows "protected your PC" warning (certificate chahiye, Bible §2.2) | 🟠 | Open |
 | K-D09 | Cloud sync band — ek dukaan mein 2 counter / 2 PC ek data nahi | 🟠 | ✅ Done v4.86.0 — dono taraf sync (beta switch); Step 4 |
 | K-D10 | TSC par "plug wapas = green" aur calibrate ke baad frame photo check baaki (installer wala hissa ho gaya — 4.80.0 live tha, 4.81.0 2026-09-30 ko publish) | 🟠 | Open |
-| K-D11 | Tally XML asli Tally company mein import karke test nahi hua | 🟠 | Open |
+| K-D11 | Tally XML asli Tally company mein import karke test nahi hua | 🟠 | Open — v4.101.0 mein file Tally ke niyam par poori (XML parse, ledgers, bill-wise, Credit Note vouchers, balanced); bas asli Tally company mein ek baar import karke dekhna baaki (Rahul) |
 | K-D12 | Route guard 8 aise pages ka naam leta hai jo hain hi nahi (Bible §12 #3) | 🟢 | Open |
 | K-D13 | Products toolbar ka camera "Scan" kuch nahi karta tha (code band form mein jaata tha) | 🟠 | ✅ Done v4.81.0 — camera scanner hataya (Bible §9.12) |
 | K-D14 | Products search "HSN, size, color" ka daava karta tha, par sirf naam / barcode dhoondhta tha | 🟠 | ✅ Done v4.81.0 — `lib/products/detailSearch.ts` |
@@ -210,7 +210,7 @@ Order zaroori hai: **pehle data surakshit → phir data ka ek format → phir lo
 | K-D19 | Staff login / roles nahi — kaun sa cashier kaunsa bill kaata, record nahi; cashier ko discount / return / delete se rok nahi sakte (sirf owner PIN profit chhupata hai). `staff_id` sirf `lib/auth/session.ts` mein (FS-07) | 🟠 | Open |
 | K-D20 | Batch / expiry nahi — product type mein field hi nahi (pharmacy / FMCG ke liye zaroori) (FS-08) | 🟠 | Open |
 | K-D21 | Purchase return / debit note / purchase order nahi (FS-09) | 🟢 | Open |
-| K-D22 | GSTR-3B summary, e-invoice (IRN), e-way bill nahi — `src` mein koi code nahi (FS-10, FS-11, FS-12) | 🟢 | Open |
+| K-D22 | GSTR-3B summary, e-invoice (IRN), e-way bill nahi — `src` mein koi code nahi (FS-10, FS-11, FS-12) | 🟢 | Done v4.101.0 (GSTR-3B summary; e-invoice / e-way bill ko IRP / GSP API account chahiye — offline nahi ho sakta) |
 | K-D24 | Electron E2E ka "Transactions tab drag, phir click se khule" check kabhi-kabhi fail (v4.82.0 par 2 run mein 1 baar: click ke 600 ms baad drawer screen par nahi) — doosre run mein 71/71. Wait badhana / drawer ke khulne ka intezaar karna hai | 🟢 | ✅ Done v4.83.0 — test ab drawer ke khulne ka 3 s tak intezaar karta hai (300 ms slide), fail par overlay / path / tab likhta hai; 71/71 |
 | K-D25 | Barcode Studio mein preview tab tak dikhta hi nahi tha jab tak item na jode (khaali list = grey dabba + ek line) — size / "On the label" badlo to asar nahi dikhta | 🟠 | ✅ Done v4.85.0 — khaali list par sample label, preview sticky, frame labels jitna uncha (Bible §9, §10 #36) |
 | K-D26 | Custom roll size box mein "38" type nahi hota tha — "3" par hi 50 ho jaata (save + settings event); "Copies for all" koi bhi number le leta (50,000 labels) | 🟠 | ✅ Done v4.85.0 — draft value, sirf sahi size save (`CUSTOM_LIMITS`); copies 1…999 |

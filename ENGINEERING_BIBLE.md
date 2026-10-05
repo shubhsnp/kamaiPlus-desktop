@@ -481,7 +481,7 @@ src/components/<feature>/   Feature components, one folder per domain
 src/components/ui/          Button, Card, Input, Modal  (that is all of it)
 src/lib/<domain>/           Engines — see table below
 src/types/index.ts          All domain types. Single file.
-scripts/e2e_simulation.ts   The test suite (§11). 795 assertions.
+scripts/e2e_simulation.ts   The test suite (§11). 804 assertions.
 scripts/bump_version.ts     Version bumper (+0.1 minor)
 public/barcodes/*.json      5 shipped offline barcode dictionaries
 ```
@@ -1567,6 +1567,7 @@ Each was a real bug that cost real time. The test suite guards most of them.
 | 35 | **Desktop and Android spoke different cloud languages (before v4.83.0; sync off, so nothing broke yet).** The Desktop sent raw Dexie rows: prices / bill totals / udhar in paise under names the phone reads as rupees (₹100 bill → ₹10,000), `current_stock` the phone never reads (stock 0), plan fields the rules refuse, and it saved the phone's documents as Dexie rows unchanged. | `lib/cloud/cloudContract.ts` `toCloud` / `fromCloud` for all 14 tables (`docs/CLOUD_DATA_CONTRACT.md` v1.0); `firestoreSync.ts`, `cloudMerge`, onboarding use nothing else. Suite 9 §9j(s): round-trips exact, the phone's real documents read right. |
 | 37 | **Four gaps found while making the website help guides (before v4.99.0).** (K-D40) CGST was split from every bill line with `round(tax / 2)`, so the GST screen, CA files, Tally and the GSTR-1 JSON gave CGST every odd half-paisa (demo HSN 0713: CGST ₹16.31, SGST ₹16.27), and the GST screen listed a B2B invoice once per line. (K-D37) Every A4 bill footer printed the retired "Kamai+" name and an unprovable "#1 in India" claim. (K-D38) Day Summary, its PDF / WhatsApp and Home "Cash in Hand" left out the morning float (₹435 shown, drawer ₹2,435); after Close Shift the Cash Register showed "Opening Float ₹0"; the PDF also left out khata cash. (K-D39) The counter's "items" was the quantities added up ("Cart Items (8)" on a 7-line bill that "Sale completed" calls 7 items). | `splitIntraStateTax` on row totals; B2B rows per invoice + rate. Footer "KamaiPlus • Aapki Dukaan ka Digital Sathi". `dayOpeningFloat(shifts, day)` (first shift opened that day) → `summarizeDay({ openingCash })`, Home and the Cash Register (also when no shift is open); Home card says "Float + Cash Sales - Exp". Items = `cart.length`, units = quantities. Suite 21 "v4.99.0" block (12 checks). |
 | 38 | **The rest of the demo-tour gaps (before v4.100.0).** (K-D32) A supplier Excel bill line matched any saved item sharing half its words: "Sesame Oil 500 ml" put its stock on "Coconut Oil 500 ml"; the supplier was the file name and the bill number a made-up "CSV_5805". (K-D35) After a cash refund of a UPI bill the Day Summary's cash + UPI + udhar (₹6,312) did not equal its total (₹6,224) — it used the gross split, Transactions the net one. (K-D34) Stock Audit Trail took `.reverse()` of the table = the random id order. (K-D33) "Kamai+" on the password screen, menu and the default bill terms. (K-D36) Excel Bottle / Can / Bag became "piece". Bottles and cans took 1.5 at the counter. What's new stopped at 4.81.0. | `nameMatchScore` (same size + the shorter name's words all in the longer; a tie = new item) and `readBillHeading` in `lib/purchases/`; `summarizeDay({ returns })` → `paidBy` (net, as Transactions) used by the card, PDF and WhatsApp; `orderBy('created_at').reverse()`; `resolveInvoiceConfig` swaps the old terms line; `mapUnit` bottle / can / bag; `WHOLE_ONLY` + bottle, can. Suite 21 "v4.100.0" block (11 checks). |
+| 39 | **GST & Tally treated returns as a quiet change to the old bill (before v4.101.0).** A partial return shrank the bill in its own month (a month the shop may have filed), a fully returned B2B bill vanished from GSTR-1 with no credit note (table 9B), Tally netted returns into the sale voucher on the bill's date, GSTR-3B was not in the app, Tally ledgers lacked NAME.LIST and udhar had no bill-wise allocation ("On Account"). (K-D04, K-D11, K-D22) | `lib/gst/periodSupplies.ts`: a period = its bills as issued + credit notes for returns dated in it (pre-record returns stay netted on the bill). GSTR-1 JSON (`cdnr`, B2CS / HSN net, doc 5), the GST screen (`b2b_credit_notes`, GSTR-3B tab via `lib/gst/gstr3b.ts`), and Tally (Sales + Credit Note vouchers, ISPARTYLEDGER + BILLALLOCATIONS, PERSISTEDVIEW) all read it. GST page loads returns in the period + of its bills, and the original bills. Suite 21 "v4.101.0" block (9 checks, Tally parsed with @xmldom). **Still to do on a real Tally company** (K-D11 stays open for that). E-invoice / e-way bill need an IRP / GSP account and API — not offline. |
 ---
 
 ## 11. Verification protocol (AGENTS.md Rule 6)
@@ -1575,7 +1576,7 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 795/795, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 804/804, 0 failures
 node scripts/help_impact.mjs        # which help guides the change touches → row in docs/HELP_SYNC.md (Rule 7)
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
@@ -1628,7 +1629,7 @@ bypassed; without the key only the no-licence checks run. The script removes
 `ELECTRON_RUN_AS_NODE` (set by VS Code terminals), which otherwise stops Electron
 launching. Failure screenshots go to `%TEMP%\kamaiplus-e2e-shots\`.
 
-### Test suite map — `scripts/e2e_simulation.ts` (795 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (804 assertions)
 
 | Suite | Covers |
 | :--- | :--- |
