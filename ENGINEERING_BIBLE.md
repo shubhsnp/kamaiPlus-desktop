@@ -481,7 +481,7 @@ src/components/<feature>/   Feature components, one folder per domain
 src/components/ui/          Button, Card, Input, Modal  (that is all of it)
 src/lib/<domain>/           Engines — see table below
 src/types/index.ts          All domain types. Single file.
-scripts/e2e_simulation.ts   The test suite (§11). 823 assertions.
+scripts/e2e_simulation.ts   The test suite (§11). 826 assertions.
 scripts/bump_version.ts     Version bumper (+0.1 minor)
 public/barcodes/*.json      5 shipped offline barcode dictionaries
 ```
@@ -599,10 +599,10 @@ them readable — assume they touch everything:
 | **`inventory_movements`** | `lib/import/catalogImportDb.ts` (bulkPut — opening stock, only when the sheet has a stock column)<br>`app/billing/page.tsx` (put)<br>`app/inventory/page.tsx` (put)<br>`app/products/page.tsx` (put)<br>`app/purchases/page.tsx` (put — in one transaction with the stock)<br>`app/transactions/page.tsx` (put)<br>`components/dashboard/DashboardHome.tsx` (put)<br>`components/invoices/EditInvoiceModal.tsx` (put)<br>`lib/inward/stockEntryDb.ts` (bulkPut — "New stock + labels", §9.8)<br>`lib/purchases/billInwardDb.ts` (bulkPut — supplier bill, §9.8)<br>`lib/purchases/supplierDocs.ts` (put — debit note ADJUSTMENT down / purchase order received PURCHASE, v4.102.0)<br>`components/sales/SalesReturnModal.tsx` (put) |
 | **`ledger_transactions`** | `app/billing/page.tsx` (put)<br>`app/customers/page.tsx` (put)<br>`app/khata/page.tsx` (delete,put,update)<br>`app/transactions/page.tsx` (put)<br>`components/invoices/EditInvoiceModal.tsx` (put)<br>`components/khata/SettleInvoicesModal.tsx` (put)<br>`components/sales/SalesReturnModal.tsx` (put)<br>`lib/suppliers/supplierLedger.ts` (put, modify — `party_type: 'supplier'` rows; a debit note is an `ADJUSTMENT` row via `writeSupplierReturn`, v4.102.0) |
 | **`marketing_templates`** | _only the four shared modules above_ |
-| **`products`** | `app/billing/page.tsx` (put)<br>`app/inventory/page.tsx` (update)<br>`app/products/page.tsx` (delete,put,update)<br>`app/purchases/page.tsx` (update)<br>`app/transactions/page.tsx` (put)<br>`components/dashboard/DashboardHome.tsx` (update)<br>`lib/import/catalogImportDb.ts` (bulkPut — Excel import, new + updated items)<br>`lib/barcode/storeBarcodes.ts` (update, bulkPut — a saved barcode for items that get a label)<br>`components/invoices/EditInvoiceModal.tsx` (update)<br>`lib/inward/stockEntryDb.ts` (bulkPut — "New stock + labels": new items + restocks, §9.8)<br>`lib/purchases/billInwardDb.ts` (bulkPut — supplier bill, §9.8)<br>`lib/purchases/supplierDocs.ts` (update — debit note stock down, purchase order received stock in, v4.102.0)<br>`components/sales/SalesReturnModal.tsx` (update)<br>`lib/constants/defaultProducts.ts` (bulkPut)<br>`lib/products/variants.ts` (put, bulkPut, update, delete — parent + variants in one transaction, §9.1) |
+| **`products`** | `app/billing/page.tsx` (put)<br>`lib/products/duplicates.ts` (put, bulkDelete — merging duplicate items, v4.103.0)<br>`app/inventory/page.tsx` (update)<br>`app/products/page.tsx` (delete,put,update)<br>`app/purchases/page.tsx` (update)<br>`app/transactions/page.tsx` (put)<br>`components/dashboard/DashboardHome.tsx` (update)<br>`lib/import/catalogImportDb.ts` (bulkPut — Excel import, new + updated items)<br>`lib/barcode/storeBarcodes.ts` (update, bulkPut — a saved barcode for items that get a label)<br>`components/invoices/EditInvoiceModal.tsx` (update)<br>`lib/inward/stockEntryDb.ts` (bulkPut — "New stock + labels": new items + restocks, §9.8)<br>`lib/purchases/billInwardDb.ts` (bulkPut — supplier bill, §9.8)<br>`lib/purchases/supplierDocs.ts` (update — debit note stock down, purchase order received stock in, v4.102.0)<br>`components/sales/SalesReturnModal.tsx` (update)<br>`lib/constants/defaultProducts.ts` (bulkPut)<br>`lib/products/variants.ts` (put, bulkPut, update, delete — parent + variants in one transaction, §9.1) |
 | **`purchase_bills`** | `lib/purchases/billInwardDb.ts` (put — with the bill's stock, one transaction)<br>`lib/purchases/supplierDocs.ts` (put, update — `kind: 'debit_note'` DN-001 / `kind: 'order'` PO-001, v4.102.0; no `kind` = a supplier bill) |
-| **`sales`** | `app/billing/page.tsx` (put — bills, and estimates from "Save as Estimate": status `draft`, EST- number, nothing else written, v4.102.0)<br>`app/transactions/page.tsx` (clear,put)<br>`components/invoices/EditInvoiceModal.tsx` (put)<br>`components/khata/SettleInvoicesModal.tsx` (put)<br>`components/sales/SalesReturnModal.tsx` (update) |
-| **`sales_returns`** | `app/transactions/page.tsx` (clear)<br>`components/sales/SalesReturnModal.tsx` (put) |
+| **`sales`** | `lib/products/duplicates.ts` (modify — bill lines of a merged-away item, v4.103.0)<br>`app/billing/page.tsx` (put — bills, and estimates from "Save as Estimate": status `draft`, EST- number, nothing else written, v4.102.0)<br>`app/transactions/page.tsx` (clear,put)<br>`components/invoices/EditInvoiceModal.tsx` (put)<br>`components/khata/SettleInvoicesModal.tsx` (put)<br>`components/sales/SalesReturnModal.tsx` (update) |
+| **`sales_returns`** | `app/transactions/page.tsx` (clear)<br>`lib/products/duplicates.ts` (modify — lines of a merged-away item point to the kept one)<br>`components/sales/SalesReturnModal.tsx` (put) |
 | **`suppliers`** | `lib/suppliers/supplierLedger.ts` (put, update, delete) — the only writer (a debit note calls its `writeSupplierReturn` inside its own transaction); every balance change is one Dexie transaction with its ledger row |
 
 
@@ -852,7 +852,7 @@ There is no global state library. Modules talk through window events:
 `kamai_sidebar_collapsed` · `kamai_products_view_mode` · `kamai_products_manually_cleared` ·
 `kamai_thermal_paper_width` · `kamai_silent_print` · `kamai_print_upi_qr` ·
 `kamai_cash_drawer_enabled` · `kamai_saved_bt_printer_mac` ·
-`kamai_soundbox_lang` · `kamai_soundbox_vol` · `kamai_last_backup_time` ·
+`kamai_last_backup_time` ·
 `kamai_last_backup_type` · `kamai_last_restore_time` · `kamai_cloud_account` · `kamai_cloud_sync_on` · `kamai_cloud_outbox` · `kamai_cloud_full_push` · `kamai_cloud_sync_status` · `kamai_cloud_inflight` · `kamai_cloud_pull_cursor` · `kamai_cloud_device_id` · `kamai_label_calibrated` · `kamai_app_installed` ·
 `kamai_pwa_banner_dismissed` · `kamai_cashier_owner_pin` · `kamai_cashier_privacy_locked` ·
 `kamai_print_settings` (bill printers) · `kamai_label_settings` · `kamai_last_import_ids` ·
@@ -1055,7 +1055,7 @@ module is `featureSwitches`). Switching off only hides; no data is deleted.
 - With an owner PIN set, the Features tab asks for it (`FeaturesTab` → `OwnerPinPrompt`);
   otherwise staff could switch profit privacy off.
 - 🔊 / 🔇 (`SoundToggleButton`, top bar, `kamai_sound_muted`): `playBeepSound`,
-  `playSupermarketBeep` and the soundbox voice all return early when muted.
+  `playSupermarketBeep` return early when muted (the soundbox voice was removed in v4.103.0, K-D01).
 - Suite 9 §9c, §9j(q) (v4.81.0 switches); Electron E2E checks the new-shop form, menu,
   "turned off" card, a switch going on, and the sound button.
 
@@ -1569,6 +1569,7 @@ Each was a real bug that cost real time. The test suite guards most of them.
 | 38 | **The rest of the demo-tour gaps (before v4.100.0).** (K-D32) A supplier Excel bill line matched any saved item sharing half its words: "Sesame Oil 500 ml" put its stock on "Coconut Oil 500 ml"; the supplier was the file name and the bill number a made-up "CSV_5805". (K-D35) After a cash refund of a UPI bill the Day Summary's cash + UPI + udhar (₹6,312) did not equal its total (₹6,224) — it used the gross split, Transactions the net one. (K-D34) Stock Audit Trail took `.reverse()` of the table = the random id order. (K-D33) "Kamai+" on the password screen, menu and the default bill terms. (K-D36) Excel Bottle / Can / Bag became "piece". Bottles and cans took 1.5 at the counter. What's new stopped at 4.81.0. | `nameMatchScore` (same size + the shorter name's words all in the longer; a tie = new item) and `readBillHeading` in `lib/purchases/`; `summarizeDay({ returns })` → `paidBy` (net, as Transactions) used by the card, PDF and WhatsApp; `orderBy('created_at').reverse()`; `resolveInvoiceConfig` swaps the old terms line; `mapUnit` bottle / can / bag; `WHOLE_ONLY` + bottle, can. Suite 21 "v4.100.0" block (11 checks). |
 | 39 | **GST & Tally treated returns as a quiet change to the old bill (before v4.101.0).** A partial return shrank the bill in its own month (a month the shop may have filed), a fully returned B2B bill vanished from GSTR-1 with no credit note (table 9B), Tally netted returns into the sale voucher on the bill's date, GSTR-3B was not in the app, Tally ledgers lacked NAME.LIST and udhar had no bill-wise allocation ("On Account"). (K-D04, K-D11, K-D22) | `lib/gst/periodSupplies.ts`: a period = its bills as issued + credit notes for returns dated in it (pre-record returns stay netted on the bill). GSTR-1 JSON (`cdnr`, B2CS / HSN net, doc 5), the GST screen (`b2b_credit_notes`, GSTR-3B tab via `lib/gst/gstr3b.ts`), and Tally (Sales + Credit Note vouchers, ISPARTYLEDGER + BILLALLOCATIONS, PERSISTEDVIEW) all read it. GST page loads returns in the period + of its bills, and the original bills. Suite 21 "v4.101.0" block (9 checks, Tally parsed with @xmldom). **Still to do on a real Tally company** (K-D11 stays open for that). E-invoice / e-way bill need an IRP / GSP account and API — not offline. |
 | 40 | **Open gaps the shop would hit (before v4.102.0).** (K-D07) An estimate could be converted but not made — and an EST- number would have pushed the next bill number (`getMaxUsedInvoiceSeq` read EST-012 as 12). (K-D03) No udhar limit. (K-D02) A closed shift could not be seen again. (K-D06) Starred items were not first. (K-D21) No way to send goods back to a supplier (debit note) or to keep a purchase order. | `lib/billing/estimate.ts` (`nextEstimateNumber` with a per-PC floor so a converted number is not reused, `buildEstimateSale` — draft, nothing paid / owed); `handleSaveEstimate` in the counter writes only `sales`; `invoiceNumberService` skips EST- keys. `lib/billing/creditLimit.ts` (warn, shop decides; `credit_limit` ↔ cloud `credit_limit_paise`). `CashShiftHistory.tsx`. `favouritesFirst` in `posLayout.ts`. `lib/purchases/supplierDocs.ts` (purchase_bills `kind`; debit note = stock + record + supplier account in one transaction; order changes nothing until "Received" = a normal inward, once). Suite 21 "v4.102.0" block (19 checks). |
+| 41 | **Loose ends (before v4.103.0).** (K-D12) The route guard listed 8 pages that never existed. (K-D31) The app named Mukta but did not ship it — PCs without it showed Nirmala UI. (K-D30) `ELECTRON_RUN_AS_NODE=1` turned the installed exe into plain Node. (K-D17) The E2E's first licensed launch failed at 20 s on a cold start. (K-D01) `src/lib/payments` (phone notification parser, Capacitor payment bridge, soundbox) was dead code. (K-D05) A mistyped GSTIN passed the format check. (K-D28) The same item typed on the phone and the PC showed twice after sync (also an Excel list imported twice). | AppShell names only real routes; `@font-face` ×15 in `globals.css` → `src/assets/fonts` (OFL); `build.electronFuses` (runAsNode / NODE_OPTIONS / inspect off); `FIRST_LAUNCH_WAIT_MS` 60 s; payments code deleted (dead-module list); `gstinCheckChar` in `validateGstin`; `lib/products/duplicates.ts` (`findDuplicateGroups`, `mergeDuplicateProducts` — one transaction, references moved before the copies are deleted) + `DuplicateItemsReview` on Products. Suite 21 "v4.103.0" block. |
 ---
 
 ## 11. Verification protocol (AGENTS.md Rule 6)
@@ -1577,7 +1578,7 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 823/823, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 826/826, 0 failures
 node scripts/help_impact.mjs        # which help guides the change touches → row in docs/HELP_SYNC.md (Rule 7)
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
@@ -1630,7 +1631,7 @@ bypassed; without the key only the no-licence checks run. The script removes
 `ELECTRON_RUN_AS_NODE` (set by VS Code terminals), which otherwise stops Electron
 launching. Failure screenshots go to `%TEMP%\kamaiplus-e2e-shots\`.
 
-### Test suite map — `scripts/e2e_simulation.ts` (823 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (826 assertions)
 
 | Suite | Covers |
 | :--- | :--- |
@@ -1638,7 +1639,7 @@ launching. Failure screenshots go to `%TEMP%\kamaiplus-e2e-shots\`.
 | 2 | **Financial & GST invariants (paise arithmetic)** |
 | 3 | Security, rate limiting, constant-time compare |
 | 4 | ESC/POS thermal bytecode |
-| 5 | Payment notification parser & soundbox |
+| 5 | _Removed in v4.103.0 (K-D01): payment notification parser, payment bridge, soundbox — phone code no Desktop screen used_ |
 | 6 | WhatsApp Cloud API & webhook |
 | 7 | Validation & data integrity |
 | 8 | _Removed in v4.43.0 with the AI scan feature_ |
@@ -1692,9 +1693,10 @@ Recorded so the next agent does not rediscover them. None are fixed as of v4.38.
 2. ~~`/pay` was unreachable when logged out~~ — **fixed in v4.47.0**: `AppShell` treats
    `/pay` like the public `/invoice` link (no login, standalone layout).
 
-3. **The route guard references 8 pages that do not exist** — `/terms-of-service`,
-   `/privacy-policy`, `/refund-policy`, `/contact-us`, `/features`, `/about`,
-   `/download`, `/plans`. Harmless today (dead branches), but do not assume they exist.
+3. ~~The route guard referenced 8 pages that do not exist~~ — **removed in v4.103.0**
+   (K-D12): `/terms-of-service`, `/privacy-policy`, `/refund-policy`, `/contact-us`,
+   `/features`, `/about`, `/download`, `/plans` are website pages, not app routes. Suite 21
+   "v4.103.0" checks every path `AppShell` names is a real route.
 
 4. ~~`useProSubscription()` always returns Pro.~~ **Resolved in v4.43.0** — the whole
    Pro / subscription layer was deleted (see §10 #16).

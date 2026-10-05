@@ -33,13 +33,11 @@ import { signSessionToken, verifySessionToken } from '../src/lib/auth/session';
 import { calculateGstSummary } from '../src/lib/invoices/gstCalculator';
 import { amountTone, formatINR, formatINRCompact, formatINRSigned } from '../src/lib/utils';
 import { isAnalyticsNetworkNoise } from '../src/lib/diagnostics/errorReporter';
-import { parsePaymentNotification } from '../src/lib/payments/notificationParser';
-import { numberToHindiWords, numberToEnglishWords, soundboxEngine } from '../src/lib/payments/soundboxEngine';
-import { paymentBridge } from '../src/lib/payments/paymentBridge';
 import { signOtpSessionToken, verifyStatelessOtp } from '../src/lib/auth/otpService';
 import { 
   validateIndianPhone, 
   validateGstin, 
+  gstinCheckChar,
   validateUpiId, 
   validatePincode, 
   validateFssaiLicense, 
@@ -153,6 +151,7 @@ import { favouritesFirst } from '../src/lib/billing/posLayout';
 import { buildEstimateSale, ESTIMATE_NOTE, nextEstimateNumber } from '../src/lib/billing/estimate';
 import { cleanDocLines, DEBIT_NOTE_PREFIX, docLinesTotal, nextSupplierDocNumber, purchaseOrderText, PURCHASE_ORDER_PREFIX, stockAfterReturn, supplierDocKind, supplierDocLabel } from '../src/lib/purchases/supplierDocs';
 import { supplierBalanceAfterReturn } from '../src/lib/suppliers/supplierLedger';
+import { duplicateGroupKey, findDuplicateGroups, mergedProduct, repointLines } from '../src/lib/products/duplicates';
 
 let totalTests = 0;
 let passedTests = 0;
@@ -339,74 +338,10 @@ const drawerOpCodeIdx = Array.from(bytes80).findIndex((b, idx) => b === 0x1b && 
 assert(drawerOpCodeIdx !== -1, 'Bytecode contains ESC p (Cash Drawer Kick Pulse)');
 
 // -----------------------------------------------------------------------------
-// TEST SUITE 5: NOTIFICATION PARSER & SMART SOUNDBOX AUDIO ENGINE
+// TEST SUITE 5: removed in v4.103.0 (K-D01) — the bank-SMS / UPI-notification parser, payment
+// bridge and soundbox were phone code (Capacitor notification listener) that no Desktop screen
+// used. Suite 21 "v4.103.0" checks they stay gone.
 // -----------------------------------------------------------------------------
-console.log('🔊 SUITE 5: Bank SMS, Notification Parser & Smart Soundbox Verification');
-
-// 1. HDFC Bank SMS Parsing
-const hdfcMsg = 'Your a/c no. XX1234 is credited with INR 848.00 on 25-AUG-26 by a/c linked to UPI/423589123456/Rahul Sharma';
-const hdfcParsed = parsePaymentNotification(hdfcMsg, 'HDFCBK');
-assert(hdfcParsed !== null, 'HDFC Bank credit SMS parsed successfully');
-assert(hdfcParsed?.amountPaise === 84800, 'HDFC SMS extracted exact amount in paise (84800)');
-assert(hdfcParsed?.referenceNumber === '423589123456', 'HDFC SMS extracted exact 12-digit UTR (423589123456)');
-assert(hdfcParsed?.bankName === 'HDFC Bank', 'HDFC Bank correctly recognized');
-
-// 2. SBI SMS Parsing
-const sbiMsg = 'Dear UPI user, A/C XXXX credited by Rs 848.00 on 25Aug26 transfer from Rahul Sharma Ref No 423589123456';
-const sbiParsed = parsePaymentNotification(sbiMsg, 'SBI-UPI');
-assert(sbiParsed !== null && sbiParsed.amountPaise === 84800, 'SBI credit SMS extracted exact amount (84800 paise)');
-assert(sbiParsed?.bankName === 'State Bank of India', 'State Bank of India correctly recognized');
-
-// 3. PhonePe Business Notification Parsing
-const phonePeMsg = 'Received ₹848.00 from Rahul Sharma via PhonePe on Kamai QR';
-const phonePeParsed = parsePaymentNotification(phonePeMsg);
-assert(phonePeParsed !== null && phonePeParsed.sourceApp === 'PhonePe', 'PhonePe notification recognized with sourceApp');
-assert(phonePeParsed?.amountPaise === 84800, 'PhonePe notification extracted exact amount (₹848.00)');
-
-// 4. Paytm Business Notification Parsing
-const paytmMsg = 'Received ₹848 from 9876543210 on Paytm QR (Ref 423589123456)';
-const paytmParsed = parsePaymentNotification(paytmMsg);
-assert(paytmParsed !== null && paytmParsed.sourceApp === 'Paytm', 'Paytm notification recognized with sourceApp');
-
-// 5. Debit SMS Rejection (Ignore Debits)
-const debitMsg = 'Your a/c no. XX1234 is debited by INR 500.00 on 25-AUG-26';
-const debitParsed = parsePaymentNotification(debitMsg);
-assert(debitParsed === null, 'Debit transaction SMS is strictly ignored (returns null)');
-
-// 6. Soundbox Spoken Number Phonetics
-const hindi848 = numberToHindiWords(848);
-assert(hindi848.includes('आठ सौ') && hindi848.includes('अड़तालीस'), `Hindi number phonetics for 848 matches ('${hindi848}')`);
-
-const eng848 = numberToEnglishWords(848);
-assert(eng848 === 'Eight Hundred Forty-Eight', `English number words for 848 matches ('${eng848}')`);
-
-// 7. Payment Bridge Matching & Deduplication
-paymentBridge.clearHistory();
-paymentBridge.handleIncomingParsedPayment({
-  id: 'test_1',
-  amountPaise: 84800,
-  amountRupees: 848,
-  referenceNumber: '423589123456',
-  sourceApp: 'PhonePe',
-  timestamp: Date.now(),
-  rawText: phonePeMsg,
-  isCredit: true,
-});
-
-const matched = paymentBridge.matchActiveBill(84800, 60000);
-assert(matched !== null && matched.amountPaise === 84800, 'Payment bridge matches active POS bill of ₹848.00 within 60s window');
-
-const duplicateAttempt = paymentBridge.handleIncomingParsedPayment({
-  id: 'test_2',
-  amountPaise: 84800,
-  amountRupees: 848,
-  referenceNumber: '423589123456', // Same UTR
-  sourceApp: 'PhonePe',
-  timestamp: Date.now(),
-  rawText: phonePeMsg,
-  isCredit: true,
-});
-assert(duplicateAttempt === false, 'Duplicate payment notification with same UTR is rejected');
 
 // -----------------------------------------------------------------------------
 // TEST SUITE 6: OFFICIAL META WHATSAPP CLOUD API & WEBHOOK SUITE
@@ -485,8 +420,8 @@ assert(validateIndianPhone('98765', true).isValid === false, 'Short 5-digit mobi
 assert(validateIndianPhone('', false).isValid === true, 'Empty phone accepted when optional');
 
 // 2. GSTIN Statutory Validation
-assert(validateGstin('27AAAAA0000A1Z5', false).isValid === true, 'Valid 15-character GSTIN structure accepted');
-assert(validateGstin('27aaaaa0000a1z5', false).isValid === true, 'Lowercase GSTIN automatically capitalized');
+assert(validateGstin('27AZIPL7277P1ZD', false).isValid === true, 'Valid 15-character GSTIN (a real one, check digit D) accepted');
+assert(validateGstin('27azipl7277p1zd', false).isValid === true && validateGstin('27azipl7277p1zd', false).cleanedValue === '27AZIPL7277P1ZD', 'Lowercase GSTIN automatically capitalized');
 assert(validateGstin('12345', false).isValid === false, 'Malformed GSTIN rejected');
 assert(validateGstin('', false).isValid === true, 'Empty GSTIN accepted when optional');
 
@@ -675,6 +610,11 @@ const DELETED = [
   'lib/firebase/appCheck.ts',
   'lib/firebase/storage.ts',
   'lib/voice/paytmSoundbox.ts',
+  // v4.103.0 (K-D01): phone-only payment notification code no Desktop screen used.
+  'lib/payments/notificationParser.ts',
+  'lib/payments/paymentBridge.ts',
+  'lib/payments/soundboxEngine.ts',
+  'components/payments/PaymentCelebrationModal.tsx',
   'lib/auth/reverseHandshakeService.ts',
   'lib/api/publicBarcodeLookup.ts',
   // v4.43.0: no Pro tiers, payments or AI scan in the one-time-licence desktop app.
@@ -1162,9 +1102,8 @@ assert(billingSrc.split('\n').length < 2300, `POS page stays under 2,300 lines (
     'An item saved without a separate selling price sells at its MRP; Bulk Inward (part of Purchases) hides with Purchases');
 
   // Mute: every sound source checks the one switch.
-  assert(/if \(isSoundMuted\(\)\) return;/.test(readSource('lib/voice/speechParser.ts')) && /isSoundMuted\(\)\) return;/.test(readSource('lib/hardware/barcodeScannerListener.ts'))
-    && /isSoundMuted\(\)\) return;/.test(readSource('lib/payments/soundboxEngine.ts')),
-    '🔇 silences POS beeps, the scanner beep and the soundbox voice');
+  assert(/if \(isSoundMuted\(\)\) return;/.test(readSource('lib/voice/speechParser.ts')) && /isSoundMuted\(\)\) return;/.test(readSource('lib/hardware/barcodeScannerListener.ts')),
+    '🔇 silences POS beeps and the scanner beep');
   assert(/<SoundToggleButton \/>/.test(readSource('components/layout/Navbar.tsx')) && /aria-pressed=\{muted\}/.test(readSource('components/layout/SoundToggleButton.tsx')), 'The top bar has the 🔊 / 🔇 button');
 }
 
@@ -3982,6 +3921,75 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
   assert(pp.includes('data-new-debit-note') && pp.includes('data-new-purchase-order') && pp.includes('<PurchaseOrdersCard') && pp.includes('supplierDocLabel(bill)')
     && readSource('components/suppliers/SupplierDetailPanel.tsx').includes("tr('Goods returned')"),
     'K-D21: Purchases has "Return to Supplier" and "Purchase Order"; open orders are listed; Suppliers shows a debit note as "Goods returned"');
+}
+
+// v4.103.0 — loose ends: K-D12 route guard, K-D31 bundled font, K-D30 fuses, K-D17 E2E wait,
+// K-D01 dead payment code, K-D05 GSTIN check digit, K-D28 duplicate items.
+{
+  // K-D12: every page the route guard names is a real route.
+  const shell = readSource('components/layout/AppShell.tsx');
+  const named = Array.from(new Set(Array.from(shell.matchAll(/(?:pathname === |startsWith\()'(\/[a-z-]*)'/g)).map((m) => m[1])));
+  const missing = named.filter((r) => r !== '/' && !fs.existsSync(path.join(SRC_ROOT, 'app', r.slice(1), 'page.tsx')));
+  assert(named.length >= 5 && missing.length === 0 && !shell.includes('/terms-of-service'),
+    `K-D12: the route guard names only real pages (missing: ${missing.join(', ') || 'none'})`);
+
+  // K-D31: Mukta ships with the app.
+  const css = readSource('app/globals.css');
+  const faces = Array.from(css.matchAll(/@font-face \{ font-family: 'Mukta';[^}]*url\(\.\.\/assets\/fonts\/([a-z0-9-]+\.woff2)\)/g)).map((m) => m[1]);
+  assert(faces.length === 15 && faces.every((f) => fs.existsSync(path.join(SRC_ROOT, 'assets', 'fonts', f))) && fs.existsSync(path.join(SRC_ROOT, 'assets', 'fonts', 'OFL.txt'))
+    && [400, 500, 600, 700, 800].every((w) => css.includes(`font-weight: ${w}; font-display: swap; src: url(../assets/fonts/mukta-${w}-devanagari.woff2)`)),
+    'K-D31: the app bundles Mukta 400–800 (Latin, Latin Ext, Devanagari) with its licence — a shop PC without Mukta no longer falls back to Nirmala UI');
+
+  // K-D30: the packaged exe cannot be turned into plain Node.
+  const pkg = JSON.parse(fs.readFileSync(path.join(SRC_ROOT, '..', 'package.json'), 'utf8'));
+  const fuses = pkg.build?.electronFuses || {};
+  assert(fuses.runAsNode === false && fuses.enableNodeOptionsEnvironmentVariable === false && fuses.enableNodeCliInspectArguments === false,
+    'K-D30: the installer flips Electron\'s RunAsNode, NODE_OPTIONS and --inspect fuses off (ELECTRON_RUN_AS_NODE=1 made the exe plain Node)');
+
+  // K-D17: the first licensed launch of a fresh build gets a cold-start wait.
+  const e2e = fs.readFileSync(path.join(SRC_ROOT, '..', 'scripts', 'electron_e2e.mjs'), 'utf8');
+  assert(/const FIRST_LAUNCH_WAIT_MS = 60000;/.test(e2e) && e2e.includes("textVisible(page, 'Set Master Password', FIRST_LAUNCH_WAIT_MS)"),
+    'K-D17: Electron E2E waits up to 60 s for the first licensed screen (cold start after a build failed at 20 s)');
+
+  // K-D01: the phone's payment-notification code is gone from the Desktop.
+  const payImports = ALL_SOURCE.filter((f) => /from '@\/lib\/payments\//.test(fs.readFileSync(f, 'utf8')));
+  assert(!fs.existsSync(path.join(SRC_ROOT, 'lib', 'payments')) || fs.readdirSync(path.join(SRC_ROOT, 'lib', 'payments')).length === 0,
+    'K-D01: src/lib/payments (bank SMS parser, payment bridge, soundbox) is removed — no Desktop screen could use it');
+  assert(payImports.length === 0, `K-D01: nothing imports the removed payment code (${payImports.join(', ') || 'none'})`);
+
+  // K-D05: GSTIN check digit, offline.
+  assert(gstinCheckChar('27AZIPL7277P1ZD') === 'D' && gstinCheckChar('24AAACR5055K1ZD') === 'D' && validateGstin('27AZIPL7277P1ZD').isValid
+    && !validateGstin('27AZIPL7277P1ZE').isValid && (validateGstin('27AZIPL7277P1ZE').error || '').includes('should be D')
+    && !validateGstin('27AZIPL7727P1ZD').isValid,
+    'K-D05: a GSTIN whose check digit does not add up (one wrong letter, two digits swapped) is refused with the right last character; a real one passes');
+  assert(/validateGstin\(input\.gstin, false\)/.test(readSource('lib/validation/validators.ts')) && readSource('components/suppliers/SupplierFormModal.tsx').includes('validateGstin(gstin, false)')
+    && readSource('app/settings/page.tsx').includes('validateGstin(gstin, false)'),
+    'K-D05: customers, suppliers and the shop\'s own GSTIN all go through the check');
+
+  // K-D28: the same item twice.
+  const P = (id: string, name: string, extra: any = {}): any => ({ id, name, unit: 'piece', is_active: true, created_at: `2026-10-0${id.length}T00:00:00Z`, ...extra });
+  const groups = findDuplicateGroups([
+    P('a', 'Parle-G 100g', { barcode: '8901719110016' }), P('bb', 'parle-g  100G'), P('ccc', 'Biscuit', { barcode: '8901719110016' }),
+    P('d', 'Shampoo', { barcode: '111' }), P('ee', 'Shampoo', { barcode: '222' }),
+    P('f', 'Rice', { unit: 'kg' }), P('gg', 'Rice', { unit: 'piece' }),
+    P('h', 'Shirt', { has_variants: true }), P('ii', 'Shirt', { has_variants: true }), P('j', 'Shirt M', { parent_id: 'h' }), P('kk', 'Shirt M', { parent_id: 'ii' }),
+    P('l', 'Old Soap', { is_active: false }), P('mm', 'Old Soap'),
+  ]);
+  assert(groups.length === 1 && groups[0].map((p: any) => p.id).join() === 'a,bb,ccc',
+    'K-D28: same barcode, or same name + unit with no barcode clash = duplicates; different barcodes, units, variants and switched-off items are not');
+  assert(duplicateGroupKey(['b', 'a']) === duplicateGroupKey(['a', 'b']), 'K-D28: a group the shop marked "Not duplicates" is recognised again in any order');
+  const kept = mergedProduct({ id: 'a', name: 'Parle-G', current_stock: 40, is_favorite: false } as any, [{ id: 'b', barcode: '890', is_favorite: true } as any], 55.5, 'now');
+  const unl = mergedProduct({ id: 'a', current_stock: 0, is_unlimited_stock: true } as any, [], 9, 'now');
+  assert(kept.current_stock === 55.5 && kept.barcode === '890' && kept.is_favorite === true && unl.current_stock === 0,
+    'K-D28: the kept item takes the stock the shop entered, a barcode / star it lacked; an uncounted item stays uncounted');
+  const rp = repointLines([{ product_id: 'b', q: 1 }, { product_id: 'x', q: 2 }] as any[], new Set(['b']), 'a');
+  assert(rp.changed && rp.lines.map((l: any) => l.product_id).join() === 'a,x', 'K-D28: bill lines of the removed copy point to the kept item');
+  const dsrc = readSource('lib/products/duplicates.ts');
+  const mfn = dsrc.slice(dsrc.indexOf('export async function mergeDuplicateProducts'));
+  assert(mfn.includes("db.transaction('rw', [db.products, db.inventory_movements, db.sales, db.sales_returns, db.purchase_bills]")
+    && mfn.indexOf('bulkDelete') > mfn.indexOf("where('product_id').anyOf") && mfn.includes('db.sales.filter(') && mfn.includes('db.sales_returns.filter(')
+    && readSource('app/products/page.tsx').includes('<DuplicateItemsReview products={allProducts} />'),
+    'K-D28: a merge moves bills, returns, stock history and purchase lines to the kept item and only then removes the copies — one transaction; Products shows the Review bar');
 }
 
 // -------------------------------------------------------------

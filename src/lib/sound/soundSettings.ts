@@ -1,7 +1,7 @@
 /*
  * App sounds on / off (v4.69.0) — the 🔊 button in the top bar. Per computer.
  * Every beep and voice in the app checks this: POS beeps (playBeepSound), the
- * scanner beep (playSupermarketBeep) and the payment soundbox voice.
+ * scanner beep (playSupermarketBeep).
  */
 
 export const SOUND_MUTED_KEY = 'kamai_sound_muted';

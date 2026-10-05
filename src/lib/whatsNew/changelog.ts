@@ -15,6 +15,14 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.103.0',
+    items: [
+      msg('Products: if the same item is saved twice (same barcode, or same name and unit), a "Review" bar lets you merge them into one — bills and stock history move to the item you keep.'),
+      msg('GSTIN: a mistyped letter or digit is now caught when you save (the last character is a check digit).'),
+      msg('The app now carries its own Mukta font, so text looks the same on every computer.'),
+    ],
+  },
+  {
     version: '4.102.0',
     items: [
       msg('Billing: "Save as Estimate" saves the bill as a quotation (EST-001) without touching stock, udhar or cash. Turn it into a bill later from Transactions → "Convert to Bill".'),

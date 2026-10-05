@@ -136,12 +136,13 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     const isCustomerInvoice = pathname === '/invoice' || (pathname.startsWith('/invoice') && !pathname.startsWith('/invoice-designer'))
       // The customer-facing UPI payment link must open without a shop login.
       || pathname === '/pay';
-    const isLegalOrPublic = pathname === '/terms-of-service' || pathname === '/privacy-policy' || pathname === '/refund-policy' || pathname === '/contact-us' || pathname === '/features' || pathname === '/about' || pathname === '/download' || pathname === '/plans';
+    // (v4.103.0, K-D12) The app has no legal / marketing pages of its own — those live on the
+    // website. The 8 page names that used to be listed here never existed (Bible §12 #3).
     const isAuthRoute = pathname === '/auth';
     const isOnboardingRoute = pathname === '/onboarding';
     // The public marketing homepage only takes over "/" for logged-out visitors
     const isRootMarketing = pathname === '/' && !user;
-    const isPublicRoute = isCustomerInvoice || isLegalOrPublic || isAuthRoute || isOnboardingRoute || isRootMarketing;
+    const isPublicRoute = isCustomerInvoice || isAuthRoute || isOnboardingRoute || isRootMarketing;
 
     if (user && locked) {
       // Lock on launch: the password screen first, whatever page was open.
@@ -154,7 +155,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       const hasBusinessId = Boolean(user.business_id && user.business_id !== 'biz_pending');
 
       if (!hasBusinessId) {
-        if (!isOnboardingRoute && !isLegalOrPublic && !isCustomerInvoice && pathname !== '/auth') {
+        if (!isOnboardingRoute && !isCustomerInvoice && pathname !== '/auth') {
           router.replace('/onboarding');
         }
       } else {
@@ -198,9 +199,9 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     return <main className="min-h-screen bg-slate-50">{children}</main>;
   }
 
-  // Standalone full-screen layout for onboarding, auth, legal pages, and the public marketing site
+  // Standalone full-screen layout for onboarding, auth and the logged-out start page
   const isRootMarketing = pathname === '/' && !currentUser;
-  if (pathname === '/onboarding' || pathname === '/auth' || pathname === '/terms-of-service' || pathname === '/privacy-policy' || pathname === '/refund-policy' || pathname === '/contact-us' || pathname === '/features' || pathname === '/about' || pathname === '/download' || pathname === '/plans' || isRootMarketing) {
+  if (pathname === '/onboarding' || pathname === '/auth' || isRootMarketing) {
     return <main className="min-h-screen bg-slate-950">{children}</main>;
   }
 

@@ -51,6 +51,9 @@ async function launch(dataDir) {
   return { app, page, pageErrors };
 }
 
+/** The first screen of the first licensed launch (cold start) — see K-D17. */
+const FIRST_LAUNCH_WAIT_MS = 60000;
+
 async function textVisible(page, text, timeout = 20000) {
   try {
     await page.getByText(text, { exact: false }).first().waitFor({ state: 'visible', timeout });
@@ -224,7 +227,10 @@ async function run() {
     let step = 'start';
     try {
       step = 'master password';
-      check(await textVisible(page, 'Set Master Password'), 'A signed licence for this computer is accepted (master password setup shown)');
+      // The first licensed launch after a fresh build is a cold start (licence check + first page
+      // compile from disk): on the slow test PC it took > 20 s and failed while every later step
+      // passed (tracker K-D17). It gets 60 s, like the window launch itself.
+      check(await textVisible(page, 'Set Master Password', FIRST_LAUNCH_WAIT_MS), 'A signed licence for this computer is accepted (master password setup shown)');
       await page.getByPlaceholder('Enter new password').fill(PASSWORD);
       await page.getByPlaceholder('Re-enter password').fill(PASSWORD);
       // v4.84.0 — first time the Google account is offered with the password; optional since

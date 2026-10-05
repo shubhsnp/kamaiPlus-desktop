@@ -1,6 +1,6 @@
 {
   "name": "kamai-plus-desktop",
-  "version": "4.102.0",
+  "version": "4.103.0",
   "private": true,
   "description": "KamaiPlus Desktop Application",
   "scripts": {
@@ -87,6 +87,11 @@
       "preload.js",
       "out/**/*"
     ],
+    "electronFuses": {
+      "runAsNode": false,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false
+    },
     "win": {
       "target": "nsis",
       "icon": "build/icon.ico"

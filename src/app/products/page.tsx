@@ -27,6 +27,7 @@ import { ProductTableView } from '@/components/products/ProductTableView';
 import { QuickBarcodePrintModal } from '@/components/products/QuickBarcodePrintModal';
 import { FastBarcodeInwardModal } from '@/components/inward/FastBarcodeInwardModal';
 import { AddEditProductModal } from '@/components/products/AddEditProductModal';
+import { DuplicateItemsReview } from '@/components/products/DuplicateItemsReview';
 import { VariantRow } from '@/components/products/VariantMatrixEditor';
 import { showSellingPriceField, useFeatureSwitches } from '@/lib/features/featureSwitches';
 import { createProductWithVariants, DEFAULT_COUNTED_STOCK, deleteProductAndVariants, isVariantChild, isVariantParent, tracksOwnStock } from '@/lib/products/variants';
@@ -480,6 +481,9 @@ export default function ProductsPage() {
         onOpenExcelImporter={() => setIsExcelImporterOpen(true)}
         onOpenInwardSheet={switches.purchases ? () => setIsPurchaseSheetOpen(true) : undefined}
       />
+
+      {/* Same item twice (phone + PC, or an Excel list imported twice) — v4.103.0, K-D28 */}
+      <DuplicateItemsReview products={allProducts} />
 
       {/* 2. Metrics Ribbon */}
       <ProductMetricsRibbon

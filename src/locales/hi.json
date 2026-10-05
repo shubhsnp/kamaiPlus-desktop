@@ -2726,5 +2726,18 @@
   "Billing: \"Save as Estimate\" saves the bill as a quotation (EST-001) without touching stock, udhar or cash. Turn it into a bill later from Transactions → \"Convert to Bill\".": "बिलिंग: \"एस्टिमेट के रूप में सेव करें\" बिल को कोटेशन (EST-001) की तरह सेव करता है — स्टॉक, उधार और कैश नहीं बदलते। बाद में Transactions → \"Convert to Bill\" से बिल बनाएँ।",
   "Customers: set an udhar limit. The counter warns before a bill takes the customer past it.": "ग्राहक: उधार लिमिट रखें। कोई बिल ग्राहक को लिमिट से ऊपर ले जाए, तो काउंटर पहले चेतावनी देता है।",
   "Purchases: \"Return to Supplier\" makes a debit note (stock and what you owe go down) and \"Purchase Order\" sends your order on WhatsApp; mark it received when the goods come.": "खरीद: \"सप्लायर को वापसी\" डेबिट नोट बनाता है (स्टॉक और आपका बकाया कम होते हैं) और \"परचेज़ ऑर्डर\" आपका ऑर्डर WhatsApp पर भेजता है; माल आने पर उसे \"मिल गया\" करें।",
-  "Cash Register: past shifts are listed with what was counted and any shortage. Starred items come first on the billing screen.": "कैश रजिस्टर: पिछली शिफ़्ट दिखती हैं — कितना गिना और कितना कम/ज़्यादा। स्टार वाले आइटम बिलिंग स्क्रीन पर सबसे ऊपर आते हैं।"
+  "Cash Register: past shifts are listed with what was counted and any shortage. Starred items come first on the billing screen.": "कैश रजिस्टर: पिछली शिफ़्ट दिखती हैं — कितना गिना और कितना कम/ज़्यादा। स्टार वाले आइटम बिलिंग स्क्रीन पर सबसे ऊपर आते हैं।",
+  "{count} items look like duplicates (same barcode, or same name and unit).": "{count} आइटम डुप्लीकेट लगते हैं (एक जैसा बारकोड, या एक जैसा नाम और यूनिट)।",
+  "Duplicate items": "डुप्लीकेट आइटम",
+  "Keep one item of each group. Its bills, returns and stock history take the others'; then they are removed.": "हर ग्रुप में एक आइटम रखें। बाकी आइटम के बिल, रिटर्न और स्टॉक हिस्ट्री इसमें आ जाएँगे; फिर वे हटा दिए जाएँगे।",
+  "Merged into \"{name}\".": "\"{name}\" में मिला दिया।",
+  "Enter the stock you really have (0 or more).": "असल में जितना स्टॉक है वह लिखें (0 या ज़्यादा)।",
+  "no barcode": "बारकोड नहीं",
+  "Stock after merge": "मिलाने के बाद स्टॉक",
+  "Not duplicates": "डुप्लीकेट नहीं हैं",
+  "Merge": "मिलाएँ",
+  "This GSTIN does not add up — its last character should be {expected}. Check every letter and digit against the GST certificate.": "यह GSTIN सही नहीं बैठता — इसका आखिरी अक्षर {expected} होना चाहिए। GST सर्टिफ़िकेट से हर अक्षर और अंक मिलाएँ।",
+  "Products: if the same item is saved twice (same barcode, or same name and unit), a \"Review\" bar lets you merge them into one — bills and stock history move to the item you keep.": "प्रोडक्ट्स: कोई आइटम दो बार सेव हो (एक जैसा बारकोड, या एक जैसा नाम और यूनिट), तो \"Review\" पट्टी से उन्हें एक में मिलाएँ — बिल और स्टॉक हिस्ट्री रखे गए आइटम में आ जाती है।",
+  "GSTIN: a mistyped letter or digit is now caught when you save (the last character is a check digit).": "GSTIN: गलत टाइप हुआ अक्षर या अंक अब सेव करते समय पकड़ा जाता है (आखिरी अक्षर एक चेक डिजिट है)।",
+  "The app now carries its own Mukta font, so text looks the same on every computer.": "ऐप अब अपना Mukta फ़ॉन्ट साथ रखता है, इसलिए हर कंप्यूटर पर लिखावट एक जैसी दिखती है।"
 }

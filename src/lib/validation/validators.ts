@@ -108,7 +108,28 @@ export function validateGstin(
     };
   }
 
+  // v4.103.0 (K-D05): the 15th character is a check digit — a mistyped letter or digit is caught
+  // here, offline, instead of by the GST portal when the return is filed.
+  if (gstinCheckChar(cleanGstin) !== cleanGstin[14]) {
+    return {
+      isValid: false,
+      error: tr('This GSTIN does not add up — its last character should be {expected}. Check every letter and digit against the GST certificate.', { expected: gstinCheckChar(cleanGstin) }),
+    };
+  }
+
   return { isValid: true, cleanedValue: cleanGstin };
+}
+
+const GSTIN_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+/** The GSTIN check digit (15th character) from the first 14 — the GSTN's base-36 rule. */
+export function gstinCheckChar(gstin: string): string {
+  let sum = 0;
+  for (let i = 0; i < 14; i++) {
+    const v = GSTIN_CHARS.indexOf(gstin[i]) * (i % 2 ? 2 : 1);
+    sum += Math.floor(v / 36) + (v % 36);
+  }
+  return GSTIN_CHARS[(36 - (sum % 36)) % 36];
 }
 
 /**
