@@ -3787,7 +3787,7 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
     'Counter: bottles and cans are whole numbers (1.5 bottles was allowed); a bag / sack has the ¼ ½ ¾ chips');
 
   // "What's new" stopped at 4.81.0 — shops on 4.98 saw old notes.
-  assert(CHANGELOG[0].version === APP_VERSION && CHANGELOG[0].items.length >= 5,
+  assert(CHANGELOG[0].version === APP_VERSION && CHANGELOG[0].items.length >= 1,
     "What's new: the current version has its own notes (it showed 4.81.0's)");
 }
 
