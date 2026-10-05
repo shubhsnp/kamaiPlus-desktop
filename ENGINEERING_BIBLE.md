@@ -31,6 +31,7 @@ by exactly this (see §12).
 | `AGENTS.md` | ✅ **Authoritative.** Hard rules. Obey it. |
 | `ENGINEERING_BIBLE.md` (this file) | ✅ **Authoritative.** Verified map. |
 | `docs/PLATFORM_TRACKER.md` | ✅ **Read before any work (since 2026-09-30).** Cross-product decisions (Desktop + Android + website / domain), what runs where in Firebase, the web-app shutdown plan, and the numbered list of known gaps (K-…). Update it after every task. |
+| `docs/HELP_SYNC.md` + `docs/help-map.json` | ✅ **Help guides follow the app (since 2026-10-05, AGENTS.md Rule 7).** Which app files each kamaiplus.com/help guide describes, and the queue of guide updates per version. Run `node scripts/help_impact.mjs` before every version bump and add the version's row. |
 | `docs/FUTURE_SCOPE.md` | ✅ **Backlog, not a map.** Planned work (FS-01…FS-27: multi-counter sync, staff logins, batch / expiry, GSTR-3B, big-file splits…) with priority and code pointers. Pick work from here; tick it off with the version. |
 | `docs/archive/SYSTEM_ARCHITECTURE.md` | ⚠️ **Partly stale.** Claims React 19 (actually 18.3.1), Next 15 (actually 16.3.1) and Supabase as the server DB (the Supabase dep was removed in v4.38.0 — nothing uses it). The *paise math* section in it is still correct. |
 | `docs/archive/HANDOVER.md`, `docs/archive/KamaiPlus_Complete_App_Documentation.md` | ⚠️ **Historical.** Snapshots of older versions. Treat as archaeology. |
@@ -480,7 +481,7 @@ src/components/<feature>/   Feature components, one folder per domain
 src/components/ui/          Button, Card, Input, Modal  (that is all of it)
 src/lib/<domain>/           Engines — see table below
 src/types/index.ts          All domain types. Single file.
-scripts/e2e_simulation.ts   The test suite (§11). 780 assertions.
+scripts/e2e_simulation.ts   The test suite (§11). 784 assertions.
 scripts/bump_version.ts     Version bumper (+0.1 minor)
 public/barcodes/*.json      5 shipped offline barcode dictionaries
 ```
@@ -1573,7 +1574,8 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 780/780, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be 784/784, 0 failures
+node scripts/help_impact.mjs        # which help guides the change touches → row in docs/HELP_SYNC.md (Rule 7)
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
 git push origin main
@@ -1625,7 +1627,7 @@ bypassed; without the key only the no-licence checks run. The script removes
 `ELECTRON_RUN_AS_NODE` (set by VS Code terminals), which otherwise stops Electron
 launching. Failure screenshots go to `%TEMP%\kamaiplus-e2e-shots\`.
 
-### Test suite map — `scripts/e2e_simulation.ts` (780 assertions)
+### Test suite map — `scripts/e2e_simulation.ts` (784 assertions)
 
 | Suite | Covers |
 | :--- | :--- |

@@ -3162,6 +3162,34 @@ assert(
   `Every Electron IPC channel is documented (missing: ${undocumentedIpc.join(', ') || 'none'})`
 );
 
+// 9j(ai). Help guides follow the app (2026-10-05, Rahul: "jaise jaise kuch change karenge, help page
+// bhi change hona chahiye"). docs/help-map.json says which files each kamaiplus.com/help guide
+// describes; docs/HELP_SYNC.md queues the guide updates per version (AGENTS.md Rule 7).
+{
+  const helpMap = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'docs', 'help-map.json'), 'utf8'));
+  const helpSync = fs.readFileSync(path.join(REPO_ROOT, 'docs', 'HELP_SYNC.md'), 'utf8');
+  const repoFiles = [...walkSource(SRC_ROOT), ...fs.readdirSync(REPO_ROOT).map((f) => path.join(REPO_ROOT, f)).filter((f) => fs.statSync(f).isFile())]
+    .map((f) => path.relative(REPO_ROOT, f).replace(/\\/g, '/'));
+  const globRe = (g: string) => new RegExp('^' + g.split('**').map((part) => part.split('*').map((x) => x.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('[^/]*')).join('.*') + '$');
+  const deadGlobs = helpMap.guides.flatMap((g: any) => g.sources.filter((src: string) => !repoFiles.some((f) => globRe(src).test(f))).map((src: string) => `${g.guide}: ${src}`));
+  const names = helpMap.guides.map((g: any) => g.guide);
+  assert(names.length >= 16 && new Set(names).size === names.length && deadGlobs.length === 0
+    && helpMap.guides.every((g: any) => g.title && g.sources.length && g.tourStages.length),
+    `Help map: every guide has a title, sources and tour stages, and every source pattern matches a real file (dead: ${deadGlobs.join(', ') || 'none'})`);
+  const siteHelp = path.join(helpMap.website, 'src', 'pages', 'help');
+  if (fs.existsSync(siteHelp)) {
+    const onSite = fs.readdirSync(siteHelp).filter((f) => f.endsWith('.html') && f !== 'index.html').map((f) => f.replace(/\.html$/, ''));
+    assert(onSite.every((g) => names.includes(g)) && names.every((g: string) => onSite.includes(g)),
+      `Help map and the website's guides are the same list (site only: ${onSite.filter((g) => !names.includes(g)).join(', ') || 'none'}; map only: ${names.filter((g: string) => !onSite.includes(g)).join(', ') || 'none'})`);
+  }
+  const versionRow = helpSync.split('\n').find((l) => l.startsWith(`| ${APP_VERSION} |`));
+  assert(Boolean(versionRow) && /\| (pending|released|none|on website[^|]*) \|\s*$/.test(versionRow || ''),
+    `docs/HELP_SYNC.md has a row for this version (${APP_VERSION}) with its guides and a status — run node scripts/help_impact.mjs before every version bump`);
+  const impact = fs.readFileSync(path.join(REPO_ROOT, 'scripts', 'help_impact.mjs'), 'utf8');
+  assert(/help-map\.json/.test(impact) && /git diff --name-only/.test(impact) && /Rule 7/.test(agentsMd) && /HELP_SYNC\.md/.test(agentsMd) && /help_impact\.mjs/.test(agentsMd),
+    'AGENTS.md Rule 7 tells every agent to run scripts/help_impact.mjs and queue guide updates in docs/HELP_SYNC.md');
+}
+
 // 🌙 SUITE 10: WhatsApp Daily Summary, Khata Payment Deep-Link & Hardware Quotation/Estimate
 console.log('\n🌙 SUITE 10: WhatsApp Daily Summary, Khata Payment Deep-Link & Hardware Quotation/Estimate');
 

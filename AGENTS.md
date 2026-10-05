@@ -77,6 +77,15 @@ Before editing ANY shared file in:
 Whenever completing work and committing to Git:
 1. **TypeScript Validation:** Run `npx tsc --noEmit` and verify **0 compile errors**.
 2. **Automated E2E Test Suite:** Run `npx tsx scripts/e2e_simulation.ts` and verify **100% tests pass**.
-3. **Application Version Increment:** Increment application version by **+0.1** in both `package.json` and `src/lib/constants/version.ts` (e.g. `4.00.0` -> `4.01.0`).
+3. **Application Version Increment:** Increment application version by **+0.1** in both `package.json` and `src/lib/constants/version.ts` (e.g. `4.00.0` -> `4.01.0`). Add the new version's row to `docs/HELP_SYNC.md` (Rule 7) — the tests fail without it.
 4. **Clean Commit Message:** Commit with descriptive version tag: `git commit -m "<type>(v<NEW_VERSION>): <description>"`.
 5. **Push to Main:** Execute `git push origin main` and confirm clean deployment.
+
+---
+
+## 📖 RULE 7: THE HELP GUIDES FOLLOW THE APP
+kamaiplus.com/help (website repo `D:\My Web Sites\KamaiPlus Website`) has 16 guides that describe this app button by button, with real screenshots. A change here can make a guide wrong. Full process: `docs/HELP_SYNC.md`.
+1. **Before every version bump** run `node scripts/help_impact.mjs` (or `node scripts/help_impact.mjs <ref>` for several commits). It lists the guides whose screens you touched (`docs/help-map.json`). Open those guides and check what you changed: button names, steps, numbers, screenshots.
+2. **Queue it:** add a row to the queue in `docs/HELP_SYNC.md` — version, what the shop sees differently (shop words), guides, status `pending`. Nothing visible changed → `none`. Suite 9 §9j(ai) fails if the current version has no row.
+3. **New screen or new guide?** Add it to `docs/help-map.json` (sources + app-tour stages). The tests fail if a guide on the website is missing from the map, or a map pattern matches no file.
+4. **When a version reaches shops**, set its rows to `released`; the website's `npm run check` then fails until the guides (English + Hindi + screenshots) are updated. Deploy the website with the release, then set the rows to `on website (site v…)`. Never deploy guides for an app version the shops do not have yet.

@@ -1,0 +1,102 @@
+{
+  "_about": "Which app files each kamaiplus.com/help guide describes. A change to a matching file can make that guide wrong. Used by scripts/help_impact.mjs and checked by e2e Suite 9 (9j(ai)). Process: docs/HELP_SYNC.md. Guides live in the website repo: D:/My Web Sites/KamaiPlus Website/src/pages/help/<guide>.html. tourStages = stages of the website's scripts/app-tour.mjs that take this guide's screenshots (later stages need the earlier ones' data: run `all` before publishing).",
+  "website": "D:/My Web Sites/KamaiPlus Website",
+  "guides": [
+    {
+      "guide": "getting-started",
+      "title": "Install, activate and set up the shop",
+      "sources": ["licence.js", "src/app/auth/**", "src/app/onboarding/**", "src/components/licence/**", "src/components/auth/**", "src/components/dashboard/**"],
+      "tourStages": ["setup", "activate", "reports"]
+    },
+    {
+      "guide": "store-settings",
+      "title": "Store settings and features",
+      "sources": ["src/app/settings/**", "src/components/settings/**", "src/lib/features/**"],
+      "tourStages": ["settings"]
+    },
+    {
+      "guide": "billing-counter",
+      "title": "Make a bill at the counter",
+      "sources": ["src/app/billing/**", "src/components/billing/**", "src/lib/billing/**", "src/components/invoices/InvoiceModal.tsx"],
+      "tourStages": ["billing", "billing2"]
+    },
+    {
+      "guide": "bills-returns",
+      "title": "Find, edit and return bills",
+      "sources": ["src/app/transactions/**", "src/components/transactions/**", "src/components/sales/**", "src/components/invoices/EditInvoiceModal.tsx", "src/components/invoices/InvoiceModal.tsx"],
+      "tourStages": ["transactions"]
+    },
+    {
+      "guide": "cash-register",
+      "title": "Cash register: open and close the day",
+      "sources": ["src/app/cash-register/**", "src/components/cash-register/**", "src/components/reports/DayEndClosingReportModal.tsx", "src/lib/reports/cashDrawer.ts", "src/lib/reports/dailyClosingPdf.ts"],
+      "tourStages": ["cashOpen", "cashClose"]
+    },
+    {
+      "guide": "add-products",
+      "title": "Add and edit products",
+      "sources": ["src/app/products/**", "src/components/products/**", "src/lib/products/**"],
+      "tourStages": ["products"]
+    },
+    {
+      "guide": "excel-import",
+      "title": "Import your price list from Excel",
+      "sources": ["src/components/import/**", "src/lib/import/**"],
+      "tourStages": ["setup"]
+    },
+    {
+      "guide": "inventory-stock",
+      "title": "Stock, reorder list and audit trail",
+      "sources": ["src/app/inventory/**", "src/components/inventory/**"],
+      "tourStages": ["inventory"]
+    },
+    {
+      "guide": "purchases-suppliers",
+      "title": "Purchases and suppliers",
+      "sources": ["src/app/purchases/**", "src/app/suppliers/**", "src/components/purchases/**", "src/components/suppliers/**", "src/components/inward/**", "src/lib/purchases/**", "src/lib/suppliers/**", "src/lib/inward/**"],
+      "tourStages": ["suppliers", "purchases"]
+    },
+    {
+      "guide": "khata-udhar",
+      "title": "Khata: udhar, payments and reminders",
+      "sources": ["src/app/khata/**", "src/app/customers/**", "src/components/khata/**", "src/components/customers/**", "src/lib/khata/**"],
+      "tourStages": ["khata"]
+    },
+    {
+      "guide": "reports-gst",
+      "title": "Sales reports and GST filing",
+      "sources": ["src/app/reports/**", "src/app/gst-reports/**", "src/components/reports/**", "src/components/gst/**", "src/lib/gst/**", "src/lib/tally/**", "src/lib/reports/**"],
+      "tourStages": ["reports", "reports2"]
+    },
+    {
+      "guide": "printer-setup",
+      "title": "Set up the bill printer",
+      "sources": ["src/components/printers/**", "src/components/billing/BillPrinterSetup.tsx", "src/components/billing/BillPrintQueue.tsx", "src/components/settings/PrintSettingsCard.tsx", "src/lib/hardware/**", "src/components/layout/DesktopStatusBar.tsx"],
+      "tourStages": ["settings", "extras"]
+    },
+    {
+      "guide": "label-printer",
+      "title": "Barcode labels and the label printer",
+      "sources": ["src/app/barcode-generator/**", "src/components/labels/**", "src/lib/labels/**", "src/lib/barcode/**", "src/components/settings/LabelPrinterCard.tsx"],
+      "tourStages": ["labels"]
+    },
+    {
+      "guide": "invoice-themes",
+      "title": "Invoice themes",
+      "sources": ["src/app/invoice-designer/**", "src/components/invoices/**", "src/lib/invoices/**"],
+      "tourStages": ["labels"]
+    },
+    {
+      "guide": "backup-restore",
+      "title": "Backup and restore",
+      "sources": ["backup.js", "src/app/cloud-backup/**", "src/components/backup/**", "src/lib/backup/**"],
+      "tourStages": ["backup"]
+    },
+    {
+      "guide": "keyboard-shortcuts",
+      "title": "Keyboard shortcuts",
+      "sources": ["src/lib/ui/globalShortcuts.ts", "src/components/layout/DesktopStatusBar.tsx", "src/app/billing/page.tsx", "src/components/labels/StockEntryModal.tsx", "src/components/whatsapp/**"],
+      "tourStages": ["extras"]
+    }
+  ]
+}
