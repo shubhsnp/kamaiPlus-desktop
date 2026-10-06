@@ -32,7 +32,9 @@ export type FeatureId =
   | 'product_variants'
   | 'whatsapp'
   | 'payment_keys'
-  | 'wholesale_price';
+  | 'wholesale_price'
+  | 'stock_counting'
+  | 'product_barcode';
 
 export type FeatureSwitches = Record<FeatureId, boolean>;
 
@@ -83,6 +85,10 @@ export const DEFAULT_FEATURE_SWITCHES: FeatureSwitches = {
   payment_keys: false,
   // v4.87.0 (first client): a second price for wholesale bills — off until a shop needs it.
   wholesale_price: false,
+  // v4.108.0: stock numbers everywhere and the barcode box — ON, every shop has always had them.
+  // Restaurant mode turns both off (a dish is not counted or scanned).
+  stock_counting: true,
+  product_barcode: true,
 };
 
 /** Order and texts of Settings → Features (msg ids, translated where shown). */
@@ -103,6 +109,8 @@ export const FEATURES: FeatureInfo[] = [
   { id: 'product_gst_rate', group: 'product_form', label: msg('GST Tax Rate (%)'), description: msg('Off: new items are saved without GST.') },
   { id: 'product_size_colour', group: 'product_form', label: msg('Size / Colour'), description: msg('Size and colour fields for clothes, shoes and similar items.') },
   { id: 'wholesale_price', group: 'product_form', label: msg('Wholesale price'), description: msg('A second price per item for wholesale customers. Billing gets a Retail / Wholesale switch; Excel import reads a "Wholesale" column.') },
+  { id: 'stock_counting', group: 'product_form', label: msg('Stock counting'), description: msg('Stock numbers on items, low-stock alerts, stock value and dead stock. Off: every new item is unlimited and no stock is shown anywhere.') },
+  { id: 'product_barcode', group: 'product_form', label: msg('Barcode on items'), description: msg('The Barcode box on Add Product and the Fast barcode inward button. Off: items are found by name.') },
   { id: 'product_variants', group: 'product_form', label: msg('Variants (Size / Colour)'), description: msg('One item in many sizes or colours, each with its own price and stock.') },
   { id: 'payment_keys', group: 'tools', label: msg('Payment keys F4 / F8 / F9'), description: msg('Cash (F4), UPI (F8) and Credit (F9) keys on the billing counter. Off: choose the payment with the mouse.') },
   { id: 'whatsapp', group: 'tools', label: msg('WhatsApp messages'), description: msg('WhatsApp buttons for bills, udhar reminders, khata slips, restock orders and reports.') },
@@ -186,6 +194,8 @@ export const RESTAURANT_PRESET: Partial<FeatureSwitches> = {
   product_hsn: false,
   product_gst_rate: false,
   payment_keys: false,
+  stock_counting: false,
+  product_barcode: false,
   product_variants: true,
 };
 export const RESTAURANT_PRESET_OFF = (Object.keys(RESTAURANT_PRESET) as FeatureId[]).filter((id) => RESTAURANT_PRESET[id] === false);

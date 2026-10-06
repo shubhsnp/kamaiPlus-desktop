@@ -22,7 +22,8 @@ interface ProductFilterToolbarProps {
   selectedCategory: string;
   onSelectCategory: (val: string) => void;
   showLowStockOnly: boolean;
-  onToggleLowStock: (val: boolean) => void;
+  /** Missing (v4.108.0) when Stock counting is off — no Low Stock button. */
+  onToggleLowStock?: (val: boolean) => void;
   showExpiringOnly?: boolean;
   onToggleExpiringOnly?: (val: boolean) => void;
   viewMode?: 'table' | 'cards';
@@ -85,6 +86,7 @@ export const ProductFilterToolbar: React.FC<ProductFilterToolbarProps> = ({
         </div>
 
         {/* Low Stock Toggle */}
+        {onToggleLowStock && (
         <button
           type="button"
           onClick={() => onToggleLowStock(!showLowStockOnly)}
@@ -98,6 +100,7 @@ export const ProductFilterToolbar: React.FC<ProductFilterToolbarProps> = ({
           <AlertTriangle className={cn("w-3.5 h-3.5", showLowStockOnly ? "text-white" : "text-rose-500")} />
           <span className="hidden sm:inline">{tr('Low Stock')}</span>
         </button>
+        )}
 
         {/* Desktop View Switcher: Excel Table vs Cards */}
         {onViewModeChange && (

@@ -84,7 +84,9 @@ import { generalCategoryId } from '../src/lib/products/defaultCategory';
 import { nextSupplierBalance } from '../src/lib/suppliers/supplierLedger';
 import { cleanVariantLabels, DEFAULT_COUNTED_STOCK, summarizeVariants, tracksOwnStock } from '../src/lib/products/variants';
 import { buildBillCustomer, cleanCustomerNameInput, cleanMobileInput, isDraftEmpty, resolveBillCustomer, splitDraft, suggestCustomers } from '../src/lib/billing/billCustomer';
-import { MenuPick, PACKING_CHARGE_ID, SERVICE_CHARGE_ID, addPiece, applyToOnePiece, changeQty, discountPaise, formatOpenTime, hasUnsentItems, kotChanges, lineKey, lineUnitPaise, markKotSent, moveOrderTo, newOrder, nextToken, orderTotals, pieceCount } from '../src/lib/restaurant/model';
+import { MenuPick, PACKING_CHARGE_ID, SERVICE_CHARGE_ID, addPiece, applyToOnePiece, cancelOrderChanges, changeQty, discountPaise, formatOpenTime, hasUnsentItems, kotChanges, lineKey, lineUnitPaise, markKotSent, moveOrderTo, newOrder, nextToken, orderTotals, pieceCount, piecesInKitchen, removeLine, reprintKotLines } from '../src/lib/restaurant/model';
+import { parseVoids, voidFromOrder, voidsOfDay } from '../src/lib/restaurant/voids';
+import { buildCheckBody, shopUpiId } from '../src/lib/restaurant/checkPrint';
 import { defaultTableNames, sanitizeRestaurantSettings } from '../src/lib/restaurant/settings';
 import { parseRestState } from '../src/lib/restaurant/store';
 import { buildKotBody } from '../src/lib/restaurant/kot';
@@ -1716,7 +1718,7 @@ assert(readSource('app/billing/page.tsx').split('\n').length <= 401, `POS page s
   assert(/is_unlimited_stock: received \? false : fresh\.is_unlimited_stock/.test(entryDb) && /if \(received\) moves\.push/.test(entryDb) && /if \(counted\) moves\.push/.test(entryDb) && /labels\.filter\(\(l\) => l\.copies > 0\)/.test(entryDb),
     'Saving: no quantity = a new item "Unlimited", a saved item\'s stock untouched, no stock movement and no labels for it');
   assert(/scanIntoRows\(rowsRef\.current, clean,/.test(modal) && /qtyOptional: true/.test(modal) && /source: 'Fast barcode inward'/.test(modal) && /FAST_INWARD_DRAFT_KEY/.test(modal)
-    && /onOpenFastInward=\{\(\) => setIsFastInwardOpen\(true\)\}/.test(readProductsPage()) && /<FastBarcodeInwardModal/.test(readSource('app/purchases/page.tsx')),
+    && /onOpenFastInward=\{switches\.product_barcode && switches\.stock_counting \? \(\) => setIsFastInwardOpen\(true\) : undefined\}/.test(readProductsPage()) && /<FastBarcodeInwardModal/.test(readSource('app/purchases/page.tsx')),
     'Every scan starts from the latest rows (quick scans are never lost); scanned rows survive as a draft; Products and Purchases open it');
 }
 
@@ -4201,7 +4203,7 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
   const preset = applyRestaurantPreset({ ...DEFAULT_FEATURE_SWITCHES, inventory: true, barcode_studio: true, purchases: true, suppliers: true, khata: true }, true);
   assert(!preset.inventory && !preset.barcode_studio && !preset.purchases && !preset.suppliers && preset.khata && preset.whatsapp
     && !preset.wholesale_price && !preset.product_size_colour && !preset.product_gst_rate && !preset.product_hsn && !preset.payment_keys && !preset.product_selling_price && preset.product_variants
-    && applyRestaurantPreset(DEFAULT_FEATURE_SWITCHES, false) === DEFAULT_FEATURE_SWITCHES && RESTAURANT_PRESET_OFF.length === 10 && !RESTAURANT_PRESET_OFF.includes('product_variants'),
+    && applyRestaurantPreset(DEFAULT_FEATURE_SWITCHES, false) === DEFAULT_FEATURE_SWITCHES && RESTAURANT_PRESET_OFF.length === 12 && !RESTAURANT_PRESET_OFF.includes('product_variants') && !preset.stock_counting && !preset.product_barcode,
     'Restaurant mode: stock, labels, purchases, suppliers, wholesale, size / colour, per-dish GST / HSN and counter keys go off; Half / Full variants on; khata and WhatsApp stay');
   const fsSrc2 = readSource('lib/features/featureSwitches.ts');
   assert(/\.\.\.applyRestaurantPreset\(parseFeatureSwitches\(localStorage\.getItem\(FEATURE_SWITCHES_KEY\)\), isRestaurantMode\(\)\), \.\.\.readAdminFeatureOverrides\(\)/.test(fsSrc2),
@@ -4223,12 +4225,14 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
   assert(iNum > 0 && iNum < iPut && iPut < iCommit && iCommit < iStock && !/await cloud/.test(settleSrc) && settleSrc.includes("customer_name: billCustomerName(order, input.guestName)") && settleSrc.includes("payment_status: 'paid'")
     && settleSrc.includes('if (!prod || prod.is_unlimited_stock) continue;') && settleSrc.includes('SERVICE_CHARGE_ID') && settleSrc.includes("status: 'completed'"),
     'Restaurant pay: reserve the number → save the bill → commit the number → stock (counted items only); cloud never awaited; the table name is the bill\'s customer');
-  const orderScreen = readSource('components/restaurant/OrderScreen.tsx');
+  const orderScreenAll = readSource('components/restaurant/OrderScreen.tsx');
+  // v4.108.0: Cancel order / Reprint KOT also print and remove — check the KOT and the pay functions themselves.
+  const orderScreen = orderScreenAll.slice(orderScreenAll.indexOf('const sendKot = async'));
   const iSettle = orderScreen.indexOf('await settleOrder(');
   const iFree = orderScreen.indexOf('orders.filter((o) => o.id !== order.id)');
   const iMark = orderScreen.indexOf('markKotSent(o, now())');
   const iKot = orderScreen.indexOf('await printKot(');
-  assert(iSettle > 0 && iSettle < iFree && iKot > 0 && iKot < iMark && /if \(res\.ok\) \{\s*update\(\(s\) => mapOrder\(s, order\.id, \(o\) => markKotSent/.test(orderScreen) && orderScreen.includes('if (busy) return;') && orderScreen.includes('if (kotBusy) return;'),
+  assert(iSettle > 0 && iSettle < iFree && iKot > 0 && iKot < iMark && /if \(res\.ok\) \{\s*update\(\(s\) => mapOrder\(s, order\.id, \(o\) => markKotSent/.test(orderScreen) && orderScreen.includes('if (busy) return;') && orderScreen.includes('if (kotBusy) return;') && orderScreenAll.includes('if (cancelBusy) return;') && orderScreenAll.includes('if (checkBusy) return;'),
     'Restaurant screens: a table is freed only after its bill is saved; a KOT is marked sent only when it printed; double taps are ignored');
   const kotSrc = readSource('lib/restaurant/kot.ts');
   assert(/silent: true/.test(kotSrc) && kotSrc.includes('if (changes.length === 0) return { ok: false, empty: true };'), 'Restaurant KOT: prints silently on the counter\'s thermal printer, and only when something changed');
@@ -4317,6 +4321,80 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
   assert(moved[0].label === 'T5' && moved[0].lines[0].kotQty === 2 && moved[0].kotRounds === 1 && moved[0].openedAt === NOW2
     && moveOrderTo([a, b], 'a', 'T2', NOW2)[0].label === 'T1' && moveOrderTo([a, t], 't', 'T9', NOW2)[1].label === 'TA-01' && moveOrderTo([a], 'a', '  ', NOW2)[0].label === 'T1',
     'Move table: the order (kitchen state, open time) goes to a free table; never onto a busy table, never for a takeaway');
+}
+
+// v4.108.0 — Restaurant order screen: delete a dish, Cancel order (cancel slip, reason, owner PIN, today's
+// cancelled list), Print bill before paying (UPI QR), Reprint KOT, Cash + UPI split; Stock counting and
+// Barcode on items are switches (Restaurant mode turns them off — the Admin can bring them back).
+{
+  const NOW3 = '2026-10-06T13:00:00.000Z';
+  const dal: MenuPick = { productId: 'p_dal', name: 'Dal Tadka', unit: 'piece', basePaise: 20000 };
+  const roti: MenuPick = { productId: 'p_roti', name: 'Butter Roti', unit: 'piece', basePaise: 3000 };
+  let ord = addPiece(addPiece(addPiece(newOrder('table', 'T4', 'x', NOW3), dal, NOW3), roti, NOW3), roti, NOW3);
+  const unsentGone = removeLine(ord, ord.lines[1].key, NOW3);
+  assert(unsentGone.lines.length === 1 && unsentGone.lines[0].productId === 'p_dal' && removeLine(ord, 'nope', NOW3) === ord,
+    'Delete a dish the kitchen never had: the line just goes');
+  ord = markKotSent(ord, NOW3);
+  const sentGone = removeLine(ord, ord.lines[1].key, NOW3);
+  const ch2 = kotChanges(sentGone);
+  assert(sentGone.lines.length === 2 && sentGone.lines[1].qty === 0 && ch2.length === 1 && ch2[0].delta === -2 && ch2[0].title === 'Butter Roti' && pieceCount(sentGone) === 1,
+    'Delete a dish the kitchen already has: it shows as cancelled and the next KOT says CANCEL 2 × Butter Roti');
+  const stop = cancelOrderChanges(addPiece(ord, dal, NOW3));
+  const again = reprintKotLines(addPiece(ord, dal, NOW3));
+  assert(stop.length === 2 && stop.every((l) => l.delta < 0) && stop.find((l) => l.title === 'Dal Tadka')!.delta === -1
+    && again.length === 2 && again.find((l) => l.title === 'Butter Roti')!.delta === 2 && piecesInKitchen(ord) === 3 && piecesInKitchen(newOrder('table', 'T1', 'y', NOW3)) === 0
+    && cancelOrderChanges(newOrder('table', 'T1', 'y', NOW3)).length === 0,
+    'Cancel order stops only what the kitchen has (not the unsent piece); Reprint KOT repeats exactly what the kitchen has');
+  const cancelSlip = buildKotBody({ order: ord, shopName: 'Hotel', round: 2, kind: 'cancel', reason: 'Guest <left>' }, cancelOrderChanges(ord));
+  const reprintSlip = buildKotBody({ order: ord, round: 1, kind: 'reprint' }, reprintKotLines(ord));
+  assert(cancelSlip.includes('ORDER CANCELLED') && cancelSlip.includes('REASON: Guest &lt;left&gt;') && cancelSlip.includes('CANCEL') && !cancelSlip.includes('>ADD<')
+    && reprintSlip.includes('REPRINT') && reprintSlip.includes('IN KITCHEN') && reprintSlip.includes('Butter Roti'),
+    'Kitchen slips: "ORDER CANCELLED" with the reason, and "REPRINT" listing what is in the kitchen');
+
+  // Today's cancelled orders (void report).
+  const settingsV = sanitizeRestaurantSettings({});
+  const v = voidFromOrder(ord, settingsV, '  Guest   left ', NOW3);
+  assert(v.label === 'T4' && v.pieces === 3 && v.inKitchen === 3 && v.amountPaise === 26000 && v.reason === 'Guest left' && v.items.join('|') === '1 × Dal Tadka|2 × Butter Roti',
+    'A cancelled order is written down with its amount, pieces, what the kitchen had and the reason');
+  const list = parseVoids([v, { at: '2026-10-05T10:00:00.000Z', label: 'T2', amountPaise: 500 }, { junk: 1 }, null]);
+  assert(list.length === 2 && list[0].label === 'T4' && voidsOfDay(list, new Date('2026-10-06T15:00:00.000Z')).length === 1 && parseVoids('x').length === 0,
+    "Cancelled orders read back safely, newest first; Today's list shows only today's");
+  const cancelDlg = readSource('components/restaurant/CancelOrderDialog.tsx');
+  const screen3 = readSource('components/restaurant/OrderScreen.tsx');
+  assert(cancelDlg.includes('const needsPin = inKitchen > 0 && hasOwnerPin();') && cancelDlg.includes('disabled={!finalReason}') && cancelDlg.includes('<OwnerPinPrompt')
+    && screen3.indexOf('recordVoid(voidFromOrder(') < screen3.indexOf("orders: s.orders.filter((o) => o.id !== order.id) }));\n    setCancelBusy(false);"),
+    'Cancel order needs a reason, and the owner PIN when food already went to the kitchen (and the shop has a PIN); it is written down before the table is cleared');
+
+  // Print bill before paying (not a tax invoice, nothing saved).
+  const chk = buildCheckBody({ order: ord, settings: { ...settingsV, serviceChargePercent: 10 }, business: { name: 'Sharma <Dhaba>', gstin: '27AAAAA0000A1Z5' }, qrDataUrl: 'data:image/png;base64,AAA' });
+  assert(chk.includes('Table T4') && chk.includes('2 × Butter Roti') && chk.includes('Service charge 10%') && chk.includes('TOTAL') && chk.includes('Sharma &lt;Dhaba&gt;')
+    && chk.includes('not a tax invoice') && chk.includes('Scan to pay') && !buildCheckBody({ order: ord, settings: settingsV }).includes('Scan to pay')
+    && !/db\.|settleOrder|invoice_number/.test(readSource('lib/restaurant/checkPrint.ts')),
+    'Print bill (before paying): the dishes, charges, GST and total with the UPI QR; marked "not a tax invoice" and nothing is saved');
+  assert(shopUpiId({ upi_ids: [{ id: 'a', label: 'A', upi_id: 'a@ok', is_default: false }, { id: 'b', label: 'B', upi_id: 'b@ok', is_default: true }] }) === 'b@ok'
+    && shopUpiId({ upi_id: 'old@ok' }) === 'old@ok' && shopUpiId(null) === '',
+    "The bill's QR uses the shop's default UPI ID");
+
+  // Cash + UPI.
+  const settle3 = readSource('lib/restaurant/settle.ts');
+  assert(settle3.includes("if (method === 'split' && (splitCash <= 0 || splitCash >= grand)) throw new Error('bad-split');")
+    && settle3.includes("...(method === 'split' ? { payment_split: { cash_amount: splitCash, upi_amount: grand - splitCash, card_amount: 0, credit_amount: 0 } } : {}),")
+    && readSource('components/restaurant/PayDialog.tsx').includes("{ id: 'split', label: 'Cash + UPI', icon: Wallet }"),
+    'Cash + UPI: the cash part and the rest on UPI are saved like the counter\'s split (cash drawer and reports count each part)');
+
+  // Stock counting / Barcode on items: switches; Restaurant mode turns them off.
+  assert(DEFAULT_FEATURE_SWITCHES.stock_counting === true && DEFAULT_FEATURE_SWITCHES.product_barcode === true
+    && FEATURES.some((f) => f.id === 'stock_counting') && FEATURES.some((f) => f.id === 'product_barcode'),
+    'Stock counting and Barcode on items are ON for every shop (nothing changes for a shop) — Restaurant mode turns them off');
+  const formSrc3 = readProductForm();
+  const prodPage = readProductsPage();
+  assert(formSrc3.includes('{switches.product_barcode && <ProductBarcodeField') && formSrc3.includes('{switches.stock_counting && (')
+    && prodPage.includes('showStock={switches.stock_counting}') && prodPage.includes('onToggleLowStock={switches.stock_counting ? setShowLowStockOnly : undefined}')
+    && readSource('components/dashboard/DashboardHome.tsx').includes('{switches.stock_counting && <DashboardStockWatchlist')
+    && readSource('app/reports/page.tsx').includes("...(featureSwitches.stock_counting ? [{ id: 'dead' as Tab"),
+    'Stock counting off: no stock box on Add Product, no stock columns / low-stock / stock value on Products, no stock alert on Home, no Dead Stock report; Barcode off: no barcode box');
+  assert(readSource('components/settings/SettingsNavTabs.tsx').includes("tr('Features')") && !readSource('components/settings/SettingsNavTabs.tsx').includes('Features ON / OFF'),
+    'The Settings tab is called "Features" (it only shows them now)');
 }
 
 // -------------------------------------------------------------

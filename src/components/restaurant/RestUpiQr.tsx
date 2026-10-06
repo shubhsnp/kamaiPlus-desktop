@@ -6,13 +6,7 @@ import { QrCode } from 'lucide-react';
 import { formatINR, generateUPILink } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
 import type { Business } from '@/types';
-
-/** The shop's UPI ID (the default one, else the first, else the single old field). */
-export function shopUpiId(business?: Business | null): string {
-  if (!business) return '';
-  const list = business.upi_ids || [];
-  return (list.find((u) => u.is_default) || list[0])?.upi_id || business.upi_id || '';
-}
+import { shopUpiId } from '@/lib/restaurant/checkPrint';
 
 /**
  * Restaurant bill (v4.107.0): the same UPI QR the counter shows — the guest scans it and GPay /

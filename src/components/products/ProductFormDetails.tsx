@@ -119,9 +119,10 @@ export function ProductFormDetails(props: ProductFormDetailsProps) {
         </div>
       </div>
 
-      {/* Barcode, HSN & GST Rate (HSN and GST only when switched on in Settings → Features) */}
+      {/* Barcode, HSN & GST Rate — each only when its feature is on (v4.108.0: barcode too). */}
+      {codeFieldCount > 0 && (
       <div className={`grid grid-cols-1 ${SM_COLS[codeFieldCount]} gap-3`}>
-        <ProductBarcodeField value={formBarcode} onChange={setFormBarcode} onScanned={onBarcodeScanned} />
+        {switches.product_barcode && <ProductBarcodeField value={formBarcode} onChange={setFormBarcode} onScanned={onBarcodeScanned} />}
 
         {/* HSN / SAC: printed on GST invoices and grouped in the GSTR-1 HSN summary */}
         {switches.product_hsn && (
@@ -161,9 +162,12 @@ export function ProductFormDetails(props: ProductFormDetailsProps) {
           </div>
         )}
       </div>
+      )}
 
       {/* Stock: "Unlimited" (no count) is the default for a new item, like the
-          Android app. Switching it off fills stock and the low-stock alert with 10. */}
+          Android app. Switching it off fills stock and the low-stock alert with 10.
+          v4.108.0: with Stock counting off the choice is not shown (a new item stays unlimited). */}
+      {switches.stock_counting && (
       <div className={`rounded-2xl border ${formIsUnlimitedStock ? 'border-emerald-200 bg-emerald-50/60' : 'border-slate-200 bg-white'}`}>
         <div className="px-3.5 py-2.5 flex items-center gap-2.5">
           <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${formIsUnlimitedStock ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'}`}>
@@ -218,8 +222,7 @@ export function ProductFormDetails(props: ProductFormDetailsProps) {
           </div>
         )}
       </div>
-
-
+      )}
 
       {/* Optional variant attributes (size / colour) */}
       {switches.product_size_colour && !sizeColorVisible && (

@@ -5,10 +5,11 @@ import { ChefHat, Clock, Plus, Settings2, ShoppingBag, UtensilsCrossed } from 'l
 import { Button } from '@/components/ui/Button';
 import { cn, formatINR } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
-import { RestOrder, formatOpenTime, hasUnsentItems, minutesOpen, orderTotals, pieceCount } from '@/lib/restaurant/model';
+import { RestOrder, formatOpenTime, hasUnsentItems, minutesOpen, orderTotals, pieceCount, piecesText } from '@/lib/restaurant/model';
 import type { RestaurantSettings } from '@/lib/restaurant/settings';
 import type { Sale } from '@/types';
 import { RecentBills } from '@/components/restaurant/RecentBills';
+import { CancelledToday } from '@/components/restaurant/CancelledToday';
 
 type View = 'all' | 'running' | 'free';
 /** A table open this long gets a red time — someone may be waiting for the bill. */
@@ -125,6 +126,7 @@ export function TablesHome({ orders, settings, onOpenTable, onOpenOrder, onNewTa
       </section>
 
       <RecentBills onOpen={onOpenBill} />
+      <div className="flex justify-end"><CancelledToday /></div>
     </div>
   );
 }
@@ -146,7 +148,7 @@ function OrderCard({ order, settings, now, onOpen, table }: { order: RestOrder; 
       <div>
         <div className="text-lg font-black font-mono text-slate-900">{formatINR(orderTotals(order, settings).grandTotal)}</div>
         <div className="flex items-center justify-between gap-2 text-[11px] font-semibold">
-          <span className="text-amber-800">{pieces} {tr('pieces')}</span>
+          <span className="text-amber-800">{piecesText(pieces)}</span>
           <span className={cn('inline-flex items-center gap-0.5', long ? 'text-rose-600 font-black' : 'text-slate-500')}><Clock className="w-3 h-3" />{formatOpenTime(minutes)}</span>
         </div>
       </div>

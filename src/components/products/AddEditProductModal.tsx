@@ -130,7 +130,7 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
   const switches = useFeatureSwitches();
   const showSellingPrice = showSellingPriceField(switches.product_selling_price, editingProduct);
   const priceFieldCount = 1 + (showSellingPrice ? 1 : 0) + (switches.product_cost_price ? 1 : 0) + (switches.wholesale_price ? 1 : 0);
-  const codeFieldCount = 1 + (switches.product_hsn ? 1 : 0) + (switches.product_gst_rate ? 1 : 0);
+  const codeFieldCount = (switches.product_barcode ? 1 : 0) + (switches.product_hsn ? 1 : 0) + (switches.product_gst_rate ? 1 : 0);
   const SM_COLS: Record<number, string> = { 1: 'sm:grid-cols-1', 2: 'sm:grid-cols-2', 3: 'sm:grid-cols-3', 4: 'sm:grid-cols-4' };
 
   // The "Have a wholesale bill in Excel?" tip: closed once = gone on this computer.

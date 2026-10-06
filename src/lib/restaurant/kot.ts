@@ -29,9 +29,12 @@ export interface KotInput {
   /** Slip number of the day for this order: 1 = first slip, 2 = next round… */
   round: number;
   now?: Date;
+  /** v4.108.0: 'cancel' = the whole order is cancelled (with the reason); 'reprint' = a lost slip again. */
+  kind?: 'kot' | 'cancel' | 'reprint';
+  reason?: string;
 }
 
-export function buildKotBody({ order, shopName, round, now = new Date() }: KotInput, changes: KotLine[] = kotChanges(order)): string {
+export function buildKotBody({ order, shopName, round, now = new Date(), kind = 'kot', reason }: KotInput, changes: KotLine[] = kotChanges(order)): string {
   const time = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
   const row = (l: KotLine, cancel: boolean) =>
     `<div class="row${cancel ? ' cancel' : ''}"><span class="q">${cancel ? '−' : ''}${Math.abs(l.delta)} ×</span><span>${esc(l.title)}</span></div>${l.note ? `<div class="note">${esc(l.note)}</div>` : ''}`;
@@ -40,8 +43,9 @@ export function buildKotBody({ order, shopName, round, now = new Date() }: KotIn
   return `<div class="kot">
 <div class="shop">${esc(shopName || 'Kitchen')} · KOT</div>
 <div class="big">${esc(order.label)}</div>
-<div class="meta"><span>${esc(time)}</span><span>${round > 1 ? `Round ${round}` : 'New order'}</span></div>
-${adds.length ? `<div class="sec">ADD</div>${adds.map((l) => row(l, false)).join('')}` : ''}
+<div class="meta"><span>${esc(time)}</span><span>${kind === 'cancel' ? 'ORDER CANCELLED' : kind === 'reprint' ? 'REPRINT' : round > 1 ? `Round ${round}` : 'New order'}</span></div>
+${kind === 'cancel' && reason ? `<div class="sec">REASON: ${esc(reason)}</div>` : ''}
+${adds.length ? `<div class="sec">${kind === 'reprint' ? 'IN KITCHEN' : 'ADD'}</div>${adds.map((l) => row(l, false)).join('')}` : ''}
 ${cancels.length ? `<div class="sec">CANCEL</div>${cancels.map((l) => row(l, true)).join('')}` : ''}
 <div class="end">— ${esc(order.label)} —</div>
 </div>`;
@@ -53,9 +57,12 @@ export function kotPaper(): PaperFormat {
   return f === 'thermal-58' ? 'thermal-58' : 'thermal-80';
 }
 
-/** Prints what changed since the last slip. `ok: false` = nothing to send, or the printer failed. */
-export async function printKot(input: KotInput): Promise<{ ok: boolean; empty?: boolean; error?: string }> {
-  const changes = kotChanges(input.order);
+/**
+ * Prints what changed since the last slip (or, v4.108.0, the `changes` given: a cancel slip / a reprint).
+ * `ok: false` = nothing to send, or the printer failed.
+ */
+export async function printKot(input: KotInput, given?: KotLine[]): Promise<{ ok: boolean; empty?: boolean; error?: string }> {
+  const changes = given || kotChanges(input.order);
   if (changes.length === 0) return { ok: false, empty: true };
   const paper = kotPaper();
   const settings = getPrintSettings();

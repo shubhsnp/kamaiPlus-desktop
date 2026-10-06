@@ -15,14 +15,15 @@ import type { RestaurantSettings } from '@/lib/restaurant/settings';
  * bill format and shows in Transactions without touching the invoice code.
  */
 
-export type RestPayMethod = Extract<PaymentMethod, 'cash' | 'upi' | 'card'>;
+export type RestPayMethod = Extract<PaymentMethod, 'cash' | 'upi' | 'card' | 'split'>;
 
 export interface SettleInput {
   order: RestOrder;
   settings: RestaurantSettings;
   business?: Business | null;
   method: RestPayMethod;
-  /** Cash handed over, paise (ignored for UPI / card, which are paid in full). */
+  /** Cash handed over, paise (ignored for UPI / card, which are paid in full). For 'split' (v4.108.0):
+   *  the cash part — the rest is UPI. */
   receivedPaise?: number;
   discount?: DiscountInput | null;
   /** v4.107.0: optional guest name and mobile (the mobile fills WhatsApp when the bill is sent). */
@@ -50,6 +51,10 @@ export async function settleOrder(input: SettleInput): Promise<Sale> {
   if (totals.items.length === 0 || totals.grandTotal <= 0) throw new Error('empty-order');
   const grand = totals.grandTotal;
   const received = method === 'cash' ? Math.max(grand, Math.round(input.receivedPaise || 0)) : grand;
+  // Cash + UPI (v4.108.0): the same payment_split the counter writes, so the cash drawer and reports
+  // count each part where it belongs.
+  const splitCash = method === 'split' ? Math.round(input.receivedPaise || 0) : 0;
+  if (method === 'split' && (splitCash <= 0 || splitCash >= grand)) throw new Error('bad-split');
 
   const biz = input.business || (await ensureStarterBusinessIfEmpty());
   const businessId = biz?.id || 'biz_default';
@@ -78,6 +83,7 @@ export async function settleOrder(input: SettleInput): Promise<Sale> {
     tax_total: totals.taxTotal,
     grand_total: grand,
     payment_method: method,
+    ...(method === 'split' ? { payment_split: { cash_amount: splitCash, upi_amount: grand - splitCash, card_amount: 0, credit_amount: 0 } } : {}),
     amount_received: received,
     balance_due: 0,
     change_returned: Math.max(0, received - grand),

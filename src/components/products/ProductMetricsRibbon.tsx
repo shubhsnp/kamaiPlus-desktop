@@ -17,6 +17,8 @@ interface ProductMetricsRibbonProps {
   lowStockCount: number;
   totalStockValuePaise: number;
   totalCategories: number;
+  /** v4.108.0: false when Stock counting is off — no Low Stock / stock value tiles. */
+  showStock?: boolean;
 }
 
 export const ProductMetricsRibbon: React.FC<ProductMetricsRibbonProps> = ({
@@ -24,10 +26,11 @@ export const ProductMetricsRibbon: React.FC<ProductMetricsRibbonProps> = ({
   lowStockCount,
   totalStockValuePaise,
   totalCategories,
+  showStock = true,
 }) => {
   return (
     <Card className="p-2.5 sm:p-3 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-2xs rounded-2xl">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-slate-800">
+      <div className={`grid grid-cols-2 ${showStock ? 'sm:grid-cols-4' : 'sm:grid-cols-2'} gap-2 sm:gap-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-slate-800`}>
         {/* 1. Total Products */}
         <div className="px-2 py-1 sm:py-0 sm:first:pl-1">
           <div className="flex items-center justify-between text-slate-500 text-[11px] font-bold">
@@ -45,6 +48,7 @@ export const ProductMetricsRibbon: React.FC<ProductMetricsRibbonProps> = ({
           </div>
         </div>
 
+        {showStock && (<>
         {/* 2. Low Stock Alert */}
         <div className="px-2 pt-2 sm:pt-0 sm:px-3">
           <div className="flex items-center justify-between text-slate-500 text-[11px] font-bold">
@@ -78,6 +82,8 @@ export const ProductMetricsRibbon: React.FC<ProductMetricsRibbonProps> = ({
             {tr('Stock at cost price')}
           </div>
         </div>
+
+        </>)}
 
         {/* 4. Active Categories */}
         <div className="px-2 pt-2 sm:pt-0 sm:pl-3">

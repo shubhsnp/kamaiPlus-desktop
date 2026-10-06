@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Banknote, CreditCard, FileText, Printer, Smartphone, UserRound } from 'lucide-react';
+import { Banknote, CreditCard, FileText, Printer, Smartphone, UserRound, Wallet } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { cn, formatINR } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
 import { readSilentPrint, saveSilentPrint } from '@/lib/hardware/printerWatch';
-import { DiscountInput, RestOrder, orderTotals } from '@/lib/restaurant/model';
+import { DiscountInput, RestOrder, orderTotals, piecesText } from '@/lib/restaurant/model';
 import type { RestaurantSettings } from '@/lib/restaurant/settings';
 import { RestPayMethod, cleanGuestPhone } from '@/lib/restaurant/settle';
 import type { Business } from '@/types';
@@ -17,6 +17,7 @@ const METHODS: { id: RestPayMethod; label: string; icon: typeof Banknote }[] = [
   { id: 'cash', label: 'Cash', icon: Banknote },
   { id: 'upi', label: 'UPI', icon: Smartphone },
   { id: 'card', label: 'Card', icon: CreditCard },
+  { id: 'split', label: 'Cash + UPI', icon: Wallet },
 ];
 
 export interface SettleExtras {
@@ -49,6 +50,7 @@ export function PayDialog({ order, settings, business, open, busy, onClose, onSe
   const [guestName, setGuestName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
   const [printNow, setPrintNow] = useState(false);
+  const [splitCash, setSplitCash] = useState('');
 
   useEffect(() => {
     if (open) {
@@ -59,6 +61,7 @@ export function PayDialog({ order, settings, business, open, busy, onClose, onSe
       setGuestName('');
       setGuestPhone('');
       setPrintNow(readSilentPrint());
+      setSplitCash('');
     }
   }, [open]);
 
@@ -68,6 +71,9 @@ export function PayDialog({ order, settings, business, open, busy, onClose, onSe
   const short = method === 'cash' && received !== '' && receivedPaise < totals.grandTotal;
   const change = method === 'cash' && receivedPaise > totals.grandTotal ? receivedPaise - totals.grandTotal : 0;
   const phoneBad = guestPhone.trim() !== '' && !cleanGuestPhone(guestPhone);
+  const splitCashPaise = splitCash ? Math.round((parseFloat(splitCash) || 0) * 100) : 0;
+  const splitUpiPaise = Math.max(0, totals.grandTotal - splitCashPaise);
+  const splitBad = method === 'split' && (splitCashPaise <= 0 || splitCashPaise >= totals.grandTotal);
   const quick = useMemo(() => {
     const g = Math.ceil(totals.grandTotal / 100);
     const steps = [g, Math.ceil(g / 50) * 50, Math.ceil(g / 100) * 100, Math.ceil(g / 500) * 500];
@@ -82,7 +88,7 @@ export function PayDialog({ order, settings, business, open, busy, onClose, onSe
   };
 
   return (
-    <Modal isOpen={open} onClose={onClose} title={tr('Bill — {name}', { name: who })} description={tr('{count} pieces', { count: totals.pieces })} size="lg">
+    <Modal isOpen={open} onClose={onClose} title={tr('Bill — {name}', { name: who })} description={piecesText(totals.pieces)} size="lg">
       <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]" data-restaurant-pay>
         {/* Left: what the guest pays */}
         <div className="space-y-3">
@@ -129,10 +135,10 @@ export function PayDialog({ order, settings, business, open, busy, onClose, onSe
         <div className="space-y-3">
           <div>
             <span className="text-[11px] font-black uppercase tracking-wide text-slate-500 block mb-1.5">{tr('Paid by')}</span>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-4 gap-2">
               {METHODS.map(({ id, label, icon: Icon }) => (
                 <button key={id} type="button" onClick={() => setMethod(id)} aria-pressed={method === id} data-pay-method={id}
-                  className={cn('h-14 rounded-xl border-2 flex items-center justify-center gap-2 text-sm font-black cursor-pointer transition-colors',
+                  className={cn('h-14 rounded-xl border-2 flex flex-col items-center justify-center gap-0.5 text-xs font-black cursor-pointer transition-colors leading-tight text-center px-1',
                     method === id ? 'border-emerald-600 bg-emerald-50 text-emerald-800' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-400')}>
                   <Icon className="w-5 h-5" /> {tr(label)}
                 </button>
@@ -157,6 +163,21 @@ export function PayDialog({ order, settings, business, open, busy, onClose, onSe
             </div>
           )}
           {method === 'upi' && <RestUpiQr business={business} amountPaise={totals.grandTotal} reference={`${order.kind === 'table' ? 'Table' : 'Takeaway'} ${order.label}`} />}
+          {method === 'split' && (
+            <div className="space-y-2" data-pay-split>
+              <div className="flex items-center gap-2">
+                <label htmlFor="rest-split-cash" className="text-[11px] font-black uppercase tracking-wide text-slate-500 w-20 shrink-0">{tr('Cash part')}</label>
+                <input id="rest-split-cash" value={splitCash} onChange={(e) => setSplitCash(e.target.value.replace(/[^\d.]/g, ''))} inputMode="decimal" placeholder="0"
+                  className="flex-1 h-11 px-3 rounded-xl border border-slate-300 text-lg font-mono font-black text-right focus:outline-none focus:border-emerald-600" data-pay-split-cash />
+              </div>
+              <div className="flex items-center justify-between rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 text-sm">
+                <span className="font-bold text-slate-600">{tr('UPI part')}</span>
+                <span className="font-mono font-black text-slate-900" data-pay-split-upi>{formatINR(splitUpiPaise)}</span>
+              </div>
+              {splitBad && splitCash !== '' && <p className="text-xs font-bold text-rose-600">{tr('The cash part must be more than ₹0 and less than the total.')}</p>}
+              {!splitBad && <RestUpiQr business={business} amountPaise={splitUpiPaise} reference={`${order.kind === 'table' ? 'Table' : 'Takeaway'} ${order.label}`} />}
+            </div>
+          )}
           {method === 'card' && <p className="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2.5 text-xs font-semibold text-slate-600">{tr('Swipe the card on your machine for {amount}, then settle here.', { amount: formatINR(totals.grandTotal) })}</p>}
 
           <div>
@@ -169,8 +190,8 @@ export function PayDialog({ order, settings, business, open, busy, onClose, onSe
 
           <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
             <Button type="button" variant="outline" onClick={onClose} disabled={busy}>{tr('Back')}</Button>
-            <Button type="button" variant="success" size="lg" isLoading={busy} disabled={short || phoneBad || totals.grandTotal <= 0}
-              onClick={() => onSettle(method, receivedPaise, discount, { guestName, guestPhone, printNow })} data-pay-settle>
+            <Button type="button" variant="success" size="lg" isLoading={busy} disabled={short || phoneBad || splitBad || totals.grandTotal <= 0}
+              onClick={() => onSettle(method, method === 'split' ? splitCashPaise : receivedPaise, discount, { guestName, guestPhone, printNow })} data-pay-settle>
               {printNow ? <Printer className="w-4 h-4" /> : <FileText className="w-4 h-4" />} {printNow ? tr('Settle & Print Bill') : tr('Settle & Show Bill')}
             </Button>
           </div>

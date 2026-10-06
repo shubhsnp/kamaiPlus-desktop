@@ -26,6 +26,8 @@ interface ProductCardProps {
   onToggleFavorite: (product: Product) => void;
   onQuickStockChange: (product: Product, delta: number) => void;
   onOpenVariants?: (product: Product) => void;
+  /** v4.108.0: false when Stock counting is off — no stock badge / quick restock. */
+  showStock?: boolean;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({
@@ -36,6 +38,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onToggleFavorite,
   onQuickStockChange,
   onOpenVariants,
+  showStock = true,
 }) => {
   const isParent = product.has_variants === true;
   const isOutOfStock = !isParent && !product.is_unlimited_stock && product.current_stock <= 0;
@@ -147,7 +150,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       </div>
 
       {/* Bottom: Stock Status & 1-Tap Quick Adjuster */}
-      {isParent ? (
+      {!showStock ? null : isParent ? (
         <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
           <button
             type="button"

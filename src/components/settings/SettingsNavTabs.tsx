@@ -39,7 +39,7 @@ export const SettingsNavTabs: React.FC<SettingsNavTabsProps> = ({
     },
     {
       id: 'features' as SettingsTabType,
-      label: tr('Features ON / OFF'),
+      label: tr('Features'),
       shortLabel: tr('Features'),
       icon: ToggleRight,
     },

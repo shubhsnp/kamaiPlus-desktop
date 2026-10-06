@@ -47,6 +47,8 @@ export const RESTAURANT_WORDS: Record<string, string> = {
   'General Products': 'Menu',
 
   // Guests (Customers page)
+  'Customer Directory & CRM': 'Guest List',
+  'registered customers •': 'guests •',
   'Add Customer': 'Add Guest',
   'No customers found': 'No guests found',
 
@@ -56,4 +58,8 @@ export const RESTAURANT_WORDS: Record<string, string> = {
 
   // Store set-up
   'e.g. Sharma Kirana & General Store': 'e.g. Sharma Family Restaurant',
+  'e.g. Always Fresh, Best Wholesale Rates': 'e.g. Pure veg · Family dining',
+
+  // Status bar (F1)
+  'New bill': 'Tables & Orders',
 };

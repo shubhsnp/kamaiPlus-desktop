@@ -51,7 +51,8 @@ export default function SalesAnalyticsPage() {
   // v4.93.0: the same profit lock as every other screen (it had its own, always locked at start).
   const pinUnlocked = !useProfitHidden();
   // Settings → Features → "Hide profit from staff" off: profit is always shown, no PIN.
-  const privacyOn = useFeatureSwitches().profit_privacy;
+  const featureSwitches = useFeatureSwitches();
+  const privacyOn = featureSwitches.profit_privacy;
   const unlocked = pinUnlocked || !privacyOn;
   const [pinOpen, setPinOpen] = useState(false);
   const [openParty, setOpenParty] = useState<PartySalesSummary | null>(null);
@@ -115,7 +116,8 @@ export default function SalesAnalyticsPage() {
     { id: 'parties', label: tr('Parties ({v1})', { v1: data?.partyData.length ?? 0 }) },
     { id: 'categories', label: tr('Categories ({v1})', { v1: data?.categoryData.length ?? 0 }) },
     { id: 'items', label: tr('Items ({v1})', { v1: data?.itemData.filter((i) => !isDeadStock(i)).length ?? 0 }) },
-    { id: 'dead', label: tr('Dead Stock ({v1})', { v1: data?.itemData.filter(isDeadStock).length ?? 0 }) },
+    // v4.108.0: no "Dead Stock" when the shop does not count stock (e.g. Restaurant mode).
+    ...(featureSwitches.stock_counting ? [{ id: 'dead' as Tab, label: tr('Dead Stock ({v1})', { v1: data?.itemData.filter(isDeadStock).length ?? 0 }) }] : []),
   ];
 
   return (

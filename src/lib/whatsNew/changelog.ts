@@ -15,6 +15,13 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.108.0',
+    items: [
+      msg("Restaurant: a dish can be deleted from the order (🗑), the whole order can be cancelled with a reason (the kitchen gets a cancel slip, and today's cancelled orders are listed on the Tables screen), the bill can be printed for the table before paying (with your UPI QR), a lost KOT can be printed again, and a guest can pay part cash, part UPI."),
+      msg("Restaurant mode now hides stock and barcodes everywhere (Menu page, Add Dish, Home, Reports). KamaiPlus support can switch them back on if you need them."),
+    ],
+  },
+  {
     version: '4.107.0',
     items: [
       msg("Settings → Features now only shows what is on for your shop. To switch a feature on or off, contact KamaiPlus support — they change it for you."),

@@ -1,18 +1,20 @@
 'use client';
 
-import React from 'react';
-import { ArrowLeft, ArrowRightLeft, Check, ChefHat, Minus, Plus, Receipt, Sparkles } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { ArrowLeft, ArrowRightLeft, Check, ChefHat, FileText, Minus, MoreVertical, Plus, Printer, Receipt, Sparkles, Trash2, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { cn, formatINR } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
-import { RestLine, RestOrder, formatOpenTime, hasUnsentItems, lineTitle, lineUnitPaise, minutesOpen, orderTotals, pieceCount } from '@/lib/restaurant/model';
+import { RestLine, RestOrder, formatOpenTime, hasUnsentItems, lineTitle, lineUnitPaise, minutesOpen, orderTotals, pieceCount, piecesInKitchen, piecesText } from '@/lib/restaurant/model';
 import type { RestaurantSettings } from '@/lib/restaurant/settings';
 
 /**
  * The running order of a table or takeaway (v4.106.0): every dish with − / + and its add-ons, what the
- * kitchen already has (✓), the totals with GST, and the two actions a waiter needs — KOT and Bill.
+ * kitchen already has (✓), the totals with GST, and the waiter's actions: KOT, Print bill (before paying,
+ * v4.108.0), Bill & Pay; ⋯ = Reprint KOT and Cancel order. A line's 🗑 removes it (a piece the kitchen has
+ * goes on the next KOT as CANCEL).
  */
-export function OrderPanel({ order, settings, kotBusy, onBack, onQty, onAddOns, onKot, onPay, onMove }: {
+export function OrderPanel({ order, settings, kotBusy, checkBusy, onBack, onQty, onAddOns, onKot, onPay, onMove, onDelete, onCheck, onReprint, onCancel }: {
   order: RestOrder;
   settings: RestaurantSettings;
   kotBusy: boolean;
@@ -23,7 +25,23 @@ export function OrderPanel({ order, settings, kotBusy, onBack, onQty, onAddOns, 
   onPay: () => void;
   /** Table orders only (v4.107.0): move the order to another table. */
   onMove?: () => void;
+  checkBusy: boolean;
+  onDelete: (key: string) => void;
+  onCheck: () => void;
+  onReprint: () => void;
+  onCancel: () => void;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    window.addEventListener('mousedown', close);
+    return () => window.removeEventListener('mousedown', close);
+  }, [menuOpen]);
+  const inKitchen = piecesInKitchen(order);
   const totals = orderTotals(order, settings);
   const pieces = pieceCount(order);
   const unsent = hasUnsentItems(order);
@@ -39,7 +57,7 @@ export function OrderPanel({ order, settings, kotBusy, onBack, onQty, onAddOns, 
         <div className="min-w-0 flex-1">
           <div className="text-base font-black text-slate-900 truncate">{name}</div>
           <div className="text-[11px] text-slate-500 font-semibold">
-            {pieces} {pieces === 1 ? tr('piece') : tr('pieces')} · {formatOpenTime(minutesOpen(order))}
+            {piecesText(pieces)} · {formatOpenTime(minutesOpen(order))}
           </div>
         </div>
         {onMove && order.kind === 'table' && (
@@ -48,6 +66,24 @@ export function OrderPanel({ order, settings, kotBusy, onBack, onQty, onAddOns, 
           </button>
         )}
         {order.kotRounds > 0 && <span className="text-[10px] font-black uppercase tracking-wide text-amber-800 bg-amber-100 rounded-full px-2 py-1">KOT {order.kotRounds}</span>}
+        <div className="relative" ref={menuRef}>
+          <button type="button" onClick={() => setMenuOpen((v) => !v)} aria-haspopup="menu" aria-expanded={menuOpen} aria-label={tr('More')}
+            className="h-9 w-9 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 flex items-center justify-center cursor-pointer" data-order-more>
+            <MoreVertical className="w-4 h-4" />
+          </button>
+          {menuOpen && (
+            <div role="menu" className="absolute right-0 top-10 z-30 w-56 rounded-xl border border-slate-200 bg-white shadow-lg p-1">
+              <button type="button" role="menuitem" disabled={inKitchen === 0} onClick={() => { setMenuOpen(false); onReprint(); }} data-order-reprint
+                className="w-full text-left px-3 py-2 rounded-lg text-xs font-bold text-slate-700 hover:bg-slate-100 flex items-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
+                <Printer className="w-4 h-4" /> {tr('Reprint KOT')}
+              </button>
+              <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onCancel(); }} data-order-cancel
+                className="w-full text-left px-3 py-2 rounded-lg text-xs font-bold text-rose-700 hover:bg-rose-50 flex items-center gap-2 cursor-pointer">
+                <XCircle className="w-4 h-4" /> {tr('Cancel order')}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-slate-100" data-order-lines>
@@ -85,10 +121,16 @@ export function OrderPanel({ order, settings, kotBusy, onBack, onQty, onAddOns, 
                   <button type="button" onClick={() => onAddOns(l)} disabled={cancelled} className="h-8 px-2.5 rounded-lg border border-slate-200 text-[11px] font-bold text-slate-600 hover:border-emerald-500 hover:text-emerald-700 flex items-center gap-1 cursor-pointer disabled:opacity-40" data-line-addons>
                     <Sparkles className="w-3.5 h-3.5" /> {tr('Add-ons / note')}
                   </button>
+                  <div className="flex items-center gap-1.5">
+                  <button type="button" onClick={() => onDelete(l.key)} disabled={cancelled} aria-label={tr('Remove {name}', { name: lineTitle(l) })} title={tr('Remove this dish')}
+                    className="w-9 h-9 rounded-xl border border-slate-200 text-slate-400 hover:border-rose-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed" data-line-delete>
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                   <div className="inline-flex items-center rounded-xl border border-slate-300 overflow-hidden bg-white">
                     <button type="button" onClick={() => onQty(l.key, -1)} className="w-10 h-9 flex items-center justify-center hover:bg-slate-100 cursor-pointer" aria-label={tr('One less')} data-line-minus><Minus className="w-4 h-4" /></button>
                     <span className="w-9 text-center text-sm font-black font-mono" data-line-qty>{l.qty}</span>
                     <button type="button" onClick={() => onQty(l.key, 1)} className="w-10 h-9 flex items-center justify-center hover:bg-slate-100 cursor-pointer" aria-label={tr('One more')} data-line-plus><Plus className="w-4 h-4" /></button>
+                  </div>
                   </div>
                 </div>
               </div>
@@ -105,12 +147,15 @@ export function OrderPanel({ order, settings, kotBusy, onBack, onQty, onAddOns, 
           <span className="text-[11px] font-black uppercase tracking-wide text-slate-500">{tr('Total')}</span>
           <span className="text-2xl font-black font-mono text-slate-900" data-order-total>{formatINR(totals.grandTotal)}</span>
         </div>
-        <div className="grid grid-cols-2 gap-2 pt-2">
+        <div className="grid grid-cols-3 gap-1.5 pt-2">
           <Button type="button" size="lg" onClick={onKot} isLoading={kotBusy} disabled={!unsent}
-            className={cn('h-12', unsent ? 'bg-amber-500 hover:bg-amber-600 border-amber-500 text-slate-950' : 'bg-slate-100 text-slate-400 border-slate-200')} data-order-kot>
+            className={cn('h-12 px-2 text-[13px]', unsent ? 'bg-amber-500 hover:bg-amber-600 border-amber-500 text-slate-950' : 'bg-slate-100 text-slate-400 border-slate-200')} data-order-kot>
             <ChefHat className="w-4 h-4" /> {tr('Send KOT')}
           </Button>
-          <Button type="button" variant="success" size="lg" onClick={onPay} disabled={pieces === 0} className="h-12" data-order-pay>
+          <Button type="button" variant="outline" size="lg" onClick={onCheck} isLoading={checkBusy} disabled={pieces === 0} className="h-12 px-2 text-[13px]" title={tr('Print the bill for the table to check (not paid yet)')} data-order-check>
+            <FileText className="w-4 h-4" /> {tr('Print bill')}
+          </Button>
+          <Button type="button" variant="success" size="lg" onClick={onPay} disabled={pieces === 0} className="h-12 px-2 text-[13px]" data-order-pay>
             <Receipt className="w-4 h-4" /> {tr('Bill & Pay')}
           </Button>
         </div>

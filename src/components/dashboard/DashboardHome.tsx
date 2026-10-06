@@ -217,13 +217,13 @@ export default function DashboardHome() {
       {/* 3b. TODAY AT A GLANCE — top items sold today, biggest udhar (v4.93.0) */}
       <TodayInsights sales={todaysRevenueSales} debtors={customersWithCredit} khataOn={switches.khata} />
 
-      {/* 4. LOW STOCK & OUT OF STOCK WATCHLIST ACCORDION */}
-      <DashboardStockWatchlist
+      {/* 4. LOW STOCK & OUT OF STOCK WATCHLIST ACCORDION (v4.108.0: only when the shop counts stock) */}
+      {switches.stock_counting && <DashboardStockWatchlist
         stockWatchlist={stockWatchlist}
         outOfStockProducts={outOfStockProducts}
         lowStockProducts={lowStockProducts}
         onQuickRestock={handleQuickRestock}
-      />
+      />}
 
       {/* 5. SHOP MANAGEMENT TOOLS (Compact 8-Tool Grid) */}
       <QuickToolsGrid productsCount={products.length} />

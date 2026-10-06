@@ -1,3 +1,4 @@
+import { tr } from '@/lib/i18n/core';
 import type { CartItem, ProductUnit } from '@/types';
 import { allocateBillDiscount, calculateLineTax, computeBillTotals } from '@/lib/sales/saleMath';
 import type { RestAddOn, RestaurantSettings } from '@/lib/restaurant/settings';
@@ -70,6 +71,9 @@ export const liveLines = (order: Pick<RestOrder, 'lines'>): RestLine[] => order.
 
 export const pieceCount = (order: Pick<RestOrder, 'lines'>): number => liveLines(order).reduce((n, l) => n + l.qty, 0);
 
+/** "1 piece" / "3 pieces" — in the shop's language (v4.108.0). */
+export const piecesText = (n: number): string => (n === 1 ? tr('1 piece') : tr('{count} pieces', { count: n }));
+
 export function newOrder(kind: OrderKind, label: string, id: string, now: string): RestOrder {
   return { id, kind, label, lines: [], openedAt: now, updatedAt: now, kotRounds: 0 };
 }
@@ -141,6 +145,29 @@ export function markKotSent(order: RestOrder, now: string): RestOrder {
 }
 
 export const hasUnsentItems = (order: RestOrder): boolean => order.lines.some((l) => l.qty !== l.kotQty);
+
+/**
+ * Delete a whole line (v4.108.0). One the kitchen never had just goes; one already in the kitchen
+ * stays as 0 ("Cancelled — goes on the next KOT") so the cook is told to stop it.
+ */
+export function removeLine(order: RestOrder, key: string, now: string): RestOrder {
+  const line = order.lines.find((l) => l.key === key);
+  if (!line) return order;
+  return changeQty(order, key, -line.qty, now);
+}
+
+/** Cancelling the whole order (v4.108.0): the kitchen slip stops everything the kitchen has. */
+export function cancelOrderChanges(order: RestOrder): KotLine[] {
+  return order.lines.filter((l) => l.kotQty > 0).map((l) => ({ title: lineTitle(l), note: l.note, delta: -l.kotQty }));
+}
+
+/** A lost / torn slip (v4.108.0): everything the kitchen should be cooking for this order, again. */
+export function reprintKotLines(order: RestOrder): KotLine[] {
+  return order.lines.filter((l) => l.kotQty > 0).map((l) => ({ title: lineTitle(l), note: l.note, delta: l.kotQty }));
+}
+
+/** What the kitchen has for this order (pieces) — 0 = nothing was sent yet. */
+export const piecesInKitchen = (order: Pick<RestOrder, 'lines'>): number => order.lines.reduce((n, l) => n + l.kotQty, 0);
 
 /**
  * Guests changed tables (v4.107.0): the order takes the new table's name — lines, KOT state and open

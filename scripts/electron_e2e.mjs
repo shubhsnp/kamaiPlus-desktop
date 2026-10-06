@@ -1721,6 +1721,31 @@ async function run() {
         check((await page.locator('[data-table="T7"]').getAttribute('data-table-state')) === 'running' && (await page.locator('[data-table="T2"]').getAttribute('data-table-state')) === 'free',
           'Move table: the order of T2 is now on T7; T2 is free');
 
+        // v4.108.0: delete a dish, Print bill before paying, Cancel order (reason → table free, Today's cancelled).
+        step = 'delete a dish';
+        await page.locator('[data-table="T7"]').click();
+        await page.locator('[data-restaurant-screen="order"]').waitFor({ timeout: 10000 });
+        await page.locator('[data-order-line] [data-line-delete]').first().click();
+        await page.waitForTimeout(400);
+        check((await page.locator('[data-order-line]').count()) === 0, 'Delete (🗑) on a dish not yet sent to the kitchen removes it');
+        await addDish();
+        step = 'print bill';
+        await page.locator('[data-order-check]').click();
+        check(await page.locator('[data-restaurant-toast]').waitFor({ timeout: 15000 }).then(() => true, () => false),
+          'Print bill (before paying) answers with a message — printed, or the printer problem');
+        step = 'cancel order';
+        await page.locator('[data-order-more]').click();
+        await page.locator('[data-order-cancel]').click();
+        await page.locator('[data-cancel-order]').waitFor({ timeout: 5000 });
+        const confirmDisabled = await page.locator('[data-cancel-confirm]').isDisabled();
+        await page.locator('[data-cancel-reason="Guest left"]').click();
+        await page.locator('[data-cancel-confirm]').click();
+        await tables.waitFor({ timeout: 15000 });
+        await page.waitForTimeout(800);
+        const cancelledBadge = await page.locator('[data-cancelled-today]').getAttribute('data-cancelled-today').catch(() => null);
+        check(confirmDisabled && (await page.locator('[data-table="T7"]').getAttribute('data-table-state')) === 'free' && cancelledBadge === '1',
+          'Cancel order needs a reason; then the table is free and "Cancelled today: 1" is on the Tables screen');
+
         step = 'takeaway';
         await page.locator('[data-new-takeaway]').click();
         await page.locator('[data-restaurant-screen="order"]').waitFor({ timeout: 10000 });
@@ -1730,11 +1755,52 @@ async function run() {
         await tables.waitFor({ timeout: 10000 });
         check((await page.locator('[data-takeaway]').count()) === 0, 'An empty takeaway token is not kept');
 
+        step = 'restaurant hides stock';
+        await page.evaluate(() => { window.location.href = '/products/'; });
+        await page.getByRole('button', { name: /Add Dish/i }).first().waitFor({ timeout: 15000 });
+        const noInward = (await page.getByRole('button', { name: /Fast barcode inward/i }).count()) === 0;
+        const noLowStock = (await page.getByRole('button', { name: /^Low Stock$/i }).count()) === 0 && !(await textVisible(page, 'Inventory Asset', 1500));
+        await page.getByRole('button', { name: /Add Dish/i }).first().click();
+        await textVisible(page, 'Dish name', 8000);
+        const noBarcode = !(await textVisible(page, 'Barcode / EAN-13', 1500)) && !(await textVisible(page, 'Unlimited Stock (no count)', 1000));
+        await page.keyboard.press('Escape');
+        await page.evaluate(() => { window.location.href = '/'; });
+        await page.waitForTimeout(2500);
+        const noHomeStock = !(await textVisible(page, 'Low Stock & Out-of-Stock Alert', 2000));
+        check(noInward && noLowStock && noBarcode && noHomeStock,
+          `Restaurant mode hides stock and barcodes: Menu page (inward ${noInward}, low stock / value ${noLowStock}), Add Dish (barcode / stock ${noBarcode}), Home stock alert (${noHomeStock})`);
+
         step = 'settings in restaurant mode';
         await page.evaluate(() => { window.location.href = '/settings/?tab=features'; });
         check(await page.locator('[data-features-restaurant]').waitFor({ timeout: 15000 }).then(() => true, () => false)
           && (await page.locator('[data-feature="inventory"]').getAttribute('data-on')) === 'false' && (await page.locator('[data-feature="product_variants"]').getAttribute('data-on')) === 'true',
           'Settings → Features in Restaurant mode: stock off, Half / Full variants on, "Restaurant mode is on"');
+
+        // KAMAI_E2E_SHOTS=1: a screenshot of every screen in Restaurant mode (review what a restaurant sees).
+        if (process.env.KAMAI_E2E_SHOTS) {
+          step = 'restaurant screenshots';
+          await page.setViewportSize({ width: 1366, height: 768 }).catch(() => {});
+          for (const [name, url] of [['home', '/'], ['tables', '/restaurant/'], ['menu', '/products/'], ['guests', '/customers/'], ['khata', '/khata/'],
+            ['bills', '/transactions/'], ['reports', '/reports/'], ['gst', '/gst-reports/'], ['settings', '/settings/'], ['features', '/settings/?tab=features'],
+            ['cash', '/cash-register/'], ['themes', '/invoice-designer/'], ['backup', '/cloud-backup/'], ['inventory', '/inventory/']]) {
+            await page.evaluate((u) => { window.location.href = u; }, url);
+            await page.waitForTimeout(3500);
+            await shot(page, `restaurant-${name}`);
+          }
+          await page.evaluate(() => { window.location.href = '/restaurant/'; });
+          await page.locator('[data-table="T7"]').click({ timeout: 15000 }).catch(() => {});
+          await page.waitForTimeout(2000);
+          await shot(page, 'restaurant-order');
+          await page.locator('[data-order-pay]').click().catch(() => {});
+          await page.waitForTimeout(1500);
+          await shot(page, 'restaurant-pay');
+          await page.keyboard.press('Escape');
+          await page.evaluate(() => { window.location.href = '/products/'; });
+          await page.getByRole('button', { name: /Add Dish/i }).first().click({ timeout: 15000 }).catch(() => {});
+          await page.waitForTimeout(1500);
+          await shot(page, 'restaurant-add-dish');
+          await page.keyboard.press('Escape');
+        }
 
         step = 'bill in history';
         await page.evaluate(() => { window.location.href = '/transactions/'; });

@@ -186,7 +186,7 @@ export default function ProductsPage() {
       <ProductHeaderActions
         totalProducts={allProducts.length}
         onOpenAddModal={handleOpenAddModal}
-        onOpenFastInward={() => setIsFastInwardOpen(true)}
+        onOpenFastInward={switches.product_barcode && switches.stock_counting ? () => setIsFastInwardOpen(true) : undefined}
         onOpenExcelImporter={() => setIsExcelImporterOpen(true)}
         onOpenInwardSheet={switches.purchases ? () => setIsPurchaseSheetOpen(true) : undefined}
       />
@@ -200,6 +200,7 @@ export default function ProductsPage() {
         lowStockCount={lowStockCount}
         totalStockValuePaise={totalStockValuePaise}
         totalCategories={categories.length}
+        showStock={switches.stock_counting}
       />
 
       {/* 3. Filter & Category Toolbar */}
@@ -210,7 +211,7 @@ export default function ProductsPage() {
         selectedCategory={selectedCategory}
         onSelectCategory={setSelectedCategory}
         showLowStockOnly={showLowStockOnly}
-        onToggleLowStock={setShowLowStockOnly}
+        onToggleLowStock={switches.stock_counting ? setShowLowStockOnly : undefined}
         viewMode={viewMode}
         onViewModeChange={handleViewModeChange}
       />
@@ -227,6 +228,7 @@ export default function ProductsPage() {
             onQuickPriceChange={handleQuickPriceChange}
             on1ClickBarcodePrint={switches.barcode_studio ? handle1ClickBarcodePrint : undefined}
             onOpenVariants={setVariantsParent}
+            showStock={switches.stock_counting}
           />
         ) : (
           <div className="py-12 text-center text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
@@ -247,6 +249,7 @@ export default function ProductsPage() {
               onToggleFavorite={handleToggleFavorite}
               onQuickStockChange={handleQuickStockChange}
               onOpenVariants={setVariantsParent}
+              showStock={switches.stock_counting}
             />
           ))}
 
