@@ -598,6 +598,7 @@
   "Cheque": "चेक",
   "Cheque / Other 📄": "चेक / इतर 📄",
   "Choose \"Save as PDF\" in the print dialog.": "प्रिंट विंडोमध्ये \"Save as PDF\" निवडा.",
+  "Coin": "नाणे",
   "Choose a 4-digit PIN that only you know. Staff will need it to see profit and cost prices.": "फक्त तुम्हाला माहीत असलेला 4 अंकी PIN निवडा. स्टाफला नफा आणि खरेदी भाव पाहण्यासाठी तो लागेल.",
   "Choose a customer from the left list or create a new Khata customer to view their statement.": "स्टेटमेंट पाहण्यासाठी डावीकडील यादीतून ग्राहक निवडा किंवा नवीन खाते ग्राहक बनवा.",
   "Choose a printer in Settings → Print.": "सेटिंग्ज → प्रिंट मध्ये प्रिंटर निवडा.",
@@ -1534,6 +1535,7 @@
   "Not now": "आत्ता नाही",
   "Not this item": "ही वस्तू नाही",
   "Not yet": "अजून नाही",
+  "Note": "नोट",
   "Note (optional)": "टीप (ऐच्छिक)",
   "Notes (optional)": "टीप (ऐच्छिक)",
   "Notes / Description": "टीप / वर्णन",
@@ -2962,5 +2964,6 @@
   "Kitchen could not make it": "किचनला बनवता आले नाही",
   "Cash + UPI": "रोख + UPI",
   "Restaurant: a dish can be deleted from the order (🗑), the whole order can be cancelled with a reason (the kitchen gets a cancel slip, and today's cancelled orders are listed on the Tables screen), the bill can be printed for the table before paying (with your UPI QR), a lost KOT can be printed again, and a guest can pay part cash, part UPI.": "रेस्टॉरंट: ऑर्डरमधून पदार्थ काढता येतो (🗑), संपूर्ण ऑर्डर कारणासह रद्द करता येतो (किचनला रद्द स्लिप जाते, आणि आजचे रद्द ऑर्डर टेबल स्क्रीनवर दिसतात), पेमेंटआधी टेबलसाठी बिल प्रिंट करता येते (तुमच्या UPI QR सह), हरवलेली KOT पुन्हा प्रिंट करता येते, आणि पाहुणा काही रोख, काही UPI ने पेमेंट करू शकतो.",
-  "Restaurant mode now hides stock and barcodes everywhere (Menu page, Add Dish, Home, Reports). KamaiPlus support can switch them back on if you need them.": "रेस्टॉरंट मोड आता सगळीकडे स्टॉक आणि बारकोड लपवतो (मेन्यू पेज, पदार्थ जोडा, होम, रिपोर्ट). गरज असल्यास KamaiPlus सपोर्ट ते पुन्हा चालू करू शकतो."
+  "Restaurant mode now hides stock and barcodes everywhere (Menu page, Add Dish, Home, Reports). KamaiPlus support can switch them back on if you need them.": "रेस्टॉरंट मोड आता सगळीकडे स्टॉक आणि बारकोड लपवतो (मेन्यू पेज, पदार्थ जोडा, होम, रिपोर्ट). गरज असल्यास KamaiPlus सपोर्ट ते पुन्हा चालू करू शकतो.",
+  "Cash Register: Denomination Tally Counter shows real currency notes and coins (₹500 down to ₹1) next to each count.": "कॅश रजिस्टर: नोट मोजणीमध्ये आता प्रत्येक मोजणीजवळ खऱ्या नोटा आणि नाणी (₹500 ते ₹1 पर्यंत) दिसतात."
 }

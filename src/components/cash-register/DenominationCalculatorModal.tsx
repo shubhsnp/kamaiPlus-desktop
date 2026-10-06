@@ -11,6 +11,7 @@ import { useBusiness } from '@/components/layout/BusinessProvider';
 import { WhatsAppButton } from '@/components/whatsapp/WhatsAppButton';
 import { cashTallyMessage } from '@/lib/whatsapp/businessMessages';
 import { messageShop } from '@/lib/whatsapp/whatsappDrafts';
+import { generateCashTallyTextBreakdown, generateCashTallySlipHtml } from './cashTallySlip';
 
 interface DenominationCalculatorModalProps {
   isOpen: boolean;
@@ -23,6 +24,18 @@ interface DenominationCalculatorModalProps {
 }
 
 const TALLY_DRAFT_KEY = 'kamai_cash_tally_draft';
+
+const NOTE_STYLES: Record<number, string> = {
+  500: 'from-stone-400 to-stone-500 text-stone-950 border-stone-300',
+  200: 'from-orange-400 to-amber-500 text-orange-950 border-orange-300',
+  100: 'from-violet-400 to-purple-500 text-white border-violet-300',
+  50: 'from-cyan-300 to-cyan-500 text-cyan-950 border-cyan-200',
+  20: 'from-lime-400 to-emerald-400 text-emerald-950 border-lime-200',
+  10: 'from-amber-600 to-amber-800 text-white border-amber-500',
+  5: 'from-yellow-300 to-amber-400 text-yellow-950 border-yellow-200',
+  2: 'from-slate-300 to-slate-400 text-slate-900 border-slate-200',
+  1: 'from-slate-300 to-slate-400 text-slate-900 border-slate-200',
+};
 
 export const DenominationCalculatorModal: React.FC<DenominationCalculatorModalProps> = ({
   isOpen,
@@ -87,86 +100,28 @@ export const DenominationCalculatorModal: React.FC<DenominationCalculatorModalPr
   const isExcess = discrepancyPaise > 0;
 
   const handleCopyBreakdown = () => {
-    let text = `CASH DRAWER TALLY\n`;
-    text += `Date: ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}\n`;
-    text += `Expected: ${formatINR(expectedDrawerCashPaise)}\n`;
-    text += `Counted: ${formatINR(totalCalculatedCashPaise)} (${totalNotesCount} Notes)\n`;
-    text += `Diff: ${isExactMatch ? 'Exact Match (₹0)' : isExcess ? '+' + formatINR(discrepancyPaise) : formatINR(discrepancyPaise)}\n\n`;
-    text += `DENOMINATIONS BREAKDOWN:\n`;
-
-    let hasNotes = false;
-    noteDenominations.forEach((denom) => {
-      const count = denominations[denom] || 0;
-      if (count > 0) {
-        hasNotes = true;
-        text += `₹${denom} × ${count} = ₹${denom * count}\n`;
-      }
+    const text = generateCashTallyTextBreakdown({
+      expectedDrawerCashPaise,
+      totalCalculatedCashPaise,
+      totalNotesCount,
+      discrepancyPaise,
+      denominations,
+      noteDenominations,
     });
-
-    if (!hasNotes) {
-      text += `No notes counted.\n`;
-    }
-
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   const handlePrintSlip = async () => {
-    let rowsHtml = '';
-    noteDenominations.forEach((denom) => {
-      const count = denominations[denom] || 0;
-      if (count > 0) {
-        rowsHtml += `
-          <div style="display:flex; justify-content:space-between; margin-bottom: 2px;">
-            <span>₹${denom} × ${count}</span>
-            <span>₹${denom * count}</span>
-          </div>
-        `;
-      }
+    const slipHtml = generateCashTallySlipHtml({
+      expectedDrawerCashPaise,
+      totalCalculatedCashPaise,
+      totalNotesCount,
+      discrepancyPaise,
+      denominations,
+      noteDenominations,
     });
-
-    const slipHtml = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Cash Tally Slip</title>
-        <style>
-          @page { size: 58mm auto; margin: 0; }
-          body { font-family: monospace; font-size: 11px; padding: 6px; margin: 0; width: 56mm; }
-          .center { text-align: center; }
-          .bold { font-weight: 800; }
-          .rule { border-top: 1px dashed #000; margin: 4px 0; }
-        </style>
-      </head>
-      <body>
-        <div class="center bold" style="font-size: 13px;">CASH TALLY SLIP</div>
-        <div class="center" style="font-size: 10px;">${new Date().toLocaleString('en-IN')}</div>
-        <div class="rule"></div>
-        ${rowsHtml || '<div class="center">No notes counted</div>'}
-        <div class="rule"></div>
-        <div style="display:flex; justify-content:space-between;" class="bold">
-          <span>Total Counted:</span>
-          <span>₹${(totalCalculatedCashPaise / 100).toFixed(2)}</span>
-        </div>
-        <div style="display:flex; justify-content:space-between;">
-          <span>Total Notes:</span>
-          <span>${totalNotesCount}</span>
-        </div>
-        <div class="rule"></div>
-        <div style="display:flex; justify-content:space-between;">
-          <span>Expected:</span>
-          <span>₹${(expectedDrawerCashPaise / 100).toFixed(2)}</span>
-        </div>
-        <div style="display:flex; justify-content:space-between;" class="bold">
-          <span>Diff:</span>
-          <span>${isExactMatch ? 'MATCH' : (isExcess ? '+' : '') + (discrepancyPaise / 100).toFixed(2)}</span>
-        </div>
-        <script>window.onload = () => window.print();</script>
-      </body>
-      </html>
-    `;
-
     const desktop = getDesktopApi();
     if (desktop && desktop.isDesktop) {
       await desktop.print({ html: slipHtml, paper: 'thermal-58', silent: false });
@@ -212,24 +167,7 @@ export const DenominationCalculatorModal: React.FC<DenominationCalculatorModalPr
             const count = denominations[denom] || 0;
             const subtotalRupees = denom * count;
             const isCoin = denom <= 5;
-            
-            // Indian Currency Colors
-            const getNoteStyles = (val: number) => {
-              switch (val) {
-                case 500: return 'from-stone-400 to-stone-500 text-stone-950 border-stone-300';
-                case 200: return 'from-orange-400 to-amber-500 text-orange-950 border-orange-300';
-                case 100: return 'from-violet-400 to-purple-500 text-white border-violet-300';
-                case 50: return 'from-cyan-300 to-cyan-500 text-cyan-950 border-cyan-200';
-                case 20: return 'from-lime-400 to-emerald-400 text-emerald-950 border-lime-200';
-                case 10: return 'from-amber-600 to-amber-800 text-white border-amber-500';
-                case 5: return 'from-yellow-300 to-amber-400 text-yellow-950 border-yellow-200';
-                case 2: return 'from-slate-300 to-slate-400 text-slate-900 border-slate-200';
-                case 1: return 'from-slate-300 to-slate-400 text-slate-900 border-slate-200';
-                default: return 'from-slate-100 to-slate-200 text-slate-800';
-              }
-            };
-            
-            const styles = getNoteStyles(denom);
+            const styles = NOTE_STYLES[denom] || 'from-slate-100 to-slate-200 text-slate-800';
 
             return (
               <div
@@ -241,17 +179,48 @@ export const DenominationCalculatorModal: React.FC<DenominationCalculatorModalPr
                     : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-md'
                 )}
               >
-                <div className="flex items-center justify-between">
-                  {isCoin ? (
-                    <div className={cn('w-10 h-10 rounded-full bg-gradient-to-br flex items-center justify-center font-black text-sm shadow-inner border-2', styles)}>
-                      ₹{denom}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="relative shrink-0 flex items-center justify-center">
+                      {/* Real Indian currency note / coin image */}
+                      <img
+                        src={`/images/denominations/${denom}.png`}
+                        alt={`₹${denom} ${isCoin ? 'Coin' : 'Note'}`}
+                        className={cn(
+                          'object-contain select-none',
+                          isCoin
+                            ? 'w-10 h-10 drop-shadow-xs'
+                            : 'w-16 h-9 rounded shadow-2xs border border-slate-200/90'
+                        )}
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          target.style.display = 'none';
+                          const fallback = target.nextElementSibling as HTMLElement;
+                          if (fallback) fallback.style.display = 'flex';
+                        }}
+                      />
+                      <div
+                        style={{ display: 'none' }}
+                        className={cn(
+                          'items-center justify-center font-black text-xs shadow-inner border',
+                          isCoin ? 'w-10 h-10 rounded-full border-2' : 'w-16 h-9 rounded opacity-90',
+                          styles
+                        )}
+                      >
+                        ₹{denom}
+                      </div>
                     </div>
-                  ) : (
-                    <div className={cn('w-16 h-9 rounded bg-gradient-to-br flex items-center justify-center font-black text-sm shadow-inner border opacity-90', styles)}>
-                      ₹{denom}
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-xs font-black text-slate-800 leading-tight">
+                        ₹{denom}
+                      </span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        {isCoin ? tr('Coin') : tr('Note')}
+                      </span>
                     </div>
-                  )}
-                  <span className={cn("text-xs font-black font-mono transition-colors", count > 0 ? "text-emerald-700" : "text-slate-400")}>
+                  </div>
+
+                  <span className={cn("text-xs font-black font-mono shrink-0 transition-colors", count > 0 ? "text-emerald-700" : "text-slate-400")}>
                     = ₹{subtotalRupees}
                   </span>
                 </div>
