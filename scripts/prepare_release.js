@@ -68,9 +68,22 @@ for (const y of ['latest.yml', 'beta.yml']) {
     if (exe) keep.add(exe);
   }
 }
-// Every .blockmap goes (see above), and installers nobody points at.
+// Every .blockmap goes (see above), and installers nobody points at (the fixed-name copy below stays).
+const LATEST_ALIAS = 'KamaiPlus-Desktop-Setup.exe';
 for (const f of fs.readdirSync(release)) {
-  if (/\.blockmap$/.test(f) || (/\.exe$/.test(f) && !keep.has(f))) fs.rmSync(path.join(release, f));
+  if (/\.blockmap$/.test(f) || (/\.exe$/.test(f) && !keep.has(f) && f !== LATEST_ALIAS)) fs.rmSync(path.join(release, f));
+}
+
+// A fixed address for the website's Download button: https://kamaiplus-desktop.web.app/KamaiPlus-Desktop-Setup.exe
+// is always the newest STABLE installer (same bytes latest.yml points at), so the website never needs a new
+// link per version.
+{
+  const latest = path.join(release, 'latest.yml');
+  const stable = fs.existsSync(latest) ? ymlInstaller(fs.readFileSync(latest, 'utf8')) : '';
+  if (stable && fs.existsSync(path.join(release, stable))) {
+    fs.copyFileSync(path.join(release, stable), path.join(release, LATEST_ALIAS));
+    console.log(`${LATEST_ALIAS} = ${stable}`);
+  }
 }
 
 // Download page (site/ → release/). The stable version is stamped in so the
