@@ -128,7 +128,7 @@ export function OrderPanel({ order, settings, kotBusy, checkBusy, onBack, onQty,
                   </button>
                   <div className="inline-flex items-center rounded-xl border border-slate-300 overflow-hidden bg-white">
                     <button type="button" onClick={() => onQty(l.key, -1)} className="w-10 h-9 flex items-center justify-center hover:bg-slate-100 cursor-pointer" aria-label={tr('One less')} data-line-minus><Minus className="w-4 h-4" /></button>
-                    <span className="w-9 text-center text-sm font-black font-mono" data-line-qty>{l.qty}</span>
+                    <span className="min-w-[36px] px-1 text-center text-sm font-black font-mono" data-line-qty>{l.qty}</span>
                     <button type="button" onClick={() => onQty(l.key, 1)} className="w-10 h-9 flex items-center justify-center hover:bg-slate-100 cursor-pointer" aria-label={tr('One more')} data-line-plus><Plus className="w-4 h-4" /></button>
                   </div>
                   </div>

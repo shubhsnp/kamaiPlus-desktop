@@ -109,7 +109,7 @@ export function MenuPanel({ onPick, inOrder, searchRef }: {
         ) : dishes.length === 0 ? (
           <p className="text-center text-xs text-slate-500 py-12">{tr('No dish matches "{query}".', { query })}</p>
         ) : (
-          <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(148px, 1fr))' }}>
+          <div className="grid gap-2.5 pt-1 px-0.5 pb-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(148px, 1fr))' }}>
             {dishes.map((d) => {
               const n = countOf(d);
               const noPrice = d.sizes.length === 0 && !(unitPriceFor(d.product, 'retail') > 0);
@@ -127,13 +127,17 @@ export function MenuPanel({ onPick, inOrder, searchRef }: {
                     noPrice && 'opacity-50 cursor-not-allowed'
                   )}
                 >
-                  <span className="text-[13px] font-bold text-slate-900 leading-snug line-clamp-2">{d.product.name}</span>
+                  <span className={cn('text-[13px] font-bold text-slate-900 leading-snug line-clamp-2', n > 0 && 'pr-6')}>
+                    {d.product.name}
+                  </span>
                   <span className="flex items-center justify-between gap-2">
                     <span className="text-xs font-black text-emerald-700 font-mono">{priceText(d)}</span>
                     {d.sizes.length > 0 && <span className="text-[10px] font-bold text-slate-500 uppercase">{d.sizes.map((s) => s.variant_label).filter(Boolean).slice(0, 2).join(' / ')}</span>}
                   </span>
                   {n > 0 && (
-                    <span className="absolute -top-2 -right-2 min-w-6 h-6 px-1.5 rounded-full bg-emerald-600 text-white text-[11px] font-black flex items-center justify-center shadow">{n}</span>
+                    <span className="absolute top-2 right-2 min-w-[22px] h-[22px] px-1 rounded-full bg-emerald-600 text-white text-[11px] font-black flex items-center justify-center shadow-xs">
+                      {n}
+                    </span>
                   )}
                 </button>
               );

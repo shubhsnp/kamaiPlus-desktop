@@ -244,7 +244,7 @@ export const DenominationCalculatorModal: React.FC<DenominationCalculatorModalPr
                       const parsed = parseInt(e.target.value, 10);
                       handleCountChange(denom, isNaN(parsed) || parsed < 0 ? 0 : parsed);
                     }}
-                    className="flex-1 w-full h-8 bg-transparent text-slate-900 font-black font-mono focus:outline-none text-center text-sm"
+                    className="flex-1 w-full h-8 bg-transparent text-slate-900 font-black font-mono focus:outline-none text-center text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
 
                   <button

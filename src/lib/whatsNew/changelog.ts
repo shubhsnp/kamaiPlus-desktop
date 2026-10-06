@@ -15,6 +15,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.110.0',
+    items: [
+      msg('Restaurant: dish count badges on the menu tiles are aligned inside each card so numbers never get cropped or cut off when adding items.'),
+    ],
+  },
+  {
     version: '4.109.0',
     items: [
       msg('Cash Register: Denomination Tally Counter shows real currency notes and coins (₹500 down to ₹1) next to each count.'),
