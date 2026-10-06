@@ -355,30 +355,38 @@ async function run() {
       const offCard = await textVisible(page, 'is turned off', 15000);
       check(hiddenByDefault && offCard, 'New shop: Cash Register, Purchases, Suppliers and GST are not in the menu; opening Cash Register directly says it is turned off');
       await page.evaluate(() => { window.location.href = '/settings/?tab=features'; });
-      const cashSwitch = page.getByRole('checkbox', { name: 'Cash Register' });
-      await cashSwitch.waitFor({ state: 'attached', timeout: 15000 });
-      await page.locator('label:has(input[data-feature="cash_register"])').click();
+      await page.locator('[data-features-readonly]').waitFor({ timeout: 15000 });
+      const readOnly = (await page.locator('[data-features-readonly] input').count()) === 0
+        && (await page.locator('[data-feature="cash_register"]').getAttribute('data-on')) === 'false';
+      check(readOnly && await textVisible(page, 'Features are set by KamaiPlus support', 5000),
+        'Settings → Features only shows On / Off (no switches): "Features are set by KamaiPlus support" (v4.107.0)');
+      // A switch set for the shop (the stored switches, as before) puts the screen in the menu at once.
+      const setShopSwitch = (id, on) => page.evaluate(([k, v]) => {
+        const cur = JSON.parse(localStorage.getItem('kamai_feature_switches') || '{}');
+        localStorage.setItem('kamai_feature_switches', JSON.stringify({ ...cur, [k]: v }));
+        window.dispatchEvent(new Event('feature_switches_changed'));
+      }, [id, on]);
+      await setShopSwitch('cash_register', true);
       await page.waitForTimeout(400);
-      check((await cashSwitch.isChecked()) && (await menuHas('/cash-register')), 'Settings → Features: switching Cash Register on puts it back in the menu at once');
-      await page.locator('label:has(input[data-feature="cash_register"])').click();
+      check((await page.locator('[data-feature="cash_register"]').getAttribute('data-on')) === 'true' && (await menuHas('/cash-register')),
+        'Cash Register switched on for the shop: Settings shows it On and it is back in the menu at once');
+      await setShopSwitch('cash_register', false);
       await page.waitForTimeout(300);
 
       // v4.81.0 — Khata switched off: out of the menu and no Credit / Udhar on the counter;
       // switched back on afterwards (the khata checks further down need it).
       const khataInMenuBefore = await menuHas('/khata');
-      await page.locator('label:has(input[data-feature="khata"])').click();
+      await setShopSwitch('khata', false);
       await page.waitForTimeout(400);
       const khataInMenuOff = await menuHas('/khata');
       await page.evaluate(() => { window.location.href = '/billing/'; });
       await textVisible(page, 'Payment Mode', 15000);
       const creditButtonsOff = await page.locator('button', { hasText: 'F9' }).count();
       const f9HintOff = await page.locator('[data-status-shortcut="F9"]').count();
-      await page.evaluate(() => { window.location.href = '/settings/?tab=features'; });
-      await page.getByRole('checkbox', { name: 'Khata (Udhar)' }).waitFor({ state: 'attached', timeout: 15000 });
-      await page.locator('label:has(input[data-feature="khata"])').click();
+      await setShopSwitch('khata', true);
       await page.waitForTimeout(400);
       check(khataInMenuBefore && !khataInMenuOff && creditButtonsOff === 0 && f9HintOff === 0 && (await menuHas('/khata')),
-        'Settings → Features → Khata off: Khata leaves the menu and Billing has no Credit (F9) button or hint; switched back on, it returns');
+        'Khata off: Khata leaves the menu and Billing has no Credit (F9) button or hint; switched back on, it returns');
 
       // 🔊 / 🔇 in the top bar.
       const soundBtn = page.locator('header button[aria-pressed]').first();
@@ -1534,7 +1542,7 @@ async function run() {
         check(paused && (await page.locator('[data-admin-block="read-only"]').innerText()).includes('E2E billing pause'), 'Remote control "Billing paused": the counter is covered with the reason');
         await page.evaluate(() => { window.location.href = '/settings/?tab=features'; });
         const lockedRow = await page.locator('[data-feature-admin-locked="khata"]').waitFor({ timeout: 15000 }).then(() => true, () => false);
-        check(lockedRow && (await page.locator('input[data-feature="khata"]').isDisabled()) && !(await page.locator('input[data-feature="khata"]').isChecked())
+        check(lockedRow && (await page.locator('[data-feature="khata"]').getAttribute('data-on')) === 'false'
           && !(await page.locator('[data-admin-block="read-only"]').count()),
           'Settings → Features shows Khata locked off "Set by KamaiPlus support"; other screens stay open while billing is paused');
         if (!lockedRow) await shot(page, 'failed-admin-features');
@@ -1627,6 +1635,9 @@ async function run() {
           && (await page.locator('aside a[href="/purchases"]').count()) === 0, 'Menu shows Tables & Orders; Stock and Purchases are hidden');
         const freeCount = await page.locator('[data-table-state="free"]').count();
         check(freeCount >= 10, `Ten starter tables are free (${freeCount})`);
+        const menuText = async (href) => ((await page.locator(`aside a[href="${href}"]`).first().innerText().catch(() => '')) || '').trim();
+        check((await menuText('/products')) === 'Menu' && (await menuText('/transactions')) === 'Bills' && (await menuText('/restaurant')) === 'Tables & Orders',
+          `Restaurant words in the menu: Products → "${await menuText('/products')}", Transactions → "${await menuText('/transactions')}"`);
 
         step = 'order';
         await page.locator('[data-table="T1"]').click();
@@ -1672,12 +1683,43 @@ async function run() {
         await page.locator('[data-order-pay]').click();
         await page.locator('[data-restaurant-pay]').waitFor({ timeout: 5000 });
         const payTotal = parseFloat((await page.locator('[data-pay-total]').innerText()).replace(/[^\d.]/g, ''));
+        await page.locator('[data-pay-method="upi"]').click();
+        check(await page.locator('[data-pay-upi-qr] img').waitFor({ timeout: 8000 }).then(() => true, () => false), 'UPI shows the shop\'s QR for the exact amount');
+        await page.locator('[data-pay-method="cash"]').click();
         await page.locator('[data-pay-received]').fill(String(Math.ceil(payTotal) + 100));
         check((await page.locator('[data-pay-change]').count()) === 1, 'Cash received above the total shows the change to give back');
+        await page.locator('[data-pay-guest-phone]').fill('98765 43210');
+        await page.locator('[data-pay-after="show"]').click();
         await page.locator('[data-pay-settle]').click();
         await tables.waitFor({ timeout: 25000 });
-        await page.waitForTimeout(1000);
+        step = 'bill window';
+        const billWin = await textVisible(page, 'Bill paid', 20000);
+        const whatsapp = await page.getByRole('button', { name: /Send bill on WhatsApp/i }).count();
+        const pdf = await page.getByRole('button', { name: /Save PDF/i }).count();
+        check(billWin && whatsapp > 0 && pdf > 0, 'After paying, the bill window opens like the counter\'s: Print, Save PDF, Send bill on WhatsApp');
+        await page.getByRole('button', { name: /Back to Tables/i }).click();
+        await page.waitForTimeout(800);
         check((await page.locator('[data-table="T1"]').getAttribute('data-table-state')) === 'free', 'After Settle the table is free again');
+
+        step = "today's bills";
+        const recent = page.locator('[data-recent-bill]').first();
+        const recentShown = await recent.waitFor({ timeout: 10000 }).then(() => true, () => false);
+        if (recentShown) await recent.click();
+        const reopened = recentShown && await textVisible(page, 'Tax Invoice', 10000);
+        check(reopened, "Today's bills on the Tables screen: tapping one opens it again (print, PDF, WhatsApp)");
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(600);
+
+        step = 'move table';
+        await page.locator('[data-table="T2"]').click();
+        await page.locator('[data-restaurant-screen="order"]').waitFor({ timeout: 10000 });
+        await addDish();
+        await page.locator('[data-order-move]').click();
+        await page.locator('[data-move-to="T7"]').click();
+        await page.locator('[data-order-back]').click();
+        await tables.waitFor({ timeout: 10000 });
+        check((await page.locator('[data-table="T7"]').getAttribute('data-table-state')) === 'running' && (await page.locator('[data-table="T2"]').getAttribute('data-table-state')) === 'free',
+          'Move table: the order of T2 is now on T7; T2 is free');
 
         step = 'takeaway';
         await page.locator('[data-new-takeaway]').click();
@@ -1687,6 +1729,12 @@ async function run() {
         await page.locator('[data-order-back]').click();
         await tables.waitFor({ timeout: 10000 });
         check((await page.locator('[data-takeaway]').count()) === 0, 'An empty takeaway token is not kept');
+
+        step = 'settings in restaurant mode';
+        await page.evaluate(() => { window.location.href = '/settings/?tab=features'; });
+        check(await page.locator('[data-features-restaurant]').waitFor({ timeout: 15000 }).then(() => true, () => false)
+          && (await page.locator('[data-feature="inventory"]').getAttribute('data-on')) === 'false' && (await page.locator('[data-feature="product_variants"]').getAttribute('data-on')) === 'true',
+          'Settings → Features in Restaurant mode: stock off, Half / Full variants on, "Restaurant mode is on"');
 
         step = 'bill in history';
         await page.evaluate(() => { window.location.href = '/transactions/'; });

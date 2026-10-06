@@ -142,6 +142,18 @@ export function markKotSent(order: RestOrder, now: string): RestOrder {
 
 export const hasUnsentItems = (order: RestOrder): boolean => order.lines.some((l) => l.qty !== l.kotQty);
 
+/**
+ * Guests changed tables (v4.107.0): the order takes the new table's name — lines, KOT state and open
+ * time stay. Refused (orders unchanged) when the target already has an order or it is not a table.
+ */
+export function moveOrderTo(orders: RestOrder[], id: string, toTable: string, now: string): RestOrder[] {
+  const order = orders.find((o) => o.id === id);
+  const to = toTable.trim();
+  if (!order || order.kind !== 'table' || !to || order.label === to) return orders;
+  if (orders.some((o) => o.kind === 'table' && o.label === to)) return orders;
+  return orders.map((o) => (o.id === id ? { ...o, label: to, updatedAt: now } : o));
+}
+
 // ── Money ─────────────────────────────────────────────────────────────────────
 
 /** Restaurant services (SAC / HSN 9963) — printed on the bill's GST table. */

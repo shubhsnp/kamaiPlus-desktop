@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { AlertCircle, CheckCircle2, Info } from 'lucide-react';
+import { AlertCircle, CheckCircle2, FileText, Info } from 'lucide-react';
 import { useBusiness } from '@/components/layout/BusinessProvider';
 import { PrintFailureBar, useBackgroundBillPrint } from '@/components/billing/BillPrintQueue';
 import { getDesktopApi } from '@/lib/desktop/desktopBridge';
@@ -16,10 +16,10 @@ import { OrderScreen } from '@/components/restaurant/OrderScreen';
 import { SetupDialog } from '@/components/restaurant/SetupDialog';
 import { TablesHome } from '@/components/restaurant/TablesHome';
 
-// The bill window (only when the bill cannot be printed straight away): loaded the first time it opens.
+// The bill window (Print, PDF, WhatsApp — the counter's own): loaded the first time it opens.
 const InvoiceModal = dynamic(() => import('@/components/invoices/InvoiceModal').then((m) => m.InvoiceModal), { ssr: false });
 
-type Toast = { id: number; text: string; tone: 'success' | 'error' | 'info' };
+type Toast = { id: number; text: string; tone: 'success' | 'error' | 'info'; sale?: Sale };
 
 /**
  * Restaurant mode's screen (v4.106.0, opened from the sidebar "Tables & Orders"): the Tables grid, and
@@ -32,22 +32,25 @@ export function RestaurantPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [setupOpen, setSetupOpen] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
-  const [saleToShow, setSaleToShow] = useState<Sale | null>(null);
+  // The bill window: right after paying ("Show the bill") or a bill opened again from Today's bills.
+  const [saleToShow, setSaleToShow] = useState<{ sale: Sale; justPaid: boolean } | null>(null);
   const timer = useRef<number | undefined>(undefined);
 
-  const notify = useCallback((text: string, tone: Toast['tone'] = 'success') => {
+  const notify = useCallback((text: string, tone: Toast['tone'] = 'success', sale?: Sale) => {
     window.clearTimeout(timer.current);
-    setToast({ id: Date.now(), text, tone });
-    timer.current = window.setTimeout(() => setToast(null), 4200);
+    setToast({ id: Date.now(), text, tone, sale });
+    timer.current = window.setTimeout(() => setToast(null), sale ? 7000 : 4200);
   }, []);
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
   const billPrint = useBackgroundBillPrint({
-    printed: (sale) => notify(tr('Bill {number} sent to the printer.', { number: sale.invoice_number }), 'success'),
-    failed: (sale, error) => notify(tr('Bill {number} saved, but it did not print: {error}', { number: sale.invoice_number, error }), 'error'),
+    printed: (sale) => notify(tr('Bill {number} sent to the printer.', { number: sale.invoice_number }), 'success', sale),
+    failed: (sale, error) => notify(tr('Bill {number} saved, but it did not print: {error}', { number: sale.invoice_number, error }), 'error', sale),
   });
 
   const order = selectedId ? state.orders.find((o) => o.id === selectedId) : undefined;
+  const busyTables = new Set(state.orders.filter((o) => o.kind === 'table').map((o) => o.label));
+  const freeTables = settings.tables.filter((t) => !busyTables.has(t));
 
   const openTable = (label: string) => {
     const existing = state.orders.find((o) => o.kind === 'table' && o.label === label);
@@ -72,14 +75,15 @@ export function RestaurantPage() {
     update((s) => ({ ...s, orders: s.orders.filter((o) => o.lines.length > 0 || o.kotRounds > 0) }));
   }, [update]);
 
-  const onSettled = (sale: Sale) => {
+  // Like the counter: "Print straight away" sends it to the printer (the toast can still open it);
+  // otherwise — or with no printer to send it to (a browser) — the bill window opens.
+  const onSettled = (sale: Sale, printNow: boolean) => {
     setSelectedId(null);
-    if (business && getDesktopApi()) {
+    if (printNow && business && getDesktopApi()) {
       billPrint.print({ sale, business });
-      notify(tr('Bill {number} saved — printing.', { number: sale.invoice_number }), 'success');
+      notify(tr('Bill {number} saved — printing.', { number: sale.invoice_number }), 'success', sale);
     } else {
-      // No printer to send it to here (a browser): show the bill, it can be printed from there.
-      setSaleToShow(sale);
+      setSaleToShow({ sale, justPaid: true });
     }
   };
 
@@ -90,24 +94,31 @@ export function RestaurantPage() {
           toast.tone === 'success' && 'bg-emerald-600 text-white border-emerald-700', toast.tone === 'error' && 'bg-rose-600 text-white border-rose-700', toast.tone === 'info' && 'bg-slate-800 text-white border-slate-900')} data-restaurant-toast={toast.tone}>
           {toast.tone === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : toast.tone === 'error' ? <AlertCircle className="w-4 h-4 shrink-0" /> : <Info className="w-4 h-4 shrink-0" />}
           <span>{toast.text}</span>
+          {toast.sale && (
+            <button type="button" onClick={() => { setSaleToShow({ sale: toast.sale!, justPaid: false }); setToast(null); }} data-toast-open-bill
+              className="ml-1 inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white/20 hover:bg-white/30 font-black cursor-pointer">
+              <FileText className="w-3.5 h-3.5" /> {tr('Open bill')}
+            </button>
+          )}
         </div>
       )}
 
-      <PrintFailureBar failed={billPrint.failed} onRetry={(job) => billPrint.print(job)} onOpen={(job) => setSaleToShow(job.sale)} onDismiss={billPrint.dismiss} />
+      <PrintFailureBar failed={billPrint.failed} onRetry={(job) => billPrint.print(job)} onOpen={(job) => setSaleToShow({ sale: job.sale, justPaid: false })} onDismiss={billPrint.dismiss} />
 
       <div className="flex-1 min-h-0">
         {order ? (
-          <OrderScreen order={order} settings={settings} update={update} business={business} onBack={back} onSettled={onSettled} notify={notify} />
+          <OrderScreen order={order} settings={settings} update={update} business={business} freeTables={freeTables} onBack={back} onSettled={onSettled} notify={notify} />
         ) : (
           <div className="h-full overflow-y-auto pr-1">
-            <TablesHome orders={state.orders} settings={settings} onOpenTable={openTable} onOpenOrder={setSelectedId} onNewTakeaway={newTakeaway} onSetup={() => setSetupOpen(true)} />
+            <TablesHome orders={state.orders} settings={settings} onOpenTable={openTable} onOpenOrder={setSelectedId} onNewTakeaway={newTakeaway} onSetup={() => setSetupOpen(true)} onOpenBill={(sale) => setSaleToShow({ sale, justPaid: false })} />
           </div>
         )}
       </div>
 
       <SetupDialog open={setupOpen} settings={settings} onClose={() => setSetupOpen(false)} />
       {saleToShow && (
-        <InvoiceModal isOpen onClose={() => setSaleToShow(null)} onNewBill={() => setSaleToShow(null)} sale={saleToShow} business={business || null} isPostSaleSuccess />
+        <InvoiceModal isOpen onClose={() => setSaleToShow(null)} onNewBill={() => setSaleToShow(null)} sale={saleToShow.sale} business={business || null}
+          isPostSaleSuccess={saleToShow.justPaid} initialPhone={saleToShow.sale.customer_phone} />
       )}
     </div>
   );

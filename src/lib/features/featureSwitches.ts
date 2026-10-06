@@ -169,14 +169,30 @@ export function restaurantModeFromRaw(rawAdmin: string | null | undefined): bool
   }
 }
 
-/** What a restaurant does not use: no stock counting, no barcode labels, no supplier purchases. */
-export const RESTAURANT_PRESET_OFF: FeatureId[] = ['inventory', 'barcode_studio', 'purchases', 'suppliers'];
+/**
+ * How a restaurant uses the app (v4.106.0, widened in v4.107.0): no stock counting, labels, supplier
+ * purchases, wholesale, size / colour or counter payment keys; GST and HSN come from Restaurant
+ * Set-up, not from each dish; one price per dish, with Half / Full as variants. The Admin's forced
+ * switches still win over this.
+ */
+export const RESTAURANT_PRESET: Partial<FeatureSwitches> = {
+  inventory: false,
+  barcode_studio: false,
+  purchases: false,
+  suppliers: false,
+  wholesale_price: false,
+  product_size_colour: false,
+  product_selling_price: false,
+  product_hsn: false,
+  product_gst_rate: false,
+  payment_keys: false,
+  product_variants: true,
+};
+export const RESTAURANT_PRESET_OFF = (Object.keys(RESTAURANT_PRESET) as FeatureId[]).filter((id) => RESTAURANT_PRESET[id] === false);
 
 export function applyRestaurantPreset(switches: FeatureSwitches, restaurantOn: boolean): FeatureSwitches {
   if (!restaurantOn) return switches;
-  const out = { ...switches };
-  for (const id of RESTAURANT_PRESET_OFF) out[id] = false;
-  return out;
+  return { ...switches, ...RESTAURANT_PRESET };
 }
 
 export function isRestaurantMode(): boolean {
@@ -210,6 +226,11 @@ export function readFeatureSwitches(): FeatureSwitches {
 
 export const isFeatureOn = (id: FeatureId): boolean => readFeatureSwitches()[id];
 
+/**
+ * Since v4.107.0 the shop cannot change switches in the app (Settings → Features is read-only; KamaiPlus
+ * support sets them from the Admin Console). Only the app itself still calls this — e.g. an Excel
+ * import with a Wholesale column turns the wholesale price on.
+ */
 export function setFeatureSwitch(id: FeatureId, on: boolean) {
   if (typeof window === 'undefined') return;
   try {

@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { Business, Sale } from '@/types';
 import { tr } from '@/lib/i18n/core';
-import { MenuPick, RestLine, RestOrder, addPiece, applyToOnePiece, changeQty, lineTitle, liveLines, markKotSent } from '@/lib/restaurant/model';
+import { MenuPick, RestLine, RestOrder, addPiece, applyToOnePiece, changeQty, lineTitle, liveLines, markKotSent, moveOrderTo } from '@/lib/restaurant/model';
 import type { RestAddOn, RestaurantSettings } from '@/lib/restaurant/settings';
 import type { RestState } from '@/lib/restaurant/store';
 import { printKot } from '@/lib/restaurant/kot';
@@ -12,7 +12,8 @@ import type { DiscountInput } from '@/lib/restaurant/model';
 import { MenuPanel } from '@/components/restaurant/MenuPanel';
 import { OrderPanel } from '@/components/restaurant/OrderPanel';
 import { AddOnsDialog } from '@/components/restaurant/AddOnsDialog';
-import { PayDialog } from '@/components/restaurant/PayDialog';
+import { PayDialog, SettleExtras } from '@/components/restaurant/PayDialog';
+import { MoveTableDialog } from '@/components/restaurant/MoveTableDialog';
 
 const mapOrder = (s: RestState, id: string, f: (o: RestOrder) => RestOrder): RestState => ({ ...s, orders: s.orders.map((o) => (o.id === id ? f(o) : o)) });
 
@@ -21,13 +22,15 @@ const mapOrder = (s: RestState, id: string, f: (o: RestOrder) => RestOrder): Res
  * screen ("Tables") keeps the order on hold; Send KOT prints only what changed since the last slip;
  * Bill & Pay saves an ordinary bill, prints it and frees the table.
  */
-export function OrderScreen({ order, settings, update, business, onBack, onSettled, notify }: {
+export function OrderScreen({ order, settings, update, business, freeTables, onBack, onSettled, notify }: {
   order: RestOrder;
   settings: RestaurantSettings;
   update: (change: (s: RestState) => RestState) => void;
   business?: Business | null;
+  /** Tables with no order — where this one can be moved. */
+  freeTables: string[];
   onBack: () => void;
-  onSettled: (sale: Sale) => void;
+  onSettled: (sale: Sale, printNow: boolean) => void;
   notify: (text: string, tone?: 'success' | 'error' | 'info') => void;
 }) {
   const searchRef = useRef<HTMLInputElement>(null);
@@ -35,6 +38,7 @@ export function OrderScreen({ order, settings, update, business, onBack, onSettl
   const [payOpen, setPayOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [kotBusy, setKotBusy] = useState(false);
+  const [moveOpen, setMoveOpen] = useState(false);
   const now = () => new Date().toISOString();
 
   const pick = (p: MenuPick) => update((s) => mapOrder(s, order.id, (o) => addPiece(o, p, now())));
@@ -42,6 +46,13 @@ export function OrderScreen({ order, settings, update, business, onBack, onSettl
   const applyAddOns = (addOns: RestAddOn[], note: string) => {
     if (addOnsFor) update((s) => mapOrder(s, order.id, (o) => applyToOnePiece(o, addOnsFor.key, addOns, note, now())));
     setAddOnsFor(null);
+  };
+
+  const move = (to: string) => {
+    const from = order.label;
+    update((s) => ({ ...s, orders: moveOrderTo(s.orders, order.id, to, now()) }));
+    setMoveOpen(false);
+    notify(tr('Order moved from {from} to {to}', { from, to }), 'success');
   };
 
   const sendKot = async () => {
@@ -64,15 +75,15 @@ export function OrderScreen({ order, settings, update, business, onBack, onSettl
     }
   };
 
-  const settle = async (method: RestPayMethod, receivedPaise: number, discount: DiscountInput | null) => {
+  const settle = async (method: RestPayMethod, receivedPaise: number, discount: DiscountInput | null, extras: SettleExtras) => {
     if (busy) return;
     setBusy(true);
     try {
-      const sale = await settleOrder({ order, settings, business, method, receivedPaise, discount });
+      const sale = await settleOrder({ order, settings, business, method, receivedPaise, discount, guestName: extras.guestName, guestPhone: extras.guestPhone });
       // The bill is saved: only now does the table become free.
       update((s) => ({ ...s, orders: s.orders.filter((o) => o.id !== order.id) }));
       setPayOpen(false);
-      onSettled(sale);
+      onSettled(sale, extras.printNow);
     } catch (e) {
       console.error('Restaurant bill not saved:', e);
       notify(tr('Could not save the bill. Please try again.'), 'error');
@@ -106,10 +117,11 @@ export function OrderScreen({ order, settings, update, business, onBack, onSettl
         <MenuPanel onPick={pick} inOrder={inOrder} searchRef={searchRef} />
       </div>
       <div className="min-h-[520px] lg:min-h-0 lg:h-full">
-        <OrderPanel order={order} settings={settings} kotBusy={kotBusy} onBack={onBack} onQty={qty} onAddOns={setAddOnsFor} onKot={sendKot} onPay={() => setPayOpen(true)} />
+        <OrderPanel order={order} settings={settings} kotBusy={kotBusy} onBack={onBack} onQty={qty} onAddOns={setAddOnsFor} onKot={sendKot} onPay={() => setPayOpen(true)} onMove={() => setMoveOpen(true)} />
       </div>
       <AddOnsDialog title={addOnsFor ? lineTitle(addOnsFor) : null} library={settings.addOns} onClose={() => setAddOnsFor(null)} onApply={applyAddOns} />
-      <PayDialog order={order} settings={settings} open={payOpen} busy={busy} onClose={() => !busy && setPayOpen(false)} onSettle={settle} />
+      <MoveTableDialog from={order.label} freeTables={freeTables} open={moveOpen} onClose={() => setMoveOpen(false)} onMove={move} />
+      <PayDialog order={order} settings={settings} business={business} open={payOpen} busy={busy} onClose={() => !busy && setPayOpen(false)} onSettle={settle} />
     </div>
   );
 }

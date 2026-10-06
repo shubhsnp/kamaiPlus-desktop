@@ -15,6 +15,13 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.107.0',
+    items: [
+      msg("Settings → Features now only shows what is on for your shop. To switch a feature on or off, contact KamaiPlus support — they change it for you."),
+      msg("Restaurant mode speaks your language: Products is now Menu, Customers are Guests, Transactions are Bills. After paying you can print the bill straight away or open it to print, save a PDF or send it on WhatsApp; UPI shows your QR for the exact amount; today's bills sit on the Tables screen; and an order can move to another table."),
+    ],
+  },
+  {
     version: '4.106.0',
     items: [
       msg("For restaurants and cafés: KamaiPlus support can switch on Restaurant mode — a Tables & Orders screen with running tables, takeaway tokens, add-ons, a kitchen slip (KOT) and a 5% GST bill. Shops that are not restaurants see no change."),

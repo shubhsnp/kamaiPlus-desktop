@@ -42,6 +42,8 @@ export function translate(table: Messages | null, text: string, vars?: TVars): s
 
 let currentLanguage: SupportedLanguage = 'en';
 let currentTable: Messages | null = null;
+// v4.107.0: a shop's own words (Restaurant mode: "Products" → "Menu"), applied before translating.
+let currentWords: Messages | null = null;
 
 /** Called by I18nProvider when the language (and its table) is ready. */
 export function setActiveLanguage(lang: SupportedLanguage, table: Messages | null): void {
@@ -49,9 +51,17 @@ export function setActiveLanguage(lang: SupportedLanguage, table: Messages | nul
   currentTable = table;
 }
 
+/** Called by I18nProvider: the word swaps of the shop's mode (null = the app's own words). */
+export function setActiveWords(words: Messages | null): void {
+  currentWords = words;
+}
+
+/** The text with the shop's word swap applied (still English — translate it after). */
+export const withWords = (text: string): string => (currentWords && currentWords[text]) || text;
+
 /** Translate a UI text into the shop's chosen language. */
 export function tr(text: string, vars?: TVars): string {
-  return translate(currentTable, text, vars);
+  return translate(currentTable, withWords(text), vars);
 }
 
 /**

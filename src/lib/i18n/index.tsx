@@ -9,8 +9,12 @@ import {
   loadMessages,
   readSavedLanguage,
   setActiveLanguage,
+  setActiveWords,
   translate,
+  withWords,
 } from './core';
+import { FEATURE_SWITCHES_EVENT, isRestaurantMode } from '@/lib/features/featureSwitches';
+import { RESTAURANT_WORDS } from '@/lib/restaurant/words';
 
 export { LANGUAGES, LANGUAGE_STORAGE_KEY, getLanguage, msg, tr, translate } from './core';
 export type { Messages, TVars } from './core';
@@ -39,6 +43,9 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [language, setLanguageState] = useState<SupportedLanguage>('en');
   const [table, setTable] = useState<Messages | null>(null);
   const [ready, setReady] = useState(true);
+  // v4.107.0: Restaurant mode (set from the Admin Console) speaks a restaurant's words — see
+  // lib/restaurant/words.ts. Read before paint; a change remounts the app like a language change.
+  const [restaurant, setRestaurant] = useState(false);
 
   const apply = useCallback((lang: SupportedLanguage, messages: Messages | null) => {
     setActiveLanguage(lang, messages);
@@ -59,6 +66,21 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .finally(() => setReady(true));
   }, [apply]);
 
+  useBeforePaint(() => {
+    const refresh = () => {
+      const on = isRestaurantMode();
+      setActiveWords(on ? RESTAURANT_WORDS : null);
+      setRestaurant(on);
+    };
+    refresh();
+    window.addEventListener(FEATURE_SWITCHES_EVENT, refresh);
+    window.addEventListener('storage', refresh);
+    return () => {
+      window.removeEventListener(FEATURE_SWITCHES_EVENT, refresh);
+      window.removeEventListener('storage', refresh);
+    };
+  }, []);
+
   const setLanguage = useCallback((lang: SupportedLanguage) => {
     try {
       localStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
@@ -68,13 +90,13 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .catch(() => apply('en', null));
   }, [apply]);
 
-  const t = useCallback((text: string, vars?: TVars) => translate(table, text, vars), [table]);
+  const t = useCallback((text: string, vars?: TVars) => translate(table, withWords(text), vars), [table, restaurant]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!ready) return <main className="min-h-screen bg-slate-950" />;
 
   return (
     <I18nContext.Provider value={{ language, setLanguage, t }}>
-      <React.Fragment key={language}>{children}</React.Fragment>
+      <React.Fragment key={`${language}:${restaurant ? 'restaurant' : 'shop'}`}>{children}</React.Fragment>
     </I18nContext.Provider>
   );
 };

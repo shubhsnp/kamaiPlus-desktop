@@ -78,17 +78,20 @@ import { cartBeyond, makeEmptyTab, nextBillTabId, tabsAfterClosing, tabsAfterSal
 import { scrollDeltaToShow } from '../src/lib/billing/cartFocus';
 import { counterPace, hourRangeLabel, topDebtors, topItemsToday } from '../src/lib/dashboard/todayInsights';
 import { categoryLabel } from '../src/lib/products/defaultCategory';
-import { setActiveLanguage } from '../src/lib/i18n/core';
+import { setActiveLanguage, setActiveWords, tr } from '../src/lib/i18n/core';
 import { applyPaymentToBill, openBillsOldestFirst, planBillAllocation } from '../src/lib/khata/billAllocation';
 import { generalCategoryId } from '../src/lib/products/defaultCategory';
 import { nextSupplierBalance } from '../src/lib/suppliers/supplierLedger';
 import { cleanVariantLabels, DEFAULT_COUNTED_STOCK, summarizeVariants, tracksOwnStock } from '../src/lib/products/variants';
 import { buildBillCustomer, cleanCustomerNameInput, cleanMobileInput, isDraftEmpty, resolveBillCustomer, splitDraft, suggestCustomers } from '../src/lib/billing/billCustomer';
-import { MenuPick, PACKING_CHARGE_ID, SERVICE_CHARGE_ID, addPiece, applyToOnePiece, changeQty, discountPaise, formatOpenTime, hasUnsentItems, kotChanges, lineKey, lineUnitPaise, markKotSent, newOrder, nextToken, orderTotals, pieceCount } from '../src/lib/restaurant/model';
+import { MenuPick, PACKING_CHARGE_ID, SERVICE_CHARGE_ID, addPiece, applyToOnePiece, changeQty, discountPaise, formatOpenTime, hasUnsentItems, kotChanges, lineKey, lineUnitPaise, markKotSent, moveOrderTo, newOrder, nextToken, orderTotals, pieceCount } from '../src/lib/restaurant/model';
 import { defaultTableNames, sanitizeRestaurantSettings } from '../src/lib/restaurant/settings';
 import { parseRestState } from '../src/lib/restaurant/store';
 import { buildKotBody } from '../src/lib/restaurant/kot';
 import { RESTAURANT_PRESET_OFF, applyRestaurantPreset, restaurantModeFromRaw } from '../src/lib/features/featureSwitches';
+import { RESTAURANT_WORDS } from '../src/lib/restaurant/words';
+import { billCustomerName, cleanGuestPhone } from '../src/lib/restaurant/settle';
+import { isRestaurantBill } from '../src/components/restaurant/RecentBills';
 import { DEFAULT_FEATURE_SWITCHES, FEATURES, featureForPath, isPathEnabled, parseAdminOverrides, parseFeatureSwitches, showSellingPriceField } from '../src/lib/features/featureSwitches';
 import { adminBlock, blocksBilling, cleanFeatureOverrides, counterHasOpenBill, needsUpdate } from '../src/lib/admin/adminControl';
 import { matchesProductDetails } from '../src/lib/products/detailSearch';
@@ -1119,8 +1122,8 @@ assert(readSource('app/billing/page.tsx').split('\n').length <= 401, `POS page s
     && /const unlocked = pinUnlocked \|\| !privacyOn;/.test(readSource('app/reports/page.tsx')),
     'Privacy switch off: no "Cashier Privacy" button, no profit lock, reports show profit without a PIN');
   const featuresTabSrc = readSource('components/settings/FeaturesTab.tsx');
-  assert(/useState\(\(\) => !hasOwnerPin\(\)\)/.test(featuresTabSrc) && /<OwnerPinPrompt/.test(featuresTabSrc) && /<FeaturesTab \/>/.test(readSettingsPage()),
-    'Settings → Features needs the owner PIN when one is set (staff cannot switch profit privacy off)');
+  assert(!/setFeatureSwitch|type="checkbox"|onChange=/.test(featuresTabSrc) && /<FeaturesTab \/>/.test(readSettingsPage()),
+    'Settings → Features only shows the switches (v4.107.0): staff cannot change anything there, so no PIN is needed (profit privacy stays as KamaiPlus set it)');
   const formSrc = readProductForm();
   assert(['product_cost_price', 'product_hsn', 'product_gst_rate', 'product_size_colour', 'product_variants'].every((id) => formSrc.includes(`switches.${id} &&`)) && /\{showSellingPrice && \(/.test(formSrc) && /required=\{!showSellingPrice\}/.test(formSrc),
     'Add Product: cost price, HSN, GST rate, size / colour and variants appear only when switched on; MRP is required when it is the only price');
@@ -4090,8 +4093,8 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
     && /JSON\.stringify\(\{ \.\.\.parseFeatureSwitches\(localStorage\.getItem\(FEATURE_SWITCHES_KEY\)\), \[id\]: on \}\)/.test(fsSrc),
     'The Admin\'s switches win over the shop\'s; the shop\'s own choice is stored untouched and comes back when the Admin lets go');
   const ft = readSource('components/settings/FeaturesTab.tsx');
-  assert(ft.includes('disabled={locked}') && ft.includes('data-feature-admin-locked') && readSource('components/layout/AppShell.tsx').includes('<AdminControlHost />'),
-    'Settings → Features shows a forced switch locked ("Set by KamaiPlus support"); AppShell applies the control');
+  assert(ft.includes('data-feature-admin-locked') && ft.includes("tr('Set by KamaiPlus support for this computer')") && readSource('components/layout/AppShell.tsx').includes('<AdminControlHost />'),
+    'Settings → Features marks a forced switch "Set by KamaiPlus support"; AppShell applies the control');
 
   // Main process wiring.
   const mainJs = fs.readFileSync(path.join(SRC_ROOT, '..', 'main.js'), 'utf8');
@@ -4197,8 +4200,9 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
     'Restaurant mode: on only when the Admin forces it; it has no switch in Settings → Features');
   const preset = applyRestaurantPreset({ ...DEFAULT_FEATURE_SWITCHES, inventory: true, barcode_studio: true, purchases: true, suppliers: true, khata: true }, true);
   assert(!preset.inventory && !preset.barcode_studio && !preset.purchases && !preset.suppliers && preset.khata && preset.whatsapp
-    && applyRestaurantPreset(DEFAULT_FEATURE_SWITCHES, false) === DEFAULT_FEATURE_SWITCHES && RESTAURANT_PRESET_OFF.length === 4,
-    'Restaurant mode: stock, labels, purchases and suppliers go off; khata, WhatsApp and the rest stay');
+    && !preset.wholesale_price && !preset.product_size_colour && !preset.product_gst_rate && !preset.product_hsn && !preset.payment_keys && !preset.product_selling_price && preset.product_variants
+    && applyRestaurantPreset(DEFAULT_FEATURE_SWITCHES, false) === DEFAULT_FEATURE_SWITCHES && RESTAURANT_PRESET_OFF.length === 10 && !RESTAURANT_PRESET_OFF.includes('product_variants'),
+    'Restaurant mode: stock, labels, purchases, suppliers, wholesale, size / colour, per-dish GST / HSN and counter keys go off; Half / Full variants on; khata and WhatsApp stay');
   const fsSrc2 = readSource('lib/features/featureSwitches.ts');
   assert(/\.\.\.applyRestaurantPreset\(parseFeatureSwitches\(localStorage\.getItem\(FEATURE_SWITCHES_KEY\)\), isRestaurantMode\(\)\), \.\.\.readAdminFeatureOverrides\(\)/.test(fsSrc2),
     'Restaurant mode: shop switches → restaurant preset → the Admin\'s forced switches on top (the Admin can still force one back on)');
@@ -4216,7 +4220,7 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
   const iPut = settleSrc.indexOf('await db.sales.put(sale)');
   const iCommit = settleSrc.indexOf('await commitNextInvoiceNumber(');
   const iStock = settleSrc.indexOf("db.transaction('rw', db.products, db.inventory_movements");
-  assert(iNum > 0 && iNum < iPut && iPut < iCommit && iCommit < iStock && !/await cloud/.test(settleSrc) && settleSrc.includes("customer_name: billLabel(order)") && settleSrc.includes("payment_status: 'paid'")
+  assert(iNum > 0 && iNum < iPut && iPut < iCommit && iCommit < iStock && !/await cloud/.test(settleSrc) && settleSrc.includes("customer_name: billCustomerName(order, input.guestName)") && settleSrc.includes("payment_status: 'paid'")
     && settleSrc.includes('if (!prod || prod.is_unlimited_stock) continue;') && settleSrc.includes('SERVICE_CHARGE_ID') && settleSrc.includes("status: 'completed'"),
     'Restaurant pay: reserve the number → save the bill → commit the number → stock (counted items only); cloud never awaited; the table name is the bill\'s customer');
   const orderScreen = readSource('components/restaurant/OrderScreen.tsx');
@@ -4236,6 +4240,83 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
     'Restaurant menu = the shop\'s Products (Half / Full are variants); no second item list, nothing branches on the shop type');
   const anyType = ALL_SOURCE.filter((f) => /[\\/](restaurant)[\\/]/.test(f)).filter((f) => /business_type|businessType/.test(fs.readFileSync(f, 'utf8')));
   assert(anyType.length === 0, 'Restaurant code never branches on business_type (Bible §9.2)');
+}
+
+// v4.107.0 — Features are set only by KamaiPlus support; Restaurant mode speaks a restaurant's words;
+// restaurant bill window (Print / PDF / WhatsApp), UPI QR, guest mobile, Today's bills, Move table.
+{
+  // Settings → Features is read-only: the shop sees what is on, KamaiPlus changes it.
+  const ftSrc = readSource('components/settings/FeaturesTab.tsx');
+  const writers = ALL_SOURCE.filter((f) => /setFeatureSwitch\(/.test(fs.readFileSync(f, 'utf8')) && !/featureSwitches\.ts$/.test(f)).map((f) => path.relative(SRC_ROOT, f).replace(/\\/g, '/'));
+  assert(!/setFeatureSwitch|type="checkbox"|<input/.test(ftSrc) && ftSrc.includes('data-features-readonly') && ftSrc.includes("tr('Features are set by KamaiPlus support')") && ftSrc.includes('<SupportContactLine')
+    && JSON.stringify(writers) === JSON.stringify(['components/import/CatalogImportModal.tsx']),
+    `Settings → Features only shows On / Off with "contact KamaiPlus support"; nothing in the app lets the shop change a switch (only the Excel import turns wholesale on: ${writers.join(', ')})`);
+  const gate2 = readSource('components/features/FeatureGate.tsx');
+  assert(gate2.includes("tr('KamaiPlus support switches features on for your shop. Nothing was deleted — your data is safe.')") && !gate2.includes('Turn it on in Settings'),
+    'A switched-off screen says KamaiPlus support switches it on (no "turn it on in Settings")');
+
+  // Restaurant words: one module, applied inside tr(); every key is a real text of the app, every
+  // replacement is translated, and no screen reads the shop type.
+  const wordKeys = Object.keys(RESTAURANT_WORDS);
+  const allSrc = ALL_SOURCE.filter((f) => !/restaurant[\\/]words\.ts$/.test(f)).map((f) => fs.readFileSync(f, 'utf8')).join('\n');
+  const deadKeys = wordKeys.filter((k) => !allSrc.includes(`'${k}'`) && !allSrc.includes(`"${k}"`));
+  const hiW = JSON.parse(fs.readFileSync(path.join(SRC_ROOT, 'locales', 'hi.json'), 'utf8'));
+  const mrW = JSON.parse(fs.readFileSync(path.join(SRC_ROOT, 'locales', 'mr.json'), 'utf8'));
+  const untranslated = Object.values(RESTAURANT_WORDS).filter((v) => !hiW[v] || !mrW[v]);
+  const placeholders = wordKeys.filter((k) => JSON.stringify((k.match(/\{\w+\}/g) || []).sort()) !== JSON.stringify((RESTAURANT_WORDS[k].match(/\{\w+\}/g) || []).sort()));
+  assert(wordKeys.length >= 30 && deadKeys.length === 0 && untranslated.length === 0 && placeholders.length === 0
+    && RESTAURANT_WORDS['Products'] === 'Menu' && RESTAURANT_WORDS['Customers'] === 'Guests' && RESTAURANT_WORDS['Transactions'] === 'Bills',
+    `Restaurant words: Products → Menu, Customers → Guests, Transactions → Bills… every key exists in the app (${deadKeys.join(' | ') || 'all'}), every word has Hindi + Marathi, placeholders kept`);
+  setActiveLanguage('en', null);
+  setActiveWords(RESTAURANT_WORDS);
+  const inRestaurant = [tr('Products'), tr('{productsCount} SKUs', { productsCount: 42 }), tr('Khata Ledger')];
+  setActiveLanguage('hi', { Menu: 'मेन्यू' });
+  const inHindi = tr('Products');
+  setActiveWords(null);
+  const backToShop = tr('Products');
+  setActiveLanguage('en', null);
+  assert(inRestaurant.join('|') === 'Menu|42 dishes|Khata Ledger' && inHindi === 'मेन्यू' && backToShop === 'Products' && tr('Products') === 'Products',
+    'tr(): in Restaurant mode "Products" reads "Menu" (then Hindi "मेन्यू"), untouched texts stay; out of the mode every word is the app\'s own');
+  const i18nSrc = readSource('lib/i18n/index.tsx');
+  assert(/setActiveWords\(on \? RESTAURANT_WORDS : null\)/.test(i18nSrc) && /key=\{`\$\{language\}:\$\{restaurant \? 'restaurant' : 'shop'\}`\}/.test(i18nSrc) && /translate\(table, withWords\(text\), vars\)/.test(i18nSrc)
+    && !/business_type|businessType/.test(readSource('lib/restaurant/words.ts')),
+    'The words follow Restaurant mode (Admin Console) before the first paint and the app redraws when it changes; nothing reads business_type');
+
+  // Home: no stock coming in = no inward tile.
+  assert(quickActionsFor({ purchases: false, inventory: false }).map((a) => a.id).join(',') === 'new_bill,khata,day_summary,printers'
+    && quickActionsFor({ purchases: false }).some((a) => a.id === 'fast_inward') && quickActionsFor({ purchases: true, inventory: false }).some((a) => a.id === 'stock_inward'),
+    'Home: with stock and purchases both off (e.g. Restaurant mode) the "Fast barcode inward" tile goes; otherwise it stays');
+
+  // Paying: guest name / mobile on the bill (the mobile fills WhatsApp).
+  const ord = { kind: 'table' as const, label: 'T4' };
+  assert(billCustomerName(ord) === 'Table T4' && billCustomerName(ord, '  Rahul   Jadhav ') === 'Rahul Jadhav · Table T4' && billCustomerName({ kind: 'takeaway', label: 'TA-03' }, '') === 'Takeaway TA-03'
+    && cleanGuestPhone('98765 43210') === '9876543210' && cleanGuestPhone('+91 98765-43210') === '9876543210' && cleanGuestPhone('09876543210') === '9876543210'
+    && cleanGuestPhone('12345') === '' && cleanGuestPhone('5876543210') === '' && cleanGuestPhone('') === '',
+    'Restaurant bill: "Rahul · Table T4" when the guest gives a name; a mobile is kept only when it is a real 10-digit Indian number');
+  const settle2 = readSource('lib/restaurant/settle.ts');
+  assert(settle2.includes('...(cleanGuestPhone(input.guestPhone) ? { customer_phone: cleanGuestPhone(input.guestPhone) } : {})') && settle2.includes("notes: billLabel(order)"),
+    'The guest\'s mobile goes on the bill (customer_phone) so WhatsApp opens with it; the note stays the table name (Today\'s bills, reports)');
+
+  // After paying: like the counter — "Print straight away" (same setting) or the bill window.
+  const page2 = readSource('components/restaurant/RestaurantPage.tsx');
+  const pay2 = readSource('components/restaurant/PayDialog.tsx');
+  assert(/if \(printNow && business && getDesktopApi\(\)\) \{\s*billPrint\.print\(\{ sale, business \}\);/.test(page2) && page2.includes('setSaleToShow({ sale, justPaid: true })')
+    && page2.includes('isPostSaleSuccess={saleToShow.justPaid} initialPhone={saleToShow.sale.customer_phone}') && page2.includes('data-toast-open-bill')
+    && pay2.includes('setPrintNow(readSilentPrint())') && pay2.includes('saveSilentPrint(on)') && pay2.includes('<RestUpiQr'),
+    'Restaurant pay: "Print straight away" (the counter\'s own setting) or the bill window with Print, PDF and WhatsApp; a printed bill can still be opened from the message; UPI shows the QR');
+  assert(isRestaurantBill({ notes: 'Table T1', status: 'completed' }) && isRestaurantBill({ notes: 'Takeaway TA-02', status: 'completed' })
+    && !isRestaurantBill({ notes: 'Table T1', status: 'draft' }) && !isRestaurantBill({ notes: 'Walk-in', status: 'completed' }) && !isRestaurantBill({ notes: undefined, status: 'completed' }),
+    "Today's bills lists only restaurant bills (table / takeaway), never an estimate");
+
+  // Move table.
+  const NOW2 = '2026-10-06T12:00:00.000Z';
+  const a = { ...newOrder('table', 'T1', 'a', NOW2), lines: [{ key: 'k', productId: 'p', name: 'Tea', unit: 'piece', qty: 2, basePaise: 1500, addOns: [], note: '', kotQty: 2 }] as Parameters<typeof moveOrderTo>[0][number]['lines'], kotRounds: 1 };
+  const b = newOrder('table', 'T2', 'b', NOW2);
+  const t = newOrder('takeaway', 'TA-01', 't', NOW2);
+  const moved = moveOrderTo([a, b, t], 'a', 'T5', '2026-10-06T12:30:00.000Z');
+  assert(moved[0].label === 'T5' && moved[0].lines[0].kotQty === 2 && moved[0].kotRounds === 1 && moved[0].openedAt === NOW2
+    && moveOrderTo([a, b], 'a', 'T2', NOW2)[0].label === 'T1' && moveOrderTo([a, t], 't', 'T9', NOW2)[1].label === 'TA-01' && moveOrderTo([a], 'a', '  ', NOW2)[0].label === 'T1',
+    'Move table: the order (kitchen state, open time) goes to a free table; never onto a busy table, never for a takeaway');
 }
 
 // -------------------------------------------------------------

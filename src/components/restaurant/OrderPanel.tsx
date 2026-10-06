@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ArrowLeft, Check, ChefHat, Minus, Plus, Receipt, Sparkles } from 'lucide-react';
+import { ArrowLeft, ArrowRightLeft, Check, ChefHat, Minus, Plus, Receipt, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { cn, formatINR } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
@@ -12,7 +12,7 @@ import type { RestaurantSettings } from '@/lib/restaurant/settings';
  * The running order of a table or takeaway (v4.106.0): every dish with − / + and its add-ons, what the
  * kitchen already has (✓), the totals with GST, and the two actions a waiter needs — KOT and Bill.
  */
-export function OrderPanel({ order, settings, kotBusy, onBack, onQty, onAddOns, onKot, onPay }: {
+export function OrderPanel({ order, settings, kotBusy, onBack, onQty, onAddOns, onKot, onPay, onMove }: {
   order: RestOrder;
   settings: RestaurantSettings;
   kotBusy: boolean;
@@ -21,6 +21,8 @@ export function OrderPanel({ order, settings, kotBusy, onBack, onQty, onAddOns, 
   onAddOns: (line: RestLine) => void;
   onKot: () => void;
   onPay: () => void;
+  /** Table orders only (v4.107.0): move the order to another table. */
+  onMove?: () => void;
 }) {
   const totals = orderTotals(order, settings);
   const pieces = pieceCount(order);
@@ -40,6 +42,11 @@ export function OrderPanel({ order, settings, kotBusy, onBack, onQty, onAddOns, 
             {pieces} {pieces === 1 ? tr('piece') : tr('pieces')} · {formatOpenTime(minutesOpen(order))}
           </div>
         </div>
+        {onMove && order.kind === 'table' && (
+          <button type="button" onClick={onMove} className="h-9 px-2.5 rounded-lg border border-slate-300 bg-white hover:border-emerald-500 hover:text-emerald-700 text-xs font-bold flex items-center gap-1 cursor-pointer" title={tr('Move to another table')} data-order-move>
+            <ArrowRightLeft className="w-4 h-4" /> <span className="hidden xl:inline">{tr('Move')}</span>
+          </button>
+        )}
         {order.kotRounds > 0 && <span className="text-[10px] font-black uppercase tracking-wide text-amber-800 bg-amber-100 rounded-full px-2 py-1">KOT {order.kotRounds}</span>}
       </div>
 

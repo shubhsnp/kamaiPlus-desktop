@@ -25,9 +25,24 @@ export interface SettleInput {
   /** Cash handed over, paise (ignored for UPI / card, which are paid in full). */
   receivedPaise?: number;
   discount?: DiscountInput | null;
+  /** v4.107.0: optional guest name and mobile (the mobile fills WhatsApp when the bill is sent). */
+  guestName?: string;
+  guestPhone?: string;
 }
 
 export const billLabel = (order: Pick<RestOrder, 'kind' | 'label'>): string => (order.kind === 'table' ? `Table ${order.label}` : `Takeaway ${order.label}`);
+
+/** The name on the bill: "Table T4", or "Rahul · Table T4" when the guest gave a name. */
+export const billCustomerName = (order: Pick<RestOrder, 'kind' | 'label'>, guestName?: string): string => {
+  const name = (guestName || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+  return name ? `${name} · ${billLabel(order)}` : billLabel(order);
+};
+
+/** A 10-digit Indian mobile, or '' (anything else is left out rather than saved wrong). */
+export const cleanGuestPhone = (raw?: string): string => {
+  const digits = (raw || '').replace(/\D/g, '').replace(/^(91|0)(?=\d{10}$)/, '');
+  return /^[6-9]\d{9}$/.test(digits) ? digits : '';
+};
 
 export async function settleOrder(input: SettleInput): Promise<Sale> {
   const { order, settings, method } = input;
@@ -55,7 +70,8 @@ export async function settleOrder(input: SettleInput): Promise<Sale> {
     id: saleId,
     business_id: businessId,
     invoice_number: invoiceNumber,
-    customer_name: billLabel(order),
+    customer_name: billCustomerName(order, input.guestName),
+    ...(cleanGuestPhone(input.guestPhone) ? { customer_phone: cleanGuestPhone(input.guestPhone) } : {}),
     items,
     subtotal: totals.subtotal,
     discount_total: totals.discountTotal,

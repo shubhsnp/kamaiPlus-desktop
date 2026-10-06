@@ -21,13 +21,14 @@ export interface QuickActionSpec {
 /**
  * Quick Actions row: New bill, Khata, stock inward (or its stand-in), Day summary, Printers.
  * Khata switched off (v4.81.0): its tile goes and the others grow into the room.
+ * Inventory AND purchases off (v4.107.0, e.g. Restaurant mode): no stock comes in, so no inward tile.
  */
-export function quickActionsFor(switches: Pick<FeatureSwitches, 'purchases'> & Partial<Pick<FeatureSwitches, 'khata'>>): QuickActionSpec[] {
+export function quickActionsFor(switches: Pick<FeatureSwitches, 'purchases'> & Partial<Pick<FeatureSwitches, 'khata' | 'inventory'>>): QuickActionSpec[] {
   const tiles: (QuickActionSpec | null)[] = [
     { id: 'new_bill', href: NEW_BILL_HREF },
     switches.khata === false ? null : { id: 'khata', href: '/khata' },
     // Purchases off: stock still comes in — by scanning it in, right here on Home.
-    switches.purchases ? { id: 'stock_inward', href: '/purchases' } : { id: 'fast_inward', action: 'fast_inward' },
+    switches.purchases ? { id: 'stock_inward', href: '/purchases' } : switches.inventory === false ? null : { id: 'fast_inward', action: 'fast_inward' },
     { id: 'day_summary', action: 'day_summary' },
     { id: 'printers', action: 'printers' },
   ];

@@ -46,14 +46,15 @@ export function FeatureGate({ pathname, children }: { pathname: string; children
       </div>
       <h2 className="text-base font-black text-slate-900">{tr('"{name}" is turned off', { name })}</h2>
       <p className="text-xs text-slate-600 leading-relaxed">
-        {tr('Turn it on in Settings → Features. Nothing was deleted — your data is safe.')}
+        {tr('KamaiPlus support switches features on for your shop. Nothing was deleted — your data is safe.')}
       </p>
+      <SupportContactLine message={tr('Hello KamaiPlus, please switch on "{name}" in my app.', { name })} className="text-xs" />
       <Link
         href="/settings?tab=features"
         prefetch={false}
         className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold"
       >
-        <Settings className="w-3.5 h-3.5" /> {tr('Open Settings → Features')}
+        <Settings className="w-3.5 h-3.5" /> {tr('See what is on (Settings → Features)')}
       </Link>
     </div>
   );

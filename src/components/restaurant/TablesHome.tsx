@@ -1,28 +1,37 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { ChefHat, Plus, Settings2, ShoppingBag, UtensilsCrossed } from 'lucide-react';
+import { ChefHat, Clock, Plus, Settings2, ShoppingBag, UtensilsCrossed } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { cn, formatINR } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
 import { RestOrder, formatOpenTime, hasUnsentItems, minutesOpen, orderTotals, pieceCount } from '@/lib/restaurant/model';
 import type { RestaurantSettings } from '@/lib/restaurant/settings';
+import type { Sale } from '@/types';
+import { RecentBills } from '@/components/restaurant/RecentBills';
+
+type View = 'all' | 'running' | 'free';
+/** A table open this long gets a red time — someone may be waiting for the bill. */
+const LONG_MINUTES = 60;
 
 /**
- * The Tables screen (v4.106.0) — the first thing a waiter sees. Green = free, amber = an order is
- * running (amount, pieces, how long). A red tag means items are not sent to the kitchen yet.
- * Takeaway orders get their own row with a token (TA-01…).
+ * The Tables screen (v4.106.0, v4.107.0) — the first thing a waiter sees. White = free, amber = an
+ * order is running (amount, pieces, how long; red after an hour). A red KOT tag = items not sent to
+ * the kitchen yet. Takeaway orders get their own row with a token (TA-01…), and today's paid bills
+ * can be opened again (print, PDF, WhatsApp).
  */
-export function TablesHome({ orders, settings, onOpenTable, onOpenOrder, onNewTakeaway, onSetup }: {
+export function TablesHome({ orders, settings, onOpenTable, onOpenOrder, onNewTakeaway, onSetup, onOpenBill }: {
   orders: RestOrder[];
   settings: RestaurantSettings;
   onOpenTable: (label: string) => void;
   onOpenOrder: (id: string) => void;
   onNewTakeaway: () => void;
   onSetup: () => void;
+  onOpenBill: (sale: Sale) => void;
 }) {
   // Minutes on a card move on their own.
   const [now, setNow] = useState(() => Date.now());
+  const [view, setView] = useState<View>('all');
   useEffect(() => {
     const t = window.setInterval(() => setNow(Date.now()), 30000);
     return () => window.clearInterval(t);
@@ -31,82 +40,117 @@ export function TablesHome({ orders, settings, onOpenTable, onOpenOrder, onNewTa
   const tableOrders = new Map(orders.filter((o) => o.kind === 'table').map((o) => [o.label, o]));
   // A table taken out of the set-up while it still has an order keeps showing until it is billed.
   const labels = [...settings.tables, ...Array.from(tableOrders.keys()).filter((l) => !settings.tables.includes(l))];
+  const shown = labels.filter((l) => view === 'all' || (view === 'running') === tableOrders.has(l));
   const takeaways = orders.filter((o) => o.kind === 'takeaway').sort((a, b) => a.openedAt.localeCompare(b.openedAt));
-  const running = orders.length;
+  const free = Math.max(0, labels.length - tableOrders.size);
   const open = orders.reduce((n, o) => n + orderTotals(o, settings).grandTotal, 0);
+  const unsent = orders.filter((o) => hasUnsentItems(o) && pieceCount(o) > 0).length;
 
   return (
     <div className="space-y-5 pb-6" data-restaurant-screen="tables">
-      <div className="flex flex-wrap items-center gap-3 bg-white border border-slate-200 rounded-2xl shadow-sm px-4 py-3.5">
-        <div className="w-11 h-11 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0"><UtensilsCrossed className="w-5 h-5" /></div>
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm px-4 py-3.5 flex flex-wrap items-center gap-3">
+        <div className="w-11 h-11 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm"><UtensilsCrossed className="w-5 h-5" /></div>
         <div className="min-w-0 flex-1">
           <h1 className="text-lg sm:text-xl font-black text-slate-900 leading-tight">{tr('Tables & Orders')}</h1>
           <p className="text-xs text-slate-500 font-medium">{tr('Tap a table to take or add to an order. Leaving a table keeps its order.')}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Stat label={tr('Running')} value={String(running)} tone="text-amber-700" />
-          <Stat label={tr('Free')} value={String(Math.max(0, labels.length - tableOrders.size))} tone="text-emerald-700" />
+          <Stat label={tr('Running')} value={String(orders.length)} tone="text-amber-700" />
+          <Stat label={tr('Free')} value={String(free)} tone="text-emerald-700" />
           <Stat label={tr('Open amount')} value={formatINR(open)} tone="text-slate-900" mono />
-          <Button type="button" variant="outline" onClick={onSetup} data-restaurant-setup><Settings2 className="w-4 h-4" /> {tr('Set-up')}</Button>
+          {unsent > 0 && <Stat label={tr('KOT pending')} value={String(unsent)} tone="text-rose-600" />}
+        </div>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Button type="button" variant="success" onClick={onNewTakeaway} data-new-takeaway className="flex-1 sm:flex-none"><Plus className="w-4 h-4" /> {tr('New takeaway')}</Button>
+          <Button type="button" variant="outline" onClick={onSetup} data-restaurant-setup aria-label={tr('Set-up')}><Settings2 className="w-4 h-4" /> <span className="hidden sm:inline">{tr('Set-up')}</span></Button>
         </div>
       </div>
 
       <section aria-label={tr('Dine-in tables')}>
-        <h2 className="text-[11px] font-black uppercase tracking-wider text-slate-500 mb-2.5">{tr('Dine-in')}</h2>
-        <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))' }}>
-          {labels.map((label) => {
-            const order = tableOrders.get(label);
-            return order ? (
-              <button key={label} type="button" onClick={() => onOpenOrder(order.id)} data-table={label} data-table-state="running"
-                className="text-left rounded-2xl border-2 border-amber-300 bg-amber-50 hover:bg-amber-100/70 p-3.5 min-h-[116px] flex flex-col justify-between cursor-pointer transition-all active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500">
-                <div className="flex items-start justify-between gap-2">
-                  <span className="text-xl font-black text-slate-900 leading-none">{label}</span>
-                  {hasUnsentItems(order) && pieceCount(order) > 0 && <span className="inline-flex items-center gap-1 text-[10px] font-black text-rose-700 bg-rose-100 rounded-full px-1.5 py-0.5" title={tr('Not sent to the kitchen')}><ChefHat className="w-3 h-3" />KOT</span>}
-                </div>
-                <div>
-                  <div className="text-lg font-black font-mono text-slate-900">{formatINR(orderTotals(order, settings).grandTotal)}</div>
-                  <div className="text-[11px] font-semibold text-amber-800">{pieceCount(order)} {tr('pieces')} · {formatOpenTime(minutesOpen(order, now))}</div>
-                </div>
-              </button>
-            ) : (
-              <button key={label} type="button" onClick={() => onOpenTable(label)} data-table={label} data-table-state="free"
-                className="text-left rounded-2xl border-2 border-slate-200 bg-white hover:border-emerald-500 hover:bg-emerald-50/50 p-3.5 min-h-[116px] flex flex-col justify-between cursor-pointer transition-all active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600">
-                <span className="text-xl font-black text-slate-900 leading-none">{label}</span>
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700"><span className="w-2 h-2 rounded-full bg-emerald-500" />{tr('Free')} · {tr('tap to start')}</span>
-              </button>
-            );
-          })}
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+          <h2 className="text-[11px] font-black uppercase tracking-wider text-slate-500">{tr('Dine-in')} · {labels.length}</h2>
+          <div className="flex items-center gap-3">
+            <span className="hidden md:flex items-center gap-3 text-[10.5px] font-bold text-slate-500">
+              <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-white border-2 border-slate-300" />{tr('Free')}</span>
+              <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-amber-400" />{tr('Running')}</span>
+              <span className="inline-flex items-center gap-1"><ChefHat className="w-3 h-3 text-rose-600" />{tr('Not sent to the kitchen')}</span>
+            </span>
+            <div className="inline-flex p-0.5 rounded-lg bg-slate-100 border border-slate-200" role="group" aria-label={tr('Show tables')}>
+              {(['all', 'running', 'free'] as const).map((v) => (
+                <button key={v} type="button" onClick={() => setView(v)} aria-pressed={view === v} data-tables-view={v}
+                  className={cn('h-7 px-2.5 rounded-md text-[11px] font-black cursor-pointer', view === v ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800')}>
+                  {v === 'all' ? tr('All') : v === 'running' ? tr('Running') : tr('Free')}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
-      </section>
-
-      <section aria-label={tr('Takeaway orders')}>
-        <div className="flex items-center justify-between mb-2.5">
-          <h2 className="text-[11px] font-black uppercase tracking-wider text-slate-500">{tr('Takeaway')}</h2>
-          <Button type="button" variant="success" onClick={onNewTakeaway} data-new-takeaway><Plus className="w-4 h-4" /> {tr('New takeaway')}</Button>
-        </div>
-        {takeaways.length === 0 ? (
-          <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-white/60 px-4 py-6 text-center text-xs font-semibold text-slate-500 flex items-center justify-center gap-2">
-            <ShoppingBag className="w-4 h-4 text-slate-400" /> {tr('No takeaway order running. "New takeaway" gives the next token.')}
+        {shown.length === 0 ? (
+          <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-white/60 px-4 py-6 text-center text-xs font-semibold text-slate-500">
+            {view === 'running' ? tr('No table has an order right now.') : tr('Every table has an order.')}
           </div>
         ) : (
-          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))' }}>
-            {takeaways.map((o) => (
-              <button key={o.id} type="button" onClick={() => onOpenOrder(o.id)} data-takeaway={o.label}
-                className={cn('text-left rounded-2xl border-2 p-3.5 min-h-[96px] flex flex-col justify-between cursor-pointer transition-all active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500', 'border-amber-300 bg-amber-50 hover:bg-amber-100/70')}>
-                <div className="flex items-start justify-between gap-2">
-                  <span className="text-lg font-black text-slate-900 leading-none">{o.label}</span>
-                  {hasUnsentItems(o) && pieceCount(o) > 0 && <span className="inline-flex items-center gap-1 text-[10px] font-black text-rose-700 bg-rose-100 rounded-full px-1.5 py-0.5"><ChefHat className="w-3 h-3" />KOT</span>}
-                </div>
-                <div>
-                  <div className="text-base font-black font-mono text-slate-900">{formatINR(orderTotals(o, settings).grandTotal)}</div>
-                  <div className="text-[11px] font-semibold text-amber-800">{pieceCount(o)} {tr('pieces')} · {formatOpenTime(minutesOpen(o, now))}</div>
-                </div>
-              </button>
-            ))}
+          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))' }}>
+            {shown.map((label) => {
+              const order = tableOrders.get(label);
+              return order ? (
+                <OrderCard key={label} order={order} settings={settings} now={now} onOpen={() => onOpenOrder(order.id)} table />
+              ) : (
+                <button key={label} type="button" onClick={() => onOpenTable(label)} data-table={label} data-table-state="free"
+                  className="group text-left rounded-2xl border-2 border-slate-200 bg-white hover:border-emerald-500 hover:shadow-md hover:-translate-y-0.5 p-3.5 min-h-[116px] flex flex-col justify-between cursor-pointer transition-all active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600">
+                  <span className="text-xl font-black text-slate-900 leading-none">{label}</span>
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />{tr('Free')}
+                    <span className="text-slate-400 font-semibold group-hover:text-emerald-700">· {tr('tap to start')}</span>
+                  </span>
+                </button>
+              );
+            })}
           </div>
         )}
       </section>
+
+      <section aria-label={tr('Takeaway orders')}>
+        <h2 className="text-[11px] font-black uppercase tracking-wider text-slate-500 mb-2.5">{tr('Takeaway')} · {takeaways.length}</h2>
+        {takeaways.length === 0 ? (
+          <button type="button" onClick={onNewTakeaway}
+            className="w-full rounded-2xl border-2 border-dashed border-slate-200 bg-white/60 hover:border-emerald-400 hover:bg-emerald-50/40 px-4 py-6 text-center text-xs font-semibold text-slate-500 flex items-center justify-center gap-2 cursor-pointer transition-colors">
+            <ShoppingBag className="w-4 h-4 text-slate-400" /> {tr('No takeaway order running. "New takeaway" gives the next token.')}
+          </button>
+        ) : (
+          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))' }}>
+            {takeaways.map((o) => <OrderCard key={o.id} order={o} settings={settings} now={now} onOpen={() => onOpenOrder(o.id)} />)}
+          </div>
+        )}
+      </section>
+
+      <RecentBills onOpen={onOpenBill} />
     </div>
+  );
+}
+
+function OrderCard({ order, settings, now, onOpen, table }: { order: RestOrder; settings: RestaurantSettings; now: number; onOpen: () => void; table?: boolean }) {
+  const minutes = minutesOpen(order, now);
+  const long = minutes >= LONG_MINUTES;
+  const pieces = pieceCount(order);
+  const dataAttrs = table ? { 'data-table': order.label, 'data-table-state': 'running' } : { 'data-takeaway': order.label };
+  return (
+    <button type="button" onClick={onOpen} {...dataAttrs}
+      className="text-left rounded-2xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 to-white hover:border-amber-400 hover:shadow-md hover:-translate-y-0.5 p-3.5 min-h-[116px] flex flex-col justify-between cursor-pointer transition-all active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500">
+      <div className="flex items-start justify-between gap-2">
+        <span className={cn('font-black text-slate-900 leading-none', table ? 'text-xl' : 'text-lg')}>{order.label}</span>
+        {hasUnsentItems(order) && pieces > 0 && (
+          <span className="inline-flex items-center gap-1 text-[10px] font-black text-rose-700 bg-rose-100 rounded-full px-1.5 py-0.5" title={tr('Not sent to the kitchen')}><ChefHat className="w-3 h-3" />KOT</span>
+        )}
+      </div>
+      <div>
+        <div className="text-lg font-black font-mono text-slate-900">{formatINR(orderTotals(order, settings).grandTotal)}</div>
+        <div className="flex items-center justify-between gap-2 text-[11px] font-semibold">
+          <span className="text-amber-800">{pieces} {tr('pieces')}</span>
+          <span className={cn('inline-flex items-center gap-0.5', long ? 'text-rose-600 font-black' : 'text-slate-500')}><Clock className="w-3 h-3" />{formatOpenTime(minutes)}</span>
+        </div>
+      </div>
+    </button>
   );
 }
 
