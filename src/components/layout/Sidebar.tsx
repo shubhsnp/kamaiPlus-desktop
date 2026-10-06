@@ -22,12 +22,13 @@ import {
   LineChart,
   Truck,
   PanelLeftClose,
-  PanelLeftOpen
+  PanelLeftOpen,
+  UtensilsCrossed,
 } from 'lucide-react';
 import { APP_VERSION } from '@/lib/constants/version';
 import { cn } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
-import { isPathEnabled, useFeatureSwitches } from '@/lib/features/featureSwitches';
+import { isPathEnabled, useFeatureSwitches, useRestaurantMode } from '@/lib/features/featureSwitches';
 
 interface SidebarProps {
   isCollapsed?: boolean;
@@ -42,6 +43,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { t } = useTranslation();
   // Screens switched off in Settings → Features are not listed.
   const switches = useFeatureSwitches();
+  // v4.106.0: Restaurant mode (set from the Admin Console) swaps the counter for Tables & Orders.
+  const restaurant = useRestaurantMode();
 
   const [internalCollapsed, setInternalCollapsed] = useState<boolean>(false);
 
@@ -89,7 +92,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       dotColor: 'bg-emerald-500',
       items: [
         { href: '/', label: tr('Home'), icon: Home, iconBg: 'bg-slate-100 text-slate-700', activeIcon: 'text-white' },
-        { href: '/billing', label: tr('Billing POS'), icon: Receipt, iconBg: 'bg-emerald-100 text-emerald-800', activeIcon: 'text-emerald-300' },
+        restaurant
+          ? { href: '/restaurant', label: tr('Tables & Orders'), icon: UtensilsCrossed, iconBg: 'bg-emerald-100 text-emerald-800', activeIcon: 'text-emerald-300' }
+          : { href: '/billing', label: tr('Billing POS'), icon: Receipt, iconBg: 'bg-emerald-100 text-emerald-800', activeIcon: 'text-emerald-300' },
         { href: '/cash-register', label: tr('Cash Register'), icon: Calculator, iconBg: 'bg-amber-100 text-amber-900', activeIcon: 'text-amber-300' },
         { href: '/barcode-generator', label: tr('Barcode Studio'), icon: Barcode, iconBg: 'bg-purple-100 text-purple-800', activeIcon: 'text-purple-300' },
         { href: '/transactions', label: tr('Transactions'), icon: ShieldCheck, iconBg: 'bg-teal-100 text-teal-800', activeIcon: 'text-teal-300' },
@@ -125,7 +130,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ],
     },
   ].map((sec) => ({ ...sec, items: sec.items.filter((item) => isPathEnabled(item.href, switches)) }))
-    .filter((sec) => sec.items.length > 0), [t, switches]);
+    .filter((sec) => sec.items.length > 0), [t, switches, restaurant]);
 
   return (
     <aside 

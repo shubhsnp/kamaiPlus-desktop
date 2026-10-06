@@ -15,6 +15,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.106.0',
+    items: [
+      msg("For restaurants and cafés: KamaiPlus support can switch on Restaurant mode — a Tables & Orders screen with running tables, takeaway tokens, add-ons, a kitchen slip (KOT) and a 5% GST bill. Shops that are not restaurants see no change."),
+    ],
+  },
+  {
     version: '4.105.0',
     items: [
       msg('KamaiPlus support can now help faster: they can switch features on or off for you, send a pop-up message with a button, and run an update, a backup or a restart on this computer (a restart waits until no bill is open).'),

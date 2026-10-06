@@ -153,6 +153,41 @@ export function parseAdminOverrides(raw: string | null | undefined): Partial<Fea
   return out;
 }
 
+/**
+ * Restaurant mode (v4.106.0) is switched on ONLY from the Admin Console (Remote control → Features →
+ * "Restaurant mode"): it is not a FeatureId, has no row in Settings → Features and a shop cannot turn
+ * it on. It lives in the Admin's forced features (ADMIN_FEATURES_KEY) under this id.
+ */
+export const RESTAURANT_MODE_ID = 'restaurant_mode';
+
+export function restaurantModeFromRaw(rawAdmin: string | null | undefined): boolean {
+  if (!rawAdmin) return false;
+  try {
+    return JSON.parse(rawAdmin)?.[RESTAURANT_MODE_ID] === true;
+  } catch {
+    return false;
+  }
+}
+
+/** What a restaurant does not use: no stock counting, no barcode labels, no supplier purchases. */
+export const RESTAURANT_PRESET_OFF: FeatureId[] = ['inventory', 'barcode_studio', 'purchases', 'suppliers'];
+
+export function applyRestaurantPreset(switches: FeatureSwitches, restaurantOn: boolean): FeatureSwitches {
+  if (!restaurantOn) return switches;
+  const out = { ...switches };
+  for (const id of RESTAURANT_PRESET_OFF) out[id] = false;
+  return out;
+}
+
+export function isRestaurantMode(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return restaurantModeFromRaw(localStorage.getItem(ADMIN_FEATURES_KEY));
+  } catch {
+    return false;
+  }
+}
+
 export function readAdminFeatureOverrides(): Partial<FeatureSwitches> {
   if (typeof window === 'undefined') return {};
   try {
@@ -165,8 +200,9 @@ export function readAdminFeatureOverrides(): Partial<FeatureSwitches> {
 export function readFeatureSwitches(): FeatureSwitches {
   if (typeof window === 'undefined') return { ...DEFAULT_FEATURE_SWITCHES };
   try {
-    // The shop's own switches, with the Admin's forced ones on top (v4.105.0).
-    return { ...parseFeatureSwitches(localStorage.getItem(FEATURE_SWITCHES_KEY)), ...readAdminFeatureOverrides() };
+    // The shop's own switches, the restaurant preset (v4.106.0) when the Admin chose Restaurant mode,
+    // and the Admin's forced ones on top (v4.105.0).
+    return { ...applyRestaurantPreset(parseFeatureSwitches(localStorage.getItem(FEATURE_SWITCHES_KEY)), isRestaurantMode()), ...readAdminFeatureOverrides() };
   } catch {
     return { ...DEFAULT_FEATURE_SWITCHES };
   }
@@ -191,6 +227,22 @@ export function featureForPath(path: string): FeatureId | undefined {
 export function isPathEnabled(path: string, switches: FeatureSwitches): boolean {
   const id = featureForPath(path);
   return !id || switches[id];
+}
+
+/** Is Restaurant mode on (Admin Console only)? Re-renders when the Admin's control arrives. */
+export function useRestaurantMode(): boolean {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    const refresh = () => setOn(isRestaurantMode());
+    refresh();
+    window.addEventListener(FEATURE_SWITCHES_EVENT, refresh);
+    window.addEventListener('storage', refresh);
+    return () => {
+      window.removeEventListener(FEATURE_SWITCHES_EVENT, refresh);
+      window.removeEventListener('storage', refresh);
+    };
+  }, []);
+  return on;
 }
 
 /** Live switches for a component; re-renders when Settings → Features changes them. */

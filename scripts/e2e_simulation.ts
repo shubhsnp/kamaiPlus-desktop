@@ -84,6 +84,11 @@ import { generalCategoryId } from '../src/lib/products/defaultCategory';
 import { nextSupplierBalance } from '../src/lib/suppliers/supplierLedger';
 import { cleanVariantLabels, DEFAULT_COUNTED_STOCK, summarizeVariants, tracksOwnStock } from '../src/lib/products/variants';
 import { buildBillCustomer, cleanCustomerNameInput, cleanMobileInput, isDraftEmpty, resolveBillCustomer, splitDraft, suggestCustomers } from '../src/lib/billing/billCustomer';
+import { MenuPick, PACKING_CHARGE_ID, SERVICE_CHARGE_ID, addPiece, applyToOnePiece, changeQty, discountPaise, formatOpenTime, hasUnsentItems, kotChanges, lineKey, lineUnitPaise, markKotSent, newOrder, nextToken, orderTotals, pieceCount } from '../src/lib/restaurant/model';
+import { defaultTableNames, sanitizeRestaurantSettings } from '../src/lib/restaurant/settings';
+import { parseRestState } from '../src/lib/restaurant/store';
+import { buildKotBody } from '../src/lib/restaurant/kot';
+import { RESTAURANT_PRESET_OFF, applyRestaurantPreset, restaurantModeFromRaw } from '../src/lib/features/featureSwitches';
 import { DEFAULT_FEATURE_SWITCHES, FEATURES, featureForPath, isPathEnabled, parseAdminOverrides, parseFeatureSwitches, showSellingPriceField } from '../src/lib/features/featureSwitches';
 import { adminBlock, blocksBilling, cleanFeatureOverrides, counterHasOpenBill, needsUpdate } from '../src/lib/admin/adminControl';
 import { matchesProductDetails } from '../src/lib/products/detailSearch';
@@ -4081,7 +4086,7 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
   assert(JSON.stringify(parseAdminOverrides('{"khata":false,"unknown":true,"whatsapp":"no"}')) === '{"khata":false}' && JSON.stringify(cleanFeatureOverrides({ khata: false, 'X Y': true })) === '{"khata":false}',
     'Forced features: only real switch ids, true / false');
   const fsSrc = readSource('lib/features/featureSwitches.ts');
-  assert(/\{ \.\.\.parseFeatureSwitches\(localStorage\.getItem\(FEATURE_SWITCHES_KEY\)\), \.\.\.readAdminFeatureOverrides\(\) \}/.test(fsSrc)
+  assert(/\{ \.\.\.applyRestaurantPreset\(parseFeatureSwitches\(localStorage\.getItem\(FEATURE_SWITCHES_KEY\)\), isRestaurantMode\(\)\), \.\.\.readAdminFeatureOverrides\(\) \}/.test(fsSrc)
     && /JSON\.stringify\(\{ \.\.\.parseFeatureSwitches\(localStorage\.getItem\(FEATURE_SWITCHES_KEY\)\), \[id\]: on \}\)/.test(fsSrc),
     'The Admin\'s switches win over the shop\'s; the shop\'s own choice is stored untouched and comes back when the Admin lets go');
   const ft = readSource('components/settings/FeaturesTab.tsx');
@@ -4102,10 +4107,135 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
   const consoleModels = path.join(SRC_ROOT, '..', '..', 'KamaiPlus Android', 'admin_console', 'lib', 'models', 'admin_models.dart');
   if (fs.existsSync(consoleModels)) {
     const dart = fs.readFileSync(consoleModels, 'utf8');
-    const consoleIds = Array.from(dart.matchAll(/\('([a-z_]+)', '[^']+', '(?:Screens|Product form|Buttons|Privacy)'\)/g)).map((m) => m[1]).sort();
+    const consoleIds = Array.from(dart.matchAll(/\('([a-z_]+)', '[^']+', '(?:Screens|Product form|Buttons|Privacy|Mode)'\)/g)).map((m) => m[1]).filter((id) => id !== 'restaurant_mode').sort();
     const appIds = Object.keys(DEFAULT_FEATURE_SWITCHES).sort();
+    assert(/\('restaurant_mode', '[^']+', 'Mode'\)/.test(dart), 'The Admin Console offers the admin-only Restaurant mode switch');
     assert(JSON.stringify(consoleIds) === JSON.stringify(appIds), `The Admin Console's feature list matches this app's switches (console: ${consoleIds.length}, app: ${appIds.length})`);
   }
+}
+
+
+// v4.106.0 — Restaurant mode: Tables & Orders, add-ons, KOT, takeaway, 5 % GST bill. Switched on only from the Admin Console.
+{
+  const NOW = '2026-10-06T10:00:00.000Z';
+  const dosa: MenuPick = { productId: 'p_dosa', name: 'Masala Dosa', unit: 'piece', basePaise: 10000 };
+  const tea: MenuPick = { productId: 'p_tea', name: 'Tea', unit: 'piece', basePaise: 1500 };
+  const cheese = { name: 'Extra cheese', pricePaise: 2000 };
+  const settings = sanitizeRestaurantSettings({});
+
+  // Lines: same dish + same add-ons (any order) + same note = one line.
+  assert(lineKey('p', [cheese, { name: 'Butter', pricePaise: 1000 }], 'x') === lineKey('p', [{ name: 'Butter', pricePaise: 1000 }, cheese], ' X ')
+    && lineKey('p', [], '') !== lineKey('p', [cheese], '') && lineKey('p', [], 'less spicy') !== lineKey('p', [], ''),
+    'Restaurant: the same dish with the same add-ons and note is one line; another add-on or note is another line');
+  let o = newOrder('table', 'T3', 'o1', NOW);
+  o = addPiece(addPiece(addPiece(o, dosa, NOW), dosa, NOW), tea, NOW);
+  assert(o.lines.length === 2 && o.lines[0].qty === 2 && pieceCount(o) === 3 && lineUnitPaise({ basePaise: 10000, addOns: [cheese] }) === 12000,
+    'Restaurant: a second tap adds a piece to the same line; add-ons add to the price of one piece');
+
+  // Add-ons for ONE piece: before the kitchen has it, and after.
+  let withCheese = applyToOnePiece(o, o.lines[0].key, [cheese], '', NOW);
+  assert(withCheese.lines.length === 3 && withCheese.lines[0].qty === 1 && withCheese.lines[2].qty === 1 && withCheese.lines[2].addOns[0].name === 'Extra cheese' && pieceCount(withCheese) === 3,
+    'Restaurant: add-ons go on one piece (2 dosas → 1 plain + 1 with cheese) — before the KOT');
+  const sent = markKotSent(o, NOW);
+  assert(sent.kotRounds === 1 && !hasUnsentItems(sent) && kotChanges(sent).length === 0, 'Restaurant: after a KOT the kitchen is up to date (nothing new to send)');
+  const changed = applyToOnePiece(sent, sent.lines[0].key, [cheese], 'less spicy', NOW);
+  const ch = kotChanges(changed);
+  assert(ch.length === 2 && ch[0].delta === -1 && ch[0].title === 'Masala Dosa' && ch[1].delta === 1 && ch[1].title === 'Masala Dosa + Extra cheese' && ch[1].note === 'less spicy',
+    'Restaurant: add-ons after the KOT = "cancel the plain one, add this one" on the next slip');
+
+  // Removing a piece the kitchen has: stays at 0 until the next slip cancels it.
+  const less = changeQty(changeQty(sent, sent.lines[1].key, -1, NOW), sent.lines[0].key, -1, NOW);
+  assert(less.lines.find((l) => l.productId === 'p_tea')!.qty === 0 && pieceCount(less) === 1 && kotChanges(less).some((k) => k.delta === -1 && k.title === 'Tea')
+    && markKotSent(less, NOW).lines.every((l) => l.qty > 0) && changeQty(addPiece(newOrder('table', 'T1', 'o', NOW), tea, NOW), lineKey('p_tea', [], ''), -1, NOW).lines.length === 0,
+    'Restaurant: a line already in the kitchen shows as CANCEL and then goes; one the kitchen never had just disappears');
+
+  // The bill: 5 % GST included in the price, or added on top; service charge; takeaway packing; discount.
+  const two = addPiece(addPiece(newOrder('table', 'T1', 'o', NOW), dosa, NOW), dosa, NOW);
+  const inc = orderTotals(two, settings);
+  assert(inc.grandTotal === 20000 && inc.taxTotal === 952 && inc.subtotal === 19048 && inc.items.length === 1 && inc.items[0].hsn_code === '9963' && inc.items[0].tax_rate === 5,
+    'Restaurant bill: 2 × ₹100 with 5 % GST included = ₹200 (GST ₹9.52, taxable ₹190.48), HSN 9963');
+  const exc = orderTotals(two, { ...settings, gstInclusive: false });
+  assert(exc.grandTotal === 21000 && exc.taxTotal === 1000 && exc.subtotal === 20000, 'Restaurant bill: GST added on top = ₹210');
+  const svc = orderTotals(two, { ...settings, serviceChargePercent: 10 });
+  assert(svc.serviceChargePaise === 1905 && svc.taxTotal === 1047 && svc.grandTotal === 22000 && svc.items.length === 2 && svc.items[1].product_id === SERVICE_CHARGE_ID && svc.items[1].is_tax_inclusive === false,
+    'Restaurant bill: 10 % service charge on the food value (₹19.05) with GST on it, as its own bill line');
+  const take = orderTotals({ ...two, kind: 'takeaway', label: 'TA-01' }, { ...settings, packingChargePaise: 1000 });
+  assert(take.packingPaise === 1000 && take.grandTotal === 21050 && take.items[take.items.length - 1].product_id === PACKING_CHARGE_ID && orderTotals(two, { ...settings, packingChargePaise: 1000 }).packingPaise === 0,
+    'Restaurant bill: the packing charge is only on takeaway (₹10 + GST ₹0.50)');
+  const disc = orderTotals(two, settings, { type: 'percentage', value: 10 });
+  assert(disc.discountTotal === 2000 && disc.grandTotal === 18000 && disc.taxTotal === 857 && discountPaise(20000, { type: 'flat', value: 999 }) === 20000 && discountPaise(20000, { type: 'percentage', value: 150 }) === 20000 && discountPaise(0, { type: 'flat', value: 5 }) === 0,
+    'Restaurant bill: a 10 % discount takes ₹20 off and the GST follows what is really charged; a discount never exceeds the food');
+  assert(orderTotals(newOrder('table', 'T9', 'o', NOW), { ...settings, serviceChargePercent: 10 }).grandTotal === 0 && orderTotals(newOrder('table', 'T9', 'o', NOW), settings).items.length === 0,
+    'Restaurant bill: an empty table has no bill (no service charge on nothing)');
+
+  // Takeaway tokens restart every day.
+  const t1 = nextToken(null, new Date(2026, 9, 6, 10));
+  const t2 = nextToken(t1.counter, new Date(2026, 9, 6, 20));
+  const t3 = nextToken(t2.counter, new Date(2026, 9, 7, 9));
+  assert(t1.label === 'TA-01' && t2.label === 'TA-02' && t3.label === 'TA-01' && formatOpenTime(75) === '1 h 15 m' && formatOpenTime(9) === '9 min',
+    'Restaurant: takeaway tokens TA-01, TA-02… start again every day; open time reads "9 min" / "1 h 15 m"');
+
+  // The shop's set-up: always valid.
+  const sane = sanitizeRestaurantSettings({ tables: ['T1', 't1', ' Garden 1 ', '', 'x'.repeat(50)], gstRate: 99, serviceChargePercent: -4, packingChargePaise: 'abc', addOns: [{ name: 'Cheese', pricePaise: 500 }, { name: 'cheese', pricePaise: 1 }, { name: '' }] });
+  assert(sane.tables.length === 3 && sane.tables[1] === 'Garden 1' && sane.tables[2].length === 20 && sane.gstRate === 28 && sane.serviceChargePercent === 0 && sane.packingChargePaise === 0 && sane.addOns.length === 1 && sane.addOns[0].pricePaise === 500
+    && sanitizeRestaurantSettings({ tables: [] }).tables.length === 10 && sanitizeRestaurantSettings({ addOns: [] }).addOns.length === 0 && sanitizeRestaurantSettings(null).gstRate === 5 && sanitizeRestaurantSettings(null).gstInclusive === true
+    && defaultTableNames(3).join() === 'T1,T2,T3' && defaultTableNames(999).length === 60,
+    'Restaurant set-up: unique table names, GST 0–28 % (5 % default, included), sane charges; an emptied add-on list stays empty');
+  const st = parseRestState({ orders: [{ id: 'a', kind: 'table', label: 'T1', openedAt: NOW, lines: [{ key: 'k', productId: 'p', name: 'Tea', qty: '2', basePaise: 1500, kotQty: 5, addOns: [{ name: 'Sugar', pricePaise: 0 }, { name: '' }] }, { nope: 1 }] }, { id: 'b', kind: 'bogus', label: 'X' }, null], token: { day: '2026-10-06', last: 4 } });
+  assert(st.orders.length === 1 && st.orders[0].lines.length === 1 && st.orders[0].lines[0].qty === 2 && st.orders[0].lines[0].addOns.length === 1 && st.token?.last === 4 && parseRestState('junk').orders.length === 0,
+    'Restaurant: running orders are read back safely (a damaged entry is dropped, never a crash on the Tables screen)');
+
+  // The kitchen slip.
+  const slip = buildKotBody({ order: changed, shopName: 'Sharma <Hotel>', round: 2, now: new Date(2026, 9, 6, 13, 5) });
+  assert(slip.includes('T3') && slip.includes('Round 2') && slip.includes('ADD') && slip.includes('CANCEL') && slip.includes('Masala Dosa + Extra cheese') && slip.includes('less spicy') && slip.includes('Sharma &lt;Hotel&gt;') && !slip.includes('<Hotel>')
+    && buildKotBody({ order: sent, round: 1 }, []).includes('KOT'),
+    'Restaurant KOT: table, round, what to ADD and what to CANCEL, the cook\'s note; shop name is escaped');
+
+  // Admin-only: Restaurant mode is not a Settings switch; it is forced from the Admin Console.
+  assert(restaurantModeFromRaw('{"restaurant_mode":true}') && !restaurantModeFromRaw('{"restaurant_mode":false}') && !restaurantModeFromRaw('{"khata":true}') && !restaurantModeFromRaw(null) && !restaurantModeFromRaw('junk')
+    && !FEATURES.some((f) => (f.id as string) === 'restaurant_mode') && !('restaurant_mode' in DEFAULT_FEATURE_SWITCHES),
+    'Restaurant mode: on only when the Admin forces it; it has no switch in Settings → Features');
+  const preset = applyRestaurantPreset({ ...DEFAULT_FEATURE_SWITCHES, inventory: true, barcode_studio: true, purchases: true, suppliers: true, khata: true }, true);
+  assert(!preset.inventory && !preset.barcode_studio && !preset.purchases && !preset.suppliers && preset.khata && preset.whatsapp
+    && applyRestaurantPreset(DEFAULT_FEATURE_SWITCHES, false) === DEFAULT_FEATURE_SWITCHES && RESTAURANT_PRESET_OFF.length === 4,
+    'Restaurant mode: stock, labels, purchases and suppliers go off; khata, WhatsApp and the rest stay');
+  const fsSrc2 = readSource('lib/features/featureSwitches.ts');
+  assert(/\.\.\.applyRestaurantPreset\(parseFeatureSwitches\(localStorage\.getItem\(FEATURE_SWITCHES_KEY\)\), isRestaurantMode\(\)\), \.\.\.readAdminFeatureOverrides\(\)/.test(fsSrc2),
+    'Restaurant mode: shop switches → restaurant preset → the Admin\'s forced switches on top (the Admin can still force one back on)');
+
+  // Wiring.
+  const gate = readSource('components/features/FeatureGate.tsx');
+  const side = readSource('components/layout/Sidebar.tsx');
+  assert(/path === '\/billing'/.test(gate) && gate.includes("router.replace('/restaurant')") && /path === '\/restaurant' && !restaurant/.test(gate) && gate.includes('data-restaurant-closed')
+    && side.includes("{ href: '/restaurant', label: tr('Tables & Orders')") && side.includes('useRestaurantMode()') && fs.existsSync(path.join(SRC_ROOT, 'app', 'restaurant', 'page.tsx')),
+    'Restaurant mode: Billing → Tables & Orders in the menu and old Billing links land on it; /restaurant is closed ("not switched on") for every other shop');
+
+  // Paying: same steps as the counter's bill, the table is freed only after the bill is saved.
+  const settleSrc = readSource('lib/restaurant/settle.ts');
+  const iNum = settleSrc.indexOf('getNextUniqueInvoiceNumber(businessId)');
+  const iPut = settleSrc.indexOf('await db.sales.put(sale)');
+  const iCommit = settleSrc.indexOf('await commitNextInvoiceNumber(');
+  const iStock = settleSrc.indexOf("db.transaction('rw', db.products, db.inventory_movements");
+  assert(iNum > 0 && iNum < iPut && iPut < iCommit && iCommit < iStock && !/await cloud/.test(settleSrc) && settleSrc.includes("customer_name: billLabel(order)") && settleSrc.includes("payment_status: 'paid'")
+    && settleSrc.includes('if (!prod || prod.is_unlimited_stock) continue;') && settleSrc.includes('SERVICE_CHARGE_ID') && settleSrc.includes("status: 'completed'"),
+    'Restaurant pay: reserve the number → save the bill → commit the number → stock (counted items only); cloud never awaited; the table name is the bill\'s customer');
+  const orderScreen = readSource('components/restaurant/OrderScreen.tsx');
+  const iSettle = orderScreen.indexOf('await settleOrder(');
+  const iFree = orderScreen.indexOf('orders.filter((o) => o.id !== order.id)');
+  const iMark = orderScreen.indexOf('markKotSent(o, now())');
+  const iKot = orderScreen.indexOf('await printKot(');
+  assert(iSettle > 0 && iSettle < iFree && iKot > 0 && iKot < iMark && /if \(res\.ok\) \{\s*update\(\(s\) => mapOrder\(s, order\.id, \(o\) => markKotSent/.test(orderScreen) && orderScreen.includes('if (busy) return;') && orderScreen.includes('if (kotBusy) return;'),
+    'Restaurant screens: a table is freed only after its bill is saved; a KOT is marked sent only when it printed; double taps are ignored');
+  const kotSrc = readSource('lib/restaurant/kot.ts');
+  assert(/silent: true/.test(kotSrc) && kotSrc.includes('if (changes.length === 0) return { ok: false, empty: true };'), 'Restaurant KOT: prints silently on the counter\'s thermal printer, and only when something changed');
+  const home = readSource('components/restaurant/RestaurantPage.tsx');
+  assert(home.includes('billPrint.print({ sale, business })') && home.includes('getDesktopApi()') && home.includes('<InvoiceModal') && home.includes('lines.length > 0 || o.kotRounds > 0'),
+    'Restaurant: the paid bill prints straight away (a browser shows the bill instead); an empty table or token is not kept');
+  const menuSrc = readSource('components/restaurant/useMenu.ts');
+  assert(menuSrc.includes('db.products.toArray()') && !menuSrc.includes('business_type') && readSource('components/restaurant/MenuPanel.tsx').includes('d.sizes.length > 0'),
+    'Restaurant menu = the shop\'s Products (Half / Full are variants); no second item list, nothing branches on the shop type');
+  const anyType = ALL_SOURCE.filter((f) => /[\\/](restaurant)[\\/]/.test(f)).filter((f) => /business_type|businessType/.test(fs.readFileSync(f, 'utf8')));
+  assert(anyType.length === 0, 'Restaurant code never branches on business_type (Bible §9.2)');
 }
 
 // -------------------------------------------------------------

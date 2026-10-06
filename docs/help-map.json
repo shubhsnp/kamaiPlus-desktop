@@ -39,7 +39,10 @@
         "src/app/billing/**",
         "src/components/billing/**",
         "src/lib/billing/**",
-        "src/components/invoices/InvoiceModal.tsx"
+        "src/components/invoices/InvoiceModal.tsx",
+        "src/app/restaurant/**",
+        "src/components/restaurant/**",
+        "src/lib/restaurant/**"
       ],
       "tourStages": [
         "billing",

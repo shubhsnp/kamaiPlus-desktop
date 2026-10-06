@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { KeyRound, LayoutGrid, Lock, MessageCircle, PackagePlus, ShieldCheck } from 'lucide-react';
-import { FEATURES, FeatureInfo, readAdminFeatureOverrides, setFeatureSwitch, useFeatureSwitches } from '@/lib/features/featureSwitches';
+import { FEATURES, FeatureInfo, RESTAURANT_PRESET_OFF, readAdminFeatureOverrides, setFeatureSwitch, useFeatureSwitches, useRestaurantMode } from '@/lib/features/featureSwitches';
 import { hasOwnerPin, setProfitHidden } from '@/lib/auth/cashierPrivacy';
 import { OwnerPinPrompt } from '@/components/privacy/OwnerPinPrompt';
 import { msg, tr } from '@/lib/i18n/core';
@@ -23,6 +23,8 @@ export function FeaturesTab() {
   const switches = useFeatureSwitches();
   // v4.105.0: switches the KamaiPlus Admin set for this computer — shown, not changeable here.
   const forced = readAdminFeatureOverrides();
+  // v4.106.0: Restaurant mode (set from the Admin Console) keeps stock, labels and purchases off.
+  const restaurant = useRestaurantMode();
   const [unlocked, setUnlocked] = useState(() => !hasOwnerPin());
   const [pinOpen, setPinOpen] = useState(false);
 
@@ -80,7 +82,8 @@ export function FeaturesTab() {
             </div>
             <div className="divide-y divide-slate-100">
               {FEATURES.filter((f) => f.group === group.id).map((f) => {
-                const locked = typeof forced[f.id] === 'boolean';
+                const byRestaurant = restaurant && RESTAURANT_PRESET_OFF.includes(f.id) && typeof forced[f.id] !== 'boolean';
+                const locked = typeof forced[f.id] === 'boolean' || byRestaurant;
                 return (
                 <label key={f.id} className={`px-4 py-3 flex items-center justify-between gap-3 ${locked ? 'cursor-not-allowed bg-slate-50/60' : 'cursor-pointer hover:bg-slate-50/70'}`}>
                   <span className="min-w-0">
@@ -88,7 +91,7 @@ export function FeaturesTab() {
                     <span className="block text-[10.5px] text-slate-500 leading-snug">{tr(f.description)}</span>
                     {locked && (
                       <span className="mt-1 inline-flex items-center gap-1 text-[10.5px] font-bold text-indigo-700" data-feature-admin-locked={f.id}>
-                        <Lock className="w-3 h-3" /> {tr('Set by KamaiPlus support for this computer')}
+                        <Lock className="w-3 h-3" /> {byRestaurant ? tr('Off in Restaurant mode') : tr('Set by KamaiPlus support for this computer')}
                       </span>
                     )}
                   </span>

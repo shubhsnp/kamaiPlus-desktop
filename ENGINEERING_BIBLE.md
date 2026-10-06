@@ -585,12 +585,13 @@ public/barcodes/*.json      5 shipped offline barcode dictionaries
 
 ## 4. Routes
 
-20 pages. All are `'use client'`. **There are no API routes.**
+21 pages. All are `'use client'`. **There are no API routes.**
 
 | Route | Purpose | Shell? |
 | :--- | :--- | :--- |
 | `/` | Dashboard (or public marketing view when logged out) | yes |
 | `/billing` | **POS counter.** The most important screen in the app. | yes |
+| `/restaurant` | **Restaurant mode (v4.106.0)** — Tables & Orders. Opens only when the Admin Console forces `restaurant_mode`; for every other shop it shows "not switched on". See §6.6 | yes |
 | `/products` | Catalog master | yes |
 | `/inventory` | Stock, reorder alerts, movements | yes |
 | `/purchases` | Supplier inward (manual + Excel/CSV bill); manual inward can put the value on a saved supplier's account; both offer "Print N labels" (§9.8) | yes |
@@ -835,6 +836,14 @@ The localStorage flag `kamai_products_manually_cleared` exists so that a shop th
 deliberately emptied its catalog is **not** re-seeded on next launch. Respect it.
 
 ---
+
+### 6.6 Restaurant mode (v4.106.0) — `/restaurant`
+
+- **Switch:** only the Admin Console (Remote control → Features → "Restaurant mode"). Stored as `restaurant_mode: true` inside the Admin's forced features (`kamai_admin_feature_overrides`); read by `restaurantModeFromRaw` / `useRestaurantMode`. It is **not** a `FeatureId` and has no row in Settings → Features. Order of precedence in `readFeatureSwitches`: shop switches → restaurant preset (`RESTAURANT_PRESET_OFF`) → Admin's forced switches.
+- **Screens:** Tables (cards, takeaway tokens, Set-up) → Order (menu left, running order right) → Bill & Pay. Leaving a table keeps the order on hold.
+- **Data:** open orders `kamai_restaurant_orders`, set-up `kamai_restaurant_settings` (tables, GST % + inclusive / added, service %, packing ₹, add-on list). Menu = `db.products` (variants = Half / Full). No new Dexie table.
+- **KOT:** `printKot` → silent print on the counter's thermal printer; only the change since the last slip (ADD / CANCEL); `markKotSent` only after a successful print. Add-ons for one piece after the slip split that piece into its own line.
+- **Pay:** `settleOrder` — reserve number → `db.sales.put` → commit number → stock (counted products only) → cloud fire-and-forget; the table is freed only after the Sale is saved. Service and packing are bill lines (`restaurant_service_charge`, `restaurant_packing_charge`, HSN 9963) with the same GST.
 
 ## 7. Shell wiring
 
@@ -1626,6 +1635,8 @@ Each was a real bug that cost real time. The test suite guards most of them.
 | 40 | **Open gaps the shop would hit (before v4.102.0).** (K-D07) An estimate could be converted but not made — and an EST- number would have pushed the next bill number (`getMaxUsedInvoiceSeq` read EST-012 as 12). (K-D03) No udhar limit. (K-D02) A closed shift could not be seen again. (K-D06) Starred items were not first. (K-D21) No way to send goods back to a supplier (debit note) or to keep a purchase order. | `lib/billing/estimate.ts` (`nextEstimateNumber` with a per-PC floor so a converted number is not reused, `buildEstimateSale` — draft, nothing paid / owed); `handleSaveEstimate` in the counter writes only `sales`; `invoiceNumberService` skips EST- keys. `lib/billing/creditLimit.ts` (warn, shop decides; `credit_limit` ↔ cloud `credit_limit_paise`). `CashShiftHistory.tsx`. `favouritesFirst` in `posLayout.ts`. `lib/purchases/supplierDocs.ts` (purchase_bills `kind`; debit note = stock + record + supplier account in one transaction; order changes nothing until "Received" = a normal inward, once). Suite 21 "v4.102.0" block (19 checks). |
 | 41 | **Loose ends (before v4.103.0).** (K-D12) The route guard listed 8 pages that never existed. (K-D31) The app named Mukta but did not ship it — PCs without it showed Nirmala UI. (K-D30) `ELECTRON_RUN_AS_NODE=1` turned the installed exe into plain Node. (K-D17) The E2E's first licensed launch failed at 20 s on a cold start. (K-D01) `src/lib/payments` (phone notification parser, Capacitor payment bridge, soundbox) was dead code. (K-D05) A mistyped GSTIN passed the format check. (K-D28) The same item typed on the phone and the PC showed twice after sync (also an Excel list imported twice). | AppShell names only real routes; `@font-face` ×15 in `globals.css` → `src/assets/fonts` (OFL); `build.electronFuses` (runAsNode / NODE_OPTIONS / inspect off); `FIRST_LAUNCH_WAIT_MS` 60 s; payments code deleted (dead-module list); `gstinCheckChar` in `validateGstin`; `lib/products/duplicates.ts` (`findDuplicateGroups`, `mergeDuplicateProducts` — one transaction, references moved before the copies are deleted) + `DuplicateItemsReview` on Products. Suite 21 "v4.103.0" block. |
 | 42 | **Files too big to change safely (before v4.104.0, K-D23).** `billing/page.tsx` 2,227 lines, `khata/page.tsx` 1,176, `products/page.tsx` 675 and 12 more over the 400-line rule — every change to the counter risked the rest of it. | Each moved verbatim (TypeScript-compiler free-variable list → props / deps typed from the checker, same hook order, values read per render as before) into the files listed just above the table-writers list; no behaviour change. Tests that read a page's code read the page + its parts (`readCounter`, `readKhata`, `readProductsPage`, `readSettingsPage`, `readProductForm`, `readOnboarding`). Suite 21 "v4.104.0": no `src` file over 400 lines. |
+| 43 | **Restaurant mode (v4.106.0).** A restaurant needs tables that stay open, takeaway tokens, add-ons, a kitchen slip and one GST bill per table — the counter (`/billing`) is built for one-shot retail bills. | Separate route `/restaurant` (`app/restaurant/page.tsx` → `components/restaurant/`: `RestaurantPage`, `TablesHome`, `OrderScreen`, `MenuPanel`, `OrderPanel`, `AddOnsDialog`, `PayDialog`, `SetupDialog`, `useMenu`); pure logic in `lib/restaurant/` (`model.ts` lines / add-ons / KOT delta / totals / tokens, `settings.ts`, `store.ts` running orders, `kot.ts`, `settle.ts`). On only via the Admin Console (`restaurant_mode` inside the Admin's forced features — not a `FeatureId`, no Settings switch); preset turns inventory / barcode_studio / purchases / suppliers off; `FeatureGate` sends `/billing` → `/restaurant`. Menu = Products (variants = Half / Full). Running orders = localStorage `kamai_restaurant_orders` (like held bills), set-up = `kamai_restaurant_settings` — no new Dexie table. Paying = an ordinary Sale (same invoice series, GST, reports; `customer_name` = "Table T4" / "Takeaway TA-07"), same order as §6.1; table freed only after the bill is saved. KOT prints silently, only what changed since the last slip, marked sent only if it printed. Suite 21 "v4.106.0" block. |
+
 ---
 
 ## 11. Verification protocol (AGENTS.md Rule 6)
@@ -1634,7 +1645,7 @@ Before **every** commit:
 
 ```bash
 npx tsc --noEmit                    # must be 0 errors
-npx tsx scripts/e2e_simulation.ts   # must be 842/842, 0 failures
+npx tsx scripts/e2e_simulation.ts   # must be all passing, 0 failures
 node scripts/help_impact.mjs        # which help guides the change touches → row in docs/HELP_SYNC.md (Rule 7)
 npx tsx scripts/bump_version.ts     # +0.1 minor, updates package.json + version.ts
 git commit -m "<type>(v<NEW>): <description>"
@@ -1825,7 +1836,7 @@ for d in src/lib/*/; do echo "$d: $(ls $d | tr '\n' ' ')"; done
 # §7  which files WRITE which Dexie table  (the real dependency matrix)
 rg -n "db\.[a-z_]+\.(put|bulkPut|add|update|delete|clear)" src/ -o --no-heading | sort -u
 
-# §7  localStorage keys
+# §7  localStorage keys (restaurant: kamai_restaurant_orders, kamai_restaurant_settings)
 rg -o "localStorage\.(getItem|setItem|removeItem)\('[^']+'" src/ | sed "s/.*('//" | sort -u
 
 # §7  window events
