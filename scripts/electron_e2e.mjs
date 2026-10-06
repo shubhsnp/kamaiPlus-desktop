@@ -1578,6 +1578,130 @@ async function run() {
       }
     }
   }
+
+  // ── 5. Restaurant mode (v4.106.0) — only when the Admin forces it ──
+  {
+    const userData = path.join(dataDir, 'userData');
+    const setControl = (control) => {
+      fs.writeFileSync(path.join(userData, 'admin_control.json'), JSON.stringify(control));
+      fs.writeFileSync(path.join(userData, 'admin_messages.json'), JSON.stringify([]));
+    };
+    const openShop = async (page) => {
+      const pw = page.getByPlaceholder('••••••••');
+      await pw.waitFor({ state: 'visible', timeout: 30000 });
+      await pw.fill(PASSWORD);
+      await pw.press('Enter');
+      await page.waitForURL((u) => !u.pathname.startsWith('/auth'), { timeout: 15000 }).catch(() => {});
+      await page.waitForTimeout(1500);
+    };
+
+    // a) Not switched on: /restaurant is closed.
+    setControl({ mode: 'normal' });
+    {
+      const { app, page } = await launch(dataDir);
+      try {
+        await openShop(page);
+        await page.evaluate(() => { window.location.href = '/restaurant/'; });
+        const closed = await page.locator('[data-restaurant-closed]').waitFor({ timeout: 15000 }).then(() => true, () => false);
+        check(closed && (await page.locator('[data-restaurant-screen]').count()) === 0, 'Restaurant mode off: /restaurant says "not switched on" and shows no tables');
+      } catch (err) {
+        check(false, `Restaurant closed check failed: ${err.message.split('\n')[0]}`);
+      } finally {
+        await app.close();
+      }
+    }
+
+    // b) Switched on: tables, order, KOT, hold, pay.
+    setControl({ mode: 'normal', features: { restaurant_mode: true } });
+    {
+      const { app, page, pageErrors } = await launch(dataDir);
+      let step = 'start';
+      try {
+        await openShop(page);
+        step = 'redirect';
+        await page.evaluate(() => { window.location.href = '/billing/'; });
+        const tables = page.locator('[data-restaurant-screen="tables"]');
+        const onTables = await tables.waitFor({ timeout: 20000 }).then(() => true, () => false);
+        check(onTables && new URL(page.url()).pathname.startsWith('/restaurant'), 'Restaurant mode on: Billing opens Tables & Orders');
+        check((await page.locator('aside a[href="/restaurant"]').count()) === 1 && (await page.locator('aside a[href="/inventory"]').count()) === 0
+          && (await page.locator('aside a[href="/purchases"]').count()) === 0, 'Menu shows Tables & Orders; Stock and Purchases are hidden');
+        const freeCount = await page.locator('[data-table-state="free"]').count();
+        check(freeCount >= 10, `Ten starter tables are free (${freeCount})`);
+
+        step = 'order';
+        await page.locator('[data-table="T1"]').click();
+        await page.locator('[data-restaurant-screen="order"]').waitFor({ timeout: 10000 });
+        const dish = page.locator('[data-menu-dish]:not([disabled])').first();
+        await dish.waitFor({ timeout: 10000 });
+        const addDish = async () => {
+          await dish.click();
+          const sizes = page.locator('[data-restaurant-sizes]');
+          if (await sizes.count()) await sizes.locator('button').first().click();
+        };
+        await addDish();
+        await addDish();
+        const line = page.locator('[data-order-line]').first();
+        await line.waitFor({ timeout: 5000 });
+        check((await page.locator('[data-order-line]').count()) === 1 && (await line.locator('[data-line-qty]').innerText()).trim() === '2',
+          'Tapping the same dish twice makes one line with quantity 2');
+        const totalText = (await page.locator('[data-order-total]').innerText()).replace(/[^\d.]/g, '');
+        check(parseFloat(totalText) > 0, 'The order shows a running total');
+
+        step = 'addons';
+        await line.locator('[data-line-addons]').click();
+        await page.locator('[data-restaurant-addons]').waitFor({ timeout: 5000 });
+        await page.locator('[data-restaurant-addons] button', { hasText: 'Extra cheese' }).first().click();
+        await page.locator('[data-addons-apply]').click();
+        await page.waitForTimeout(500);
+        check((await page.locator('[data-order-line]').count()) === 2, 'Add-ons on one piece split it into its own line (1 plain + 1 with Extra cheese)');
+
+        step = 'kot';
+        await page.locator('[data-order-kot]').click();
+        const toast = await page.locator('[data-restaurant-toast]').waitFor({ timeout: 15000 }).then(() => true, () => false);
+        check(toast, 'Send KOT answers with a message (sent, or the printer problem) — it never hangs silently');
+
+        step = 'hold';
+        await page.locator('[data-order-back]').click();
+        await tables.waitFor({ timeout: 10000 });
+        check((await page.locator('[data-table="T1"]').getAttribute('data-table-state')) === 'running', 'Leaving the table keeps its order running (on hold)');
+        await page.locator('[data-table="T1"]').click();
+        await page.locator('[data-order-line]').first().waitFor({ timeout: 10000 });
+        check((await page.locator('[data-order-line]').count()) === 2, 'Coming back to the table shows the same order');
+
+        step = 'pay';
+        await page.locator('[data-order-pay]').click();
+        await page.locator('[data-restaurant-pay]').waitFor({ timeout: 5000 });
+        const payTotal = parseFloat((await page.locator('[data-pay-total]').innerText()).replace(/[^\d.]/g, ''));
+        await page.locator('[data-pay-received]').fill(String(Math.ceil(payTotal) + 100));
+        check((await page.locator('[data-pay-change]').count()) === 1, 'Cash received above the total shows the change to give back');
+        await page.locator('[data-pay-settle]').click();
+        await tables.waitFor({ timeout: 25000 });
+        await page.waitForTimeout(1000);
+        check((await page.locator('[data-table="T1"]').getAttribute('data-table-state')) === 'free', 'After Settle the table is free again');
+
+        step = 'takeaway';
+        await page.locator('[data-new-takeaway]').click();
+        await page.locator('[data-restaurant-screen="order"]').waitFor({ timeout: 10000 });
+        const tok = await page.locator('[data-restaurant-order]').innerText();
+        check(/TA-\d\d/.test(tok), 'New takeaway gives a token (TA-01…)');
+        await page.locator('[data-order-back]').click();
+        await tables.waitFor({ timeout: 10000 });
+        check((await page.locator('[data-takeaway]').count()) === 0, 'An empty takeaway token is not kept');
+
+        step = 'bill in history';
+        await page.evaluate(() => { window.location.href = '/transactions/'; });
+        check(await textVisible(page, 'Table T1', 20000), 'The paid table bill is in Transactions as "Table T1"');
+        const fatal = pageErrors.filter((m) => !/ResizeObserver|Failed to fetch|NetworkError|firestore|net::ERR/i.test(m));
+        check(fatal.length === 0, `No page errors in Restaurant mode${fatal.length ? ': ' + fatal[0] : ''}`);
+      } catch (err) {
+        check(false, `Restaurant mode flow failed at "${step}": ${err.message.split('\n')[0]}`);
+        await shot(page, 'failed-restaurant');
+      } finally {
+        await app.close();
+      }
+    }
+    setControl({ mode: 'normal' });
+  }
   fs.rmSync(dataDir, { recursive: true, force: true });
 }
 
