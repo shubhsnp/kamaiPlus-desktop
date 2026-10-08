@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Check, Copy, Headset, Mail, MessageCircle, Phone } from 'lucide-react';
+import { Check, Copy, Globe, Headset, Mail, MessageCircle, Phone } from 'lucide-react';
 import { tr } from '@/lib/i18n/core';
 import { cn } from '@/lib/utils';
 import {
@@ -51,11 +51,11 @@ export const SupportContactCard: React.FC<{ shopName?: string | null }> = ({ sho
         </div>
         <div className="min-w-0">
           <h3 className="text-sm font-black text-slate-900">{tr('KamaiPlus Support')}</h3>
-          <p className="text-[11px] text-slate-500">{tr('Help with billing, licence key, printer, backup or updates — in Hindi, Marathi or English.')}</p>
+          <p className="text-[11px] text-slate-500">{tr('Aapki Dukaan Ka Digital Sathi')} • {tr('Help with billing, licence key, printer, backup or updates — in Hindi, Marathi or English.')}</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
         <div className="p-3 rounded-xl border border-emerald-200 bg-emerald-50/60 flex flex-col gap-2">
           <div className="flex items-center gap-1.5 text-[11px] font-black text-emerald-800 uppercase tracking-wide">
             <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
@@ -98,6 +98,23 @@ export const SupportContactCard: React.FC<{ shopName?: string | null }> = ({ sho
             <CopyButton value={SUPPORT_EMAIL} />
           </div>
         </div>
+
+        <div className="p-3 rounded-xl border border-rose-200 bg-rose-50/60 flex flex-col gap-2 min-w-0">
+          <div className="flex items-center gap-1.5 text-[11px] font-black text-rose-800 uppercase tracking-wide">
+            <Globe className="w-3.5 h-3.5" /> {tr('Website')}
+          </div>
+          <div className="text-xs font-bold text-slate-900 font-mono select-all truncate">{'www.kamaiplus.com'}</div>
+          <div className="mt-auto flex gap-1.5">
+            <a
+              href="https://www.kamaiplus.com"
+              target="_blank"
+              rel="noreferrer"
+              className="h-8 w-full rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold flex items-center justify-center gap-1"
+            >
+              <Globe className="w-3.5 h-3.5" /> {tr('Visit Website')}
+            </a>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -105,7 +122,7 @@ export const SupportContactCard: React.FC<{ shopName?: string | null }> = ({ sho
 
 /**
  * One line for the screens before the app opens (licence, locked account,
- * forgotten password): "WhatsApp +91 86699 97711 · kamaiplus.app@gmail.com".
+ * forgotten password): "WhatsApp +91 86699 97711 · kamaiplus.app@gmail.com · www.kamaiplus.com".
  */
 export const SupportContactLine: React.FC<{ message: string; className?: string }> = ({ message, className }) => (
   <span className={cn('inline-flex flex-wrap items-center justify-center gap-x-3 gap-y-1', className)}>
@@ -124,6 +141,14 @@ export const SupportContactLine: React.FC<{ message: string; className?: string 
       className="inline-flex items-center gap-1 font-mono font-bold hover:underline"
     >
       <Mail className="w-3.5 h-3.5" /> {SUPPORT_EMAIL}
+    </a>
+    <a
+      href="https://www.kamaiplus.com"
+      target="_blank"
+      rel="noreferrer"
+      className="inline-flex items-center gap-1 font-bold text-slate-400 hover:text-red-400"
+    >
+      <Globe className="w-3.5 h-3.5" /> {'www.kamaiplus.com'}
     </a>
   </span>
 );

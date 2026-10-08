@@ -60,7 +60,11 @@ export default function OnboardingPage() {
       <div className="w-full max-w-xl relative z-10">
         {/* Brand Header */}
         <div className="text-center mb-6">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-400/10 border border-amber-400/20 text-amber-300 text-xs font-bold mb-3 shadow-sm">
+          <div className="flex items-center justify-center gap-1.5 mb-2">
+            <span className="text-2xl font-black text-white tracking-tight">{'Kamai'}<span className="text-red-500">{'Plus'}</span></span>
+            <span className="text-xs text-slate-400 font-semibold">• {tr('Aapki Dukaan Ka Digital Sathi')}</span>
+          </div>
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-slate-300 text-xs font-bold mb-3 shadow-sm">
             <Sparkles className="w-4 h-4 text-amber-400" />
             <span>{tr('Store Onboarding • Fast & Free Setup')}</span>
           </div>
@@ -71,6 +75,14 @@ export default function OnboardingPage() {
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
             {tr('Fill in your shop details to launch your digital billing counter and khata.')}
           </p>
+          <a
+            href="https://www.kamaiplus.com"
+            target="_blank"
+            rel="noreferrer"
+            className="text-[11px] text-slate-500 hover:text-red-400 font-medium inline-block mt-1"
+          >
+            {'www.kamaiplus.com'}
+          </a>
         </div>
 
         {/* Onboarding Form Card */}

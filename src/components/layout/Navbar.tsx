@@ -302,6 +302,22 @@ export const Navbar: React.FC = () => {
                   <span>{tr('Log Out / Switch Account')}</span>
                 </button>
               </div>
+
+              {/* Brand Footer */}
+              <div className="py-2 px-3 text-center text-[10.5px] border-t border-slate-100 bg-slate-50/70 rounded-b-xl">
+                <div className="font-black text-slate-900">
+                  {'Kamai'}<span className="text-red-600">{'Plus'}</span>
+                  <span className="font-medium text-slate-500 text-[10px] ml-1.5">• {tr('Aapki Dukaan Ka Digital Sathi')}</span>
+                </div>
+                <a
+                  href="https://www.kamaiplus.com"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[10px] text-slate-400 hover:text-red-600 transition block mt-0.5"
+                >
+                  {'www.kamaiplus.com'}
+                </a>
+              </div>
             </div>
           )}
         </div>

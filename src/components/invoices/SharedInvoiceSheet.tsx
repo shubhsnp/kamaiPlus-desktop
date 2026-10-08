@@ -237,7 +237,7 @@ export function SharedInvoiceSheet(props: SharedInvoiceSheetProps) {
       <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between text-[10px] text-slate-500 gap-2">
         <div className="flex items-center gap-1.5">
           <img src="/logo.png" alt="KamaiPlus" className="w-3.5 h-3.5 object-contain" />
-          <span>Generated via <strong>KamaiPlus POS</strong> • Offline-First Digital Invoicing</span>
+          <span>Generated via <strong>Kamai<span className="text-red-600">Plus</span></strong> • Aapki Dukaan Ka Digital Sathi • www.kamaiplus.com</span>
         </div>
         <div>Thank you for your visit!</div>
       </div>

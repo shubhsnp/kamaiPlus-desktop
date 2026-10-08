@@ -165,7 +165,7 @@ function PayContent() {
       </div>
 
       <div className="text-center text-[11px] text-slate-400">
-        Secured by KamaiPlus • Payments go directly to merchant bank account
+        Secured by <span className="font-bold text-white">Kamai<span className="text-red-500">Plus</span></span> • Aapki Dukaan Ka Digital Sathi • www.kamaiplus.com
       </div>
     </div>
   );

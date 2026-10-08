@@ -45,13 +45,13 @@ export const PWAInstallBanner: React.FC = () => {
             />
             <div className="min-w-0">
               <div className="text-xs font-black text-white truncate flex items-center gap-1.5">
-                <span>Install KamaiPlus</span>
+                <span>Install Kamai<span className="text-red-500">Plus</span></span>
                 <span className="text-[9px] px-1 py-0.2 rounded bg-amber-400 text-slate-950 font-black">
                   APP
                 </span>
               </div>
               <div className="text-[10px] text-slate-400 truncate">
-                100% Offline • Desktop & Mobile
+                Aapki Dukaan Ka Digital Sathi • www.kamaiplus.com
               </div>
             </div>
           </div>

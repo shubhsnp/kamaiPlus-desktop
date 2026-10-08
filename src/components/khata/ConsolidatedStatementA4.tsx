@@ -209,7 +209,7 @@ export function ConsolidatedStatementA4(props: ConsolidatedStatementA4Props) {
       <div className="pt-3 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-[10.5px] text-slate-500">
         <div className="space-y-0.5 text-center sm:text-left">
           <div>{tr('Thank you for your business! Please clear the pending balance at your earliest convenience.')}</div>
-          <div className="text-slate-400">{tr('Generated via KamaiPlus Smart Billing System')}</div>
+          <div className="text-slate-400">{'Generated via KamaiPlus • Aapki Dukaan Ka Digital Sathi • www.kamaiplus.com'}</div>
         </div>
         <div className="text-center sm:text-right shrink-0">
           <div className="h-8"></div>

@@ -232,10 +232,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
       )}>
         <span 
           className="flex items-center gap-1.5 cursor-default"
-          title={tr('KamaiPlus Desktop v{APP_VERSION}', { APP_VERSION: APP_VERSION })}
+          title={`KamaiPlus • Aapki Dukaan Ka Digital Sathi • www.kamaiplus.com (v${APP_VERSION})`}
         >
           <img src="/logo.png" alt="KamaiPlus" className="w-4 h-4 object-contain" />
-          {!isCollapsed && <span className="font-bold text-slate-800">KamaiPlus</span>}
+          {!isCollapsed && (
+            <span className="font-black text-slate-950 tracking-tight">
+              {'Kamai'}<span className="text-red-600">{'Plus'}</span>
+            </span>
+          )}
         </span>
         {!isCollapsed && (
           <span className="font-mono text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 font-bold border border-slate-200/60">

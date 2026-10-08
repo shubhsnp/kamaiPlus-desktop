@@ -28,16 +28,27 @@ export default function AuthPage() {
           </div>
 
           <div className="flex items-center gap-2 justify-center">
-            <h1 className="text-3xl font-black text-amber-400 tracking-tight">KamaiPlus</h1>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-400/10 text-amber-300 text-[10px] font-bold border border-amber-400/20">
-              <ShieldCheck className="w-3 h-3 text-amber-400" />
+            <h1 className="text-3xl font-black tracking-tight">
+              <span className="text-white">{'Kamai'}</span>
+              <span className="text-red-500">{'Plus'}</span>
+            </h1>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 text-[10px] font-bold border border-slate-700">
+              <ShieldCheck className="w-3 h-3 text-red-500" />
               <span>{tr('Verified POS')}</span>
             </span>
           </div>
 
-          <p className="text-sm font-medium text-slate-400 mt-1">
-            आपकी दुकान का डिजिटल साथी
+          <p className="text-sm font-semibold text-slate-300 mt-1">
+            {tr('Aapki Dukaan Ka Digital Sathi')}
           </p>
+          <a
+            href="https://www.kamaiplus.com"
+            target="_blank"
+            rel="noreferrer"
+            className="text-xs text-slate-400 hover:text-red-400 transition font-medium mt-1 inline-flex items-center gap-1"
+          >
+            {'www.kamaiplus.com'}
+          </a>
         </div>
 
         {/* Local master-password lock for this computer */}

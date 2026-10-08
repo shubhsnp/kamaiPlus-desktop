@@ -3015,5 +3015,8 @@
   "Also delete sales bills from Cloud Firestore": "क्लाउड से भी बिक्री बिल हटाएं",
   "Resetting History...": "इतिहास रीसेट हो रहा है...",
   "Yes, Clear Sales History": "हाँ, बिक्री इतिहास हटाएं",
-  "Settings → Data Maintenance: safe 3-tier reset with cloud sync wiping (Clean Products, Reset Sales Bills with fresh INV-001 restart, and Factory Reset with Store Profile protection).": "सेटिंग्स → डेटा मेंटेनेंस: क्लाउड सिंक वाइप के साथ 3-स्तरीय सुरक्षित रीसेट (उत्पाद साफ़ करें, नए INV-001 रीस्टार्ट के साथ बिक्री बिल रीसेट करें, और स्टोर प्रोफ़ाइल सुरक्षा के साथ फ़ैक्टरी रीसेट)।"
+  "Settings → Data Maintenance: safe 3-tier reset with cloud sync wiping (Clean Products, Reset Sales Bills with fresh INV-001 restart, and Factory Reset with Store Profile protection).": "सेटिंग्स → डेटा मेंटेनेंस: क्लाउड सिंक वाइप के साथ 3-स्तरीय सुरक्षित रीसेट (उत्पाद साफ़ करें, नए INV-001 रीस्टार्ट के साथ बिक्री बिल रीसेट करें, और स्टोर प्रोफ़ाइल सुरक्षा के साथ फ़ैक्टरी रीसेट)।",
+  "Aapki Dukaan Ka Digital Sathi": "आपकी दुकान का डिजिटल साथी",
+  "Website": "वेबसाइट",
+  "Visit Website": "वेबसाइट देखें"
 }

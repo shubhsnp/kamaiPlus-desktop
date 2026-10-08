@@ -150,7 +150,8 @@ export function ThermalReceipt({ doc, sale, business, width }: Props) {
       {rule}
       <div style={center}>
         <div>{doc.footerNote || 'Thank you for your visit!'}</div>
-        <div style={{ marginTop: 2 }}>KamaiPlus Smart POS</div>
+        <div style={{ marginTop: 2 }}>KamaiPlus • Aapki Dukaan Ka Digital Sathi</div>
+        <div style={{ marginTop: 1, fontSize: 9 }}>www.kamaiplus.com</div>
       </div>
     </div>
   );
