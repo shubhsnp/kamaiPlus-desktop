@@ -136,29 +136,14 @@ export async function ensureStarterBusinessIfEmpty(): Promise<Business> {
   return existing;
 }
 
-/**
- * Completely clean all product and stock inventory data from local database.
- * Retains customers, sales records, and business settings.
- */
-export async function clearAllProductData(): Promise<{ success: boolean; deletedCount: number }> {
-  const count = await db.products.count();
-  await db.products.clear();
-  await db.inventory_movements.clear();
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('kamai_products_manually_cleared', 'true');
-  }
-  return { success: true, deletedCount: count };
-}
+export {
+  clearAllProductData,
+  clearSalesAndAnalyticsHistory,
+  clearKhataAndCustomers,
+  completeFactoryReset,
+  restoreStarterProductCatalog,
+} from './dataReset';
 
-/**
- * Re-seed starter sample products for testing or fresh catalog setup.
- */
-export async function restoreStarterProductCatalog(businessId: string): Promise<void> {
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('kamai_products_manually_cleared');
-  }
-  await seedBusinessStarterData(businessId);
-}
 
 // Starter categories, sample products and marketing templates for a new shop.
 export async function seedBusinessStarterData(businessId: string) {

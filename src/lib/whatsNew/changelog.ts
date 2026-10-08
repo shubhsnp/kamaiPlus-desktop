@@ -15,6 +15,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.111.0',
+    items: [
+      msg('Settings → Data Maintenance: safe 3-tier reset with cloud sync wiping (Clean Products, Reset Sales Bills with fresh INV-001 restart, and Factory Reset with Store Profile protection).'),
+    ],
+  },
+  {
     version: '4.110.0',
     items: [
       msg('Restaurant: dish count badges on the menu tiles are aligned inside each card so numbers never get cropped or cut off when adding items.'),

@@ -1,7 +1,7 @@
-import { doc, getDoc, increment, runTransaction, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, increment, runTransaction, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore';
 import { getFirestoreDb } from '@/lib/firebase/config';
 import { sanitizeForFirestore } from '@/lib/firebase/firestoreSync';
-import { CloudTable, toCloud } from './cloudContract';
+import { CloudTable, CLOUD_TABLES, toCloud } from './cloudContract';
 import { COUNTER_FIELDS, CounterTable, Outbox } from './cloudOutbox';
 
 /**
@@ -67,6 +67,44 @@ export async function deleteRows(bizId: string, table: CloudTable, ids: string[]
     for (const id of ids.slice(i, i + BATCH)) batch.delete(doc(fs, `businesses/${bizId}/${table}/${id}`));
     await batch.commit();
   }
+}
+
+/**
+ * Permanently wipes all documents from a specific subcollection in Cloud Firestore.
+ * Used during data reset so deleted local items are not resurrected on next sync.
+ */
+export async function wipeCloudTable(bizId: string, table: CloudTable): Promise<number> {
+  const fs = firestore();
+  const colRef = collection(fs, `businesses/${bizId}/${table}`);
+  const snap = await getDocs(colRef);
+  if (snap.empty) return 0;
+
+  const docs = snap.docs;
+  for (let i = 0; i < docs.length; i += BATCH) {
+    const batch = writeBatch(fs);
+    for (const d of docs.slice(i, i + BATCH)) {
+      batch.delete(d.ref);
+    }
+    await batch.commit();
+  }
+  return docs.length;
+}
+
+/**
+ * Permanently wipes all operational retail tables for a shop in Cloud Firestore,
+ * while strictly preserving the root `businesses/${bizId}` profile document.
+ */
+export async function wipeAllCloudOperationalData(bizId: string): Promise<Record<string, number>> {
+  const results: Record<string, number> = {};
+  for (const table of CLOUD_TABLES) {
+    if (table === 'businesses') continue;
+    try {
+      results[table] = await wipeCloudTable(bizId, table);
+    } catch (err) {
+      console.error(`Failed to wipe cloud table ${table}:`, err);
+    }
+  }
+  return results;
 }
 
 /**

@@ -68,6 +68,11 @@ export async function warmInvoiceNumberCache(): Promise<void> {
   }
 }
 
+/** Resets the cached invoice sequence when sales history is wiped or restored. */
+export function resetInvoiceNumberCache(): void {
+  maxSeqCache = null;
+}
+
 /**
  * Computes the guaranteed next unique sequential invoice number for a business.
  * Inspects both the business's configured sequence counter and all existing recorded sales
