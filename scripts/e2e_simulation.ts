@@ -655,6 +655,9 @@ const DELETED = [
   'components/settings/AiScanSettingsCard.tsx',
   'lib/ai/geminiClient.ts',
   'lib/ai/billScanPrompt.ts',
+  // v4.113.0: PWA banner and install hooks discontinued for native Electron desktop app.
+  'components/pwa/PWAInstallBanner.tsx',
+  'lib/pwa/usePWAInstall.ts',
 ];
 for (const rel of DELETED) {
   assert(!fs.existsSync(path.join(SRC_ROOT, rel)), `Dead module ${rel} is not back in the tree`);
