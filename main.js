@@ -1,5 +1,5 @@
 require('v8-compile-cache');
-const { app, BrowserWindow, clipboard, dialog, ipcMain, net, Notification, protocol, shell } = require('electron');
+const { app, BrowserWindow, clipboard, dialog, ipcMain, net, Notification, protocol, session, shell } = require('electron');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -573,6 +573,73 @@ async function runAdminCommand(cmd) {
       const busy = await idleOrRetry();
       if (busy) return busy;
       return { ok: true, note: 'Restarted', after: () => setTimeout(() => { app.relaunch(); app.exit(0); }, 1500) };
+    }
+    case 'wipe_and_reset': {
+      const busy = await idleOrRetry();
+      if (busy) return busy;
+      return {
+        ok: true,
+        note: 'Wiping all app data and resetting computer',
+        after: () => {
+          setTimeout(async () => {
+            try {
+              if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.loadURL('about:blank');
+              }
+            } catch (e) {
+              console.error('Failed to navigate mainWindow to blank', e);
+            }
+            try {
+              if (session && session.defaultSession) {
+                await session.defaultSession.clearStorageData();
+              }
+            } catch (e) {
+              console.error('Failed to clear session storage data', e);
+            }
+            const userData = app.getPath('userData');
+            const filesToDelete = [
+              'licence.json',
+              'licence.blocked.json',
+              'licence_clock.json',
+              'admin_control.json',
+              'admin_commands.json',
+              'admin_messages.json',
+              'shop_counts.json',
+              'auto_backup_state.json',
+              'kamai_cloud_state.json',
+              'cash_drawer.json',
+              'app_errors.json'
+            ];
+            for (const file of filesToDelete) {
+              try {
+                const fullPath = path.join(userData, file);
+                if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
+              } catch (e) {
+                console.error('Failed to delete', file, e);
+              }
+            }
+            const dirsToDelete = [
+              'IndexedDB',
+              'Local Storage',
+              'Session Storage',
+              'blob_storage',
+              'Cache',
+              'Code Cache',
+              'GPUCache'
+            ];
+            for (const dir of dirsToDelete) {
+              try {
+                const fullPath = path.join(userData, dir);
+                if (fs.existsSync(fullPath)) fs.rmSync(fullPath, { recursive: true, force: true });
+              } catch (e) {
+                console.error('Failed to remove dir', dir, e);
+              }
+            }
+            app.relaunch();
+            app.exit(0);
+          }, 1500);
+        }
+      };
     }
     default:
       return { ok: false, note: 'Unknown command' };

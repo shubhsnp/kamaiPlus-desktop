@@ -4113,10 +4113,12 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
   const pre = fs.readFileSync(path.join(SRC_ROOT, '..', 'preload.js'), 'utf8');
   const lic = fs.readFileSync(path.join(SRC_ROOT, '..', 'licence.js'), 'utf8');
   assert(mainJs.includes('Date.now() - lastCheckIn >= checkInEveryMs()') && /case 'restart_app': \{\s*const busy = await idleOrRetry\(\);/.test(mainJs)
+    && /case 'wipe_and_reset':[\s\S]{0,300}const busy = await idleOrRetry\(\);/.test(mainJs)
     && /case 'install_update':[\s\S]{0,600}const busy = await idleOrRetry\(\);/.test(mainJs) && mainJs.includes("new Notification({ title: 'KamaiPlus'")
     && mainJs.includes("sendToPage('kp:admin-control', adminControlForPage())") && lic.includes('...(report && Object.keys(report).length ? { report } : {}),')
+    && adminLinkJs.COMMAND_TYPES.includes('wipe_and_reset')
     && ['getAdminControl', 'onAdminControl', 'onAdminCommand', 'adminCommandDone'].every((n) => pre.includes(`${n}:`)),
-    'Main process: check-in every N minutes as the Admin set, restart / install only on an idle counter, Windows notification for urgent / pop-up, the control reaches the page');
+    'Main process: check-in every N minutes as the Admin set, restart / install / wipe_and_reset only on an idle counter, Windows notification for urgent / pop-up, the control reaches the page');
 
   // The Admin Console offers exactly the Desktop's switches (Android repo, when present on this PC).
   const consoleModels = path.join(SRC_ROOT, '..', '..', 'KamaiPlus Android', 'admin_console', 'lib', 'models', 'admin_models.dart');

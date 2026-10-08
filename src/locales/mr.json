@@ -3021,5 +3021,6 @@
   "Visit Website": "वेबसाइट उघडा",
   "Brand consistency across the app: Kamai in black with Plus in red, single unified tagline \"Aapki Dukaan Ka Digital Sathi\", and website link www.kamaiplus.com.": "ॲपमध्ये संपूर्ण ब्रँड सुसंगतता: काळ्या रंगात Kamai आणि लाल रंगात Plus, एकच टॅगलाइन \"आपकी दुकान का डिजिटल साथी\", आणि वेबसाइट लिंक www.kamaiplus.com.",
   "Performance & lightweight update: removed unused mobile packages and web banners for faster loading.": "कार्यप्रदर्शन आणि लाइटवेट अपडेट: वेगवान लोडिंगसाठी न वापरलेले मोबाइल पॅकेजेस आणि वेब बॅनर काढून टाकले.",
-  "Billing counter: fractional quantity presets (¼, ½, ¾) for packets, pieces, kg, litres, and pharmacy strips.": "बिलिंग काउंटर: पाकीट, नग, किलो, लिटर आणि स्ट्रिपसाठी अपूर्णांक प्रमाण (¼, ½, ¾) चे शॉर्टकट."
+  "Billing counter: fractional quantity presets (¼, ½, ¾) for packets, pieces, kg, litres, and pharmacy strips.": "बिलिंग काउंटर: पाकीट, नग, किलो, लिटर आणि स्ट्रिपसाठी अपूर्णांक प्रमाण (¼, ½, ¾) चे शॉर्टकट.",
+  "Remote management: support for remote factory reset and licence wipe from the Admin Console.": "रिमोट मॅनेजमेंट: अ‍ॅडमिन कन्सोलवरून रिमोट फॅक्टरी रीसेट आणि परवाना वाइप करण्याची सुविधा."
 }

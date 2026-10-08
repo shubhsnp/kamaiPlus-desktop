@@ -15,6 +15,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.115.0',
+    items: [
+      msg('Remote management: support for remote factory reset and licence wipe from the Admin Console.'),
+    ],
+  },
+  {
     version: '4.114.0',
     items: [
       msg('Billing counter: fractional quantity presets (¼, ½, ¾) for packets, pieces, kg, litres, and pharmacy strips.'),
