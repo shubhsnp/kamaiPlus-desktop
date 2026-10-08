@@ -479,6 +479,10 @@ const licenceRefresh = async () => {
     if (changed) sendToPage('kp:admin-control', adminControlForPage());
     void runAdminCommands();
   }
+  try {
+    const status = licence.getStatus({ userDataDir, dev: isDevServer });
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('kp:licence-changed', status);
+  } catch {}
   return res;
 };
 

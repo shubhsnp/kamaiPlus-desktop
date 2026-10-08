@@ -15,6 +15,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.116.0',
+    items: [
+      msg('Realtime Live Sync: 1-second instant live reaction for Admin remote commands, lock mode, factory wipe, and messages via Firestore signals.'),
+    ],
+  },
+  {
     version: '4.115.0',
     items: [
       msg('Remote management: support for remote factory reset and licence wipe from the Admin Console.'),

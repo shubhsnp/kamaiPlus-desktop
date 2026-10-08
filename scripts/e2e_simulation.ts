@@ -4129,6 +4129,31 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
     assert(/\('restaurant_mode', '[^']+', 'Mode'\)/.test(dart), 'The Admin Console offers the admin-only Restaurant mode switch');
     assert(JSON.stringify(consoleIds) === JSON.stringify(appIds), `The Admin Console's feature list matches this app's switches (console: ${consoleIds.length}, app: ${appIds.length})`);
   }
+
+  // Desktop Realtime Live Listener (1-second instant live reaction from Firestore)
+  const liveListenerPath = path.join(SRC_ROOT, 'lib', 'desktop', 'desktopLiveListener.ts');
+  const liveSyncCompPath = path.join(SRC_ROOT, 'components', 'desktop', 'DesktopLiveSync.tsx');
+  const layoutPath = path.join(SRC_ROOT, 'app', 'layout.tsx');
+  assert(fs.existsSync(liveListenerPath) && fs.existsSync(liveSyncCompPath), 'Desktop live listener and DesktopLiveSync component exist');
+  const liveListenerCode = fs.readFileSync(liveListenerPath, 'utf8');
+  const layoutCode = fs.readFileSync(layoutPath, 'utf8');
+  assert(liveListenerCode.includes('desktop_signals') && liveListenerCode.includes('api.refreshLicence') && liveListenerCode.includes('onSnapshot'),
+    'desktopLiveListener listens to desktop_signals via onSnapshot and triggers api.refreshLicence()');
+  assert(layoutCode.includes('<DesktopLiveSync />'), 'DesktopLiveSync component is mounted in root layout.tsx');
+
+  // Android Firestore rules & Admin Console signals (when Android repo is present)
+  const androidRules = path.join(SRC_ROOT, '..', '..', 'KamaiPlus Android', 'firestore.rules');
+  if (fs.existsSync(androidRules)) {
+    const rulesCode = fs.readFileSync(androidRules, 'utf8');
+    assert(rulesCode.includes('match /desktop_signals/{key}') && rulesCode.includes('allow read: if true') && rulesCode.includes('allow write: if isAdmin()'),
+      'firestore.rules allows reading desktop_signals and restricts writing to admin');
+  }
+  const adminService = path.join(SRC_ROOT, '..', '..', 'KamaiPlus Android', 'admin_console', 'lib', 'services', 'admin_firestore_service.dart');
+  if (fs.existsSync(adminService)) {
+    const serviceCode = fs.readFileSync(adminService, 'utf8');
+    assert(serviceCode.includes('_pingDesktopLive') && serviceCode.includes('desktop_signals'),
+      'AdminFirestoreService sends realtime timestamp pings to desktop_signals');
+  }
 }
 
 

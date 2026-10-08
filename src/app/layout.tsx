@@ -6,6 +6,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { LicenceGate } from '@/components/licence/LicenceGate';
 import { ErrorReporter } from '@/components/layout/ErrorReporter';
 import { DialogHost } from '@/components/ui/DialogHost';
+import { DesktopLiveSync } from '@/components/desktop/DesktopLiveSync';
 
 
 export const metadata: Metadata = {
@@ -45,6 +46,7 @@ export default function RootLayout({
 
       <body>
         <ErrorReporter />
+        <DesktopLiveSync />
         <DialogHost />
         <I18nProvider>
           <LicenceGate>

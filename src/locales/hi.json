@@ -3022,5 +3022,6 @@
   "Brand consistency across the app: Kamai in black with Plus in red, single unified tagline \"Aapki Dukaan Ka Digital Sathi\", and website link www.kamaiplus.com.": "ऐप में संपूर्ण ब्रांड एकरूपता: काले रंग में Kamai और लाल रंग में Plus, एक समान टैगलाइन \"आपकी दुकान का डिजिटल साथी\", और वेबसाइट लिंक www.kamaiplus.com।",
   "Performance & lightweight update: removed unused mobile packages and web banners for faster loading.": "परफ़ॉर्मेंस और लाइटवेट अपडेट: तेज़ लोडिंग के लिए अप्रयुक्त मोबाइल पैकेज और वेब बैनर हटा दिए गए।",
   "Billing counter: fractional quantity presets (¼, ½, ¾) for packets, pieces, kg, litres, and pharmacy strips.": "बिलिंग काउंटर: पैकेट, पीस, किलो, लीटर और स्ट्रिप के लिए टुकड़ों में मात्रा (¼, ½, ¾) के शॉर्टकट।",
-  "Remote management: support for remote factory reset and licence wipe from the Admin Console.": "रिमोट मैनेजमेंट: एडमिन कंसोल से रिमोट फ़ैक्टरी रीसेट और लाइसेंस वाइप की सुविधा।"
+  "Remote management: support for remote factory reset and licence wipe from the Admin Console.": "रिमोट मैनेजमेंट: एडमिन कंसोल से रिमोट फ़ैक्टरी रीसेट और लाइसेंस वाइप की सुविधा।",
+  "Realtime Live Sync: 1-second instant live reaction for Admin remote commands, lock mode, factory wipe, and messages via Firestore signals.": "रियलटाइम लाइव सिंक: फायरस्टोर सिग्नल्स द्वारा एडमिन रिमोट कमांड्स, लॉक मोड, फैक्टरी वाइप और संदेशों के लिए 1-सेकंड में त्वरित लाइव एक्शन।"
 }
