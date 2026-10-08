@@ -3018,5 +3018,7 @@
   "Settings → Data Maintenance: safe 3-tier reset with cloud sync wiping (Clean Products, Reset Sales Bills with fresh INV-001 restart, and Factory Reset with Store Profile protection).": "सेटिंग्स → डेटा मेंटेनेंस: क्लाउड सिंक वाइप के साथ 3-स्तरीय सुरक्षित रीसेट (उत्पाद साफ़ करें, नए INV-001 रीस्टार्ट के साथ बिक्री बिल रीसेट करें, और स्टोर प्रोफ़ाइल सुरक्षा के साथ फ़ैक्टरी रीसेट)।",
   "Aapki Dukaan Ka Digital Sathi": "आपकी दुकान का डिजिटल साथी",
   "Website": "वेबसाइट",
-  "Visit Website": "वेबसाइट देखें"
+  "Visit Website": "वेबसाइट देखें",
+  "Brand consistency across the app: Kamai in black with Plus in red, single unified tagline \"Aapki Dukaan Ka Digital Sathi\", and website link www.kamaiplus.com.": "ऐप में संपूर्ण ब्रांड एकरूपता: काले रंग में Kamai और लाल रंग में Plus, एक समान टैगलाइन \"आपकी दुकान का डिजिटल साथी\", और वेबसाइट लिंक www.kamaiplus.com।",
+  "Performance & lightweight update: removed unused mobile packages and web banners for faster loading.": "परफ़ॉर्मेंस और लाइटवेट अपडेट: तेज़ लोडिंग के लिए अप्रयुक्त मोबाइल पैकेज और वेब बैनर हटा दिए गए।"
 }

@@ -15,6 +15,18 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.113.0',
+    items: [
+      msg('Performance & lightweight update: removed unused mobile packages and web banners for faster loading.'),
+    ],
+  },
+  {
+    version: '4.112.0',
+    items: [
+      msg('Brand consistency across the app: Kamai in black with Plus in red, single unified tagline "Aapki Dukaan Ka Digital Sathi", and website link www.kamaiplus.com.'),
+    ],
+  },
+  {
     version: '4.111.0',
     items: [
       msg('Settings → Data Maintenance: safe 3-tier reset with cloud sync wiping (Clean Products, Reset Sales Bills with fresh INV-001 restart, and Factory Reset with Store Profile protection).'),

@@ -7,7 +7,6 @@ import { LicenceGate } from '@/components/licence/LicenceGate';
 import { ErrorReporter } from '@/components/layout/ErrorReporter';
 import { DialogHost } from '@/components/ui/DialogHost';
 
-import { PWAInstallBanner } from '@/components/pwa/PWAInstallBanner';
 
 export const metadata: Metadata = {
   title: 'KamaiPlus Desktop | Business Management & Growth Platform',
@@ -52,7 +51,6 @@ export default function RootLayout({
             <AppShell>
               {children}
             </AppShell>
-            <PWAInstallBanner />
           </LicenceGate>
         </I18nProvider>
       </body>

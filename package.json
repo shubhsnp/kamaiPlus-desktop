@@ -1,6 +1,6 @@
 {
   "name": "kamai-plus-desktop",
-  "version": "4.112.0",
+  "version": "4.113.0",
   "private": true,
   "description": "KamaiPlus Desktop Application",
   "scripts": {
@@ -23,7 +23,6 @@
     "test:smoke": "node scripts/smoke_pages.mjs"
   },
   "dependencies": {
-    "@capacitor/core": "^8.5.2",
     "electron-updater": "^6.8.9",
     "react-virtuoso": "^4.18.14",
     "use-debounce": "^10.1.1",

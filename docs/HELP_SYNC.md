@@ -71,3 +71,5 @@ commit if you like; deploy it with the release.
 | 4.110.0 | Restaurant mode only: dish count badges on the menu tiles are aligned inside each card so numbers never get cropped or cut off when adding items. | — | none |
 | 4.111.0 | Settings → Data Maintenance: 3-tier safe reset with Cloud Firestore wiping (Product Catalog Reset, Sales & Bills History Reset restarting sequence to INV-001, and Complete Factory Reset preserving Store Profile and PC Licence); live Database Health Summary cards for Products, Sales, Customers, and Movements. | store-settings | pending |
 | 4.112.0 | Complete brand consistency across entire app: Kamai in Black/dark text with Plus in Red, single unified tagline "Aapki Dukaan Ka Digital Sathi", and website link www.kamaiplus.com on login, sidebar, navbar, help/support, onboarding, PWA banner, online payments, and bill/statement footers. | getting-started, invoice-themes | pending |
+| 4.113.0 | Discontinue and wipe legacy PWA & Capacitor leftovers: removed PWAInstallBanner, usePWAInstall, @capacitor/core and decommissioned service worker; desktop is pure native Electron. | — | none |
+
