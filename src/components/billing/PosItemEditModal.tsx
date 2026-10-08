@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/Input';
 import { CartItem, Business } from '@/types';
 import { cn, formatINR } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
-import { dozenFromPieces, formatCartQty, lineAmountPaise, piecesInDozen } from '@/lib/billing/unitQuantity';
+import { dozenFromPieces, formatCartQty, lineAmountPaise, piecesInDozen, roundQty } from '@/lib/billing/unitQuantity';
 import { getQuantityConfigForUnit } from './posQuantityConfig';
 
 export interface PosItemEditModalProps {
@@ -39,12 +39,15 @@ export const PosItemEditModal: React.FC<PosItemEditModalProps> = ({
 }) => {
   // Dozen items: pieces typed here become twelfths of a dozen (7 pcs = 7/12 dozen).
   const [pieces, setPieces] = useState('');
-  useEffect(() => setPieces(''), [editingCartItem]);
+  // Strip items (Pharmacy): loose tablets typed here convert to fractional strips (e.g. 3 tabs of 10 = 0.3 strip).
+  const [tablets, setTablets] = useState('');
+  useEffect(() => { setPieces(''); setTablets(''); }, [editingCartItem]);
 
   if (!editingCartItem) return null;
 
   const qtyConfig = getQuantityConfigForUnit(editingCartItem.unit);
   const isDozen = (editingCartItem.unit || '').toLowerCase() === 'dozen';
+  const isStrip = (editingCartItem.unit || '').toLowerCase() === 'strip';
   const qtyNow = parseFloat(editItemQty) || 0;
   const ratePaise = Math.round((parseFloat(editItemPrice) || 0) * 100);
 
@@ -71,7 +74,7 @@ export const PosItemEditModal: React.FC<PosItemEditModalProps> = ({
             step={qtyConfig.step}
             placeholder={qtyConfig.placeholder}
             value={editItemQty}
-            onChange={(e) => { setEditItemQty(e.target.value); setPieces(''); }}
+            onChange={(e) => { setEditItemQty(e.target.value); setPieces(''); setTablets(''); }}
             autoFocus
             data-edit-qty
           />
@@ -93,6 +96,26 @@ export const PosItemEditModal: React.FC<PosItemEditModalProps> = ({
                 data-edit-pieces
               />
               {qtyNow > 0 && <span className="text-slate-500 font-semibold">= {tr('{count} pcs', { count: piecesInDozen(qtyNow) })}</span>}
+            </div>
+          )}
+          {isStrip && (
+            <div className="flex items-center gap-2 mt-2 text-xs">
+              <span className="font-bold text-slate-700">{tr('Or pieces:')}</span>
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={tablets}
+                onChange={(e) => {
+                  setTablets(e.target.value);
+                  const n = Math.round(Number(e.target.value));
+                  if (n > 0) setEditItemQty(String(roundQty(n / 10)));
+                }}
+                placeholder={tr('e.g. 7')}
+                className="w-20 h-8 px-2 rounded-lg border border-slate-300 font-mono font-bold"
+                data-edit-tablets
+              />
+              {qtyNow > 0 && <span className="text-slate-500 font-semibold">= {tr('{count} pcs', { count: Math.round(qtyNow * 10) })}</span>}
             </div>
           )}
           <div className="flex flex-wrap items-center gap-1.5 mt-2">

@@ -1413,10 +1413,11 @@ come in now ends with labels that scan, and uses one rule (`lib/inward/stockEntr
 The ✏️ on a bill line (`components/billing/PosItemEditModal.tsx`, chips per unit in
 `posQuantityConfig.ts`, rules in `lib/billing/unitQuantity.ts`):
 
-- piece / pair / set / packet — **whole numbers only** (`allowsFractionalQty`; an item with
-  `allow_decimal` may be split). Saving a split piece is refused in `handleSaveEditItem`.
-- box / bundle / custom — ¼ ½ ¾ 1 1½ 2 3 5; dozen — ¼ ½ ¾ dozen… or **"Or pieces"**
-  (7 pcs → `dozenFromPieces` = 0.583333); kg / litre / metre / gram / ml — as before.
+- pair / set / bottle / can — **whole numbers only** (`allowsFractionalQty`; an item with
+  `allow_decimal` may be split). Saving an unallowed split is refused in `handleSaveEditItem`.
+- piece / packet — ¼ ½ ¾ 1 1½ 2 3 5 10; box / bundle / custom — ¼ ½ ¾ 1 1½ 2 3 5; dozen — ¼ ½ ¾ dozen… or **"Or pieces"**
+  (7 pcs → `dozenFromPieces` = 0.583333); strip — loose tablets & fractions (0.1 tab, 0.5 half strip) or **"Or loose tablets"**;
+  kg / litre / gram / ml — grams (10g, 25g, 50g, 100g, 250g, 500g, 750g, 1kg) and ml (50ml, 100ml, 250ml, 500ml, 750ml, 1L).
 - Quantities keep **6 decimals** (`roundQty`), so 7/12 dozen × any rate rounds to the exact
   paise (`lineAmountPaise` = rate × qty). The window shows "qty unit × rate — Amount" live.
 - The cart shows `formatCartQty` (0.583, never 0.5833333333); bills already use `formatQty`.

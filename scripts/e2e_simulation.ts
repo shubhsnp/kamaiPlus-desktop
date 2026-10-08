@@ -1665,12 +1665,12 @@ assert(readSource('app/billing/page.tsx').split('\n').length <= 401, `POS page s
     'Product form: "Save & print label" is a real submit (form checks still run), then the label window opens with one label per piece of a new item');
 }
 
-// (g) ✏️ on a bill line: parts by unit — a piece / pair / set / packet only whole, a box ¼ ½ ¾,
-// a dozen also in pieces (7 pcs = 7/12), kg in grams; the amount is always rate × quantity.
+// (g) ✏️ on a bill line: parts by unit — pair / set / bottle / can whole only; piece, packet, box,
+// dozen (also in pieces: 7 pcs = 7/12), strip in loose tabs/half strip, kg in grams; the amount is rate × quantity.
 {
-  assert(!allowsFractionalQty('piece') && !allowsFractionalQty('pair') && !allowsFractionalQty('set') && !allowsFractionalQty('packet') && allowsFractionalQty('piece', true)
+  assert(allowsFractionalQty('piece') && !allowsFractionalQty('pair') && !allowsFractionalQty('set') && allowsFractionalQty('packet') && allowsFractionalQty('piece', true)
     && allowsFractionalQty('box') && allowsFractionalQty('dozen') && allowsFractionalQty('kg') && allowsFractionalQty('litre') && allowsFractionalQty('bundle') && !allowsFractionalQty(undefined),
-    'Parts: a piece / pair / set / packet only in whole numbers (unless the item allows decimals); a box, bundle, dozen, kg, litre can be split');
+    'Parts: pair / set whole only; piece, packet, box, bundle, dozen, kg, litre can be split');
   assert(dozenFromPieces(7) === 0.583333 && piecesInDozen(dozenFromPieces(7)) === 7 && lineAmountPaise(dozenFromPieces(7), 6000) === 3500 && lineAmountPaise(dozenFromPieces(7), 600000) === 350000
     && lineAmountPaise(0.5, 40000) === 20000 && lineAmountPaise(0.25, 90000) === 22500 && lineAmountPaise(dozenFromPieces(5), 999900) === 416625,
     'Amounts follow the part: ½ box of ₹400 = ₹200, 250 g of ₹900/kg = ₹225, 7 pcs of ₹60 / ₹6,000 a dozen = ₹35 / ₹3,500 to the paise');
@@ -1679,13 +1679,20 @@ assert(readSource('app/billing/page.tsx').split('\n').length <= 401, `POS page s
   const dozen = getQuantityConfigForUnit('dozen');
   const piece = getQuantityConfigForUnit('piece');
   assert(box.step === 'any' && box.chips.map((c) => c.val).slice(0, 3).join() === '0.25,0.5,0.75' && dozen.chips.some((c) => c.val === '0.25') && dozen.chips.some((c) => c.val === '0.75')
-    && piece.step === '1' && piece.chips.every((c) => Number.isInteger(Number(c.val))),
-    'The ✏️ window offers ¼ ½ ¾ for a box, ¼ ½ ¾ dozen, and only whole numbers for pieces');
+    && piece.step === 'any' && piece.chips.some((c) => c.val === '0.5'),
+    'The ✏️ window offers ¼ ½ ¾ for a box, ¼ ½ ¾ dozen, and fractions for pieces');
+  const kg = getQuantityConfigForUnit('kg');
+  const strip = getQuantityConfigForUnit('strip');
+  const packet = getQuantityConfigForUnit('packet');
+  const litre = getQuantityConfigForUnit('litre');
+  assert(kg.chips.some((c) => c.val === '0.75') && strip.chips.some((c) => c.val === '0.1') && packet.chips.some((c) => c.val === '0.5') && litre.chips.some((c) => c.val === '0.5'),
+    'Quantity chips: 750g for kg, 1 tab (0.1) for strip, ½ pkt for packet, ½ L for litre');
   const pos = readCounter();
   const edit = readSource('components/billing/PosItemEditModal.tsx');
   assert(/const qty = roundQty\(parseFloat\(editItemQty\)\);/.test(pos) && /!Number\.isInteger\(qty\) && !allowsFractionalQty\(editingCartItem\.unit, product\?\.allow_decimal\)/.test(pos)
-    && /formatCartQty\(item\.quantity\)\}<\/span>/.test(pos + readSource('components/billing/PosCartLines.tsx')) && /setEditItemQty\(String\(dozenFromPieces\(n\)\)\)/.test(edit) && /lineAmountPaise\(qtyNow, ratePaise\)/.test(edit),
-    'Saving a line refuses a split piece, keeps 6 decimals; the window turns pieces into dozen and shows the amount');
+    && /formatCartQty\(item\.quantity\)\}<\/span>/.test(pos + readSource('components/billing/PosCartLines.tsx')) && /setEditItemQty\(String\(dozenFromPieces\(n\)\)\)/.test(edit)
+    && /data-edit-tablets/.test(edit) && /lineAmountPaise\(qtyNow, ratePaise\)/.test(edit),
+    'Saving a line checks fractional allowance, keeps 6 decimals; the window turns pieces into dozen, tablets into strip and shows amount');
 }
 
 // (h) Fast barcode inward (like the Android app): every scan is a row at once, the same code

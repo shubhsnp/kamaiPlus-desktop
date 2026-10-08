@@ -10,12 +10,13 @@
  * The line amount is always rate × quantity (the rate is per unit), rounded to paise.
  */
 
-const WHOLE_ONLY = ['piece', 'pair', 'set', 'packet', 'bottle', 'can'];
+const WHOLE_ONLY = ['pair', 'set', 'bottle', 'can'];
 
 /** Can this unit be sold in parts? An item marked "decimals allowed" always can. */
 export function allowsFractionalQty(unit: string | undefined, allowDecimal?: boolean): boolean {
   if (allowDecimal) return true;
-  return !WHOLE_ONLY.includes(String(unit || 'piece').toLowerCase());
+  if (!unit) return false;
+  return !WHOLE_ONLY.includes(unit.toLowerCase());
 }
 
 /** Quantities keep 6 decimals: 7/12 dozen × any rate still rounds to the exact paise. */

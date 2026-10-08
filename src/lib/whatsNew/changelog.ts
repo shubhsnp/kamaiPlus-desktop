@@ -15,6 +15,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.114.0',
+    items: [
+      msg('Billing counter: fractional quantity presets (¼, ½, ¾) for packets, pieces, kg, litres, and pharmacy strips.'),
+    ],
+  },
+  {
     version: '4.113.0',
     items: [
       msg('Performance & lightweight update: removed unused mobile packages and web banners for faster loading.'),

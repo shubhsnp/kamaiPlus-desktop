@@ -3020,5 +3020,6 @@
   "Website": "वेबसाइट",
   "Visit Website": "वेबसाइट देखें",
   "Brand consistency across the app: Kamai in black with Plus in red, single unified tagline \"Aapki Dukaan Ka Digital Sathi\", and website link www.kamaiplus.com.": "ऐप में संपूर्ण ब्रांड एकरूपता: काले रंग में Kamai और लाल रंग में Plus, एक समान टैगलाइन \"आपकी दुकान का डिजिटल साथी\", और वेबसाइट लिंक www.kamaiplus.com।",
-  "Performance & lightweight update: removed unused mobile packages and web banners for faster loading.": "परफ़ॉर्मेंस और लाइटवेट अपडेट: तेज़ लोडिंग के लिए अप्रयुक्त मोबाइल पैकेज और वेब बैनर हटा दिए गए।"
+  "Performance & lightweight update: removed unused mobile packages and web banners for faster loading.": "परफ़ॉर्मेंस और लाइटवेट अपडेट: तेज़ लोडिंग के लिए अप्रयुक्त मोबाइल पैकेज और वेब बैनर हटा दिए गए।",
+  "Billing counter: fractional quantity presets (¼, ½, ¾) for packets, pieces, kg, litres, and pharmacy strips.": "बिलिंग काउंटर: पैकेट, पीस, किलो, लीटर और स्ट्रिप के लिए टुकड़ों में मात्रा (¼, ½, ¾) के शॉर्टकट।"
 }

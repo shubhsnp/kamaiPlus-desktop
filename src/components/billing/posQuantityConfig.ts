@@ -22,6 +22,7 @@ export function getQuantityConfigForUnit(unit?: ProductUnit) {
         { label: '100g', val: '0.1' },
         { label: '250g', val: '0.25' },
         { label: '500g', val: '0.5' },
+        { label: '750g', val: '0.75' },
         { label: tr('1 kg'), val: '1' },
         { label: tr('2 kg'), val: '2' },
         { label: tr('5 kg'), val: '5' },
@@ -42,6 +43,7 @@ export function getQuantityConfigForUnit(unit?: ProductUnit) {
         { label: '100g', val: '100' },
         { label: '250g', val: '250' },
         { label: '500g', val: '500' },
+        { label: '750g', val: '750' },
         { label: '1000g', val: '1000' },
       ],
     };
@@ -54,10 +56,13 @@ export function getQuantityConfigForUnit(unit?: ProductUnit) {
       placeholder: tr('e.g. 0.25, 0.5, 1, 2'),
       decimalNotice: tr('Decimals supported (ml / Litres)'),
       chips: [
+        { label: '50ml', val: '0.05' },
         { label: '100ml', val: '0.1' },
         { label: '250ml', val: '0.25' },
-        { label: '500ml', val: '0.5' },
+        { label: '½ L (500ml)', val: '0.5' },
+        { label: '750ml', val: '0.75' },
         { label: '1 L', val: '1' },
+        { label: '1.5 L', val: '1.5' },
         { label: '2 L', val: '2' },
         { label: '5 L', val: '5' },
       ],
@@ -88,13 +93,55 @@ export function getQuantityConfigForUnit(unit?: ProductUnit) {
       placeholder: tr('e.g. 1, 2, 3 or 0.5 (half strip)'),
       decimalNotice: tr('Strip counts (0.5 for loose/half strip)'),
       chips: [
-        { label: tr('1 Strip'), val: '1' },
-        { label: tr('2 Strips'), val: '2' },
-        { label: tr('3 Strips'), val: '3' },
-        { label: tr('4 Strips'), val: '4' },
-        { label: tr('5 Strips'), val: '5' },
-        { label: tr('10 Strips'), val: '10' },
-        { label: tr('½ Strip (Loose)'), val: '0.5' },
+        { label: '1 Tab (0.1)', val: '0.1' },
+        { label: '2 Tabs (0.2)', val: '0.2' },
+        { label: '3 Tabs (0.3)', val: '0.3' },
+        { label: '¼ Strip', val: '0.25' },
+        { label: '½ Strip (5 Tabs)', val: '0.5' },
+        { label: '¾ Strip', val: '0.75' },
+        { label: '1 Strip', val: '1' },
+        { label: '2 Strips', val: '2' },
+        { label: '3 Strips', val: '3' },
+        { label: '5 Strips', val: '5' },
+      ],
+    };
+  }
+
+  if (normUnit === 'packet') {
+    return {
+      unitLabel: tr('Quantity ({v1})', { v1: 'Packet' }),
+      step: 'any',
+      placeholder: tr('e.g. 0.5 (half), 1, 2'),
+      decimalNotice: tr('Parts allowed: ¼, ½, ¾'),
+      chips: [
+        { label: '¼ Pkt', val: '0.25' },
+        { label: '½ Pkt', val: '0.5' },
+        { label: '¾ Pkt', val: '0.75' },
+        { label: '1 Pkt', val: '1' },
+        { label: '1½ Pkt', val: '1.5' },
+        { label: '2 Pkt', val: '2' },
+        { label: '3 Pkt', val: '3' },
+        { label: '5 Pkt', val: '5' },
+      ],
+    };
+  }
+
+  if (normUnit === 'piece') {
+    return {
+      unitLabel: tr('Quantity ({v1})', { v1: 'Piece' }),
+      step: 'any',
+      placeholder: tr('e.g. 0.5 (half), 1, 2'),
+      decimalNotice: tr('Parts allowed: ¼, ½, ¾'),
+      chips: [
+        { label: '¼ Pc', val: '0.25' },
+        { label: '½ Pc', val: '0.5' },
+        { label: '¾ Pc', val: '0.75' },
+        { label: '1 Pc', val: '1' },
+        { label: '1½ Pc', val: '1.5' },
+        { label: '2 Pcs', val: '2' },
+        { label: '3 Pcs', val: '3' },
+        { label: '5 Pcs', val: '5' },
+        { label: '10 Pcs', val: '10' },
       ],
     };
   }
