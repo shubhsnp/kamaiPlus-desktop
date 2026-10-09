@@ -190,6 +190,12 @@ Admin Console (KamaiPlus Android repo, admin_console/) → Desktop Licences
     branch `feat/desktop-licence-validity`; its tests `functions/test/licence_core.test.js`).
     Desktop: Suite 9 §9j(x) + Electron E2E §1b (signed licences, stand-in server, a real launch
     with an ended licence).
+- **v4.125.0 (AU-10):** a PC whose key was blocked keeps checking in with `licence.blocked.json`
+  (code `revoked`) — the Admin's wipe still arrives; a fresh licence (unblocked) is saved and the
+  blocked note removed. Moved / deleted keys never ask again.
+- **v4.122.0 (AU-01):** "shop deleted by the Admin" (`deleted_businesses`) is checked in the
+  background (`lib/cloud/deletedStore.ts`): only this PC's shop (+ the cloud shop when it syncs),
+  backup first, no backup = nothing deleted.
 - `licence.js` must stay in `package.json` → `build.files`, or the installer ships
   without it and the app cannot start.
 
@@ -830,11 +836,16 @@ ensureStarterBusinessIfEmpty()
   no business  → create one (business_type: 'retail') + seedBusinessStarterData()
   business but 0 products, and the user has not explicitly cleared the catalog
                → re-seed
-seedBusinessStarterData(businessId)
-  → STARTER_CATEGORIES  (storeProfiles.ts)
-  → seedCategoryDefaultProducts()  → DEFAULT_STARTER_PRODUCTS (defaultProducts.ts)
+seedBusinessStarterData(businessId, categoryType?)
+  → STARTER_CATEGORIES (storeProfiles.ts) — with a category (v4.121.0) only "General"
+  → seedCategoryDefaultProducts(categoryType) → STARTER_PRODUCTS_BY_CATEGORY[category]
+      (10 per category, v4.121.0: variants as parent + children, restaurant dishes unlimited)
+      no category → DEFAULT_STARTER_PRODUCTS (the old fireworks list, only for the old path)
   → 3 marketing templates
 ```
+
+Store setup (v4.117.0+) calls it with the chosen category; `ensureStarterBusinessIfEmpty` (old
+path) without one.
 
 The localStorage flag `kamai_products_manually_cleared` exists so that a shop that
 deliberately emptied its catalog is **not** re-seeded on next launch. Respect it.
@@ -1115,6 +1126,27 @@ hardware / restaurant / retail) and removes `kamai_feature_switches`.
   A switched-off screen says "contact KamaiPlus support" (`FeatureGate`).
 - Tests: Suite 9 "v4.118.0" block (preset table, old shop unchanged, GSTIN, restaurant + Admin off);
   Electron E2E removes the profile after store setup so its shop plays an existing customer.
+
+### 9.0c What each category gets (v4.119.0 – v4.127.0, docs/VERTICAL_PLAN.md)
+
+- **Stock counting off = no stock check at the counter** (`lib/billing/stockRule.ts`
+  `countsStockAtCounter`; add / scan / + / quantity / cards / size picker). The sale still lowers
+  the hidden number. (v4.119.0)
+- **GST follows the GSTIN** (`gstAllowed`, `lineGstRate` in `verticalProfile.ts`): a profile shop
+  without a GSTIN puts 0 % on every new bill line (counter, Edit Bill) and its bill heading
+  TAX INVOICE becomes **BILL OF SUPPLY** (`invoiceDocument.ts`); store setup has an optional
+  GSTIN; restaurant Set-up GST 0 % / 5 % follows it (`restaurantGstFor`, BusinessProvider).
+  Item rates stay in the data. No profile = old behaviour. (v4.120.0)
+- **Sample items per category** + units strip / plate / portion (v4.121.0, §6.5).
+- **Pharmacy** (`product_batch_expiry`, `bill_prescription`, v4.126.0): Product / CartItem
+  `batch_number`, `expiry_date` ('YYYY-MM', `lib/products/expiry.ts`); Sale `doctor_name`,
+  `patient_name`; product form boxes, counter `PosPrescriptionRow`, expired-medicine warning,
+  A4 + thermal print, Inventory `ExpiryAlertsCard`.
+- **Electronics** (`bill_serial_warranty`, v4.127.0): counter ✏️ IMEI / Serial + Warranty
+  months on the line; A4 + thermal print them.
+- **Restaurant**: KOT with no printer chosen asks before marking "sent" (`printKot` noPrinter,
+  v4.123.0).
+- The Admin Console's feature list (Android `admin_models.dart`) carries the new switches.
 
 ### 9.2 Feature switches (v4.69.0, v4.81.0; Settings tab removed in v4.118.0)
 

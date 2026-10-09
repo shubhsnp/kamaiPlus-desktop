@@ -65,7 +65,7 @@ Kolum: **Cloud** · **Type** · **Desktop** (Dexie) · **Android** (model / aaj 
 | `tagline`, `owner_name`, `phone`, `email`, `address`, `pincode`, `gstin`, `logo_url` | string | same | same | |
 | `upi_vpa` | string | `upi_id` | `upiVpa` | |
 | `fssai` | string | `fssai_license_no` | `fssai` | |
-| `business_type` | string (Android vertical: `grocery`, `pharmacy`, `restaurant`, `clothing`, `hardware` …) | — (Desktop apna `retail` rakhta) | `businessType` | Desktop kabhi overwrite nahi karta; cloud mein dukaan nayi ho to `grocery` |
+| `business_type` | string (vertical: `grocery`, `pharmacy`, `restaurant`, `clothing`, `hardware`, `retail`) | store setup ki category (v4.117.0+; app usi se chalta — `kamai_vertical_profile`) | `businessType` | Desktop purani dukaan ka nahi badalta; cloud mein dukaan nayi ho to `grocery` |
 | `platform` | string | `desktop` | `android_native` | aakhri likhne wala |
 | `created_at`, `updated_at` | ISO | same | — | |
 | Desktop-only (R11): `drug_license_no`, `pharmacist_reg_no`, `bank_*`, `language`, `currency`, `invoice_prefix`, `terms_conditions`, `footer_message`, `invoice_theme_config`, `gst_pricing_mode`, `upi_ids` | | same | — | |
@@ -125,7 +125,8 @@ Bill-discount har line par baant kar us line ka GST **chhoot ke baad** lagta hai
 | `amount_received_paise`, `balance_due_paise`, `balance_due_at_sale_paise`, `change_returned_paise`, `returned_amount_paise` | int | | same (bina `_paise`) | — |
 | `payment_status`, `has_return`, `return_id`, `customer_address`, `notes`, `created_by` | | | same | — |
 | `status` | §4.3 | | same | alag shabd |
-| `doctor_name`, `table_number` | string | | — | same |
+| `doctor_name`, `patient_name` | string | pharmacy (v4.126.0) | same (`patient_name` naya — Android jode) |
+| `table_number` | string | | — | same |
 | `items` | array §3.6 | | | |
 | `created_at` | ISO UTC | | same | ⚠ C7 |
 | `timestamp` (ms), `source` (`desktop` / `mobile_native_pos`), `updated_at` | | | same | |
