@@ -55,8 +55,8 @@
 
 | # | Step | Findings | Status |
 |---|---|---|---|
-| A1 | Vertical profile engine: preset upar wala, restaurant mode khud on, GST switches GSTIN se, Settings se Features tab hatana. Purani dukaan same. | AU-04, AU-15, AU-07 | ✅ v4.118.0 (commit neeche log mein) |
-| A2 | Stock counting band = counter par stock check / badge nahi | AU-30 | ⬜ |
+| A1 | Vertical profile engine: preset upar wala, restaurant mode khud on, GST switches GSTIN se, Settings se Features tab hatana. Purani dukaan same. | AU-04, AU-15, AU-07 | ✅ v4.118.0 `bf8e86d` |
+| A2 | Stock counting band = counter par stock check / badge nahi | AU-30 | ✅ v4.119.0 |
 | A3 | GST GSTIN se: bina GSTIN "BILL OF SUPPLY", store setup mein GSTIN (optional), restaurant GST 0 / 5 | AU-12, AU-25 | ⬜ |
 | A4 | Sample data har vertical: GST 2.0 rate (sirf GSTIN par), retail = general items, kapde mein variants, restaurant unlimited, electronics 10, sahi hint, sirf vertical ki categories; units strip / plate / portion | AU-03, 08, 16, 21, 26, 29, 30 | ⬜ |
 | A5 | Pharmacy: batch no. + expiry (item, bill line, bill print, expiry alert) + doctor / patient (bill) | AU-22, AU-13 | ⬜ |
@@ -69,7 +69,7 @@
 
 ## Abhi kya chal raha hai
 
-**A1** code + tests ho gaye (v4.118.0); commit baaki tha jab ye likha. Agla: **A2**.
+**A2** code + tests (v4.119.0) — commit ke baad agla **A3**.
 
 ## Kaam log
 
@@ -98,3 +98,17 @@
 - Stock ka hisaab (bikri par ghatna) chalta rahe — chhupa hai, data waisa hi (switch on karne par sahi number).
 - Purani dukaan: `stock_counting` default on → koi farq nahi (sirf jahan Admin / restaurant ne off kiya).
 - Test: Suite 9 + (agar ho sake) Electron.
+
+### A2 — kya hua (2026-10-09)
+- Naya `src/lib/billing/stockRule.ts` `countsStockAtCounter(item, stockCountingOn)`.
+- Counter ke saare stock rok: `posCartActions.ts` (add / scan, available stock, + button, quantity box), `billing/page.tsx` (search Enter), `PosCatalogPanel.tsx` (card "Out of stock" / low), `VariantPickerModal.tsx` (size picker) — sab is niyam se. `PosProductCard.tsx` `showStock` = stock badge nahi.
+- Bikri par chhupa stock ghatna waisa hi (`posSaleActions.ts`).
+- Purani dukaan: stock counting default on → farq nahi.
+- Tests: Suite 9 "v4.119.0" block.
+
+### A3 — GST GSTIN se (plan, kaam se pehle)
+- Bill heading: profile wali dukaan + GSTIN nahi + apna title nahi → "BILL OF SUPPLY" (bina GST column / tax table); GSTIN ho → "TAX INVOICE". Purani dukaan: waisa hi.
+- Bina GSTIN wali profile dukaan mein bill par GST na lage: counter / sale par line ka `tax_rate` 0 maana jaye (sirf profile + bina GSTIN). Dhyan: `saleMath` sabse risky — pehle padhna, kam se kam badlav.
+- Store setup mein optional GSTIN box (validateGstin); bhara = profile `gst: true`.
+- Restaurant: Set-up GST default bina GSTIN 0%, GSTIN ho to 5%.
+- Tests + Electron check.

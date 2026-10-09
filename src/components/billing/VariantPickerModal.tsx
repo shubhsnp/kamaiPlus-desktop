@@ -6,6 +6,8 @@ import { Product } from '@/types';
 import { formatINR } from '@/lib/utils';
 import { getVariantChildren } from '@/lib/products/variants';
 import { tr } from '@/lib/i18n/core';
+import { useFeatureSwitches } from '@/lib/features/featureSwitches';
+import { countsStockAtCounter } from '@/lib/billing/stockRule';
 
 interface VariantPickerModalProps {
   parent: Product;
@@ -31,7 +33,9 @@ export function VariantPickerModal({ parent, inCart, onPick, onClose }: VariantP
     };
   }, [parent.id]);
 
-  const available = (v: Product) => (v.is_unlimited_stock ? Infinity : Math.max(0, Number(v.current_stock || 0) - inCart(v.id)));
+  const stockOn = useFeatureSwitches().stock_counting;
+  // Stock counting off: every size can be picked, no stock shown (v4.119.0, AU-30).
+  const available = (v: Product) => (!countsStockAtCounter(v, stockOn) ? Infinity : Math.max(0, Number(v.current_stock || 0) - inCart(v.id)));
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -86,7 +90,7 @@ export function VariantPickerModal({ parent, inCart, onPick, onClose }: VariantP
                   <span className="flex-1 min-w-0">
                     <span className={`block text-xs font-bold truncate ${out ? 'text-slate-400' : 'text-slate-900'}`}>{v.name}</span>
                     <span className={`block text-[11px] font-semibold ${out ? 'text-rose-600' : 'text-emerald-600'}`}>
-                      {out ? tr('Out of stock') : v.is_unlimited_stock ? tr('In stock') : `${left} ${v.unit || 'units'} left`}
+                      {out ? tr('Out of stock') : !stockOn ? '' : v.is_unlimited_stock ? tr('In stock') : `${left} ${v.unit || 'units'} left`}
                     </span>
                   </span>
                   <span className={`font-mono font-black text-sm ${out ? 'text-slate-400' : 'text-slate-900'}`}>{formatINR(v.selling_price)}</span>

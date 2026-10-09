@@ -96,6 +96,7 @@ import { billCustomerName, cleanGuestPhone } from '../src/lib/restaurant/settle'
 import { isRestaurantBill } from '../src/components/restaurant/RecentBills';
 import { DEFAULT_FEATURE_SWITCHES, FEATURES, featureForPath, isPathEnabled, parseAdminOverrides, parseFeatureSwitches, showSellingPriceField } from '../src/lib/features/featureSwitches';
 import { isRestaurantMode, readFeatureSwitches } from '../src/lib/features/featureSwitches';
+import { countsStockAtCounter } from '../src/lib/billing/stockRule';
 import { VERTICAL_IDS, VERTICAL_PROFILE_KEY, parseVerticalProfile, saveVerticalProfile, syncVerticalGst, verticalSwitches } from '../src/lib/business/verticalProfile';
 import { adminBlock, blocksBilling, cleanFeatureOverrides, counterHasOpenBill, needsUpdate } from '../src/lib/admin/adminControl';
 import { matchesProductDetails } from '../src/lib/products/detailSearch';
@@ -4587,6 +4588,27 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
     'Store setup and cloud restore save the category profile (one preset table in lib/business/verticalProfile.ts — AU-07) and clear switches an earlier shop left on this PC');
   assert(/syncVerticalGst\(hasGstin\)/.test(readSource('components/layout/BusinessProvider.tsx')),
     'BusinessProvider keeps the profile\'s GST in step with the shop\'s GSTIN (Settings, restore or cloud)');
+}
+
+// v4.119.0 — Stock counting off = the counter never stops an item for stock (AU-30, docs/VERTICAL_PLAN.md A2).
+// Found in the real app: a restaurant (stock hidden) got "OUT OF STOCK" on Paneer after its sample stock ran out.
+{
+  assert(countsStockAtCounter({ is_unlimited_stock: false }, true) && !countsStockAtCounter({ is_unlimited_stock: true }, true)
+    && !countsStockAtCounter({ is_unlimited_stock: false }, false) && !countsStockAtCounter({}, false) && countsStockAtCounter({}, true),
+    'Counter stock rule: only a counted item in a shop that counts stock is held to its stock');
+  const cart = readSource('components/billing/posCartActions.ts');
+  const grid = readSource('components/billing/PosCatalogPanel.tsx');
+  const card = readSource('components/billing/PosProductCard.tsx');
+  const picker = readSource('components/billing/VariantPickerModal.tsx');
+  const page = readSource('app/billing/page.tsx');
+  assert((cart.match(/countsStockAtCounter\(product, isFeatureOn\('stock_counting'\)\)/g) || []).length === 4 && !/!product\.is_unlimited_stock/.test(cart)
+    && page.includes("countsStockAtCounter(targetProd, isFeatureOn('stock_counting'))"),
+    'Add, scan, search Enter, + and the quantity box all use the rule (no stock check left that ignores Stock counting off)');
+  assert(grid.includes('countsStockAtCounter(p, stockOn)') && grid.includes('showStock={stockOn}') && card.includes('!showStock ? null')
+    && picker.includes('!countsStockAtCounter(v, stockOn) ? Infinity'),
+    'Stock counting off: no stock number / "Out of stock" on the product cards, every size in the picker can be chosen');
+  assert(readSource('components/billing/posSaleActions.ts').includes('if (prod && !prod.is_unlimited_stock) {'),
+    'The sale still lowers the hidden stock, so switching counting on later starts from what was really sold');
 }
 
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.

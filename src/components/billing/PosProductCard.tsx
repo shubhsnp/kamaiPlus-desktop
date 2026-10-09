@@ -16,6 +16,7 @@ export const PosProductCard = React.memo(({
   isLowStock,
   isHighlighted,
   variants,
+  showStock = true,
   onAdd
 }: {
   p: any;
@@ -28,6 +29,8 @@ export const PosProductCard = React.memo(({
   isHighlighted: boolean;
   /** Set for a parent with sizes / colours: how many, and the cheapest price. */
   variants?: { count: number; minPricePaise: number };
+  /** Stock counting off: no stock number on the card (v4.119.0). */
+  showStock?: boolean;
   onAdd: (p: any) => void;
 }) => {
   return (
@@ -88,7 +91,7 @@ export const PosProductCard = React.memo(({
           <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md shrink-0 bg-indigo-100 text-indigo-700">
             {variants.count} {tr('Variants ▾')}
           </span>
-        ) : (
+        ) : !showStock ? null : (
         <span className={cn(
           "text-[10px] font-bold font-mono px-1.5 py-0.5 rounded-md shrink-0 flex items-center gap-1",
           isOutOfStock ? "bg-rose-100 text-rose-700" : isLowStock ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"

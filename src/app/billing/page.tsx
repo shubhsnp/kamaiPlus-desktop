@@ -29,6 +29,7 @@ import { showProductList } from '@/lib/billing/posLayout';
 import { BillingToast, BillingToastData } from '@/components/billing/PosDialogs';
 import { tabsAfterUndo } from '@/lib/billing/billTabs';
 import { isFeatureOn, useFeatureSwitches } from '@/lib/features/featureSwitches';
+import { countsStockAtCounter } from '@/lib/billing/stockRule';
 import { useBackgroundBillPrint } from '@/components/billing/BillPrintQueue';
 import { tr } from '@/lib/i18n/core';
 
@@ -264,7 +265,7 @@ export default function BillingPage() {
     const targetProd = (highlightedIndex >= 0 && products[highlightedIndex]) || (products.length > 0 ? products[0] : null);
     if (!targetProd) return;
     const stockNum = Number(targetProd.current_stock ?? 0);
-    const isOutOfStock = !targetProd.has_variants && !targetProd.is_unlimited_stock && stockNum <= 0;
+    const isOutOfStock = !targetProd.has_variants && countsStockAtCounter(targetProd, isFeatureOn('stock_counting')) && stockNum <= 0;
     if (targetProd.has_variants) {
       // Opens the size / colour picker; the chosen variant is added from there.
       addToCart(targetProd, 1);

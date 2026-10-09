@@ -10,6 +10,8 @@ import { PosProductCard } from '@/components/billing/PosProductCard';
 import { PosScanModeButton, PosScanPanel } from '@/components/billing/PosScanPanel';
 import { PosCategoryTabs } from '@/components/billing/PosCategoryTabs';
 import { tr } from '@/lib/i18n/core';
+import { useFeatureSwitches } from '@/lib/features/featureSwitches';
+import { countsStockAtCounter } from '@/lib/billing/stockRule';
 import type { PosLayout } from '@/lib/billing/posLayout';
 import type { CartItem, Category, Product } from '@/types';
 
@@ -50,6 +52,8 @@ export function PosCatalogPanel(props: PosCatalogPanelProps) {
     categories, totalProductCount, categoryCounts, variantInfo, products, getAvailableStockForProduct,
     addToCart, focusProductSearch, totalItemCount, grandTotalPaise, listVisible,
   } = props;
+  // Stock counting off (e.g. a restaurant): no stock badge, never "Out of stock" (v4.119.0, AU-30).
+  const stockOn = useFeatureSwitches().stock_counting;
   return (
     <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col h-full min-h-0 space-y-3">
       {/* Search & Actions Bar */}
@@ -122,8 +126,9 @@ export function PosCatalogPanel(props: PosCatalogPanelProps) {
                   const stockNum = Number(p.current_stock ?? 0);
                   const variants = p.has_variants ? variantInfo[p.id] || { count: 0, minPricePaise: p.selling_price } : undefined;
                   // A variant parent's stock lives in its sizes / colours; the picker shows those.
-                  const isOutOfStock = !variants && !p.is_unlimited_stock && (stockNum <= 0 || availableStock <= 0);
-                  const isLowStock = !variants && !p.is_unlimited_stock && !isOutOfStock && availableStock <= (p.min_stock_level || 5);
+                  const counted = !variants && countsStockAtCounter(p, stockOn);
+                  const isOutOfStock = counted && (stockNum <= 0 || availableStock <= 0);
+                  const isLowStock = counted && !isOutOfStock && availableStock <= (p.min_stock_level || 5);
                   const isHighlighted = highlightedIndex === idx;
 
                   return (
@@ -138,6 +143,7 @@ export function PosCatalogPanel(props: PosCatalogPanelProps) {
                       isLowStock={isLowStock}
                       isHighlighted={isHighlighted}
                       variants={variants}
+                      showStock={stockOn}
                       onAdd={(prod) => {
                         if (isOutOfStock) {
                           playBeepSound('alert');

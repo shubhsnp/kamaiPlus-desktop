@@ -7,6 +7,7 @@ import { quickRestockProduct } from '@/lib/inventory/quickRestock';
 import { unitPriceFor } from '@/lib/billing/priceMode';
 import { allowsFractionalQty, roundQty } from '@/lib/billing/unitQuantity';
 import { isFeatureOn } from '@/lib/features/featureSwitches';
+import { countsStockAtCounter } from '@/lib/billing/stockRule';
 import { tr } from '@/lib/i18n/core';
 import type { BillTab } from '@/lib/billing/billTabs';
 import type { PriceMode } from '@/lib/billing/priceMode';
@@ -81,7 +82,7 @@ export function createCartActions(deps: CreateCartActionsDeps) {
   };
 
   const getAvailableStockForProduct = (product: Product) => {
-    if (product.is_unlimited_stock) return 999999;
+    if (!countsStockAtCounter(product, isFeatureOn('stock_counting'))) return 999999;
     const stock = Number(product.current_stock ?? 0);
     const reservedQty = getTotalCartQuantityForProduct(product.id, product.name);
     return Math.max(0, stock - reservedQty);
@@ -108,8 +109,8 @@ export function createCartActions(deps: CreateCartActionsDeps) {
       return;
     }
 
-    // Out-of-Stock and Maximum Stock Enforcement
-    if (!product.is_unlimited_stock) {
+    // Out-of-Stock and Maximum Stock Enforcement — only when the shop counts stock (v4.119.0, AU-30)
+    if (countsStockAtCounter(product, isFeatureOn('stock_counting'))) {
       const currentStock = Number(product.current_stock ?? 0);
       if (currentStock <= 0) {
         playBeepSound('alert');
@@ -204,7 +205,7 @@ export function createCartActions(deps: CreateCartActionsDeps) {
     }
     if (!product) return;
 
-    if (delta > 0 && !product.is_unlimited_stock) {
+    if (delta > 0 && countsStockAtCounter(product, isFeatureOn('stock_counting'))) {
       const currentStock = Number(product.current_stock ?? 0);
       const currentInCart = getCartQuantityForProduct(productId, product.name);
       if (currentInCart + delta > currentStock) {
@@ -278,7 +279,7 @@ export function createCartActions(deps: CreateCartActionsDeps) {
       showAlert(tr('{name} is sold in whole {unit} only — it cannot be split.', { name: editingCartItem.product_name, unit: editingCartItem.unit || 'piece' }));
       return;
     }
-    if (product && !product.is_unlimited_stock && qty > product.current_stock) {
+    if (product && countsStockAtCounter(product, isFeatureOn('stock_counting')) && qty > product.current_stock) {
       showAlert(tr('Entered quantity ({qty}) exceeds available stock ({current_stock}).', { qty: qty, current_stock: product.current_stock }));
       return;
     }

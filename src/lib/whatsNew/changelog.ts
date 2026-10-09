@@ -15,6 +15,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.119.0',
+    items: [
+      msg('Shops that do not count stock (for example restaurants) are never stopped with Out of stock at the counter, and the counter shows no stock numbers for them.'),
+    ],
+  },
+  {
     version: '4.118.0',
     items: [
       msg('New shops: the app follows the shop category chosen in store setup (Cafe / Restaurant opens Tables & Orders by itself; GST screens and fields appear once a GSTIN is saved). Settings no longer has a Features tab.'),
