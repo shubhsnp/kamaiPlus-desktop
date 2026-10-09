@@ -4,7 +4,8 @@ import React, { createContext, useContext, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { Business } from '@/types';
-import { syncVerticalGst } from '@/lib/business/verticalProfile';
+import { readVerticalProfile, restaurantGstFor, syncVerticalGst } from '@/lib/business/verticalProfile';
+import { loadRestaurantSettings, saveRestaurantSettings } from '@/lib/restaurant/settings';
 import { FEATURE_SWITCHES_EVENT } from '@/lib/features/featureSwitches';
 
 /**
@@ -28,7 +29,14 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
   // way the GSTIN arrived (Settings, a restored backup, the cloud). No profile = nothing happens.
   useEffect(() => {
     if (business === undefined) return;
-    if (syncVerticalGst(hasGstin)) window.dispatchEvent(new Event(FEATURE_SWITCHES_EVENT));
+    if (!syncVerticalGst(hasGstin)) return;
+    // A restaurant's one GST % (Restaurant Set-up) follows too: 0 without a GSTIN, 5 % once it has one.
+    if (readVerticalProfile()?.vertical === 'restaurant') {
+      const s = loadRestaurantSettings();
+      const rate = restaurantGstFor(hasGstin, s.gstRate);
+      if (rate !== s.gstRate) saveRestaurantSettings({ ...s, gstRate: rate });
+    }
+    window.dispatchEvent(new Event(FEATURE_SWITCHES_EVENT));
   }, [business === undefined, hasGstin]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (

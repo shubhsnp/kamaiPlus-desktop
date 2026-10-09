@@ -4,6 +4,7 @@ import { numberToWordsINR } from '@/lib/invoices/gstCalculator';
 import { resolveInvoiceConfig } from '@/lib/invoices/themeDefaults';
 import { placeOfSupplyLabel, stateCodeFromGstin, stateNameFromCode } from '@/lib/gst/stateCodes';
 import { splitIntraStateTax } from '@/lib/gst/taxSplit';
+import { readVerticalProfile } from '@/lib/business/verticalProfile';
 import {
   getLineGrossPaise,
   getLineTaxablePaise,
@@ -283,7 +284,10 @@ export function buildInvoiceDocument(sale: Sale, business: Business, options: Bu
   }
 
   const upiVpa = (options.upiVpa || '').trim();
-  const heading = estimate ? 'ESTIMATE / QUOTATION' : config.custom_title || 'TAX INVOICE';
+  // v4.120.0 (AU-12): a shop without a GSTIN cannot issue a tax invoice — the default heading becomes
+  // BILL OF SUPPLY (a heading the shop picked itself stays). Shops set up before v4.118.0: unchanged.
+  const title = config.custom_title || 'TAX INVOICE';
+  const heading = estimate ? 'ESTIMATE / QUOTATION' : title === 'TAX INVOICE' && !storeGstin && readVerticalProfile() ? 'BILL OF SUPPLY' : title;
 
   return {
     color: config.primary_color,

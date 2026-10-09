@@ -128,3 +128,21 @@ export function syncVerticalGst(hasGstin: boolean): boolean {
   saveVerticalProfile(p.vertical, hasGstin);
   return true;
 }
+
+/**
+ * May this shop's bills carry GST? (v4.120.0, AU-12 / AU-25.) A shop without a GSTIN cannot charge
+ * GST or issue a tax invoice. A shop without a profile (set up before v4.118.0): yes, as before —
+ * each item's own rate decides.
+ */
+export function gstAllowed(): boolean {
+  const p = readVerticalProfile();
+  return !p || p.gst;
+}
+
+/** The GST % a bill line takes from its item: 0 when the shop may not charge GST. */
+export function lineGstRate(itemRate: number | undefined, allowed: boolean): number {
+  return allowed ? itemRate || 0 : 0;
+}
+
+/** Restaurant Set-up GST for a shop with / without a GSTIN (restaurants: 5 %, no input credit). */
+export const restaurantGstFor = (gst: boolean, current: number): number => (gst ? (current > 0 ? current : 5) : 0);

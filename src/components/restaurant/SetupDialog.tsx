@@ -6,6 +6,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { cn, parseRupeesToPaise } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
+import { gstAllowed } from '@/lib/business/verticalProfile';
 import { MAX_ADDONS, MAX_TABLES, RestaurantSettings, defaultTableNames, sanitizeRestaurantSettings, saveRestaurantSettings } from '@/lib/restaurant/settings';
 
 const GST_CHOICES = [0, 5, 12, 18];
@@ -18,6 +19,8 @@ const GST_CHOICES = [0, 5, 12, 18];
 export function SetupDialog({ open, settings, onClose }: { open: boolean; settings: RestaurantSettings; onClose: () => void }) {
   const [tables, setTables] = useState('');
   const [gst, setGst] = useState('5');
+  // v4.120.0: a shop without a GSTIN charges no GST (AU-12); old shops (no category profile): as before.
+  const gstOk = gstAllowed();
   const [inclusive, setInclusive] = useState(true);
   const [service, setService] = useState('0');
   const [packing, setPacking] = useState('0');
@@ -38,7 +41,7 @@ export function SetupDialog({ open, settings, onClose }: { open: boolean; settin
   const save = () => {
     saveRestaurantSettings(sanitizeRestaurantSettings({
       tables: tables.split(/[,\n]/),
-      gstRate: parseFloat(gst),
+      gstRate: gstOk ? parseFloat(gst) : 0,
       gstInclusive: inclusive,
       serviceChargePercent: parseFloat(service) || 0,
       packingChargePaise: packing ? parseRupeesToPaise(packing) : 0,
@@ -68,7 +71,8 @@ export function SetupDialog({ open, settings, onClose }: { open: boolean; settin
         <section className="grid sm:grid-cols-2 gap-4">
           <div>
             <span className={label}>{tr('GST on the bill')}</span>
-            <div className="flex flex-wrap items-center gap-1.5">
+            {!gstOk && <p className="text-[11px] text-amber-700 mb-1.5" data-rest-gst-needs-gstin>{tr('No GST without a GSTIN. Add your GSTIN in Settings → Store & GST Profile to charge GST.')}</p>}
+            <div className={cn('flex flex-wrap items-center gap-1.5', !gstOk && 'opacity-50 pointer-events-none')}>
               {GST_CHOICES.map((g) => (
                 <button key={g} type="button" onClick={() => setGst(String(g))} aria-pressed={parseFloat(gst) === g}
                   className={cn('h-10 px-3 rounded-xl border text-sm font-black cursor-pointer', parseFloat(gst) === g ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-slate-300 text-slate-700 hover:border-emerald-500')}>{g}%</button>

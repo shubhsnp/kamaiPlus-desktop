@@ -1,5 +1,6 @@
 'use client';
 import { unitPriceFor } from '@/lib/billing/priceMode';
+import { gstAllowed, lineGstRate } from '@/lib/business/verticalProfile';
 
 import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/db';
@@ -150,7 +151,7 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
     if (existingIndex >= 0) {
       handleUpdateItemQty(existingIndex, items[existingIndex].quantity + 1);
     } else {
-      const taxRate = product.tax_rate || 0;
+      const taxRate = lineGstRate(product.tax_rate, gstAllowed());
       // A wholesale bill gets the item's wholesale price here too (v4.87.0).
       const unitPrice = unitPriceFor(product, sale?.price_mode === 'wholesale' ? 'wholesale' : 'retail');
       const lineTotal = unitPrice;

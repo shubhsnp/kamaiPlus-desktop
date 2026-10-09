@@ -59,7 +59,7 @@ import { lastChangedLine } from '../src/components/billing/PosScanPanel';
 import { visibleAdminMessages } from '../src/lib/admin/adminMessages';
 import type { AdminMessage } from '../src/lib/desktop/desktopBridge';
 import { buildSampleSale } from '../src/lib/invoices/sampleInvoice';
-import { resolveInvoiceConfig } from '../src/lib/invoices/themeDefaults';
+import { INVOICE_HEADINGS, resolveInvoiceConfig } from '../src/lib/invoices/themeDefaults';
 import {
   allocateBillDiscount,
   calculateLineTax,
@@ -97,7 +97,7 @@ import { isRestaurantBill } from '../src/components/restaurant/RecentBills';
 import { DEFAULT_FEATURE_SWITCHES, FEATURES, featureForPath, isPathEnabled, parseAdminOverrides, parseFeatureSwitches, showSellingPriceField } from '../src/lib/features/featureSwitches';
 import { isRestaurantMode, readFeatureSwitches } from '../src/lib/features/featureSwitches';
 import { countsStockAtCounter } from '../src/lib/billing/stockRule';
-import { VERTICAL_IDS, VERTICAL_PROFILE_KEY, parseVerticalProfile, saveVerticalProfile, syncVerticalGst, verticalSwitches } from '../src/lib/business/verticalProfile';
+import { VERTICAL_IDS, VERTICAL_PROFILE_KEY, gstAllowed, lineGstRate, parseVerticalProfile, restaurantGstFor, saveVerticalProfile, syncVerticalGst, verticalSwitches } from '../src/lib/business/verticalProfile';
 import { adminBlock, blocksBilling, cleanFeatureOverrides, counterHasOpenBill, needsUpdate } from '../src/lib/admin/adminControl';
 import { matchesProductDetails } from '../src/lib/products/detailSearch';
 import { buildImportRows, buildItemName, COLUMN_ROLES, findHeaderRow, guessColumnRoles, mapUnit, parseAmount, planImport } from '../src/lib/import/catalogImport';
@@ -4609,6 +4609,46 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
     'Stock counting off: no stock number / "Out of stock" on the product cards, every size in the picker can be chosen');
   assert(readSource('components/billing/posSaleActions.ts').includes('if (prod && !prod.is_unlimited_stock) {'),
     'The sale still lowers the hidden stock, so switching counting on later starts from what was really sold');
+}
+
+// v4.120.0 — GST follows the GSTIN (AU-12, AU-25; docs/VERTICAL_PLAN.md A3). Shops set up before v4.118.0: unchanged.
+{
+  const mem = new Map<string, string>();
+  const G = globalThis as unknown as Record<string, unknown>;
+  const hadWindow = 'window' in G, hadLs = 'localStorage' in G;
+  G.window = { dispatchEvent() { return true; }, addEventListener() {}, removeEventListener() {} };
+  G.localStorage = { getItem: (k: string) => (mem.has(k) ? mem.get(k)! : null), setItem: (k: string, v: string) => { mem.set(k, String(v)); }, removeItem: (k: string) => { mem.delete(k); } };
+  try {
+    const noGstinBiz = { ...invBiz, gstin: undefined };
+    const oldShopAllowed = gstAllowed();
+    const oldShopHeading = buildInvoiceDocument(sampleGstSale, noGstinBiz, {}).heading;
+    saveVerticalProfile('grocery', false);
+    const newNoGst = gstAllowed();
+    const bos = buildInvoiceDocument(sampleGstSale, noGstinBiz, {}).heading;
+    const withGstin = buildInvoiceDocument(sampleGstSale, invBiz, {}).heading;
+    const ownTitle = buildInvoiceDocument(sampleGstSale, { ...noGstinBiz, invoice_theme_config: { ...resolveInvoiceConfig(noGstinBiz), custom_title: 'CASH MEMO' } }, {}).heading;
+    saveVerticalProfile('grocery', true);
+    const newGst = gstAllowed();
+    assert(oldShopAllowed && oldShopHeading === 'TAX INVOICE' && !newNoGst && bos === 'BILL OF SUPPLY' && withGstin === 'TAX INVOICE' && ownTitle === 'CASH MEMO' && newGst,
+      `Bill heading: a new shop without a GSTIN prints BILL OF SUPPLY (got ${bos}); with a GSTIN TAX INVOICE; a heading the shop chose stays; old shops unchanged (${oldShopHeading})`);
+  } finally {
+    if (!hadWindow) delete G.window;
+    if (!hadLs) delete G.localStorage;
+  }
+  assert(lineGstRate(12, false) === 0 && lineGstRate(12, true) === 12 && lineGstRate(undefined, true) === 0
+    && restaurantGstFor(false, 5) === 0 && restaurantGstFor(true, 0) === 5 && restaurantGstFor(true, 12) === 12,
+    'A bill line takes no GST when the shop may not charge it; restaurant Set-up GST 0 without a GSTIN, 5 % (or the shop’s own) with one');
+  const cartSrc = readSource('components/billing/posCartActions.ts');
+  assert((cartSrc.match(/lineGstRate\(product\.tax_rate, gstAllowed\(\)\)/g) || []).length === 2 && !/tax_rate \|\| 0;\n\s*\/\/ A wholesale/.test(readSource('components/invoices/EditInvoiceModal.tsx'))
+    && readSource('components/invoices/EditInvoiceModal.tsx').includes('lineGstRate(product.tax_rate, gstAllowed())'),
+    'Counter (add, no-price add) and Edit Bill take the line GST through the GSTIN rule');
+  const onb = readSource('components/onboarding/onboardingSubmit.ts');
+  assert(onb.includes('validateGstin(cleanGstin, false)') && onb.includes('saveVerticalProfile(vertical, Boolean(cleanGstin))') && onb.includes('gstin: cleanGstin || undefined')
+    && readSource('app/onboarding/page.tsx').includes('data-onboarding-gstin'),
+    'Store setup: optional GSTIN box (checked), saved on the shop, and it decides the GST profile');
+  assert(readSource('components/layout/BusinessProvider.tsx').includes('restaurantGstFor(hasGstin, s.gstRate)') && readSource('components/restaurant/SetupDialog.tsx').includes('gstRate: gstOk ? parseFloat(gst) : 0'),
+    'Restaurant: GST % follows the GSTIN; Set-up cannot charge GST without one');
+  assert((INVOICE_HEADINGS as readonly string[]).includes('BILL OF SUPPLY'), 'Invoice Themes offers BILL OF SUPPLY as a heading');
 }
 
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.

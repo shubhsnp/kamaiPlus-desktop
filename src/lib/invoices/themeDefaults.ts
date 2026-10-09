@@ -19,7 +19,7 @@ export const INVOICE_PALETTE: InvoicePaletteColor[] = [
 ];
 
 /** Document headings offered in Invoice Themes (Android parity). */
-export const INVOICE_HEADINGS = ['TAX INVOICE', 'RETAIL INVOICE', 'CASH MEMO', 'ESTIMATE / BILL'] as const;
+export const INVOICE_HEADINGS = ['TAX INVOICE', 'BILL OF SUPPLY', 'RETAIL INVOICE', 'CASH MEMO', 'ESTIMATE / BILL'] as const;
 
 export const DEFAULT_INVOICE_COLOR = '#0284C7';
 export const DEFAULT_INVOICE_HEADING = 'TAX INVOICE';

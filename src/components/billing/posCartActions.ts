@@ -8,6 +8,7 @@ import { unitPriceFor } from '@/lib/billing/priceMode';
 import { allowsFractionalQty, roundQty } from '@/lib/billing/unitQuantity';
 import { isFeatureOn } from '@/lib/features/featureSwitches';
 import { countsStockAtCounter } from '@/lib/billing/stockRule';
+import { gstAllowed, lineGstRate } from '@/lib/business/verticalProfile';
 import { tr } from '@/lib/i18n/core';
 import type { BillTab } from '@/lib/billing/billTabs';
 import type { PriceMode } from '@/lib/billing/priceMode';
@@ -131,7 +132,7 @@ export function createCartActions(deps: CreateCartActionsDeps) {
     if (needsPrice) {
       window.setTimeout(() => {
         showBillingToast(tr('"{name}" has no price yet — enter it.', { name: product.name }), 'info');
-        handleOpenEditItem({ product_id: product.id, product_name: product.name, quantity: quantityToAdd, unit: product.unit, unit_price: 0, discount_amount: 0, tax_rate: product.tax_rate || 0, tax_amount: 0, total_amount: 0, is_tax_inclusive: product.is_tax_inclusive } as CartItem);
+        handleOpenEditItem({ product_id: product.id, product_name: product.name, quantity: quantityToAdd, unit: product.unit, unit_price: 0, discount_amount: 0, tax_rate: lineGstRate(product.tax_rate, gstAllowed()), tax_amount: 0, total_amount: 0, is_tax_inclusive: product.is_tax_inclusive } as CartItem);
       }, 0);
     }
     playBeepSound('success');
@@ -167,7 +168,8 @@ export function createCartActions(deps: CreateCartActionsDeps) {
         // The bill's price: wholesale when the bill is wholesale and the item has one (v4.87.0).
         const price = unitPriceFor(product, isFeatureOn('wholesale_price') ? priceModeRef.current : 'retail');
         const lineTotal = Math.round(price * allowedQty);
-        const taxRate = product.tax_rate || 0;
+        // No GSTIN = no GST on the bill (v4.120.0; shops set up before v4.118.0: the item's rate).
+        const taxRate = lineGstRate(product.tax_rate, gstAllowed());
         const taxAmt = calculateItemTax(lineTotal, taxRate, product.is_tax_inclusive);
         return [
           ...prev,

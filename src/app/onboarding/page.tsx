@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { BusinessType } from '@/types';
 import { db as localDb } from '@/lib/db';
 import { getStoredUser, AuthUser } from '@/lib/auth';
-import { Store, Sparkles, ArrowRight, User, AlertCircle, QrCode } from 'lucide-react';
+import { Store, Sparkles, ArrowRight, User, AlertCircle, QrCode, Receipt } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { tr } from '@/lib/i18n/core';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
@@ -34,6 +34,7 @@ export default function OnboardingPage() {
   const [ownerName, setOwnerName] = useState<string>('');
   const [phone, setPhone] = useState<string>('');
   const [upiId, setUpiId] = useState<string>('');
+  const [gstin, setGstin] = useState<string>('');
   const [businessType, setBusinessType] = useState<BusinessType>('grocery');
   const [seedStarterCatalog, setSeedStarterCatalog] = useState<boolean>(false);
 
@@ -98,7 +99,7 @@ export default function OnboardingPage() {
 
   const { handleSubmit } = createOnboardingSubmit({
     router, currentUser, setIsLoading, setError, businessName, ownerName,
-    phone, upiId, businessType, seedStarterCatalog,
+    phone, upiId, businessType, seedStarterCatalog, gstin,
   });
 
   return (
@@ -249,6 +250,30 @@ export default function OnboardingPage() {
               </div>
               <p className="text-[11px] text-slate-500 mt-1">
                 {tr('If added, bills print a UPI QR code for the bill amount. Leave blank if you do not take UPI.')}
+              </p>
+            </div>
+
+            {/* 5b. GSTIN (optional, v4.120.0) — decides GST on bills and the GST screens */}
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 flex items-center justify-between">
+                <span>{tr('GSTIN (Optional)')}</span>
+                <span className="text-[10px] text-slate-500 font-semibold normal-case">{tr('Can be added later in Settings')}</span>
+              </label>
+              <div className="relative flex items-center">
+                <span className="absolute left-3.5 text-cyan-400 pointer-events-none">
+                  <Receipt className="w-4 h-4" />
+                </span>
+                <input
+                  type="text"
+                  value={gstin}
+                  onChange={(e) => setGstin(e.target.value.toUpperCase().replace(/[^0-9A-Z]/g, '').slice(0, 15))}
+                  placeholder={tr('e.g. 27AAPFU0939F1ZV')}
+                  data-onboarding-gstin
+                  className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl focus:ring-2 focus:ring-amber-400 focus:outline-none text-white text-sm font-mono placeholder:font-sans placeholder:text-slate-600 transition"
+                />
+              </div>
+              <p className="text-[11px] text-slate-500 mt-1">
+                {tr('Only if your shop is GST registered: bills then charge GST and say Tax Invoice. Without it bills carry no GST and say Bill of Supply.')}
               </p>
             </div>
 

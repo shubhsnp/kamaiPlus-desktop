@@ -7,7 +7,9 @@ import { getLanguage, tr } from '@/lib/i18n/core';
 import { markWhatsNewSeen } from '@/lib/whatsNew/changelog';
 import { APP_VERSION } from '@/lib/constants/version';
 import { FEATURE_SWITCHES_KEY, FEATURE_SWITCHES_EVENT } from '@/lib/features/featureSwitches';
-import { isVerticalId, saveVerticalProfile } from '@/lib/business/verticalProfile';
+import { isVerticalId, restaurantGstFor, saveVerticalProfile } from '@/lib/business/verticalProfile';
+import { validateGstin } from '@/lib/validation/validators';
+import { loadRestaurantSettings, saveRestaurantSettings } from '@/lib/restaurant/settings';
 import type { useRouter } from 'next/navigation';
 
 export interface CreateOnboardingSubmitDeps {
@@ -21,6 +23,8 @@ export interface CreateOnboardingSubmitDeps {
   upiId: string;
   businessType: string;
   seedStarterCatalog: boolean;
+  /** Optional (v4.120.0): GST on bills and the GST screens only with one. */
+  gstin?: string;
 }
 
 /**
@@ -30,7 +34,7 @@ export interface CreateOnboardingSubmitDeps {
 export function createOnboardingSubmit(deps: CreateOnboardingSubmitDeps) {
   const {
     router, currentUser, setIsLoading, setError, businessName, ownerName,
-    phone, upiId, businessType, seedStarterCatalog,
+    phone, upiId, businessType, seedStarterCatalog, gstin = '',
   } = deps;
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,6 +63,15 @@ export function createOnboardingSubmit(deps: CreateOnboardingSubmitDeps) {
       return;
     }
 
+    const cleanGstin = gstin.trim().toUpperCase();
+    if (cleanGstin) {
+      const gstinRes = validateGstin(cleanGstin, false);
+      if (!gstinRes.isValid) {
+        setError(gstinRes.error || tr('Invalid GSTIN structure.'));
+        return;
+      }
+    }
+
     setIsLoading(true);
 
     try {
@@ -76,6 +89,7 @@ export function createOnboardingSubmit(deps: CreateOnboardingSubmitDeps) {
         owner_name: cleanOwnerName,
         phone: cleanPhone,
         upi_id: cleanUpiId || undefined,
+        gstin: cleanGstin || undefined,
         email: user?.email || undefined,
         user_email: user?.email || undefined,
         user_uid: rawUid,
@@ -124,7 +138,13 @@ export function createOnboardingSubmit(deps: CreateOnboardingSubmitDeps) {
       try {
         localStorage.removeItem(FEATURE_SWITCHES_KEY);
       } catch {}
-      saveVerticalProfile(isVerticalId(businessType) ? businessType : 'retail', false);
+      const vertical = isVerticalId(businessType) ? businessType : 'retail';
+      saveVerticalProfile(vertical, Boolean(cleanGstin));
+      // A restaurant's one GST %: 5 % with a GSTIN, none without (AU-12).
+      if (vertical === 'restaurant') {
+        const rs = loadRestaurantSettings();
+        saveRestaurantSettings({ ...rs, gstRate: restaurantGstFor(Boolean(cleanGstin), rs.gstRate) });
+      }
       window.dispatchEvent(new Event(FEATURE_SWITCHES_EVENT));
 
       // 2. Write Complete Merchant Document to Firestore `merchants/{uid}`.

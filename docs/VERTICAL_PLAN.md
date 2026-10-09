@@ -56,8 +56,8 @@
 | # | Step | Findings | Status |
 |---|---|---|---|
 | A1 | Vertical profile engine: preset upar wala, restaurant mode khud on, GST switches GSTIN se, Settings se Features tab hatana. Purani dukaan same. | AU-04, AU-15, AU-07 | ✅ v4.118.0 `bf8e86d` |
-| A2 | Stock counting band = counter par stock check / badge nahi | AU-30 | ✅ v4.119.0 |
-| A3 | GST GSTIN se: bina GSTIN "BILL OF SUPPLY", store setup mein GSTIN (optional), restaurant GST 0 / 5 | AU-12, AU-25 | ⬜ |
+| A2 | Stock counting band = counter par stock check / badge nahi | AU-30 | ✅ v4.119.0 `2e139dc` |
+| A3 | GST GSTIN se: bina GSTIN "BILL OF SUPPLY", store setup mein GSTIN (optional), restaurant GST 0 / 5 | AU-12, AU-25 | ✅ v4.120.0 |
 | A4 | Sample data har vertical: GST 2.0 rate (sirf GSTIN par), retail = general items, kapde mein variants, restaurant unlimited, electronics 10, sahi hint, sirf vertical ki categories; units strip / plate / portion | AU-03, 08, 16, 21, 26, 29, 30 | ⬜ |
 | A5 | Pharmacy: batch no. + expiry (item, bill line, bill print, expiry alert) + doctor / patient (bill) | AU-22, AU-13 | ⬜ |
 | A6 | Electronics: IMEI / serial + warranty bill line par | AU-13 | ⬜ |
@@ -69,7 +69,7 @@
 
 ## Abhi kya chal raha hai
 
-**A2** code + tests (v4.119.0) — commit ke baad agla **A3**.
+**A3** code + tests (v4.120.0) — commit ke baad agla **A4** (sample data + units).
 
 ## Kaam log
 
@@ -112,3 +112,17 @@
 - Store setup mein optional GSTIN box (validateGstin); bhara = profile `gst: true`.
 - Restaurant: Set-up GST default bina GSTIN 0%, GSTIN ho to 5%.
 - Tests + Electron check.
+
+### A3 — kya hua (2026-10-09)
+- `verticalProfile.ts`: `gstAllowed()` (profile nahi = haan, purana jaisa), `lineGstRate`, `restaurantGstFor`.
+- Item ka GST rate data mein rehta hai (GSTIN aane par sahi rate pehle se); **bill banate waqt** line GST = 0 jab dukaan GST nahi le sakti: counter `posCartActions.ts` (2 jagah), Edit Bill `EditInvoiceModal.tsx`.
+- Heading: `invoiceDocument.ts` — profile + GSTIN nahi + heading "TAX INVOICE" → "BILL OF SUPPLY" (dukaan ka apna title rehta). `INVOICE_HEADINGS` mein BILL OF SUPPLY.
+- Store setup: optional GSTIN box (`validateGstin`), shop row par save, profile `gst`; restaurant Set-up GST 0 / 5.
+- `BusinessProvider`: GSTIN badla → restaurant GST bhi. `SetupDialog`: bina GSTIN GST band + note.
+- Tests: Suite 9 "v4.120.0" block.
+- Note: bina GSTIN GST band hai to GST bills mein 0 → `statutory` false → GST column / tax table pehle se nahi chhapte.
+
+### A4 — Sample data + units (plan, kaam se pehle)
+- `defaultProducts.ts`: GST 2.0 rate (12% hatao; CA se confirm), retail = general store items (patakhe nahi), clothing ek variants wala item (Kurti S/M/L), electronics 10 items, restaurant dishes `is_unlimited_stock: true`, pharmacy unit `strip` + batch / expiry baad mein (A5).
+- Hint text sahi (`CATALOG_HINTS`), categories sirf vertical ki (+ General) — profile wali nayi dukaan ke liye.
+- Units: `strip`, `plate`, `portion` MASTER_UNITS + Excel `mapUnit` (cloud contract §4.1 se mel).
