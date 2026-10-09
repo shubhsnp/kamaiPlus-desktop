@@ -93,11 +93,10 @@ export function getQuantityConfigForUnit(unit?: ProductUnit) {
       placeholder: tr('e.g. 1, 2, 3 or 0.5 (half strip)'),
       decimalNotice: tr('Strip counts (0.5 for loose/half strip)'),
       chips: [
-        { label: '1 Tab (0.1)', val: '0.1' },
-        { label: '2 Tabs (0.2)', val: '0.2' },
-        { label: '3 Tabs (0.3)', val: '0.3' },
+        // v4.128.0: no "1 Tab = 0.1 strip" chips — strips hold 10, 15, 20… tablets; loose tablets go
+        // through "Or tablets" in the edit window with the strip's own count.
         { label: '¼ Strip', val: '0.25' },
-        { label: '½ Strip (5 Tabs)', val: '0.5' },
+        { label: '½ Strip', val: '0.5' },
         { label: '¾ Strip', val: '0.75' },
         { label: '1 Strip', val: '1' },
         { label: '2 Strips', val: '2' },

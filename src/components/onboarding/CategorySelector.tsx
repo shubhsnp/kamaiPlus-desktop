@@ -56,8 +56,9 @@ export const RETAIL_CATEGORIES: RetailCategoryOption[] = [
   },
   {
     id: 'hardware',
-    title: 'Electronics & Mobile',
-    desc: 'Serial numbers, Accessories & Gadgets',
+    // Same card as the Android app (2026-10-10 parity): one category for electronics, mobile and hardware shops.
+    title: 'Electronics & Hardware',
+    desc: 'Mobiles, electricals, serial no. & warranty',
     badge: 'Hardware & Mobile',
     icon: Smartphone,
     accentColor: 'text-blue-400',

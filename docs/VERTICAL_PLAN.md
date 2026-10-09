@@ -65,9 +65,9 @@
 | A7 | Restaurant: KOT printer chunna; printer nahi = "sent" nahi | AU-31 | ✅ v4.123.0 `e149c99` |
 | AU batch | AU-02 restore poora, AU-05/18 lookup sirf Google, AU-09, AU-17 Day Summary khata, AU-19 estimate text, AU-23 HSN + unit, AU-27 placeholder, AU-32 restaurant terms | — | ✅ v4.124.0 |
 | A8 | Category cards sach bolein; Bible / contract / FUTURE_SCOPE update | AU-13, AU-20, AU-28 | ⬜ |
-| B1 | Android: wahi preset table + profile (Android repo) | parity | ⬜ |
-| B2 | Android: batch / expiry, IMEI, doctor / patient fields same naam se | parity | ⬜ |
-| C1 | Sync: `business_type` + naye fields (batch_number, expiry_date, imei_serial, doctor_name, patient_name) dono taraf — `CLOUD_DATA_CONTRACT.md` dono repo mein | sync | ⬜ |
+| B1 | Android: wahi preset table + profile (Android repo) | parity | ✅ Android commit (retail, hardware naam, GST GSTIN se) |
+| B2 | Android: batch / expiry, IMEI, doctor / patient fields same naam se | parity | ✅ (expiry yyyy-MM, patient_name) |
+| C1 | Sync: `business_type` + naye fields (batch_number, expiry_date, imei_serial, doctor_name, patient_name) dono taraf — `CLOUD_DATA_CONTRACT.md` dono repo mein | sync | ✅ v4.128.0 (Desktop test) + Android test |
 
 ## Abhi kya chal raha hai
 
@@ -192,3 +192,13 @@
 - Switch `bill_serial_warranty` (electronics on) + Admin Console list.
 - `PosItemEditModal` mein IMEI / Serial No. + Warranty (months) (sirf switch on); `handleSaveEditItem(extra)` line par likhta. A4 `lineMeta` aur thermal (A5 mein) pehle se chhaapte.
 - Agla: AU-13 cards + A8 docs, phir B1 / B2 / C1 (Android), phir poora Electron audit + 1000+ products.
+
+### B1 / B2 / C1 — kya hua (2026-10-10)
+- Android: `retail` vertical + signup card + 10 samples; `hardware` = "Electronics, Mobile & Hardware", card "Electronics & Hardware" (Desktop card bhi), labels on; GST GSTIN se (`FeatureSwitchesService.init(gstin)`, `syncGstin`; pehle Android par GST chalu hi nahi ho sakta tha); bina GST "BILL OF SUPPLY".
+- Android B2: expiry `yyyy-MM` padhta; `patient_name` (model, DB column, checkout, cloud).
+- **Paisa bug dono apps mein:** strip ki goliyan "10 per strip" maan kar bilti thi (15 wali strip ki 3 goli = 0.3 strip). Desktop: "Or tablets: N of M in a strip" (naam se ginti, nahi to likho), chips se 0.1 hataye. Android: bina pack size tablet chips nahi, labels "N Tablets".
+- Desktop C1 test: doctor / patient / batch / expiry / strip cloud mein aate-jaate (Suite 9 v4.128.0). Android `test/desktop_parity_test.dart`.
+- Android suite: 422 + parity; ek fail (quantity_config) theek.
+
+### Agla: poora Electron audit (1000+ products, asli din, stress) — plan
+- Naya build (`npm run build`), driver se: har vertical setup, 1000+ products Excel import / bulk, 300+ bills (cash / UPI / udhar / split / discount / return / estimate), khata, purchases, cash register, reports / GST / Day Summary mila kar, search / scan speed, backup / restore, restart. Mile bug → fix + test + version.

@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/Input';
 import { CartItem, Business } from '@/types';
 import { cn, formatINR } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
-import { dozenFromPieces, formatCartQty, lineAmountPaise, piecesInDozen, roundQty } from '@/lib/billing/unitQuantity';
+import { dozenFromPieces, formatCartQty, lineAmountPaise, piecesInDozen, roundQty, tabletsPerStripFromName } from '@/lib/billing/unitQuantity';
 import { getQuantityConfigForUnit } from './posQuantityConfig';
 import { useFeatureSwitches } from '@/lib/features/featureSwitches';
 
@@ -43,12 +43,15 @@ export const PosItemEditModal: React.FC<PosItemEditModalProps> = ({
   const [pieces, setPieces] = useState('');
   // Strip items (Pharmacy): loose tablets typed here convert to fractional strips (e.g. 3 tabs of 10 = 0.3 strip).
   const [tablets, setTablets] = useState('');
+  // v4.128.0: tablets in one strip — from the item name, or typed here (never assumed to be 10).
+  const [perStrip, setPerStrip] = useState('');
   // v4.127.0 (AU-13): IMEI / serial + warranty of THIS piece (electronics / mobile shops).
   const serialOn = useFeatureSwitches().bill_serial_warranty;
   const [serial, setSerial] = useState('');
   const [warranty, setWarranty] = useState('');
   useEffect(() => {
     setPieces(''); setTablets('');
+    setPerStrip(String(tabletsPerStripFromName(editingCartItem?.product_name) || ''));
     setSerial(editingCartItem?.imei_serial || '');
     setWarranty(editingCartItem?.warranty_period_months ? String(editingCartItem.warranty_period_months) : '');
   }, [editingCartItem]);
@@ -110,23 +113,38 @@ export const PosItemEditModal: React.FC<PosItemEditModalProps> = ({
             </div>
           )}
           {isStrip && (
-            <div className="flex items-center gap-2 mt-2 text-xs">
-              <span className="font-bold text-slate-700">{tr('Or pieces:')}</span>
+            <div className="flex flex-wrap items-center gap-2 mt-2 text-xs" data-edit-tablets-row>
+              <span className="font-bold text-slate-700">{tr('Or tablets:')}</span>
               <input
                 type="number"
                 min="1"
                 step="1"
                 value={tablets}
+                disabled={!(Number(perStrip) >= 2)}
                 onChange={(e) => {
                   setTablets(e.target.value);
                   const n = Math.round(Number(e.target.value));
-                  if (n > 0) setEditItemQty(String(roundQty(n / 10)));
+                  const per = Math.round(Number(perStrip));
+                  if (n > 0 && per >= 2) setEditItemQty(String(roundQty(n / per)));
                 }}
-                placeholder={tr('e.g. 7')}
-                className="w-20 h-8 px-2 rounded-lg border border-slate-300 font-mono font-bold"
+                placeholder={tr('e.g. 3')}
+                className="w-16 h-8 px-2 rounded-lg border border-slate-300 font-mono font-bold disabled:bg-slate-100"
                 data-edit-tablets
               />
-              {qtyNow > 0 && <span className="text-slate-500 font-semibold">= {tr('{count} pcs', { count: Math.round(qtyNow * 10) })}</span>}
+              <span className="text-slate-600">{tr('of')}</span>
+              <input
+                type="number"
+                min="2"
+                max="100"
+                step="1"
+                value={perStrip}
+                onChange={(e) => { setPerStrip(e.target.value.replace(/\D/g, '').slice(0, 3)); setTablets(''); }}
+                placeholder="15"
+                className="w-14 h-8 px-2 rounded-lg border border-slate-300 font-mono font-bold"
+                data-edit-per-strip
+              />
+              <span className="text-slate-600">{tr('in a strip')}</span>
+              {qtyNow > 0 && Number(perStrip) >= 2 && <span className="text-slate-500 font-semibold">= {tr('{count} tablets', { count: Math.round(qtyNow * Number(perStrip) * 1000) / 1000 })}</span>}
             </div>
           )}
           <div className="flex flex-wrap items-center gap-1.5 mt-2">

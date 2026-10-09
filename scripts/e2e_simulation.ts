@@ -99,6 +99,7 @@ import { isRestaurantMode, readFeatureSwitches } from '../src/lib/features/featu
 import { countsStockAtCounter } from '../src/lib/billing/stockRule';
 import { backupIsSafe } from '../src/lib/cloud/deletedStore';
 import { cleanExpiry, expiryState, formatExpiry } from '../src/lib/products/expiry';
+import { tabletsPerStripFromName } from '../src/lib/billing/unitQuantity';
 import { VERTICAL_IDS, VERTICAL_PROFILE_KEY, gstAllowed, lineGstRate, parseVerticalProfile, restaurantGstFor, saveVerticalProfile, syncVerticalGst, verticalSwitches } from '../src/lib/business/verticalProfile';
 import { adminBlock, blocksBilling, cleanFeatureOverrides, counterHasOpenBill, needsUpdate } from '../src/lib/admin/adminControl';
 import { matchesProductDetails } from '../src/lib/products/detailSearch';
@@ -1689,8 +1690,8 @@ assert(readSource('app/billing/page.tsx').split('\n').length <= 401, `POS page s
   const strip = getQuantityConfigForUnit('strip');
   const packet = getQuantityConfigForUnit('packet');
   const litre = getQuantityConfigForUnit('litre');
-  assert(kg.chips.some((c) => c.val === '0.75') && strip.chips.some((c) => c.val === '0.1') && packet.chips.some((c) => c.val === '0.5') && litre.chips.some((c) => c.val === '0.5'),
-    'Quantity chips: 750g for kg, 1 tab (0.1) for strip, ½ pkt for packet, ½ L for litre');
+  assert(kg.chips.some((c) => c.val === '0.75') && strip.chips.some((c) => c.val === '0.5') && !strip.chips.some((c) => c.val === '0.1') && packet.chips.some((c) => c.val === '0.5') && litre.chips.some((c) => c.val === '0.5'),
+    'Quantity chips: 750g for kg, ½ strip (no 1 tab = 0.1 guess since v4.128.0), ½ pkt for packet, ½ L for litre');
   const pos = readCounter();
   const edit = readSource('components/billing/PosItemEditModal.tsx');
   assert(/const qty = roundQty\(parseFloat\(editItemQty\)\);/.test(pos) && /!Number\.isInteger\(qty\) && !allowsFractionalQty\(editingCartItem\.unit, product\?\.allow_decimal\)/.test(pos)
@@ -4802,6 +4803,42 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
   assert(em.includes('data-line-imei') && em.includes('data-line-warranty') && em.includes('useFeatureSwitches().bill_serial_warranty')
     && readSource('components/billing/posCartActions.ts').includes('...(extra || {}),'),
     'Counter ✏️: IMEI / serial and warranty months for that line, saved on it (A4 + thermal print them)');
+}
+
+// v4.128.0 — Desktop ↔ Android (docs/VERTICAL_PLAN.md B1 / C1): the same category card, and the new
+// pharmacy / electronics fields travel through the cloud both ways (Android test/desktop_parity_test.dart).
+{
+  const ctx2 = { bizId: 'biz_UID1' };
+  const sale: any = {
+    id: 's_px', business_id: 'biz_local', invoice_number: 'INV-900', customer_name: 'Cash Customer', doctor_name: 'Dr. Mehta', patient_name: 'Ravi Kumar',
+    items: [{ product_id: 'p1', product_name: 'Dolo 650 Tablet', quantity: 1, unit: 'strip', unit_price: 3200, mrp: 3400, discount_amount: 0, tax_rate: 0, tax_amount: 0, total_amount: 3200,
+      batch_number: 'B2401', expiry_date: '2027-01', imei_serial: '', is_tax_inclusive: true }],
+    subtotal: 3200, discount_total: 0, tax_total: 0, grand_total: 3200, payment_method: 'cash', amount_received: 3200, balance_due: 0, status: 'completed', created_at: '2026-10-10T05:00:00.000Z', updated_at: '2026-10-10T05:00:00.000Z',
+  };
+  const out = toCloud('sales', sale, ctx2);
+  const back: any = fromCloud('sales', out, null, ctx2);
+  assert(out.doctor_name === 'Dr. Mehta' && out.patient_name === 'Ravi Kumar' && out.items[0].batch_number === 'B2401' && out.items[0].expiry_date === '2027-01'
+    && back.patient_name === 'Ravi Kumar' && back.items[0].batch_number === 'B2401',
+    'Cloud: doctor / patient on the bill and batch / expiry on its lines go out and come back unchanged (C1)');
+  const prod: any = { id: 'p1', business_id: 'biz_local', name: 'Dolo 650 Tablet', unit: 'strip', selling_price: 3200, mrp: 3400, purchase_price: 2600, current_stock: 10, min_stock_level: 2, tax_rate: 5,
+    batch_number: 'B2401', expiry_date: '2027-01', is_favorite: false, is_active: true, created_at: '', updated_at: '' };
+  const pc = toCloud('products', prod, ctx2);
+  assert(pc.batch_number === 'B2401' && pc.expiry_date === '2027-01' && pc.unit === 'strip', 'Cloud: an item\u2019s batch / expiry month and the strip unit reach the phone (it reads yyyy-MM since the parity fix)');
+  assert(readSource('components/onboarding/CategorySelector.tsx').includes("title: 'Electronics & Hardware'"),
+    'Store setup card "Electronics & Hardware" — the same words as the Android app');
+}
+
+// v4.128.0 — Loose tablets are billed with the strip's real count, never "10 a strip" (money bug, also on Android).
+// A 15-tablet strip at ₹32: 3 tablets were billed as 0.3 strip = ₹9.60 instead of 0.2 strip = ₹6.40.
+{
+  assert(tabletsPerStripFromName('Dolo 650 Tablet (15 tab)') === 15 && tabletsPerStripFromName('Disprin Regular (Strip of 10)') === 10
+    && tabletsPerStripFromName('Pantoprazole 40mg 15 Tablets') === 15 && tabletsPerStripFromName('Omez 20 Capsules') === 20
+    && tabletsPerStripFromName('Benadryl Cough Syrup 100 ml') === null && tabletsPerStripFromName('Paracetamol 650') === null,
+    'Tablets in a strip come from the item name ("(15 tab)", "Strip of 10", "15 Tablets"); unknown = asked, never 10');
+  const modal = readSource('components/billing/PosItemEditModal.tsx');
+  const qc = readSource('components/billing/posQuantityConfig.ts');
+  assert(!/n \/ 10\)/.test(modal) && modal.includes('roundQty(n / per)') && modal.includes('data-edit-per-strip') && !qc.includes("'1 Tab (0.1)'"),
+    'Counter: "Or tablets: 3 of 15 in a strip" = 0.2 strip; no strip chip assumes 10 tablets');
 }
 
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.

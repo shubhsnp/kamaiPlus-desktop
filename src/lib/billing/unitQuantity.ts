@@ -37,3 +37,21 @@ export function formatCartQty(qty: number): string {
   if (Number.isInteger(q)) return String(q);
   return q.toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
 }
+
+/**
+ * Tablets in one strip, read from the item name — "Dolo 650 Tablet (15 tab)", "Strip of 10",
+ * "Pantoprazole 40mg 15 Tablets", "Omez 20 Capsules". null when the name does not say (v4.128.0):
+ * then the cashier types it — the counter never guesses 10 (a 15-tablet strip billed 3 tablets as
+ * 0.3 strip, half again too much).
+ */
+export function tabletsPerStripFromName(name: string | undefined | null): number | null {
+  const text = String(name || '');
+  // "Dolo 650 Tablet (15 tab)": "650 Tablet" is the strength, "15 tab" the count — the first number in range wins.
+  const counts: number[] = [];
+  for (const re of [/strip\s*of\s*(\d{1,3})/gi, /(\d{1,3})\s*(?:tabs?|tablets?|caps?|capsules?)\b/gi]) {
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(text))) counts.push(Number(m[1]));
+  }
+  const found = counts.find((n) => Number.isInteger(n) && n >= 2 && n <= 100);
+  return found ?? null;
+}

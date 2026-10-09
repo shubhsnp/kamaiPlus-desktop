@@ -3105,5 +3105,12 @@
   "IMEI / Serial No.": "IMEI / सिरीयल नंबर",
   "Scan or type": "स्कॅन करा किंवा लिहा",
   "Warranty (months)": "वॉरंटी (महिने)",
-  "Electronics & mobile shops: the ✏️ on a bill line takes the IMEI / serial no. and warranty months of that piece, printed on the bill.": "इलेक्ट्रॉनिक्स आणि मोबाइल दुकाने: बिल ओळीच्या ✏️ मध्ये त्या पीसचा IMEI / सिरीयल नंबर आणि वॉरंटी (महिने), बिलावर छापले जातात."
+  "Electronics & mobile shops: the ✏️ on a bill line takes the IMEI / serial no. and warranty months of that piece, printed on the bill.": "इलेक्ट्रॉनिक्स आणि मोबाइल दुकाने: बिल ओळीच्या ✏️ मध्ये त्या पीसचा IMEI / सिरीयल नंबर आणि वॉरंटी (महिने), बिलावर छापले जातात.",
+  "Electronics & Hardware": "इलेक्ट्रॉनिक्स आणि हार्डवेअर",
+  "Mobiles, electricals, serial no. & warranty": "मोबाइल, इलेक्ट्रिकल, सिरीयल नंबर आणि वॉरंटी",
+  "Or tablets:": "किंवा गोळ्या:",
+  "e.g. 3": "उदा. 3",
+  "in a strip": "एका स्ट्रिपमध्ये",
+  "{count} tablets": "{count} गोळ्या",
+  "Pharmacy counter: loose tablets are billed with the strip's own tablet count (e.g. 3 of 15), never as tenths of a strip. Store setup card Electronics & Hardware matches the mobile app.": "फार्मसी काउंटर: सुट्या गोळ्या स्ट्रिपच्या स्वतःच्या संख्येने बिल होतात (उदा. 15 पैकी 3), स्ट्रिपच्या दहाव्या भागाप्रमाणे कधीही नाही. स्टोर सेटअपचे कार्ड Electronics & Hardware मोबाइल ॲपसारखे."
 }
