@@ -3066,5 +3066,11 @@
   "Adds 10 dishes (tea, dosa, thali, paneer and biryani in half / full) — never counted as stock.": "10 डिश जोड़ता है (चाय, डोसा, थाली, पनीर और बिरयानी हाफ / फुल) — स्टॉक में नहीं गिनी जातीं।",
   "Adds 10 general store items (stationery, batteries, soap, bottles, household) with prices and stock.": "जनरल स्टोर के 10 सामान जोड़ता है (स्टेशनरी, बैटरी, साबुन, बोतल, घरेलू) दाम और स्टॉक के साथ।",
   "New shops: sample items now fit the shop category — medicines by the strip, clothes in sizes, restaurant dishes in Half / Full and never counted, general store items for retail. New units: Strip, Plate, Portion.": "नई दुकानें: सैंपल सामान अब दुकान की कैटेगरी के हिसाब से — दवाइयाँ पत्ते (strip) में, कपड़े साइज़ में, रेस्टोरेंट डिश हाफ / फुल और स्टॉक में नहीं गिनी जातीं, रिटेल के लिए जनरल स्टोर का सामान। नई यूनिट: Strip, Plate, Portion।",
-  "Safer: if KamaiPlus support deletes a shop, this computer saves today's backup first and clears the data only after that; the app also opens without waiting for the internet.": "ज़्यादा सुरक्षित: अगर KamaiPlus सपोर्ट कोई दुकान डिलीट करे, तो यह कंप्यूटर पहले आज का बैकअप सेव करता है और उसके बाद ही डेटा हटाता है; ऐप अब इंटरनेट का इंतज़ार किए बिना खुलता है।"
+  "Safer: if KamaiPlus support deletes a shop, this computer saves today's backup first and clears the data only after that; the app also opens without waiting for the internet.": "ज़्यादा सुरक्षित: अगर KamaiPlus सपोर्ट कोई दुकान डिलीट करे, तो यह कंप्यूटर पहले आज का बैकअप सेव करता है और उसके बाद ही डेटा हटाता है; ऐप अब इंटरनेट का इंतज़ार किए बिना खुलता है।",
+  "no kitchen printer chosen": "किचन प्रिंटर चुना नहीं है",
+  "No kitchen (KOT) printer is chosen, so no slip was printed. Choose it in Printer setup (bill printer). Mark this order as told to the kitchen anyway?": "किचन (KOT) प्रिंटर चुना नहीं है, इसलिए पर्ची नहीं छपी। Printer setup (बिल प्रिंटर) में चुनें। फिर भी इस ऑर्डर को किचन को बताया हुआ मानें?",
+  "KOT not printed": "KOT नहीं छपा",
+  "Yes, kitchen knows": "हाँ, किचन को पता है",
+  "Marked as sent — no slip was printed ({label})": "भेजा हुआ माना — पर्ची नहीं छपी ({label})",
+  "Restaurant: with no kitchen (KOT) printer chosen, Send KOT no longer says sent — it asks whether the kitchen was told, and marks the order only then.": "रेस्टोरेंट: किचन (KOT) प्रिंटर न चुना हो तो Send KOT अब भेजा हुआ नहीं बताता — पूछता है कि किचन को बताया या नहीं, और तभी ऑर्डर पर निशान लगाता है।"
 }

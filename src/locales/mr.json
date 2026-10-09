@@ -3066,5 +3066,11 @@
   "Adds 10 dishes (tea, dosa, thali, paneer and biryani in half / full) — never counted as stock.": "10 डिश जोडते (चहा, डोसा, थाळी, पनीर आणि बिर्याणी हाफ / फुल) — स्टॉकमध्ये मोजल्या जात नाहीत.",
   "Adds 10 general store items (stationery, batteries, soap, bottles, household) with prices and stock.": "जनरल स्टोअरच्या 10 वस्तू जोडते (स्टेशनरी, बॅटरी, साबण, बाटल्या, घरगुती) किंमत आणि स्टॉकसह.",
   "New shops: sample items now fit the shop category — medicines by the strip, clothes in sizes, restaurant dishes in Half / Full and never counted, general store items for retail. New units: Strip, Plate, Portion.": "नवीन दुकाने: सॅम्पल वस्तू आता दुकानाच्या कॅटेगरीनुसार — औषधे स्ट्रिपमध्ये, कपडे साइजमध्ये, रेस्टॉरंट डिश हाफ / फुल आणि स्टॉकमध्ये मोजल्या जात नाहीत, रिटेलसाठी जनरल स्टोअरच्या वस्तू. नवीन युनिट: Strip, Plate, Portion.",
-  "Safer: if KamaiPlus support deletes a shop, this computer saves today's backup first and clears the data only after that; the app also opens without waiting for the internet.": "अधिक सुरक्षित: KamaiPlus सपोर्टने एखादे दुकान डिलीट केले तर हा कॉम्प्युटर आधी आजचा बॅकअप सेव्ह करतो आणि त्यानंतरच डेटा काढतो; ॲप आता इंटरनेटची वाट न पाहता उघडते."
+  "Safer: if KamaiPlus support deletes a shop, this computer saves today's backup first and clears the data only after that; the app also opens without waiting for the internet.": "अधिक सुरक्षित: KamaiPlus सपोर्टने एखादे दुकान डिलीट केले तर हा कॉम्प्युटर आधी आजचा बॅकअप सेव्ह करतो आणि त्यानंतरच डेटा काढतो; ॲप आता इंटरनेटची वाट न पाहता उघडते.",
+  "no kitchen printer chosen": "किचन प्रिंटर निवडलेला नाही",
+  "No kitchen (KOT) printer is chosen, so no slip was printed. Choose it in Printer setup (bill printer). Mark this order as told to the kitchen anyway?": "किचन (KOT) प्रिंटर निवडलेला नाही, म्हणून चिठ्ठी छापली नाही. Printer setup (बिल प्रिंटर) मध्ये निवडा. तरीही हा ऑर्डर किचनला सांगितला असे मानायचे?",
+  "KOT not printed": "KOT छापला नाही",
+  "Yes, kitchen knows": "हो, किचनला माहीत आहे",
+  "Marked as sent — no slip was printed ({label})": "पाठवले असे मानले — चिठ्ठी छापली नाही ({label})",
+  "Restaurant: with no kitchen (KOT) printer chosen, Send KOT no longer says sent — it asks whether the kitchen was told, and marks the order only then.": "रेस्टॉरंट: किचन (KOT) प्रिंटर निवडलेला नसेल तर Send KOT आता पाठवले असे सांगत नाही — किचनला सांगितले का ते विचारते, आणि तेव्हाच ऑर्डरवर खूण करते."
 }

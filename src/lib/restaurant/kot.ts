@@ -1,4 +1,6 @@
 import { buildPrintHtml, printHtml } from '@/lib/print/printDocument';
+import { getDesktopApi } from '@/lib/desktop/desktopBridge';
+import { tr } from '@/lib/i18n/core';
 import { getPrintSettings, printerForFormat } from '@/lib/hardware/printSettings';
 import type { PaperFormat } from '@/lib/desktop/desktopBridge';
 import { KotLine, RestOrder, kotChanges } from '@/lib/restaurant/model';
@@ -61,11 +63,15 @@ export function kotPaper(): PaperFormat {
  * Prints what changed since the last slip (or, v4.108.0, the `changes` given: a cancel slip / a reprint).
  * `ok: false` = nothing to send, or the printer failed.
  */
-export async function printKot(input: KotInput, given?: KotLine[]): Promise<{ ok: boolean; empty?: boolean; error?: string }> {
+export async function printKot(input: KotInput, given?: KotLine[]): Promise<{ ok: boolean; empty?: boolean; noPrinter?: boolean; error?: string }> {
   const changes = given || kotChanges(input.order);
   if (changes.length === 0) return { ok: false, empty: true };
   const paper = kotPaper();
   const settings = getPrintSettings();
+  // v4.123.0 (AU-31): no printer chosen for the slip = it is NOT sent anywhere. Before, a silent job with
+  // no printer name went to whatever Windows picked (a label printer, or nowhere) and the order said
+  // "In kitchen". The caller asks the waiter instead.
+  if (getDesktopApi() && !printerForFormat(settings, paper)) return { ok: false, noPrinter: true, error: tr('no kitchen printer chosen') };
   const html = buildPrintHtml(buildKotBody(input, changes), `KOT ${input.order.label}`, paper, KOT_CSS);
   // Silent: a kitchen slip must never open a print window in the waiter's face (the browser fallback ignores it).
   const res = await printHtml(html, paper, { deviceName: printerForFormat(settings, paper) || undefined, silent: true });

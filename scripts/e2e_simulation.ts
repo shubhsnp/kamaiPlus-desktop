@@ -4698,6 +4698,18 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
     'Sync paths that find a tombstone use the same backup-first wipe');
 }
 
+// v4.123.0 — A KOT with no kitchen printer chosen is never "sent" to nowhere (AU-31, docs/VERTICAL_PLAN.md A7).
+// Found in the real app: no printer set, "KOT sent to the kitchen (T1)" and the lines showed "In kitchen".
+{
+  const kot = readSource('lib/restaurant/kot.ts');
+  const screen = readSource('components/restaurant/OrderScreen.tsx');
+  assert(kot.includes('if (getDesktopApi() && !printerForFormat(settings, paper)) return { ok: false, noPrinter: true')
+    && kot.indexOf('noPrinter: true') < kot.indexOf('await printHtml('),
+    'printKot: no KOT printer chosen = nothing is printed and the answer says so');
+  assert(/res\.noPrinter\) \{[\s\S]{0,700}showConfirm\([\s\S]{0,500}if \(told\) \{[\s\S]{0,200}markKotSent/.test(screen),
+    'Send KOT without a printer asks the waiter; the order is marked sent only when they say the kitchen knows');
+}
+
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.
 Promise.allSettled(pendingAsyncChecks).then((results) => {
   for (const r of results) if (r.status === 'rejected') assert(false, 'An async check threw', String(r.reason));

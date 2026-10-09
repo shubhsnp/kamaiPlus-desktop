@@ -1671,8 +1671,12 @@ async function run() {
 
         step = 'kot';
         await page.locator('[data-order-kot]').click();
+        // v4.123.0 (AU-31): no KOT printer chosen on the test PC → it asks first instead of "sending" to nowhere.
+        const askNoPrinter = page.getByRole('button', { name: /Yes, kitchen knows/ });
+        const asked = await askNoPrinter.waitFor({ timeout: 8000 }).then(() => true, () => false);
+        if (asked) await askNoPrinter.click();
         const toast = await page.locator('[data-restaurant-toast]').waitFor({ timeout: 15000 }).then(() => true, () => false);
-        check(toast, 'Send KOT answers with a message (sent, or the printer problem) — it never hangs silently');
+        check(toast, `Send KOT answers with a message — with no KOT printer it asks first (asked: ${asked}); it never "sends" to nowhere`);
 
         step = 'hold';
         await page.locator('[data-order-back]').click();

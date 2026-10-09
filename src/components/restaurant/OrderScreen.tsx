@@ -7,6 +7,7 @@ import { MenuPick, RestLine, RestOrder, addPiece, applyToOnePiece, cancelOrderCh
 import type { RestAddOn, RestaurantSettings } from '@/lib/restaurant/settings';
 import type { RestState } from '@/lib/restaurant/store';
 import { printKot } from '@/lib/restaurant/kot';
+import { showConfirm } from '@/lib/ui/dialogs';
 import { RestPayMethod, settleOrder } from '@/lib/restaurant/settle';
 import { printCheck } from '@/lib/restaurant/checkPrint';
 import { recordVoid, voidFromOrder } from '@/lib/restaurant/voids';
@@ -122,6 +123,13 @@ export function OrderScreen({ order, settings, update, business, freeTables, onB
       if (res.ok) {
         update((s) => mapOrder(s, order.id, (o) => markKotSent(o, now())));
         notify(tr('KOT sent to the kitchen ({label})', { label: order.label }), 'success');
+      } else if (res.noPrinter) {
+        // v4.123.0 (AU-31): no kitchen printer — the waiter tells the kitchen and confirms it here.
+        const told = await showConfirm(tr('No kitchen (KOT) printer is chosen, so no slip was printed. Choose it in Printer setup (bill printer). Mark this order as told to the kitchen anyway?'), { title: tr('KOT not printed'), confirmLabel: tr('Yes, kitchen knows') });
+        if (told) {
+          update((s) => mapOrder(s, order.id, (o) => markKotSent(o, now())));
+          notify(tr('Marked as sent — no slip was printed ({label})', { label: order.label }), 'info');
+        }
       } else if (res.empty) {
         notify(tr('Nothing new to send.'), 'info');
       } else {

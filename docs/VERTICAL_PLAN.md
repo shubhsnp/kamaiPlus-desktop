@@ -62,7 +62,7 @@
 | AU-01 | Admin-delete wipe: backup pehle, startup intezaar nahi, sirf is PC ki dukaan | AU-01 | ✅ v4.122.0 |
 | A5 | Pharmacy: batch no. + expiry (item, bill line, bill print, expiry alert) + doctor / patient (bill) | AU-22, AU-13 | ⬜ |
 | A6 | Electronics: IMEI / serial + warranty bill line par | AU-13 | ⬜ |
-| A7 | Restaurant: KOT printer chunna; printer nahi = "sent" nahi | AU-31 | ⬜ |
+| A7 | Restaurant: KOT printer chunna; printer nahi = "sent" nahi | AU-31 | ✅ v4.123.0 |
 | A8 | Category cards sach bolein; Bible / contract / FUTURE_SCOPE update | AU-13, AU-20, AU-28 | ⬜ |
 | B1 | Android: wahi preset table + profile (Android repo) | parity | ⬜ |
 | B2 | Android: batch / expiry, IMEI, doctor / patient fields same naam se | parity | ⬜ |
@@ -153,3 +153,15 @@
 
 ### Agla: AU-24 (Cloud Functions Node 20 → 22) — plan, kaam se pehle
 - Android repo `functions/package.json` engines `"node": "22"`; `firebase-functions` / `firebase-admin` version check; `npm --prefix functions test`. **Deploy NAHI** (Rahul ke OK par) — sirf code + test, Android branch par local commit.
+
+### AU-24 — kya hua (2026-10-10)
+- Android `functions/package.json` engines node 20 → 22; tests 93/93 (Node 22). Commit `a93573f` (branch feat/desktop-health-message). **Deploy baaki** (Rahul ke OK par, `FUNCTIONS_DISCOVERY_TIMEOUT=120`). AU-01 Desktop commit `63ef1b2`.
+
+### A7 — kya hua (2026-10-10)
+- `kot.ts` `printKot`: desktop par KOT printer chuna nahi = `{ noPrinter: true }`, kuch print nahi (pehle Windows jahan chahe bhej deta tha).
+- `OrderScreen.tsx` Send KOT: noPrinter → sawaal "Mark as told to the kitchen anyway?" → haan par hi "In kitchen". Reprint / cancel slip: "no kitchen printer chosen".
+- Electron E2E: sawaal aaye to "Yes, kitchen knows". Suite 9 "v4.123.0".
+
+### Agla: AU-23 (GST screen HSN + unit) aur AU-17 (Day Summary khata line) — plan
+- `gstr1Generator.ts` HSN key mein UQC (`${hsn}_${uqc}_${rt}`), JSON jaisa; HSN row mein uqc dikhe.
+- Day Summary: "Udhar received (Khata)" line, cash in hand ke hisaab ke saath.
