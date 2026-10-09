@@ -171,3 +171,9 @@
 - AU-23 `gstr1Generator.ts` HSN key + UQC. AU-17 Day Summary "Udhar received in cash (Khata)" (screen + WhatsApp). AU-02 `cloudStoreRestore.ts` restore = `pullEverything` (sab tables) + pehle backup. AU-05/18 cloud lookup sirf jude Google account se (Firebase bhi tabhi load). AU-19 estimate / Bill of Supply words bill window mein. AU-27 Add Product example naam category se. AU-32 restaurant terms. AU-09 isMounted hataya.
 
 ### Agla (plan): AU-10 (blocked key par wipe), AU-11 (Android firebase.json), AU-13 (category cards sach), AU-20 / AU-28 (docs), phir A5 pharmacy batch / expiry + doctor / patient, A6 IMEI / warranty.
+
+### v4.125.0 — kya hua (2026-10-10)
+- AU-10 `licence.js` refresh: block ki hui key (`licence.blocked.json` code revoked) se check-in chalta rehta — wipe pahunchta, Unblock par licence wapas + blocked file hatati. Moved / deleted key dobara nahi poochti. Test pem-gated block.
+- AU-11 Android `firebase.json` se `kamaiplus` / `website` hosting hataya (commit `6b6a687`).
+- AU-28 FUTURE_SCOPE: FS-04, FS-09, FS-10, FS-15 tick.
+- Agla: A5 (pharmacy batch / expiry + doctor / patient), A6 (IMEI / warranty), phir AU-13 cards + A8 docs.

@@ -296,9 +296,21 @@ async function activate({ userDataDir, key, appVersion, fetchImpl }) {
  *   { ok: false, error }                 any other answer — nothing changes
  */
 async function refresh({ userDataDir, appVersion, fetchImpl, timeoutMs, health = null, report = null }) {
-  const record = readJson(licencePath(userDataDir));
-  const current = record && verifyLicence(record);
-  if (!current) return { ok: false, error: 'no-licence' };
+  let record = readJson(licencePath(userDataDir));
+  let current = record && verifyLicence(record);
+  let wasBlocked = false;
+  if (!current) {
+    // v4.125.0 (AU-10): a PC whose key was BLOCKED keeps checking in with the blocked licence, so the
+    // Admin's "Wipe data & reset PC" still reaches it and "Unblock key" brings it back by itself. A key
+    // that moved to another PC or was deleted never asks again.
+    const blocked = readJson(path.join(userDataDir, BLOCKED_FILE));
+    const kept = blocked && blocked.code === 'revoked' ? { licence: blocked.licence, signature: blocked.signature } : null;
+    const keptPayload = kept && verifyLicence(kept);
+    if (!keptPayload) return { ok: false, error: 'no-licence' };
+    record = kept;
+    current = keptPayload;
+    wasBlocked = true;
+  }
 
   const call = await callServer({ action: 'refresh', key: current.key, appVersion, fetchImpl, timeoutMs, health, report });
   if (call.offline) return { ok: false, offline: true };
@@ -331,6 +343,8 @@ async function refresh({ userDataDir, appVersion, fetchImpl, timeoutMs, health =
   if (!payload || payload.key !== current.key) return { ok: false, error: 'invalid-licence' };
   try {
     saveRecord(userDataDir, fresh);
+    // Unblocked by the Admin: the licence works again and the "blocked" note goes (v4.125.0).
+    if (wasBlocked) fs.rmSync(path.join(userDataDir, BLOCKED_FILE), { force: true });
   } catch (err) {
     return { ok: false, error: err.message };
   }

@@ -3068,6 +3068,23 @@ assert(readSource('app/billing/page.tsx').split('\n').length <= 401, `POS page s
         && !err.stopped && fs.existsSync(path.join(dErr, 'licence.json')),
         'Refused check-in: a deleted key stops the app (it kept running before); a blocked key brings its wipe command; a "moved" answer never runs the key\'s commands here; any other refusal changes nothing');
     })());
+    // v4.125.0 (AU-10): a blocked PC keeps checking in — the wipe still arrives, Unblock brings it back.
+    pendingAsyncChecks.push((async () => {
+      const dB = freshDir();
+      let calls = 0;
+      const counting = (answer: () => object, ok: boolean) => async () => { calls++; return { ok, status: ok ? 200 : 403, json: async () => answer() }; };
+      await lic.refresh({ userDataDir: dB, appVersion: '4.125.0', fetchImpl: refused('revoked') });
+      const blockedNow = !fs.existsSync(path.join(dB, 'licence.json')) && fs.existsSync(path.join(dB, 'licence.blocked.json'));
+      const again = await lic.refresh({ userDataDir: dB, appVersion: '4.125.0', fetchImpl: counting(() => ({ error: 'x', code: 'revoked', control: wipe }), false) });
+      const back = await lic.refresh({ userDataDir: dB, appVersion: '4.125.0', fetchImpl: counting(() => sign(base), true) });
+      const dM = freshDir();
+      await lic.refresh({ userDataDir: dM, appVersion: '4.125.0', fetchImpl: refused('moved') });
+      const callsBefore = calls;
+      const movedAgain = await lic.refresh({ userDataDir: dM, appVersion: '4.125.0', fetchImpl: counting(() => sign(base), true) });
+      assert(blockedNow && again.stopped && again.control === wipe && back.ok && fs.existsSync(path.join(dB, 'licence.json')) && !fs.existsSync(path.join(dB, 'licence.blocked.json'))
+        && movedAgain.error === 'no-licence' && calls === callsBefore,
+        'Blocked PC keeps checking in: the Admin\'s wipe command still arrives, Unblock brings the licence back; a moved key never asks again (AU-10)');
+    })());
   } else {
     assert(true, 'Check-in with a signed licence: skipped (no signing key on this PC)');
   }

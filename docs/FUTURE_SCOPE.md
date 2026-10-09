@@ -19,18 +19,18 @@ likhein (jaise `[x] v4.85.0`). Naya kaam mile to neeche jod dein (agla ID).
 | FS-01 | Asli dukaan mein pilot, asli hardware ke saath | P1 | M | [ ] |
 | FS-02 | Installer par code-signing certificate | P1 | S | [ ] |
 | FS-03 | Backup din mein ek baar se zyada | P1 | S | [x] v4.82.0 |
-| FS-04 | Billing page (2,208 lines) ko chhote hisson mein todna | P1 | L | [ ] |
+| FS-04 | Billing page (2,208 lines) ko chhote hisson mein todna | P1 | L | [x] v4.104.0 |
 | FS-05 | Target dukaan tay karna → roadmap | P1 | S | [ ] |
 | FS-06 | Multi-counter / multi-computer sync + maalik ka mobile view | P2 | XL | [ ] |
 | FS-07 | Staff login aur roles (kisne bill kaata) | P2 | L | [ ] |
 | FS-08 | Batch / expiry tracking | P2 | L | [ ] |
-| FS-09 | Purchase return / debit note, purchase order | P2 | M | [ ] |
-| FS-10 | GSTR-3B summary | P2 | M | [ ] |
+| FS-09 | Purchase return / debit note, purchase order | P2 | M | [x] v4.102.0 |
+| FS-10 | GSTR-3B summary | P2 | M | [x] v4.101.0 |
 | FS-11 | E-invoice (IRN) | P3 | L | [ ] |
 | FS-12 | E-way bill | P3 | M | [ ] |
 | FS-13 | P&L, balance sheet, bank reconciliation | P3 | L | [ ] |
 | FS-14 | Tally XML ko asli Tally company mein jaanchna | P1 | S | [ ] |
-| FS-15 | Baaki badi files todna (Khata, Products, Edit Invoice, Settings) | P2 | L | [ ] |
+| FS-15 | Baaki badi files todna (Khata, Products, Edit Invoice, Settings) | P2 | L | [x] v4.104.0 |
 | FS-16 | Database ke unit tests (fake-IndexedDB) | P2 | M | [ ] |
 | FS-17 | Regex source-checks ki jagah behaviour tests | P3 | M | [ ] |
 | FS-18 | Chupchaap nigle gaye errors (`catch {}`) ka audit | P2 | S | [ ] |
