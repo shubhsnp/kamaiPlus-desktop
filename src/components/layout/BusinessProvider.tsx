@@ -1,9 +1,11 @@
 'use client';
 
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { Business } from '@/types';
+import { syncVerticalGst } from '@/lib/business/verticalProfile';
+import { FEATURE_SWITCHES_EVENT } from '@/lib/features/featureSwitches';
 
 /**
  * Single source of truth for the active business record.
@@ -20,6 +22,14 @@ const BusinessContext = createContext<Business | undefined>(undefined);
 
 export function BusinessProvider({ children }: { children: React.ReactNode }) {
   const business = useLiveQuery(() => db.businesses.toCollection().first());
+  const hasGstin = Boolean(business?.gstin && business.gstin.trim());
+
+  // v4.118.0: a shop with a vertical profile gets GST screens / fields when it has a GSTIN — whichever
+  // way the GSTIN arrived (Settings, a restored backup, the cloud). No profile = nothing happens.
+  useEffect(() => {
+    if (business === undefined) return;
+    if (syncVerticalGst(hasGstin)) window.dispatchEvent(new Event(FEATURE_SWITCHES_EVENT));
+  }, [business === undefined, hasGstin]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <BusinessContext.Provider value={business}>

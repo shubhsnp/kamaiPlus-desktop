@@ -4,7 +4,8 @@ import { setStoredUser, AuthUser } from '@/lib/auth';
 import { getLanguage } from '@/lib/i18n/core';
 import { markWhatsNewSeen } from '@/lib/whatsNew/changelog';
 import { APP_VERSION } from '@/lib/constants/version';
-import { FEATURE_SWITCHES_KEY, DEFAULT_FEATURE_SWITCHES, FeatureSwitches } from '@/lib/features/featureSwitches';
+import { FEATURE_SWITCHES_KEY, FEATURE_SWITCHES_EVENT } from '@/lib/features/featureSwitches';
+import { isVerticalId, saveVerticalProfile } from '@/lib/business/verticalProfile';
 
 export interface DetectedCloudStore {
   businessId: string;
@@ -17,39 +18,6 @@ export interface DetectedCloudStore {
   email?: string;
   productCount?: number;
 }
-
-const CATEGORY_FEATURE_PRESETS: Record<string, Partial<FeatureSwitches>> = {
-  clothing: {
-    product_size_colour: true,
-    product_variants: true,
-    product_selling_price: true,
-  },
-  pharmacy: {
-    product_hsn: true,
-    product_gst_rate: true,
-    product_cost_price: true,
-    gst_reports: true,
-  },
-  grocery: {
-    wholesale_price: true,
-    product_barcode: true,
-    stock_counting: true,
-  },
-  hardware: {
-    product_cost_price: true,
-    product_barcode: true,
-    stock_counting: true,
-  },
-  restaurant: {
-    product_variants: true,
-    product_barcode: false,
-    stock_counting: false,
-  },
-  retail: {
-    product_barcode: true,
-    stock_counting: true,
-  },
-};
 
 /**
  * Searches Cloud Firestore for an existing store linked to the given UID or mobile number.
@@ -197,12 +165,12 @@ export async function restoreCloudStoreToLocal(
 
   await localDb.businesses.put(businessRecord);
 
-  // 2. Set category-specific feature switches
-  const preset = CATEGORY_FEATURE_PRESETS[store.businessType] || {};
-  const mergedSwitches = { ...DEFAULT_FEATURE_SWITCHES, ...preset };
+  // 2. The app follows the shop's category (v4.118.0, same as store setup — lib/business/verticalProfile.ts)
   try {
-    localStorage.setItem(FEATURE_SWITCHES_KEY, JSON.stringify(mergedSwitches));
+    localStorage.removeItem(FEATURE_SWITCHES_KEY);
   } catch {}
+  saveVerticalProfile(isVerticalId(store.businessType) ? store.businessType : 'retail', false);
+  window.dispatchEvent(new Event(FEATURE_SWITCHES_EVENT));
 
   // 3. Set Authenticated User session in localStorage
   const rawUid = businessId.replace(/^biz_/, '');

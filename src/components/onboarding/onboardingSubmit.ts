@@ -6,41 +6,9 @@ import { CLOUD_SYNC_ENABLED } from '@/lib/firebase/cloudAvailability';
 import { getLanguage, tr } from '@/lib/i18n/core';
 import { markWhatsNewSeen } from '@/lib/whatsNew/changelog';
 import { APP_VERSION } from '@/lib/constants/version';
-import { FEATURE_SWITCHES_KEY, DEFAULT_FEATURE_SWITCHES, FeatureSwitches } from '@/lib/features/featureSwitches';
+import { FEATURE_SWITCHES_KEY, FEATURE_SWITCHES_EVENT } from '@/lib/features/featureSwitches';
+import { isVerticalId, saveVerticalProfile } from '@/lib/business/verticalProfile';
 import type { useRouter } from 'next/navigation';
-
-const CATEGORY_INITIAL_SWITCHES: Record<string, Partial<FeatureSwitches>> = {
-  clothing: {
-    product_size_colour: true,
-    product_variants: true,
-    product_selling_price: true,
-  },
-  pharmacy: {
-    product_hsn: true,
-    product_gst_rate: true,
-    product_cost_price: true,
-    gst_reports: true,
-  },
-  grocery: {
-    wholesale_price: true,
-    product_barcode: true,
-    stock_counting: true,
-  },
-  hardware: {
-    product_cost_price: true,
-    product_barcode: true,
-    stock_counting: true,
-  },
-  restaurant: {
-    product_variants: true,
-    product_barcode: false,
-    stock_counting: false,
-  },
-  retail: {
-    product_barcode: true,
-    stock_counting: true,
-  },
-};
 
 export interface CreateOnboardingSubmitDeps {
   router: ReturnType<typeof useRouter>;
@@ -150,12 +118,14 @@ export function createOnboardingSubmit(deps: CreateOnboardingSubmitDeps) {
         }
       }
 
-      // Configure initial feature preset according to chosen retail category
-      const initialPreset = CATEGORY_INITIAL_SWITCHES[businessType] || {};
-      const finalSwitches = { ...DEFAULT_FEATURE_SWITCHES, ...initialPreset };
+      // v4.118.0: the app follows the chosen category (lib/business/verticalProfile.ts) — screens,
+      // item fields, Restaurant mode; GST follows the GSTIN. Switches left by an earlier shop on this
+      // computer would override the category, so they go.
       try {
-        localStorage.setItem(FEATURE_SWITCHES_KEY, JSON.stringify(finalSwitches));
+        localStorage.removeItem(FEATURE_SWITCHES_KEY);
       } catch {}
+      saveVerticalProfile(isVerticalId(businessType) ? businessType : 'retail', false);
+      window.dispatchEvent(new Event(FEATURE_SWITCHES_EVENT));
 
       // 2. Write Complete Merchant Document to Firestore `merchants/{uid}`.
       // Firebase (~650 KB) is pulled in here, at the one moment onboarding needs

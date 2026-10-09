@@ -18,7 +18,6 @@ import { UpiBankingTab } from '@/components/settings/UpiBankingTab';
 import { InvoiceSettingsTab } from '@/components/settings/InvoiceSettingsTab';
 import { DataMaintenanceTab } from '@/components/settings/DataMaintenanceTab';
 import { HelpSupportTab } from '@/components/settings/HelpSupportTab';
-import { FeaturesTab } from '@/components/settings/FeaturesTab';
 import { tr } from '@/lib/i18n/core';
 import { createSettingsSave } from '@/components/settings/settingsSave';
 import { SettingsReviewDialogs } from '@/components/settings/SettingsReviewDialogs';
@@ -372,7 +371,6 @@ export default function SettingsPage() {
         <DataMaintenanceTab business={business} />
       )}
 
-      {activeTab === 'features' && <FeaturesTab />}
 
       {activeTab === 'help' && <HelpSupportTab />}
 

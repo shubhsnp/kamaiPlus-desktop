@@ -96,11 +96,11 @@ export function createSaleActions(deps: CreateSaleActionsDeps) {
 
     // MANDATORY CUSTOMER VALIDATION FOR CREDIT / UDHAR PAYMENT MODE
     const isCreditMode = paymentMethod === 'credit' || (paymentMethod === 'split' && parseFloat(splitCredit || '0') > 0);
-    // Khata switched off (Settings → Features): no udhar at all — read now, not from the render.
+    // Khata switched off (shop category / KamaiPlus support): no udhar at all — read now, not from the render.
     const udharAllowed = isFeatureOn('khata');
     if (isCreditMode && !udharAllowed) {
       playBeepSound('alert');
-      showBillingToast(tr('Khata (Udhar) is switched off in Settings → Features. Take the full payment.'), 'error');
+      showBillingToast(tr('Khata (Udhar) is not switched on for this shop. Take the full payment.'), 'error');
       return;
     }
     if (isCreditMode && !hasCustomer) {

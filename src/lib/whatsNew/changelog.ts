@@ -15,6 +15,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.118.0',
+    items: [
+      msg('New shops: the app follows the shop category chosen in store setup (Cafe / Restaurant opens Tables & Orders by itself; GST screens and fields appear once a GSTIN is saved). Settings no longer has a Features tab.'),
+    ],
+  },
+  {
     version: '4.117.0',
     items: [
       msg('Upgraded Store Onboarding: visual Category Selection Cards (Kirana, Pharmacy, Clothing, Hardware, Restaurant, Retail), vertical-tailored starter catalogs, and 1-click Cross-Device Cloud Store Restore.'),

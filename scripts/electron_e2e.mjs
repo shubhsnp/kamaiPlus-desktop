@@ -263,6 +263,12 @@ async function run() {
       await page.waitForURL((u) => !u.pathname.startsWith('/onboarding'), { timeout: 20000 });
       check(!seedDefault, 'Store setup: the fireworks sample catalog is not ticked by default (this test ticks it)');
       check(true, 'Store setup completes and opens the app');
+      // v4.118.0: store setup saves the business category (Grocery is the default card). This E2E shop
+      // plays an EXISTING customer (set up before v4.118.0): the profile goes, so every check below
+      // proves that old shops behave exactly as before. New categories: the "vertical" section.
+      const profileSaved = await page.evaluate(() => localStorage.getItem('kamai_vertical_profile'));
+      check(JSON.parse(profileSaved || '{}').vertical === 'grocery', `Store setup saves the business category profile (${profileSaved})`);
+      await page.evaluate(() => { localStorage.removeItem('kamai_vertical_profile'); window.dispatchEvent(new Event('feature_switches_changed')); });
 
       step = 'catalog';
       await page.waitForTimeout(1500);
@@ -355,11 +361,9 @@ async function run() {
       const offCard = await textVisible(page, 'is turned off', 15000);
       check(hiddenByDefault && offCard, 'New shop: Cash Register, Purchases, Suppliers and GST are not in the menu; opening Cash Register directly says it is turned off');
       await page.evaluate(() => { window.location.href = '/settings/?tab=features'; });
-      await page.locator('[data-features-readonly]').waitFor({ timeout: 15000 });
-      const readOnly = (await page.locator('[data-features-readonly] input').count()) === 0
-        && (await page.locator('[data-feature="cash_register"]').getAttribute('data-on')) === 'false';
-      check(readOnly && await textVisible(page, 'Features are set by KamaiPlus support', 5000),
-        'Settings → Features only shows On / Off (no switches): "Features are set by KamaiPlus support" (v4.107.0)');
+      const storeTab = await textVisible(page, 'Store & GST Profile', 15000);
+      check(storeTab && (await page.getByRole('button', { name: /^Features$/ }).count()) === 0,
+        'v4.118.0: Settings has no Features tab — an old ?tab=features link opens Store & GST Profile');
       // A switch set for the shop (the stored switches, as before) puts the screen in the menu at once.
       const setShopSwitch = (id, on) => page.evaluate(([k, v]) => {
         const cur = JSON.parse(localStorage.getItem('kamai_feature_switches') || '{}');
@@ -368,8 +372,8 @@ async function run() {
       }, [id, on]);
       await setShopSwitch('cash_register', true);
       await page.waitForTimeout(400);
-      check((await page.locator('[data-feature="cash_register"]').getAttribute('data-on')) === 'true' && (await menuHas('/cash-register')),
-        'Cash Register switched on for the shop: Settings shows it On and it is back in the menu at once');
+      check(await menuHas('/cash-register'),
+        'Cash Register switched on for the shop: it is back in the menu at once');
       await setShopSwitch('cash_register', false);
       await page.waitForTimeout(300);
 
@@ -1540,12 +1544,11 @@ async function run() {
         await page.evaluate(() => { window.location.href = '/billing/'; });
         const paused = await page.locator('[data-admin-block="read-only"]').waitFor({ timeout: 15000 }).then(() => true, () => false);
         check(paused && (await page.locator('[data-admin-block="read-only"]').innerText()).includes('E2E billing pause'), 'Remote control "Billing paused": the counter is covered with the reason');
-        await page.evaluate(() => { window.location.href = '/settings/?tab=features'; });
-        const lockedRow = await page.locator('[data-feature-admin-locked="khata"]').waitFor({ timeout: 15000 }).then(() => true, () => false);
-        check(lockedRow && (await page.locator('[data-feature="khata"]').getAttribute('data-on')) === 'false'
-          && !(await page.locator('[data-admin-block="read-only"]').count()),
-          'Settings → Features shows Khata locked off "Set by KamaiPlus support"; other screens stay open while billing is paused');
-        if (!lockedRow) await shot(page, 'failed-admin-features');
+        await page.evaluate(() => { window.location.href = '/khata/'; });
+        const lockedOff = await textVisible(page, 'is turned off', 15000);
+        check(lockedOff && !(await page.locator('[data-admin-block="read-only"]').count()),
+          'Khata forced off by the Admin says "turned off — KamaiPlus support"; other screens stay open while billing is paused');
+        if (!lockedOff) await shot(page, 'failed-admin-features');
       } catch (err) {
         check(false, `Remote read-only / features check failed: ${err.message.split('\n')[0]}`);
         await shot(page, 'failed-admin-readonly');
@@ -1771,17 +1774,16 @@ async function run() {
           `Restaurant mode hides stock and barcodes: Menu page (inward ${noInward}, low stock / value ${noLowStock}), Add Dish (barcode / stock ${noBarcode}), Home stock alert (${noHomeStock})`);
 
         step = 'settings in restaurant mode';
-        await page.evaluate(() => { window.location.href = '/settings/?tab=features'; });
-        check(await page.locator('[data-features-restaurant]').waitFor({ timeout: 15000 }).then(() => true, () => false)
-          && (await page.locator('[data-feature="inventory"]').getAttribute('data-on')) === 'false' && (await page.locator('[data-feature="product_variants"]').getAttribute('data-on')) === 'true',
-          'Settings → Features in Restaurant mode: stock off, Half / Full variants on, "Restaurant mode is on"');
+        await page.evaluate(() => { window.location.href = '/inventory/'; });
+        check(await textVisible(page, 'is turned off', 15000) && (await page.locator('aside a[href="/inventory"]').count()) === 0,
+          'Restaurant mode: Inventory & Stock is off (menu and address)');
 
         // KAMAI_E2E_SHOTS=1: a screenshot of every screen in Restaurant mode (review what a restaurant sees).
         if (process.env.KAMAI_E2E_SHOTS) {
           step = 'restaurant screenshots';
           await page.setViewportSize({ width: 1366, height: 768 }).catch(() => {});
           for (const [name, url] of [['home', '/'], ['tables', '/restaurant/'], ['menu', '/products/'], ['guests', '/customers/'], ['khata', '/khata/'],
-            ['bills', '/transactions/'], ['reports', '/reports/'], ['gst', '/gst-reports/'], ['settings', '/settings/'], ['features', '/settings/?tab=features'],
+            ['bills', '/transactions/'], ['reports', '/reports/'], ['gst', '/gst-reports/'], ['settings', '/settings/'],
             ['cash', '/cash-register/'], ['themes', '/invoice-designer/'], ['backup', '/cloud-backup/'], ['inventory', '/inventory/']]) {
             await page.evaluate((u) => { window.location.href = u; }, url);
             await page.waitForTimeout(3500);

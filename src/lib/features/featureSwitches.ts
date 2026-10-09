@@ -2,14 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import { msg } from '@/lib/i18n/core';
+import { readVerticalProfile, verticalSwitches } from '@/lib/business/verticalProfile';
 
 /*
- * Feature switches (v4.69.0) — Settings → Features. Each shop turns screens and
- * form fields on or off; turning one off only HIDES it, the data stays.
+ * Feature switches (v4.69.0). Turning one off only HIDES a screen or field, the data stays.
  *
- * This is per feature, never per trade: nothing here (or anywhere) may branch on
- * business_type (Bible §9, Suite 9). Stored per computer in localStorage, like the
- * other counter settings (one licence = one computer).
+ * Screens never branch on business_type (Bible §9, Suite 9) — they read a switch. Since v4.118.0 a
+ * shop set up with a business category gets its switches from that category's vertical profile
+ * (lib/business/verticalProfile.ts); a shop set up before keeps its stored switches. Stored per
+ * computer in localStorage, like the other counter settings (one licence = one computer).
  */
 
 export type FeatureId =
@@ -205,10 +206,27 @@ export function applyRestaurantPreset(switches: FeatureSwitches, restaurantOn: b
   return { ...switches, ...RESTAURANT_PRESET };
 }
 
+/** The Admin's own choice for Restaurant mode: true / false when set, undefined = "shop decides". */
+export function adminRestaurantChoice(rawAdmin: string | null | undefined): boolean | undefined {
+  if (!rawAdmin) return undefined;
+  try {
+    const v = JSON.parse(rawAdmin)?.[RESTAURANT_MODE_ID];
+    return typeof v === 'boolean' ? v : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * v4.118.0: a shop set up as "Cafe / Restaurant" is in Restaurant mode by itself; the Admin can still
+ * switch it on (any shop) or off. A shop without a vertical profile: Admin only, as before.
+ */
 export function isRestaurantMode(): boolean {
   if (typeof window === 'undefined') return false;
   try {
-    return restaurantModeFromRaw(localStorage.getItem(ADMIN_FEATURES_KEY));
+    const admin = adminRestaurantChoice(localStorage.getItem(ADMIN_FEATURES_KEY));
+    if (admin !== undefined) return admin;
+    return readVerticalProfile()?.vertical === 'restaurant';
   } catch {
     return false;
   }
@@ -226,6 +244,13 @@ export function readAdminFeatureOverrides(): Partial<FeatureSwitches> {
 export function readFeatureSwitches(): FeatureSwitches {
   if (typeof window === 'undefined') return { ...DEFAULT_FEATURE_SWITCHES };
   try {
+    // v4.118.0: a shop with a vertical profile follows its category (+ GSTIN); only switches the app
+    // itself turned on later (Excel import → wholesale) are layered on. No profile = the old path.
+    const profile = readVerticalProfile();
+    if (profile) {
+      const own = { ...verticalSwitches(profile), ...parseAdminOverrides(localStorage.getItem(FEATURE_SWITCHES_KEY)) };
+      return { ...applyRestaurantPreset(own, isRestaurantMode()), ...readAdminFeatureOverrides() };
+    }
     // The shop's own switches, the restaurant preset (v4.106.0) when the Admin chose Restaurant mode,
     // and the Admin's forced ones on top (v4.105.0).
     return { ...applyRestaurantPreset(parseFeatureSwitches(localStorage.getItem(FEATURE_SWITCHES_KEY)), isRestaurantMode()), ...readAdminFeatureOverrides() };

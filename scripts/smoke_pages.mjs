@@ -21,7 +21,7 @@ const PASSWORD = 'smoke-Pass#1357';
 
 const ROUTES = ['/', '/billing/', '/products/', '/inventory/', '/barcode-generator/', '/transactions/', '/customers/', '/khata/',
   '/suppliers/', '/purchases/', '/cash-register/', '/reports/', '/gst-reports/', '/invoice-designer/', '/cloud-backup/',
-  '/settings/?tab=profile', '/settings/?tab=features', '/settings/?tab=invoicing', '/settings/?tab=data', '/settings/?tab=help',
+  '/settings/?tab=profile', '/settings/?tab=invoicing', '/settings/?tab=data', '/settings/?tab=help',
   '/barcode-generator/?new=1', '/billing/?x=1'];
 const CRASH_TEXT = /Something went wrong|Application error|Unhandled Runtime Error|client-side exception|ChunkLoadError|is not a function|Cannot read properties/i;
 // Console noise that is not an app fault (offline Firebase, dev warnings of libraries).

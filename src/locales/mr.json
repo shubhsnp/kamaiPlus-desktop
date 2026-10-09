@@ -1281,7 +1281,7 @@
   "kept (last": "ठेवले (मागील",
   "Khata": "खाते",
   "Khata (Udhar)": "खाते (उधारी)",
-  "Khata (Udhar) is switched off in Settings → Features. Take the full payment.": "खाते (उधारी) Settings → Features मध्ये बंद आहे. पूर्ण पैसे घ्या.",
+  "Khata (Udhar) is not switched on for this shop. Take the full payment.": "या दुकानासाठी खाते (उधारी) चालू नाही. पूर्ण पैसे घ्या.",
   "Khata Credit Account": "खाते उधारी",
   "Khata Credit Preview (": "खाते उधारी झलक (",
   "Khata Ledger": "खाते वही",
@@ -3051,5 +3051,6 @@
   "Hardware & Mobile": "हार्डवेअर आणि मोबाईल",
   "Cafe & Dining": "कॅफे आणि डायनिंग",
   "Universal Retail": "जनरल रिटेल",
-  "Upgraded Store Onboarding: visual Category Selection Cards (Kirana, Pharmacy, Clothing, Hardware, Restaurant, Retail), vertical-tailored starter catalogs, and 1-click Cross-Device Cloud Store Restore.": "स्टोअर ऑनबोर्डिंग अपग्रेड: व्हिज्युअल कॅटेगरी सिलेक्शन कार्ड्स (किराणा, फार्मसी, कपडे, हार्डवेअर, रेस्टॉरंट, रिटेल), श्रेणीनुसार सॅम्पल मालाची यादी, आणि 1-क्लिक क्रॉस-डिव्हाइस क्लाउड स्टोअर रीस्टोअर."
+  "Upgraded Store Onboarding: visual Category Selection Cards (Kirana, Pharmacy, Clothing, Hardware, Restaurant, Retail), vertical-tailored starter catalogs, and 1-click Cross-Device Cloud Store Restore.": "स्टोअर ऑनबोर्डिंग अपग्रेड: व्हिज्युअल कॅटेगरी सिलेक्शन कार्ड्स (किराणा, फार्मसी, कपडे, हार्डवेअर, रेस्टॉरंट, रिटेल), श्रेणीनुसार सॅम्पल मालाची यादी, आणि 1-क्लिक क्रॉस-डिव्हाइस क्लाउड स्टोअर रीस्टोअर.",
+  "New shops: the app follows the shop category chosen in store setup (Cafe / Restaurant opens Tables & Orders by itself; GST screens and fields appear once a GSTIN is saved). Settings no longer has a Features tab.": "नवीन दुकाने: स्टोर सेटअपमध्ये निवडलेल्या कॅटेगरीनुसार ॲप चालते (कॅफे / रेस्टॉरंटवर टेबल आणि ऑर्डर आपोआप; GSTIN सेव्ह करताच GST स्क्रीन आणि फील्ड दिसतात). Settings मध्ये आता Features टॅब नाही."
 }

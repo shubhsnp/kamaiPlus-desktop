@@ -95,6 +95,8 @@ import { RESTAURANT_WORDS } from '../src/lib/restaurant/words';
 import { billCustomerName, cleanGuestPhone } from '../src/lib/restaurant/settle';
 import { isRestaurantBill } from '../src/components/restaurant/RecentBills';
 import { DEFAULT_FEATURE_SWITCHES, FEATURES, featureForPath, isPathEnabled, parseAdminOverrides, parseFeatureSwitches, showSellingPriceField } from '../src/lib/features/featureSwitches';
+import { isRestaurantMode, readFeatureSwitches } from '../src/lib/features/featureSwitches';
+import { VERTICAL_IDS, VERTICAL_PROFILE_KEY, parseVerticalProfile, saveVerticalProfile, syncVerticalGst, verticalSwitches } from '../src/lib/business/verticalProfile';
 import { adminBlock, blocksBilling, cleanFeatureOverrides, counterHasOpenBill, needsUpdate } from '../src/lib/admin/adminControl';
 import { matchesProductDetails } from '../src/lib/products/detailSearch';
 import { buildImportRows, buildItemName, COLUMN_ROLES, findHeaderRow, guessColumnRoles, mapUnit, parseAmount, planImport } from '../src/lib/import/catalogImport';
@@ -1121,14 +1123,13 @@ assert(readSource('app/billing/page.tsx').split('\n').length <= 401, `POS page s
   const gateSrc = readSource('components/features/FeatureGate.tsx');
   assert(/isPathEnabled\(item\.href, switches\)/.test(sidebarSrc) && /isPathEnabled\(tool\.href, switches\)/.test(readSource('components/dashboard/QuickToolsGrid.tsx')),
     'Switched-off screens leave the menu and the Home shortcuts');
-  assert(/<FeatureGate pathname=\{pathname\}>\{children\}<\/FeatureGate>/.test(shellSrc) && /featureForPath\(pathname\)/.test(gateSrc) && /\/settings\?tab=features/.test(gateSrc),
-    'A switched-off screen opened by address shows "turned off — Settings → Features" instead of the page');
+  assert(/<FeatureGate pathname=\{pathname\}>\{children\}<\/FeatureGate>/.test(shellSrc) && /featureForPath\(pathname\)/.test(gateSrc) && gateSrc.includes('<SupportContactLine') && !gateSrc.includes('tab=features'),
+    'A switched-off screen opened by address shows "turned off — contact KamaiPlus support" instead of the page (v4.118.0: no Features tab to point to)');
   assert(/isFeatureOn\('profit_privacy'\)/.test(readSource('lib/auth/cashierPrivacy.ts')) && /if \(!privacyOn\) return null;/.test(readSource('components/privacy/ProfitMask.tsx'))
     && /const unlocked = pinUnlocked \|\| !privacyOn;/.test(readSource('app/reports/page.tsx')),
     'Privacy switch off: no "Cashier Privacy" button, no profit lock, reports show profit without a PIN');
-  const featuresTabSrc = readSource('components/settings/FeaturesTab.tsx');
-  assert(!/setFeatureSwitch|type="checkbox"|onChange=/.test(featuresTabSrc) && /<FeaturesTab \/>/.test(readSettingsPage()),
-    'Settings → Features only shows the switches (v4.107.0): staff cannot change anything there, so no PIN is needed (profit privacy stays as KamaiPlus set it)');
+  assert(!fs.existsSync(path.join(SRC_ROOT, 'components', 'settings', 'FeaturesTab.tsx')) && !/FeaturesTab|'features'/.test(readSettingsPage()) && !/'features'/.test(readSource('components/settings/SettingsNavTabs.tsx')),
+    'v4.118.0: Settings has no Features tab — the app follows the shop category; KamaiPlus support still forces switches from the Admin Console');
   const formSrc = readProductForm();
   assert(['product_cost_price', 'product_hsn', 'product_gst_rate', 'product_size_colour', 'product_variants'].every((id) => formSrc.includes(`switches.${id} &&`)) && /\{showSellingPrice && \(/.test(formSrc) && /required=\{!showSellingPrice\}/.test(formSrc),
     'Add Product: cost price, HSN, GST rate, size / colour and variants appear only when switched on; MRP is required when it is the only price');
@@ -2124,8 +2125,8 @@ assert(readSource('app/billing/page.tsx').split('\n').length <= 401, `POS page s
     && featureForPath('/barcode-generator?from=inward') === 'barcode_studio' && featureForPath('/reports') === 'sales_reports' && featureForPath('/invoice-designer') === 'invoice_designer'
     && ['/', '/billing', '/products', '/transactions', '/cloud-backup', '/settings'].every((p) => featureForPath(p) === undefined),
     'Each new screen switch matches its address; Home, Billing, Products, Transactions, Backup and Settings can never be switched off');
-  assert(FEATURES.find((f) => f.id === 'whatsapp')?.group === 'tools' && /\{ id: 'tools', title: msg\('Buttons across the app'\)/.test(readSource('components/settings/FeaturesTab.tsx')),
-    'Settings → Features lists WhatsApp under "Buttons across the app"');
+  assert(FEATURES.find((f) => f.id === 'whatsapp')?.group === 'tools',
+    'The feature list keeps WhatsApp in the "tools" group (Admin Console names)');
 
   const pos = readCounter();
   assert(/\.filter\(\(m\) => khataOn \|\| m\.id !== 'credit'\)/.test(pos) && /if \(!isFeatureOn\('khata'\)\) return; \/\/ Khata off/.test(pos) && /creditAllowed=\{khataOn\}/.test(pos)
@@ -4126,9 +4127,8 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
   assert(/\{ \.\.\.applyRestaurantPreset\(parseFeatureSwitches\(localStorage\.getItem\(FEATURE_SWITCHES_KEY\)\), isRestaurantMode\(\)\), \.\.\.readAdminFeatureOverrides\(\) \}/.test(fsSrc)
     && /JSON\.stringify\(\{ \.\.\.parseFeatureSwitches\(localStorage\.getItem\(FEATURE_SWITCHES_KEY\)\), \[id\]: on \}\)/.test(fsSrc),
     'The Admin\'s switches win over the shop\'s; the shop\'s own choice is stored untouched and comes back when the Admin lets go');
-  const ft = readSource('components/settings/FeaturesTab.tsx');
-  assert(ft.includes('data-feature-admin-locked') && ft.includes("tr('Set by KamaiPlus support for this computer')") && readSource('components/layout/AppShell.tsx').includes('<AdminControlHost />'),
-    'Settings → Features marks a forced switch "Set by KamaiPlus support"; AppShell applies the control');
+  assert(readSource('components/layout/AppShell.tsx').includes('<AdminControlHost />'),
+    'AppShell applies the Admin control (forced switches win over the shop category, v4.118.0)');
 
   // Main process wiring.
   const mainJs = fs.readFileSync(path.join(SRC_ROOT, '..', 'main.js'), 'utf8');
@@ -4309,10 +4309,8 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
 // restaurant bill window (Print / PDF / WhatsApp), UPI QR, guest mobile, Today's bills, Move table.
 {
   // Settings → Features is read-only: the shop sees what is on, KamaiPlus changes it.
-  const ftSrc = readSource('components/settings/FeaturesTab.tsx');
   const writers = ALL_SOURCE.filter((f) => /setFeatureSwitch\(/.test(fs.readFileSync(f, 'utf8')) && !/featureSwitches\.ts$/.test(f)).map((f) => path.relative(SRC_ROOT, f).replace(/\\/g, '/'));
-  assert(!/setFeatureSwitch|type="checkbox"|<input/.test(ftSrc) && ftSrc.includes('data-features-readonly') && ftSrc.includes("tr('Features are set by KamaiPlus support')") && ftSrc.includes('<SupportContactLine')
-    && JSON.stringify(writers) === JSON.stringify(['components/import/CatalogImportModal.tsx']),
+  assert(JSON.stringify(writers) === JSON.stringify(['components/import/CatalogImportModal.tsx']),
     `Settings → Features only shows On / Off with "contact KamaiPlus support"; nothing in the app lets the shop change a switch (only the Excel import turns wholesale on: ${writers.join(', ')})`);
   const gate2 = readSource('components/features/FeatureGate.tsx');
   assert(gate2.includes("tr('KamaiPlus support switches features on for your shop. Nothing was deleted — your data is safe.')") && !gate2.includes('Turn it on in Settings'),
@@ -4452,8 +4450,8 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
     && readSource('components/dashboard/DashboardHome.tsx').includes('{switches.stock_counting && <DashboardStockWatchlist')
     && readSource('app/reports/page.tsx').includes("...(featureSwitches.stock_counting ? [{ id: 'dead' as Tab"),
     'Stock counting off: no stock box on Add Product, no stock columns / low-stock / stock value on Products, no stock alert on Home, no Dead Stock report; Barcode off: no barcode box');
-  assert(readSource('components/settings/SettingsNavTabs.tsx').includes("tr('Features')") && !readSource('components/settings/SettingsNavTabs.tsx').includes('Features ON / OFF'),
-    'The Settings tab is called "Features" (it only shows them now)');
+  assert(!readSource('components/settings/SettingsNavTabs.tsx').includes("tr('Features')") && !readSource('components/settings/SettingsNavTabs.tsx').includes('Features ON / OFF'),
+    'Settings has no Features tab any more (v4.118.0 — it was renamed from "Features ON / OFF" in v4.108.0, then removed)');
 }
 
 // -------------------------------------------------------------
@@ -4514,6 +4512,82 @@ const simulateCleanProducts = () => {
 assert(simulateCleanProducts() === 3 && localProducts.length === 0, 'Clean product data removes all items from catalog');
 assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean product data marks manual clear flag to prevent unauthorized re-seeding');
 
+
+// v4.118.0 — The app follows the shop's business category (docs/VERTICAL_PLAN.md, A1).
+// Old shops (no vertical profile) keep exactly the old switches; the Features tab is gone.
+{
+  const all = Object.keys(DEFAULT_FEATURE_SWITCHES).sort().join();
+  const sw = (v: typeof VERTICAL_IDS[number], gst = false) => verticalSwitches({ vertical: v, gst });
+  assert(VERTICAL_IDS.every((v) => Object.keys(sw(v)).sort().join() === all && Object.values(sw(v)).every((x) => typeof x === 'boolean')),
+    'Vertical profile: every category gives the full switch set (no switch left undefined)');
+  const g = sw('grocery'), ph = sw('pharmacy'), c = sw('clothing'), hw = sw('hardware'), rt = sw('retail'), r = sw('restaurant');
+  assert(!g.barcode_studio && g.wholesale_price && g.payment_keys && g.purchases && g.suppliers && g.cash_register && g.stock_counting && g.product_barcode && !g.product_variants,
+    'Kirana: no Barcode Studio (Rahul), wholesale price + F4/F8/F9, purchases / suppliers / cash register on');
+  assert(!ph.barcode_studio && ph.purchases && ph.product_cost_price && !ph.wholesale_price && !ph.product_variants
+    && c.barcode_studio && c.product_size_colour && c.product_variants && hw.product_variants && hw.barcode_studio && !hw.product_size_colour && rt.barcode_studio && !rt.product_variants,
+    'Pharmacy without labels; clothing with price tags + sizes / colours; electronics with variants; retail with labels');
+  assert(!r.inventory && !r.stock_counting && !r.product_barcode && !r.barcode_studio && !r.purchases && !r.suppliers && r.cash_register && r.product_variants && r.khata,
+    'Restaurant: no stock, barcode, labels, purchases; cash register, khata and Half / Full on');
+  assert(VERTICAL_IDS.every((v) => !sw(v).gst_reports && !sw(v).product_gst_rate && !sw(v).product_hsn && sw(v, true).gst_reports)
+    && VERTICAL_IDS.filter((v) => v !== 'restaurant').every((v) => sw(v, true).product_gst_rate && sw(v, true).product_hsn) && !sw('restaurant', true).product_gst_rate,
+    'GST follows the GSTIN, not the category: without one no GST reports / GST % / HSN; with one all on (restaurant: GST % from Set-up)');
+  assert(parseVerticalProfile(null) === null && parseVerticalProfile('junk') === null && parseVerticalProfile('{"vertical":"bakery"}') === null
+    && parseVerticalProfile('{"v":1,"vertical":"pharmacy","gst":true}')?.gst === true && parseVerticalProfile('{"vertical":"retail"}')?.gst === false,
+    'A missing, damaged or unknown profile reads as "no profile" (old path)');
+
+  // The real readers, with a stand-in localStorage.
+  const mem = new Map<string, string>();
+  const G = globalThis as unknown as Record<string, unknown>;
+  const hadWindow = 'window' in G, hadLs = 'localStorage' in G;
+  G.window = { dispatchEvent() { return true; }, addEventListener() {}, removeEventListener() {} };
+  G.localStorage = { getItem: (k: string) => (mem.has(k) ? mem.get(k)! : null), setItem: (k: string, v: string) => { mem.set(k, String(v)); }, removeItem: (k: string) => { mem.delete(k); } };
+  try {
+    const oldStored = JSON.stringify({ ...DEFAULT_FEATURE_SWITCHES, cash_register: true, khata: false });
+    mem.set('kamai_feature_switches', oldStored);
+    const oldShop = readFeatureSwitches();
+    assert(JSON.stringify(oldShop) === JSON.stringify(parseFeatureSwitches(oldStored)) && !isRestaurantMode(),
+      'Old shop (no profile): exactly its stored switches, no Restaurant mode — nothing changes for existing customers');
+
+    mem.clear();
+    saveVerticalProfile('grocery', false);
+    const kirana = readFeatureSwitches();
+    mem.set('kamai_feature_switches', JSON.stringify({ wholesale_price: false, product_variants: true }));
+    const kiranaAppSet = readFeatureSwitches();
+    mem.set('kamai_admin_feature_overrides', JSON.stringify({ khata: false }));
+    const kiranaAdmin = readFeatureSwitches();
+    assert(JSON.stringify(kirana) === JSON.stringify(sw('grocery')) && kiranaAppSet.product_variants && !kiranaAppSet.wholesale_price && kiranaAppSet.purchases
+      && !kiranaAdmin.khata && kiranaAdmin.purchases,
+      'Shop with a profile: its category\'s switches; a switch the app itself set (Excel import) and the Admin\'s forced ones still win');
+
+    const changed = syncVerticalGst(true);
+    const withGst = readFeatureSwitches();
+    assert(changed && withGst.gst_reports && withGst.product_gst_rate && !syncVerticalGst(true) && JSON.parse(mem.get(VERTICAL_PROFILE_KEY)!).vertical === 'grocery',
+      'A GSTIN saved later turns GST reports / GST % / HSN on (once); the category stays');
+
+    mem.clear();
+    saveVerticalProfile('restaurant', false);
+    const restOn = isRestaurantMode();
+    const restSw = readFeatureSwitches();
+    mem.set('kamai_admin_feature_overrides', JSON.stringify({ restaurant_mode: false }));
+    const restAdminOff = isRestaurantMode();
+    mem.clear();
+    mem.set('kamai_admin_feature_overrides', JSON.stringify({ restaurant_mode: true }));
+    const adminOnOldShop = isRestaurantMode();
+    assert(restOn && !restSw.inventory && !restSw.stock_counting && !restAdminOff && adminOnOldShop,
+      'Restaurant chosen in store setup = Restaurant mode by itself (AU-04); the Admin can still switch it off, or on for any shop');
+  } finally {
+    if (hadWindow) { /* keep */ } else delete G.window;
+    if (hadLs) { /* keep */ } else delete G.localStorage;
+  }
+
+  const onb = readSource('components/onboarding/onboardingSubmit.ts');
+  const rest = readSource('components/onboarding/cloudStoreRestore.ts');
+  assert(['saveVerticalProfile(', 'localStorage.removeItem(FEATURE_SWITCHES_KEY)'].every((t) => onb.includes(t) && rest.includes(t))
+    && !/CATEGORY_INITIAL_SWITCHES|CATEGORY_FEATURE_PRESETS|DEFAULT_FEATURE_SWITCHES/.test(onb + rest),
+    'Store setup and cloud restore save the category profile (one preset table in lib/business/verticalProfile.ts — AU-07) and clear switches an earlier shop left on this PC');
+  assert(/syncVerticalGst\(hasGstin\)/.test(readSource('components/layout/BusinessProvider.tsx')),
+    'BusinessProvider keeps the profile\'s GST in step with the shop\'s GSTIN (Settings, restore or cloud)');
+}
 
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.
 Promise.allSettled(pendingAsyncChecks).then((results) => {

@@ -1,15 +1,14 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { EyeOff, Settings, UtensilsCrossed } from 'lucide-react';
+import { EyeOff, UtensilsCrossed } from 'lucide-react';
 import { FEATURES, featureForPath, useFeatureSwitches, useRestaurantMode } from '@/lib/features/featureSwitches';
 import { SupportContactLine } from '@/components/support/SupportContact';
 import { tr } from '@/lib/i18n/core';
 
 /**
- * Wraps every shop page (AppShell). A screen switched off in Settings → Features
+ * Wraps every shop page (AppShell). A screen the shop's category (or KamaiPlus support) leaves off
  * (menu item already hidden) shows this card instead when it is opened directly —
  * from an old link, a dashboard shortcut or a typed address. Nothing is deleted.
  */
@@ -49,13 +48,6 @@ export function FeatureGate({ pathname, children }: { pathname: string; children
         {tr('KamaiPlus support switches features on for your shop. Nothing was deleted — your data is safe.')}
       </p>
       <SupportContactLine message={tr('Hello KamaiPlus, please switch on "{name}" in my app.', { name })} className="text-xs" />
-      <Link
-        href="/settings?tab=features"
-        prefetch={false}
-        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold"
-      >
-        <Settings className="w-3.5 h-3.5" /> {tr('See what is on (Settings → Features)')}
-      </Link>
     </div>
   );
 }

@@ -843,7 +843,7 @@ deliberately emptied its catalog is **not** re-seeded on next launch. Respect it
 
 ### 6.6 Restaurant mode (v4.106.0) — `/restaurant`
 
-- **Switch:** only the Admin Console (Remote control → Features → "Restaurant mode"). Stored as `restaurant_mode: true` inside the Admin's forced features (`kamai_admin_feature_overrides`); read by `restaurantModeFromRaw` / `useRestaurantMode`. It is **not** a `FeatureId` and has no row in Settings → Features. Order of precedence in `readFeatureSwitches`: stored shop switches → `RESTAURANT_PRESET` (v4.107.0: inventory, barcode_studio, purchases, suppliers, wholesale_price, product_size_colour, product_selling_price, product_hsn, product_gst_rate, payment_keys, and since v4.108.0 stock_counting, product_barcode **off**; product_variants **on**) → Admin's forced switches.
+- **Switch (v4.118.0):** a shop set up as **"Cafe / Restaurant"** (vertical profile `restaurant`, §9.0b) is in Restaurant mode by itself; the Admin's own `restaurant_mode` true / false (`adminRestaurantChoice`) wins over that, and is the only switch for a shop without a profile. Before v4.118.0: only the Admin Console (Remote control → Features → "Restaurant mode"). Stored as `restaurant_mode: true` inside the Admin's forced features (`kamai_admin_feature_overrides`); read by `restaurantModeFromRaw` / `useRestaurantMode`. It is **not** a `FeatureId` and has no row in Settings → Features. Order of precedence in `readFeatureSwitches`: stored shop switches → `RESTAURANT_PRESET` (v4.107.0: inventory, barcode_studio, purchases, suppliers, wholesale_price, product_size_colour, product_selling_price, product_hsn, product_gst_rate, payment_keys, and since v4.108.0 stock_counting, product_barcode **off**; product_variants **on**) → Admin's forced switches.
 - **Words (v4.107.0):** `lib/restaurant/words.ts` `RESTAURANT_WORDS` (exact English text → restaurant text: Products → Menu, Customers → Guests, Transactions → Bills, Add Product → Add Dish, `+ New Bill` → Back to Tables…). `I18nProvider` reads the mode before paint and calls `setActiveWords`; `tr()` = `translate(table, withWords(text))`, so the swap happens before Hindi / Marathi; a mode change remounts the app (`key={language:mode}`). Only WORDS change — no screen reads the mode to behave differently except the ones listed here (Sidebar, FeatureGate, FeaturesTab). Suite 21 v4.107.0: every key must still exist in `src/` and every replacement must have hi + mr.
 - **Screens:** Tables (cards, takeaway tokens, Set-up) → Order (menu left, running order right) → Bill & Pay. Leaving a table keeps the order on hold.
 - **Data:** open orders `kamai_restaurant_orders`, set-up `kamai_restaurant_settings` (tables, GST % + inclusive / added, service %, packing ₹, add-on list). Menu = `db.products` (variants = Half / Full). No new Dexie table.
@@ -932,7 +932,7 @@ There is no global state library. Modules talk through window events:
 `kamai_drawer_tab_y` (where the Transactions pull-tab was dragged, a share of the window height) ·
 `kamai_known_printers` (printers already seen — a new one is asked about once, §9.10) ·
 `kamai_whatsapp_settings` (customer message language, pay link, last line, owner / CA numbers, §9.11) ·
-`kamai_feature_switches` · `kamai_sound_muted` · `vyapar_language`
+`kamai_feature_switches` · `kamai_vertical_profile` (v4.118.0, §9.0b) · `kamai_sound_muted` · `vyapar_language`
 
 sessionStorage (emptied when the app closes): `kamai_unlocked` · `kamai_return_to`.
 
@@ -1058,6 +1058,10 @@ page's first load). **If any route jumps past ~1.25 MB, you have statically impo
 
 ## 9. Universal product rule
 
+> **v4.118.0 update (Rahul, 2026-10-09 — `docs/VERTICAL_PLAN.md`):** the shop's business category now
+> shapes the app — but still only through **feature switches** (§9.0b). Screens never read
+> `business_type`; they read switches, which for a new shop come from its vertical profile.
+
 KamaiPlus is **one retail product**. As of v4.38.0 there is no per-vertical behaviour
 anywhere, and SUITE 9 of the test file **fails the build if you reintroduce any**.
 
@@ -1093,7 +1097,26 @@ Billing, returns, inventory, valuation and alerts already skip unlimited items
 (`tracksOwnStock`). Other creators keep their own rule: POS "unknown barcode" quick-add
 = 50 counted, Excel / bill inward = the quantity received.
 
-### 9.2 Feature switches — Settings → Features (v4.69.0, v4.81.0)
+### 9.0b Vertical profile — the app follows the business category (v4.118.0)
+
+`lib/business/verticalProfile.ts`. Store setup (and cloud restore) saves localStorage
+`kamai_vertical_profile` = `{ v: 1, vertical, gst }` (vertical = grocery / pharmacy / clothing /
+hardware / restaurant / retail) and removes `kamai_feature_switches`.
+
+- **`readFeatureSwitches`** with a profile: `verticalSwitches(profile)` (one table, `VERTICAL_BASE` —
+  docs/VERTICAL_PLAN.md "Preset") + keys the app itself stored later (`setFeatureSwitch`, e.g. Excel
+  import → wholesale) + restaurant preset when Restaurant mode + the Admin's forced switches.
+  **No profile (every shop set up before v4.118.0) = the old code path, unchanged.**
+- **GST follows the GSTIN, not the category:** `gst` false → `product_gst_rate`, `product_hsn`,
+  `gst_reports` off; true → on (restaurant: GST % stays in Restaurant Set-up). `BusinessProvider`
+  calls `syncVerticalGst(hasGstin)` whenever the shop row changes (Settings, restore, cloud).
+- **Restaurant mode** for the `restaurant` vertical by itself (§6.6).
+- Settings has **no Features tab** any more (`FeaturesTab.tsx` deleted); `?tab=features` opens Store.
+  A switched-off screen says "contact KamaiPlus support" (`FeatureGate`).
+- Tests: Suite 9 "v4.118.0" block (preset table, old shop unchanged, GSTIN, restaurant + Admin off);
+  Electron E2E removes the profile after store setup so its shop plays an existing customer.
+
+### 9.2 Feature switches (v4.69.0, v4.81.0; Settings tab removed in v4.118.0)
 
 A shop hides what it does not use. **Per feature, never per trade** — nothing may branch
 on `business_type` (Suite 9 still bans it, and the identifier `featureToggles`; the
@@ -1101,7 +1124,7 @@ module is `featureSwitches`). Switching off only hides; no data is deleted.
 
 **v4.108.0:** `stock_counting` (default on — off: no stock box on Add Product, no Current Stock / Status columns, no Low Stock filter / tiles, no Home stock alert, no Dead Stock report) and `product_barcode` (default on — off: no Barcode box, no Fast barcode inward on Products). Both are in the Admin Console's list.
 
-**Since v4.107.0 the shop cannot change switches in the app.** Settings → Features is read-only
+**Since v4.107.0 the shop cannot change switches in the app** (since v4.118.0 there is no Features tab at all — §9.0b). Settings → Features was read-only
 (On / Off list, "Features are set by KamaiPlus support"); KamaiPlus sets them from the Admin
 Console (forced features). Switches a shop stored before v4.107.0 still apply. `setFeatureSwitch`
 has one caller left: the Excel import turns `wholesale_price` on when a sheet has a Wholesale column.
