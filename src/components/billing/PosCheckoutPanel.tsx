@@ -5,6 +5,7 @@ import { PaymentMethod } from '@/types';
 import { formatINR, cn } from '@/lib/utils';
 import { Plus, Printer, BookOpen, X, Settings2, PauseCircle } from 'lucide-react';
 import { focusPosCustomerName, PosCustomerRow } from '@/components/billing/PosCustomerRow';
+import { PosPrescriptionRow } from '@/components/billing/PosPrescriptionRow';
 import { PosPriceModeToggle } from '@/components/billing/PosPriceModeToggle';
 import { isDraftEmpty } from '@/lib/billing/billCustomer';
 import { getPrintSettings, printerForFormat } from '@/lib/hardware/printSettings';
@@ -239,6 +240,7 @@ export function PosCheckoutPanel(props: PosCheckoutPanelProps) {
           onDraftChange={setCustomerDraft}
           onSelect={setSelectedCustomerId}
         />
+        <PosPrescriptionRow draft={customerDraft} onDraftChange={setCustomerDraft} />
 
         {/* Credit Mode Mandatory Customer Alert Banner */}
         {paymentMethod === 'credit' && !selectedCustomerId && isDraftEmpty(customerDraft) && (

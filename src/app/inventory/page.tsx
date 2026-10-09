@@ -14,6 +14,7 @@ import { InventoryHeaderActions } from '@/components/inventory/InventoryHeaderAc
 import { InventoryMetricsRibbon } from '@/components/inventory/InventoryMetricsRibbon';
 import { InventoryNavTabs, InventoryTabType } from '@/components/inventory/InventoryNavTabs';
 import { ReorderAlertsList } from '@/components/inventory/ReorderAlertsList';
+import { ExpiryAlertsCard } from '@/components/inventory/ExpiryAlertsCard';
 import { StockMovementsList } from '@/components/inventory/StockMovementsList';
 import { tr } from '@/lib/i18n/core';
 import { newId } from '@/lib/ids';
@@ -100,6 +101,9 @@ export default function InventoryPage() {
         totalAssetValuePaise={totalAssetValuePaise}
         lowStockCount={lowStockProducts.length}
       />
+
+      {/* v4.126.0: medicines expired / expiring in 90 days (pharmacy) */}
+      <ExpiryAlertsCard products={products} />
 
       {/* 3. Navigation Tabs */}
       <InventoryNavTabs

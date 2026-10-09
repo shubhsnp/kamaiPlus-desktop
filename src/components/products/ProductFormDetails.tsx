@@ -35,6 +35,10 @@ export interface ProductFormDetailsProps {
   setFormHsn: (val: string) => void;
   formSize: string;
   setFormSize: (val: string) => void;
+  formBatch: string;
+  setFormBatch: (val: string) => void;
+  formExpiry: string;
+  setFormExpiry: (val: string) => void;
   formColor: string;
   setFormColor: (val: string) => void;
   onBarcodeScanned: ((code: string) => void) | undefined;
@@ -60,7 +64,7 @@ export function ProductFormDetails(props: ProductFormDetailsProps) {
     editingProduct, formPurchasePrice, setFormPurchasePrice, formSellingPrice, setFormSellingPrice, formIsUnlimitedStock,
     setFormIsUnlimitedStock, formMrp, formWholesalePrice, setFormWholesalePrice, setFormMrp, formTaxRate,
     setFormTaxRate, formStock, setFormStock, formMinStock, setFormMinStock, formBarcode,
-    setFormBarcode, formHsn, setFormHsn, formSize, setFormSize, formColor,
+    setFormBarcode, formHsn, setFormHsn, formSize, setFormSize, formBatch, setFormBatch, formExpiry, setFormExpiry, formColor,
     setFormColor, onBarcodeScanned, variantsEnabled, setVariantsEnabled, variantRows, setVariantRows,
     setShowSizeColor, sizeColorVisible, switches, showSellingPrice, priceFieldCount, codeFieldCount,
     SM_COLS,
@@ -162,6 +166,20 @@ export function ProductFormDetails(props: ProductFormDetailsProps) {
           </div>
         )}
       </div>
+      )}
+
+      {/* v4.126.0 (AU-22): pharmacy batch no. + expiry month, printed on the bill. */}
+      {switches.product_batch_expiry && (
+        <div className="grid grid-cols-2 gap-3" data-batch-expiry>
+          <div>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">{tr('Batch No.')}</label>
+            <Input placeholder={tr('e.g. B2401')} maxLength={20} value={formBatch} onChange={(e) => setFormBatch(e.target.value.toUpperCase())} data-product-batch />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">{tr('Expiry (month)')}</label>
+            <Input type="month" value={formExpiry} onChange={(e) => setFormExpiry(e.target.value)} data-product-expiry />
+          </div>
+        </div>
       )}
 
       {/* Stock: "Unlimited" (no count) is the default for a new item, like the

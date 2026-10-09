@@ -164,6 +164,8 @@ export interface Product {
   variant_label?: string;
   imei_serial?: string; // Electronics IMEI or device serial number
   warranty_period_months?: number; // Brand warranty period
+  batch_number?: string; // v4.126.0 pharmacy batch / lot no. (cloud contract §3.2)
+  expiry_date?: string; // v4.126.0 expiry month 'YYYY-MM' (lib/products/expiry.ts)
   current_stock: number;
   min_stock_level: number;
   supplier_id?: string;
@@ -229,6 +231,9 @@ export interface CartItem {
   color?: string;
   imei_serial?: string;
   warranty_period_months?: number;
+  /** v4.126.0: the item's batch / expiry, frozen on the bill line. */
+  batch_number?: string;
+  expiry_date?: string;
   quantity: number;
   unit: ProductUnit;
   unit_price: number; // in paise
@@ -263,6 +268,9 @@ export interface Sale {
   customer_id?: string;
   customer_name?: string;
   customer_phone?: string;
+  /** v4.126.0 pharmacy (Schedule H): prescribing doctor and patient, printed on the bill. */
+  doctor_name?: string;
+  patient_name?: string;
   customer_address?: string;
   customer_gstin?: string;
   items: CartItem[];

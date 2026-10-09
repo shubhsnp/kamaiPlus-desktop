@@ -62,6 +62,10 @@ interface AddEditProductModalProps {
 
   formSize: string;
   setFormSize: (val: string) => void;
+  formBatch: string;
+  setFormBatch: (val: string) => void;
+  formExpiry: string;
+  setFormExpiry: (val: string) => void;
   formColor: string;
   setFormColor: (val: string) => void;
   /** A code scanned (USB gun + Enter) into the barcode box — fill name / MRP from the offline list. */
@@ -114,6 +118,10 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
 
   formSize,
   setFormSize,
+  formBatch,
+  setFormBatch,
+  formExpiry,
+  setFormExpiry,
   formColor,
   setFormColor,
   onBarcodeScanned,
@@ -263,7 +271,7 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
             editingProduct, formPurchasePrice, setFormPurchasePrice, formSellingPrice, setFormSellingPrice, formIsUnlimitedStock,
             setFormIsUnlimitedStock, formMrp, formWholesalePrice, setFormWholesalePrice, setFormMrp, formTaxRate,
             setFormTaxRate, formStock, setFormStock, formMinStock, setFormMinStock, formBarcode,
-            setFormBarcode, formHsn, setFormHsn, formSize, setFormSize, formColor,
+            setFormBarcode, formHsn, setFormHsn, formSize, setFormSize, formBatch, setFormBatch, formExpiry, setFormExpiry, formColor,
             setFormColor, onBarcodeScanned, variantsEnabled, setVariantsEnabled, variantRows, setVariantRows,
             setShowSizeColor, sizeColorVisible, switches, showSellingPrice, priceFieldCount, codeFieldCount,
             SM_COLS,

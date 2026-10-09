@@ -8,6 +8,7 @@ import { unitPriceFor } from '@/lib/billing/priceMode';
 import { allowsFractionalQty, roundQty } from '@/lib/billing/unitQuantity';
 import { isFeatureOn } from '@/lib/features/featureSwitches';
 import { countsStockAtCounter } from '@/lib/billing/stockRule';
+import { expiryState, formatExpiry } from '@/lib/products/expiry';
 import { gstAllowed, lineGstRate } from '@/lib/business/verticalProfile';
 import { tr } from '@/lib/i18n/core';
 import type { BillTab } from '@/lib/billing/billTabs';
@@ -127,6 +128,12 @@ export function createCartActions(deps: CreateCartActionsDeps) {
       }
     }
 
+    // v4.126.0 (AU-22): a medicine past its expiry month — the pharmacist is told at once.
+    if (product.expiry_date && expiryState(product.expiry_date) === 'expired') {
+      playBeepSound('alert');
+      showBillingToast(tr('"{name}" is past its expiry ({exp}).', { name: product.name, exp: formatExpiry(product.expiry_date) }), 'error');
+    }
+
     // No price yet (v4.87.0): it goes in the cart and the price box opens at once.
     const needsPrice = !product.has_variants && !(unitPriceFor(product, 'retail') > 0) && !cart.some((line) => line.product_id === product.id);
     if (needsPrice) {
@@ -194,6 +201,8 @@ export function createCartActions(deps: CreateCartActionsDeps) {
             color: product.color,
             imei_serial: product.imei_serial,
             warranty_period_months: product.warranty_period_months,
+            batch_number: product.batch_number,
+            expiry_date: product.expiry_date,
           },
         ];
       }

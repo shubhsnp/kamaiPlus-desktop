@@ -5,6 +5,7 @@ import { resolveInvoiceConfig } from '@/lib/invoices/themeDefaults';
 import { placeOfSupplyLabel, stateCodeFromGstin, stateNameFromCode } from '@/lib/gst/stateCodes';
 import { splitIntraStateTax } from '@/lib/gst/taxSplit';
 import { readVerticalProfile } from '@/lib/business/verticalProfile';
+import { formatExpiry } from '@/lib/products/expiry';
 import {
   getLineGrossPaise,
   getLineTaxablePaise,
@@ -89,6 +90,8 @@ function lineMeta(item: CartItem): string[] {
     item.color ? `Color: ${item.color}` : '',
     item.imei_serial ? `IMEI/SN: ${item.imei_serial}` : '',
     item.warranty_period_months ? `Warranty: ${item.warranty_period_months} months` : '',
+    item.batch_number ? `Batch: ${item.batch_number}` : '',
+    item.expiry_date ? `Exp: ${formatExpiry(item.expiry_date)}` : '',
   ].filter(Boolean);
   if (attrs.length) meta.push(attrs.join(' • '));
   if ((item.discount_amount || 0) > 0) meta.push(`Discount −${formatINR(item.discount_amount)}`);
@@ -170,6 +173,8 @@ export function buildInvoiceDocument(sale: Sale, business: Business, options: Bu
   // Billed-to block
   const detailParts: string[] = [];
   if (sale.customer_phone) detailParts.push(`Ph: ${sale.customer_phone}`);
+  if (sale.patient_name) detailParts.push(`Patient: ${sale.patient_name}`);
+  if (sale.doctor_name) detailParts.push(`Dr: ${sale.doctor_name}`);
 
   // Rows
   const rows: InvoiceRow[] = items.map((item, idx) => {

@@ -16,6 +16,9 @@ import { validateIndianPhone } from '@/lib/validation/validators';
 export interface CustomerDraft {
   name: string;
   phone: string;
+  /** v4.126.0 pharmacy: prescription details for this bill only (not saved on the customer). */
+  doctor?: string;
+  patient?: string;
 }
 
 export type BillCustomerResolution =

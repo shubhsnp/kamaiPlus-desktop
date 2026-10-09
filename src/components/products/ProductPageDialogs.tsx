@@ -74,6 +74,10 @@ export interface ProductPageDialogsProps {
   setFormHsn: React.Dispatch<React.SetStateAction<string>>;
   formSize: string;
   setFormSize: React.Dispatch<React.SetStateAction<string>>;
+  formBatch: string;
+  setFormBatch: React.Dispatch<React.SetStateAction<string>>;
+  formExpiry: string;
+  setFormExpiry: React.Dispatch<React.SetStateAction<string>>;
   formColor: string;
   setFormColor: React.Dispatch<React.SetStateAction<string>>;
   formError: string;
@@ -108,7 +112,7 @@ export function ProductPageDialogs(props: ProductPageDialogsProps) {
     setFormPurchasePrice, formSellingPrice, setFormSellingPrice, formIsLooseItem, setFormIsLooseItem, formIsUnlimitedStock,
     setFormIsUnlimitedStock, formMrp, setFormMrp, formWholesalePrice, setFormWholesalePrice, formTaxRate,
     setFormTaxRate, formStock, setFormStock, formMinStock, setFormMinStock, formBarcode,
-    setFormBarcode, formHsn, setFormHsn, formSize, setFormSize, formColor,
+    setFormBarcode, formHsn, setFormHsn, formSize, setFormSize, formBatch, setFormBatch, formExpiry, setFormExpiry, formColor,
     setFormColor, formError, variantsEnabled, setVariantsEnabled, variantRows, setVariantRows,
     variantsParent, setVariantsParent, allProducts, categories, business, switches,
     handleBarcodeScanned, handleSaveProduct, handleDeleteProduct, handleOpenEditModal, handleCreateCategory, handleOpenAddModal,
@@ -151,6 +155,10 @@ export function ProductPageDialogs(props: ProductPageDialogsProps) {
 
         formSize={formSize}
         setFormSize={setFormSize}
+        formBatch={formBatch}
+        setFormBatch={setFormBatch}
+        formExpiry={formExpiry}
+        setFormExpiry={setFormExpiry}
         formColor={formColor}
         setFormColor={setFormColor}
         onBarcodeScanned={handleBarcodeScanned}

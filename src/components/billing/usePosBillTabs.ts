@@ -58,9 +58,13 @@ export function usePosBillTabs() {
     }));
   };
 
-  const customerDraft: CustomerDraft = { name: activeTab.customerName || '', phone: activeTab.customerPhone || '' };
+  const customerDraft: CustomerDraft = { name: activeTab.customerName || '', phone: activeTab.customerPhone || '', doctor: activeTab.doctorName || '', patient: activeTab.patientName || '' };
   const setCustomerDraft = (draft: CustomerDraft) => {
-    updateActiveTab((tab) => ({ ...tab, customerName: draft.name, customerPhone: draft.phone }));
+    updateActiveTab((tab) => ({
+      ...tab, customerName: draft.name, customerPhone: draft.phone,
+      doctorName: draft.doctor !== undefined ? draft.doctor : tab.doctorName,
+      patientName: draft.patient !== undefined ? draft.patient : tab.patientName,
+    }));
   };
 
   const setPaymentMethod = (method: PaymentMethod) => {

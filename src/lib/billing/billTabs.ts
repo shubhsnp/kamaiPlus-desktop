@@ -9,6 +9,9 @@ export interface BillTab {
   /** Typed on the counter row when no saved customer is picked; saved with the bill. */
   customerName?: string;
   customerPhone?: string;
+  /** v4.126.0 pharmacy: doctor / patient typed for this bill. */
+  doctorName?: string;
+  patientName?: string;
   paymentMethod: PaymentMethod;
   amountReceivedInput: string;
   splitCash: string;

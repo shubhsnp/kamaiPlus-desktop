@@ -1,4 +1,5 @@
 import React, { CSSProperties } from 'react';
+import { formatExpiry } from '@/lib/products/expiry';
 import type { InvoiceDocument } from '@/lib/invoices/invoiceDocument';
 import type { Business, Sale } from '@/types';
 import { formatINR } from '@/lib/utils';
@@ -82,6 +83,12 @@ export function ThermalReceipt({ doc, sale, business, width }: Props) {
             <span style={bold()}>{doc.rows[i]?.total}</span>
           </div>
           {(item.discount_amount || 0) > 0 && <div>  Disc −{formatINR(item.discount_amount, false)}</div>}
+          {(item.batch_number || item.expiry_date) && (
+            <div style={small} data-thermal-batch>
+              {[item.batch_number ? `Batch ${item.batch_number}` : '', item.expiry_date ? `Exp ${formatExpiry(item.expiry_date)}` : ''].filter(Boolean).join('  ')}
+            </div>
+          )}
+          {item.imei_serial && <div style={small} data-thermal-imei>IMEI/SN: {item.imei_serial}</div>}
         </div>
       ))}
       {rule}

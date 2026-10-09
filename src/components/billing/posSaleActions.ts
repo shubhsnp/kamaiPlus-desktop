@@ -219,6 +219,8 @@ export function createSaleActions(deps: CreateSaleActionsDeps) {
         customer_phone: targetCustomer?.phone,
         customer_address: targetCustomer?.address,
         customer_gstin: targetCustomer?.gstin,
+        doctor_name: (customerDraft.doctor || '').trim() || undefined,
+        patient_name: (customerDraft.patient || '').trim() || undefined,
         items: billLines,
         subtotal: subtotalPaise,
         discount_total: discountTotalPaise,

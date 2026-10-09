@@ -85,6 +85,8 @@ export default function ProductsPage() {
   // Dynamic Store Specific Attributes
 
   const [formSize, setFormSize] = useState('');
+  const [formBatch, setFormBatch] = useState('');
+  const [formExpiry, setFormExpiry] = useState('');
   const [formColor, setFormColor] = useState('');
   const [formError, setFormError] = useState('');
 
@@ -175,7 +177,7 @@ export default function ProductsPage() {
     setFormSellingPrice, formSellingPrice, setFormIsLooseItem, formIsLooseItem, setFormIsUnlimitedStock, formIsUnlimitedStock,
     setFormMrp, formMrp, setFormWholesalePrice, formWholesalePrice, setFormTaxRate, formTaxRate,
     setFormStock, formStock, setFormMinStock, formMinStock, setFormBarcode, formBarcode,
-    setFormHsn, formHsn, setFormIsFavorite, formIsFavorite, setFormSize, formSize,
+    setFormHsn, formHsn, setFormIsFavorite, formIsFavorite, setFormSize, formSize, setFormBatch, formBatch, setFormExpiry, formExpiry,
     setFormColor, formColor, setFormError, setVariantsEnabled, variantsEnabled, setVariantRows,
     variantRows, allProducts, categories, business, switches,
   });
@@ -273,7 +275,7 @@ export default function ProductsPage() {
           setFormPurchasePrice, formSellingPrice, setFormSellingPrice, formIsLooseItem, setFormIsLooseItem, formIsUnlimitedStock,
           setFormIsUnlimitedStock, formMrp, setFormMrp, formWholesalePrice, setFormWholesalePrice, formTaxRate,
           setFormTaxRate, formStock, setFormStock, formMinStock, setFormMinStock, formBarcode,
-          setFormBarcode, formHsn, setFormHsn, formSize, setFormSize, formColor,
+          setFormBarcode, formHsn, setFormHsn, formSize, setFormSize, formBatch, setFormBatch, formExpiry, setFormExpiry, formColor,
           setFormColor, formError, variantsEnabled, setVariantsEnabled, variantRows, setVariantRows,
           variantsParent, setVariantsParent, allProducts, categories, business, switches,
           handleBarcodeScanned, handleSaveProduct, handleDeleteProduct, handleOpenEditModal, handleCreateCategory, handleOpenAddModal,

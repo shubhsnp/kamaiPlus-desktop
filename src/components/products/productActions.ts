@@ -1,4 +1,5 @@
 import React from 'react';
+import { cleanExpiry } from '@/lib/products/expiry';
 import { showConfirm } from '@/lib/ui/dialogs';
 import { db } from '@/lib/db';
 import { generalCategoryId } from '@/lib/products/defaultCategory';
@@ -57,6 +58,10 @@ export interface CreateProductActionsDeps {
   formIsFavorite: boolean;
   setFormSize: React.Dispatch<React.SetStateAction<string>>;
   formSize: string;
+  setFormBatch: React.Dispatch<React.SetStateAction<string>>;
+  formBatch: string;
+  setFormExpiry: React.Dispatch<React.SetStateAction<string>>;
+  formExpiry: string;
   setFormColor: React.Dispatch<React.SetStateAction<string>>;
   formColor: string;
   setFormError: React.Dispatch<React.SetStateAction<string>>;
@@ -83,7 +88,7 @@ export function createProductActions(deps: CreateProductActionsDeps) {
     setFormSellingPrice, formSellingPrice, setFormIsLooseItem, formIsLooseItem, setFormIsUnlimitedStock, formIsUnlimitedStock,
     setFormMrp, formMrp, setFormWholesalePrice, formWholesalePrice, setFormTaxRate, formTaxRate,
     setFormStock, formStock, setFormMinStock, formMinStock, setFormBarcode, formBarcode,
-    setFormHsn, formHsn, setFormIsFavorite, formIsFavorite, setFormSize, formSize,
+    setFormHsn, formHsn, setFormIsFavorite, formIsFavorite, setFormSize, formSize, setFormBatch, formBatch, setFormExpiry, formExpiry,
     setFormColor, formColor, setFormError, setVariantsEnabled, variantsEnabled, setVariantRows,
     variantRows, allProducts, categories, business, switches,
   } = deps;
@@ -108,6 +113,8 @@ export function createProductActions(deps: CreateProductActionsDeps) {
     setFormIsFavorite(false);
 
     setFormSize('');
+    setFormBatch('');
+    setFormExpiry('');
     setFormColor('');
     setVariantsEnabled(false);
     setVariantRows([]);
@@ -136,6 +143,8 @@ export function createProductActions(deps: CreateProductActionsDeps) {
     setFormIsFavorite(Boolean(p.is_favorite));
 
     setFormSize(p.size || '');
+    setFormBatch(p.batch_number || '');
+    setFormExpiry(cleanExpiry(p.expiry_date));
     setFormColor(p.color || '');
     setIsModalOpen(true);
   };
@@ -208,6 +217,8 @@ export function createProductActions(deps: CreateProductActionsDeps) {
       hsn_code: formHsn.trim() || undefined,
 
       size: formSize.trim() || undefined,
+      batch_number: formBatch.trim() || undefined,
+      expiry_date: cleanExpiry(formExpiry) || undefined,
       color: formColor.trim() || undefined,
       is_favorite: formIsFavorite,
       is_active: true,

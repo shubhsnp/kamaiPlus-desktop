@@ -68,6 +68,8 @@ const SHOP: Base = {
   wholesale_price: false,
   stock_counting: true,
   product_barcode: true,
+  product_batch_expiry: false,
+  bill_prescription: false,
 };
 
 /**
@@ -78,7 +80,7 @@ export const VERTICAL_BASE: Record<VerticalId, Base> = {
   // Kirana: fast counter keys, wholesale price; items carry the maker's barcode — no label printing.
   grocery: { ...SHOP, barcode_studio: false, wholesale_price: true, payment_keys: true },
   // Medicines come with their own barcode; no labels.
-  pharmacy: { ...SHOP, barcode_studio: false },
+  pharmacy: { ...SHOP, barcode_studio: false, product_batch_expiry: true, bill_prescription: true },
   // Price tags, sizes / colours.
   clothing: { ...SHOP, product_size_colour: true, product_variants: true },
   // Electronics & mobile: models in variants (128 GB / 256 GB, colour).

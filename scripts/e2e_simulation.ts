@@ -98,6 +98,7 @@ import { DEFAULT_FEATURE_SWITCHES, FEATURES, featureForPath, isPathEnabled, pars
 import { isRestaurantMode, readFeatureSwitches } from '../src/lib/features/featureSwitches';
 import { countsStockAtCounter } from '../src/lib/billing/stockRule';
 import { backupIsSafe } from '../src/lib/cloud/deletedStore';
+import { cleanExpiry, expiryState, formatExpiry } from '../src/lib/products/expiry';
 import { VERTICAL_IDS, VERTICAL_PROFILE_KEY, gstAllowed, lineGstRate, parseVerticalProfile, restaurantGstFor, saveVerticalProfile, syncVerticalGst, verticalSwitches } from '../src/lib/business/verticalProfile';
 import { adminBlock, blocksBilling, cleanFeatureOverrides, counterHasOpenBill, needsUpdate } from '../src/lib/admin/adminControl';
 import { matchesProductDetails } from '../src/lib/products/detailSearch';
@@ -4761,6 +4762,35 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
     'Add Product: the example name fits the shop category (old shops keep the old example)');
   assert(readSource('components/onboarding/onboardingSubmit.ts').includes("restaurant: 'Thank you for dining with us!") && !readSource('app/onboarding/page.tsx').includes('isMounted'),
     'Restaurant bills do not promise a 7-day goods exchange; no dead isMounted flag in store setup');
+}
+
+// v4.126.0 — Pharmacy: batch / expiry on items and bills, doctor / patient on the bill (AU-22, docs/VERTICAL_PLAN.md A5).
+{
+  const d = new Date(2026, 9, 10);
+  assert(cleanExpiry('2027-01') === '2027-01' && cleanExpiry('2027-01-31') === '2027-01' && cleanExpiry('01/27') === '2027-01' && cleanExpiry('1/2028') === '2028-01'
+    && cleanExpiry('13/27') === '' && cleanExpiry('soon') === '' && formatExpiry('2027-01') === '01/27' && formatExpiry('') === '',
+    'Expiry is a month: pack style MM/YY and the phone\u2019s full date read the same; shown as MM/YY');
+  assert(expiryState('2026-09', d) === 'expired' && expiryState('2026-10', d) === 'soon' && expiryState('2026-12', d) === 'soon' && expiryState('2027-06', d) === 'ok' && expiryState(undefined, d) === 'none',
+    'A medicine is good until the end of its expiry month; within 90 days = expiring soon');
+  const ph = verticalSwitches({ vertical: 'pharmacy', gst: false });
+  assert(ph.product_batch_expiry && ph.bill_prescription && ['grocery', 'clothing', 'hardware', 'retail', 'restaurant'].every((v) => !verticalSwitches({ vertical: v as never, gst: false }).product_batch_expiry)
+    && DEFAULT_FEATURE_SWITCHES.product_batch_expiry === false && DEFAULT_FEATURE_SWITCHES.bill_prescription === false,
+    'Batch / expiry and doctor / patient are on for the pharmacy category only (old shops: off)');
+  const form = readSource('components/products/ProductFormDetails.tsx');
+  const actions = readSource('components/products/productActions.ts');
+  assert(form.includes('{switches.product_batch_expiry && (') && form.includes('data-product-batch') && form.includes('type="month"')
+    && actions.includes('batch_number: formBatch.trim() || undefined') && actions.includes('expiry_date: cleanExpiry(formExpiry) || undefined') && actions.includes("setFormBatch(p.batch_number || '')"),
+    'Add / Edit Product: Batch No. and Expiry (month) boxes, saved and read back');
+  const cartSrc = readSource('components/billing/posCartActions.ts');
+  assert(cartSrc.includes('batch_number: product.batch_number') && cartSrc.includes("expiryState(product.expiry_date) === 'expired'")
+    && readSource('components/billing/PosPrescriptionRow.tsx').includes('bill_prescription') && readSource('components/billing/posSaleActions.ts').includes("doctor_name: (customerDraft.doctor || '').trim() || undefined"),
+    'Counter: the bill line keeps the batch / expiry, an expired medicine is warned about, patient / doctor go on the bill');
+  const doc = readSource('lib/invoices/invoiceDocument.ts');
+  assert(doc.includes('item.batch_number ? `Batch: ${item.batch_number}`') && doc.includes('detailParts.push(`Patient: ${sale.patient_name}`)')
+    && readSource('components/invoices/print/ThermalReceipt.tsx').includes('data-thermal-batch') && readSource('components/invoices/print/ThermalReceipt.tsx').includes('data-thermal-imei'),
+    'A4 and thermal bills print batch / expiry (and IMEI) under the item, patient / doctor under the customer');
+  assert(readSource('app/inventory/page.tsx').includes('<ExpiryAlertsCard products={products} />') && readSource('components/inventory/ExpiryAlertsCard.tsx').includes('product_batch_expiry'),
+    'Inventory lists medicines expired or expiring in 90 days (pharmacy)');
 }
 
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.

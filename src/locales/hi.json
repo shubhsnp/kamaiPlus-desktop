@@ -3083,5 +3083,21 @@
   "e.g. USB Type-C Charging Cable 1 m": "जैसे USB Type-C Charging Cable 1 m",
   "e.g. Classmate Notebook 172 Pages": "जैसे Classmate Notebook 172 Pages",
   "Day Summary shows udhar received in cash; GST screen lists each HSN per unit; restoring a shop from the cloud brings back customers, udhar and bills, and bill numbers carry on.": "डे समरी में नकद मिली उधार वसूली दिखती है; GST स्क्रीन पर हर HSN यूनिट के हिसाब से; क्लाउड से दुकान रीस्टोर करने पर ग्राहक, उधार और बिल वापस आते हैं और बिल नंबर आगे चलते हैं।",
-  "Licence: if KamaiPlus support blocks and later unblocks your key, the app starts working again by itself at the next check-in.": "लाइसेंस: अगर KamaiPlus सपोर्ट आपकी key ब्लॉक करके बाद में अनब्लॉक करे, तो ऐप अगली जाँच पर अपने आप फिर चलने लगता है।"
+  "Licence: if KamaiPlus support blocks and later unblocks your key, the app starts working again by itself at the next check-in.": "लाइसेंस: अगर KamaiPlus सपोर्ट आपकी key ब्लॉक करके बाद में अनब्लॉक करे, तो ऐप अगली जाँच पर अपने आप फिर चलने लगता है।",
+  "Batch & expiry": "बैच और एक्सपायरी",
+  "Batch no. and expiry month on items, printed on the bill; a list of medicines expired or expiring in 90 days.": "सामान पर बैच नंबर और एक्सपायरी महीना, बिल पर छपता है; एक्सपायर या 90 दिन में एक्सपायर होने वाली दवाइयों की सूची।",
+  "Doctor & patient on the bill": "बिल पर डॉक्टर और मरीज़",
+  "Patient and doctor name boxes on the counter, printed on the bill (medicines on prescription).": "काउंटर पर मरीज़ और डॉक्टर के नाम के बॉक्स, बिल पर छपते हैं (पर्ची वाली दवाइयाँ)।",
+  "Batch No.": "बैच नंबर",
+  "e.g. B2401": "जैसे B2401",
+  "Expiry (month)": "एक्सपायरी (महीना)",
+  "\"{name}\" is past its expiry ({exp}).": "\"{name}\" की एक्सपायरी निकल चुकी है ({exp})।",
+  "Patient name (optional)": "मरीज़ का नाम (वैकल्पिक)",
+  "Doctor name (optional)": "डॉक्टर का नाम (वैकल्पिक)",
+  "Medicines expired or expiring in 90 days": "एक्सपायर या 90 दिन में एक्सपायर होने वाली दवाइयाँ",
+  "{n} expired": "{n} एक्सपायर",
+  "Batch {batch}": "बैच {batch}",
+  "Expired": "एक्सपायर",
+  "Expiring soon": "जल्द एक्सपायर",
+  "Pharmacy: batch no. and expiry month on medicines (printed on the bill), a warning when an expired medicine is added, a list of medicines expiring in 90 days on Inventory, and patient / doctor name on the bill.": "फार्मेसी: दवाइयों पर बैच नंबर और एक्सपायरी महीना (बिल पर छपता है), एक्सपायर दवाई जोड़ने पर चेतावनी, इन्वेंटरी पर 90 दिन में एक्सपायर होने वाली दवाइयों की सूची, और बिल पर मरीज़ / डॉक्टर का नाम।"
 }
