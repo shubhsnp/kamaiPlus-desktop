@@ -20,7 +20,8 @@
     "release:beta": "next build && electron-builder --win && node scripts/prepare_release.js --beta",
     "release:promote": "node scripts/prepare_release.js --promote",
     "test:cloud": "node scripts/run_cloud_test.mjs",
-    "test:smoke": "node scripts/smoke_pages.mjs"
+    "test:smoke": "node scripts/smoke_pages.mjs",
+    "release:github": "node scripts/publish_github_release.mjs"
   },
   "dependencies": {
     "electron-updater": "^6.8.9",

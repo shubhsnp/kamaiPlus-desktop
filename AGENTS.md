@@ -89,3 +89,14 @@ kamaiplus.com/help (website repo `D:\My Web Sites\KamaiPlus Website`) has 16 gui
 2. **Queue it:** add a row to the queue in `docs/HELP_SYNC.md` — version, what the shop sees differently (shop words), guides, status `pending`. Nothing visible changed → `none`. Suite 9 §9j(ai) fails if the current version has no row.
 3. **New screen or new guide?** Add it to `docs/help-map.json` (sources + app-tour stages). The tests fail if a guide on the website is missing from the map, or a map pattern matches no file.
 4. **When a version reaches shops**, set its rows to `released`; the website's `npm run check` then fails until the guides (English + Hindi + screenshots) are updated. Deploy the website with the release, then set the rows to `on website (site v…)`. Never deploy guides for an app version the shops do not have yet.
+
+---
+
+## 🔒 RULE 8: PROPRIETARY CODE PROTECTION & COMPILED BINARY RELEASES ONLY
+1. **Strict Zero-Exposure Security:** The proprietary source code of KamaiPlus (`src/`, `lib/`, business logic, offline engines, private keys) MUST NEVER be uploaded or pushed to public repositories. Third parties must never have access to raw source code.
+2. **Public Releases Channel:** The public repo `sayrahul/kamaiplus-releases` exists solely for **compiled production binaries** (`.exe` installers, `.apk` builds) and public help documentation.
+3. **Automated AI Agent Release Command:** Whenever releasing a new build:
+   - Run: `npm run release:github` (executes `scripts/publish_github_release.mjs`).
+   - This publishes a new tag/release to `sayrahul/kamaiplus-releases` and uploads the packaged installer (`dist/KamaiPlus-Desktop-Setup-*.exe`) directly to GitHub Releases storage.
+   - The script enforces an extension whitelist (`.exe`, `.apk`, `.msi`) and strictly blocks raw code files from being uploaded.
+
