@@ -57,8 +57,8 @@
 |---|---|---|---|
 | A1 | Vertical profile engine: preset upar wala, restaurant mode khud on, GST switches GSTIN se, Settings se Features tab hatana. Purani dukaan same. | AU-04, AU-15, AU-07 | ✅ v4.118.0 `bf8e86d` |
 | A2 | Stock counting band = counter par stock check / badge nahi | AU-30 | ✅ v4.119.0 `2e139dc` |
-| A3 | GST GSTIN se: bina GSTIN "BILL OF SUPPLY", store setup mein GSTIN (optional), restaurant GST 0 / 5 | AU-12, AU-25 | ✅ v4.120.0 |
-| A4 | Sample data har vertical: GST 2.0 rate (sirf GSTIN par), retail = general items, kapde mein variants, restaurant unlimited, electronics 10, sahi hint, sirf vertical ki categories; units strip / plate / portion | AU-03, 08, 16, 21, 26, 29, 30 | ⬜ |
+| A3 | GST GSTIN se: bina GSTIN "BILL OF SUPPLY", store setup mein GSTIN (optional), restaurant GST 0 / 5 | AU-12, AU-25 | ✅ v4.120.0 `e7edd7d` |
+| A4 | Sample data har vertical: GST 2.0 rate (sirf GSTIN par), retail = general items, kapde mein variants, restaurant unlimited, electronics 10, sahi hint, sirf vertical ki categories; units strip / plate / portion | AU-03, 08, 16, 21, 26, 29, 30 | ✅ v4.121.0 |
 | A5 | Pharmacy: batch no. + expiry (item, bill line, bill print, expiry alert) + doctor / patient (bill) | AU-22, AU-13 | ⬜ |
 | A6 | Electronics: IMEI / serial + warranty bill line par | AU-13 | ⬜ |
 | A7 | Restaurant: KOT printer chunna; printer nahi = "sent" nahi | AU-31 | ⬜ |
@@ -126,3 +126,21 @@
 - `defaultProducts.ts`: GST 2.0 rate (12% hatao; CA se confirm), retail = general store items (patakhe nahi), clothing ek variants wala item (Kurti S/M/L), electronics 10 items, restaurant dishes `is_unlimited_stock: true`, pharmacy unit `strip` + batch / expiry baad mein (A5).
 - Hint text sahi (`CATALOG_HINTS`), categories sirf vertical ki (+ General) — profile wali nayi dukaan ke liye.
 - Units: `strip`, `plate`, `portion` MASTER_UNITS + Excel `mapUnit` (cloud contract §4.1 se mel).
+
+### ⏸️ RUKA (2026-10-09 raat — laptop battery) — yahan se shuru karo
+- Commit ho chuke (local, push nahi): A1 `bf8e86d` v4.118.0 · A2 `2e139dc` v4.119.0 · A3 `e7edd7d` v4.120.0.
+- **A4 adhoora, commit NAHI hua** (version abhi 4.120.0):
+  - ✅ disk par: `storeProfiles.ts` MASTER_UNITS mein strip / plate / portion; `catalogImport.ts` UNIT_WORDS mein strip / plate / portion.
+  - ⬜ baaki: `defaultProducts.ts` naya STARTER_PRODUCTS_BY_CATEGORY (GST 0/5/18, pharmacy unit strip, kapde mein variants T-shirt / shirt / jeans / kurti, electronics 10, restaurant 10 unlimited + Paneer / Biryani Half-Full, retail = stationery / household — patakhe nahi) + seed function mein `variants` aur `is_unlimited_stock`; `db/index.ts` seedBusinessStarterData: vertical di ho to sirf "General" + vertical ki categories; onboarding `CATALOG_HINTS` sahi count + hi / mr; Suite 9 "v4.121.0" test; bump 4.121.0, changelog, HELP_SYNC row, commit.
+  - Seekh: bada Python heredoc bash quoting se toota — agli baar Python script file mein likh kar chalao.
+
+### A4 — kya hua (2026-10-10)
+- `defaultProducts.ts`: har category ke 10 sample (GST 0 / 5 / 18 — CA se confirm), pharmacy goliyan `strip` mein, kapde ke 4 item size variants ke saath (apna stock), restaurant ki dishes `is_unlimited_stock` + Paneer / Biryani Half-Full, electronics 10, retail = stationery / household (patakhe nahi). Seed function variants (parent + children) aur unlimited bana sakta hai.
+- `db/index.ts`: category wali dukaan ko sirf "General" + apni categories (AU-16); purana raasta same.
+- Units strip / plate / portion (`storeProfiles.ts`, Excel `mapUnit`).
+- Onboarding hints sahi (10 har ek) + hi / mr.
+- Tests: Suite 9 "v4.121.0".
+- Purani patakhe list `DEFAULT_STARTER_PRODUCTS` sirf `ensureStarterBusinessIfEmpty` (purani dukaan) ke liye bachi.
+
+### Agla: AU-01 (startup par bina backup wipe) — plan, kaam se pehle
+- `AppShell.tsx` ka tombstone check: (1) `cloudAcc.bizId` hatao — sirf is PC ki apni dukaan; (2) wipe se pehle `runAutoBackup({ force: true })` (backup na bane to wipe nahi); (3) app ka khulna Firestore ka intezaar na kare — check background mein, hydration pehle; (4) test Suite 9.

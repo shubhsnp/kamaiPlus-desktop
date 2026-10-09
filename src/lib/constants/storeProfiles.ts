@@ -38,6 +38,10 @@ export const MASTER_UNITS: UnitOption[] = [
   { id: 'bottle', labelEn: 'Bottle (btl)', labelHi: 'बोतल (btl)', symbol: 'btl' },
   { id: 'can', labelEn: 'Can / Tin (can)', labelHi: 'कैन / टिन (can)', symbol: 'can' },
   { id: 'bag', labelEn: 'Bag / Sack (bag)', labelHi: 'थैला / बोरी (bag)', symbol: 'bag' },
+  // v4.121.0 (AU-21): units the cloud contract already had (§4.1) — medicine strips, restaurant plates.
+  { id: 'strip', labelEn: 'Strip / Tablets (strip)', labelHi: 'पत्ता / स्ट्रिप (strip)', symbol: 'strip' },
+  { id: 'plate', labelEn: 'Plate (plate)', labelHi: 'प्लेट (plate)', symbol: 'plate' },
+  { id: 'portion', labelEn: 'Portion / Serving', labelHi: 'पोर्शन / सर्विंग', symbol: 'portion' },
   { id: 'custom', labelEn: 'Custom Unit', labelHi: 'अन्य / कस्टम', symbol: 'unit' },
 ];
 

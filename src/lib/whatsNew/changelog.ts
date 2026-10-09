@@ -15,6 +15,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.121.0',
+    items: [
+      msg('New shops: sample items now fit the shop category — medicines by the strip, clothes in sizes, restaurant dishes in Half / Full and never counted, general store items for retail. New units: Strip, Plate, Portion.'),
+    ],
+  },
+  {
     version: '4.120.0',
     items: [
       msg('Bills of a new shop without a GSTIN carry no GST and are titled Bill of Supply; store setup has an optional GSTIN box, and GST starts once a GSTIN is saved.'),

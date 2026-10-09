@@ -96,6 +96,10 @@ const UNIT_WORDS: [ProductUnit, string[]][] = [
   ['pair', ['pair', 'जोड़ी', 'जोडी']],
   ['set', ['set', 'सेट']],
   ['meter', ['m', 'mtr', 'meter', 'metre', 'मीटर']],
+  // v4.121.0 (AU-21)
+  ['strip', ['strip', 'strips', 'पत्ता', 'पत्ते', 'स्ट्रिप']],
+  ['plate', ['plate', 'plates', 'प्लेट']],
+  ['portion', ['portion', 'portions', 'serving', 'servings']],
 ];
 
 /**

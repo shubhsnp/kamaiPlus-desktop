@@ -26,7 +26,7 @@ if (fs.existsSync(envPath)) {
 }
 
 import { MASTER_UNITS, RECOMMENDED_UNITS, STARTER_CATEGORIES } from '../src/lib/constants/storeProfiles';
-import { getDefaultProductsForCategory, DEFAULT_CATEGORY_PRODUCTS } from '../src/lib/constants/defaultProducts';
+import { getDefaultProductsForCategory, DEFAULT_CATEGORY_PRODUCTS, STARTER_PRODUCTS_BY_CATEGORY } from '../src/lib/constants/defaultProducts';
 import { checkRateLimit } from '../src/lib/security/rateLimiter';
 import { EscPosEncoder } from '../src/lib/hardware/escpos';
 
@@ -4649,6 +4649,35 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
   assert(readSource('components/layout/BusinessProvider.tsx').includes('restaurantGstFor(hasGstin, s.gstRate)') && readSource('components/restaurant/SetupDialog.tsx').includes('gstRate: gstOk ? parseFloat(gst) : 0'),
     'Restaurant: GST % follows the GSTIN; Set-up cannot charge GST without one');
   assert((INVOICE_HEADINGS as readonly string[]).includes('BILL OF SUPPLY'), 'Invoice Themes offers BILL OF SUPPLY as a heading');
+}
+
+// v4.121.0 — Sample items per business category (AU-03, 08, 16, 21, 26, 29, 30; docs/VERTICAL_PLAN.md A4).
+{
+  const cats = ['grocery', 'pharmacy', 'clothing', 'hardware', 'restaurant', 'retail'];
+  const all = cats.flatMap((c) => STARTER_PRODUCTS_BY_CATEGORY[c] || []);
+  assert(cats.every((c) => (STARTER_PRODUCTS_BY_CATEGORY[c] || []).length === 10),
+    'Every category brings exactly 10 sample items (the store-setup hint says 10)');
+  assert(all.every((d) => [0, 5, 18].includes(d.tax_rate)),
+    'Sample GST rates are 0 / 5 / 18 % — the 12 % and 28 % slabs ended on 22 Sep 2025 (AU-03)');
+  assert(!STARTER_PRODUCTS_BY_CATEGORY.retail.some((d) => /bomb|phuljhadi|anar|rocket|chakri|cracker|sutli|fireworks/i.test(`${d.name} ${d.category}`)),
+    'General Retail samples are general store items, not fireworks (AU-29)');
+  assert(STARTER_PRODUCTS_BY_CATEGORY.restaurant.every((d) => d.is_unlimited_stock === true)
+    && STARTER_PRODUCTS_BY_CATEGORY.restaurant.filter((d) => d.variants?.map((v) => v.label).join() === 'Half,Full').length >= 2,
+    'Restaurant dishes are never counted (AU-30) and paneer / biryani come in Half / Full');
+  assert(STARTER_PRODUCTS_BY_CATEGORY.pharmacy.filter((d) => d.unit === 'strip').length >= 5
+    && STARTER_PRODUCTS_BY_CATEGORY.clothing.filter((d) => (d.variants || []).length >= 3).length >= 4,
+    'Pharmacy tablets are sold by the strip (AU-21); clothing samples show sizes as variants with their own stock (AU-26)');
+  assert(['strip', 'plate', 'portion'].every((u) => MASTER_UNITS.some((m) => m.id === u))
+    && mapUnit('Strip').unit === 'strip' && mapUnit('पत्ता').unit === 'strip' && mapUnit('plate').unit === 'plate' && mapUnit('serving').unit === 'portion',
+    'Units strip / plate / portion can be picked on Add Product and are read from Excel (cloud contract §4.1)');
+  const seedSrc = readSource('lib/constants/defaultProducts.ts');
+  assert(seedSrc.includes('has_variants: true, current_stock: 0') && seedSrc.includes('parent_id: parent.id') && seedSrc.includes('is_unlimited_stock: true } : {}'),
+    'Seeding makes a variant parent + children with their own stock / price, and unlimited dishes');
+  assert(readSource('lib/db/index.ts').includes("const starterCategories = categoryType ? ['General'] : STARTER_CATEGORIES;"),
+    'A shop set up with a category gets only General + its own categories (no Apparel / Accessories in a kirana — AU-16); old path unchanged');
+  const onbPage = readSource('app/onboarding/page.tsx');
+  assert(cats.every((c) => new RegExp(`  ${c}: 'Adds 10 `).test(onbPage)) && !/Biryani, Naan\) ready/.test(onbPage),
+    'Store setup hints match what is really added (AU-08)');
 }
 
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.

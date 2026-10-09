@@ -15,12 +15,12 @@ import { CloudRestoreBanner } from '@/components/onboarding/CloudRestoreBanner';
 import { findCloudStore, DetectedCloudStore } from '@/components/onboarding/cloudStoreRestore';
 
 const CATALOG_HINTS: Record<string, string> = {
-  grocery: 'Adds 10 grocery essentials (Atta, Rice, Dal, FMCG) with realistic prices & stock.',
-  pharmacy: 'Adds 10 pharma essentials (Paracetamol, Cough Syrup, Strips) with tax & stock.',
-  clothing: 'Adds 10 apparel items (T-Shirts, Jeans, Formal Shirts) with MRP & stock.',
-  hardware: 'Adds 10 hardware/mobile items (LED Bulbs, Cables, Screwdriver) with stock.',
-  restaurant: 'Adds 10 menu items (Paneer Butter Masala, Biryani, Naan) ready for billing.',
-  retail: 'Adds 10 general store items (Stationery, Bottles, Household) with prices & stock.',
+  grocery: 'Adds 10 kirana items (atta, rice, dal, oil, Maggi, biscuits) with prices and stock.',
+  pharmacy: 'Adds 10 medicines (tablet strips, syrup, ointment, first aid) with prices and stock.',
+  clothing: 'Adds 10 clothes items; T-shirt, shirt, jeans and kurti come in sizes, each with its own stock.',
+  hardware: 'Adds 10 mobile and electrical items (chargers, cables, earphones, power bank) with stock.',
+  restaurant: 'Adds 10 dishes (tea, dosa, thali, paneer and biryani in half / full) — never counted as stock.',
+  retail: 'Adds 10 general store items (stationery, batteries, soap, bottles, household) with prices and stock.',
 };
 
 export default function OnboardingPage() {

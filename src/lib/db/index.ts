@@ -149,13 +149,15 @@ export {
 export async function seedBusinessStarterData(businessId: string, categoryType?: string) {
   const now = new Date().toISOString();
 
-  // 1. Seed the universal starter categories
-  for (let i = 0; i < STARTER_CATEGORIES.length; i++) {
+  // 1. Seed the universal starter categories. v4.121.0 (AU-16): a shop set up with a business
+  // category gets only "General" here — its own categories come with its sample items.
+  const starterCategories = categoryType ? ['General'] : STARTER_CATEGORIES;
+  for (let i = 0; i < starterCategories.length; i++) {
     const catId = `cat_${Date.now()}_${i}`;
     await db.categories.put({
       id: catId,
       business_id: businessId,
-      name: STARTER_CATEGORIES[i],
+      name: starterCategories[i],
       icon: 'package',
       created_at: now,
     });
