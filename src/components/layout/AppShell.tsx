@@ -86,34 +86,19 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         let localBiz = await localDb.businesses.toCollection().first();
 
         if (localBiz && localBiz.id && localBiz.is_onboarded) {
-          // Verify if store was permanently deleted by admin in cloud
+          // Was this shop deleted by the KamaiPlus Admin? (v4.122.0, AU-01) Checked in the background —
+          // the shop opens at once — only for ids that belong to this PC, and the PC is emptied only
+          // after today's backup file is written (lib/cloud/deletedStore.ts).
           if (typeof navigator !== 'undefined' && navigator.onLine) {
-            try {
-              const [{ getFirestoreDb }, { doc, getDoc }, { getCloudAccount }, { purgeLocalDeviceData }] = await Promise.all([
-                import('@/lib/firebase/config'),
-                import('firebase/firestore'),
-                import('@/lib/cloud/cloudAccount'),
-                import('@/lib/auth'),
-              ]);
-              const fs = getFirestoreDb();
-              if (fs) {
-                const cloudAcc = getCloudAccount();
-                const idsToCheck = [localBiz.id];
-                if (u.business_id && !idsToCheck.includes(u.business_id)) idsToCheck.push(u.business_id);
-                if (cloudAcc?.bizId && !idsToCheck.includes(cloudAcc.bizId)) idsToCheck.push(cloudAcc.bizId);
-                const results = await Promise.all(
-                  idsToCheck.map((id) => getDoc(doc(fs, 'deleted_businesses', id)).catch(() => null))
-                );
-                if (results.some((r) => r?.exists())) {
-                  console.warn('🛑 Store was permanently deleted by admin. Purging local device data.');
-                  await purgeLocalDeviceData().catch(() => {});
-                  window.location.href = '/auth?deleted=true';
-                  return;
-                }
+            const ownId = localBiz.id;
+            void (async () => {
+              try {
+                const { idsToCheckOnThisPc, storeDeletedInCloud, wipeAfterCloudDelete } = await import('@/lib/cloud/deletedStore');
+                if (await storeDeletedInCloud(await idsToCheckOnThisPc(ownId))) await wipeAfterCloudDelete();
+              } catch {
+                // offline resilience: the shop keeps working on its own data
               }
-            } catch (cloudErr) {
-              // offline resilience: proceed with offline database
-            }
+            })();
           }
 
           const userPhone = (u.phone || '').replace(/\D/g, '').slice(-10);

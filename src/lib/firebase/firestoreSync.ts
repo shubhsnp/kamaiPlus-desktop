@@ -133,12 +133,9 @@ export async function syncLocalDexieToFirestore(
       return { success: false, stats, error: 'deleted_in_cloud' };
     }
     if (tombSnap?.exists()) {
-      console.warn(`🛑 Business ${businessId} was deleted in cloud. Aborting sync and wiping device.`);
-      const { purgeLocalDeviceData } = await import('@/lib/auth');
-      await purgeLocalDeviceData().catch(() => {});
-      if (typeof window !== 'undefined') {
-        window.location.href = '/auth?deleted=true';
-      }
+      // v4.122.0 (AU-01): backup first; no backup = nothing deleted.
+      const { wipeAfterCloudDelete } = await import('@/lib/cloud/deletedStore');
+      await wipeAfterCloudDelete();
       return { success: false, stats };
     }
   } catch (checkErr) {

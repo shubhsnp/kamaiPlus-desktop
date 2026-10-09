@@ -97,6 +97,7 @@ import { isRestaurantBill } from '../src/components/restaurant/RecentBills';
 import { DEFAULT_FEATURE_SWITCHES, FEATURES, featureForPath, isPathEnabled, parseAdminOverrides, parseFeatureSwitches, showSellingPriceField } from '../src/lib/features/featureSwitches';
 import { isRestaurantMode, readFeatureSwitches } from '../src/lib/features/featureSwitches';
 import { countsStockAtCounter } from '../src/lib/billing/stockRule';
+import { backupIsSafe } from '../src/lib/cloud/deletedStore';
 import { VERTICAL_IDS, VERTICAL_PROFILE_KEY, gstAllowed, lineGstRate, parseVerticalProfile, restaurantGstFor, saveVerticalProfile, syncVerticalGst, verticalSwitches } from '../src/lib/business/verticalProfile';
 import { adminBlock, blocksBilling, cleanFeatureOverrides, counterHasOpenBill, needsUpdate } from '../src/lib/admin/adminControl';
 import { matchesProductDetails } from '../src/lib/products/detailSearch';
@@ -4678,6 +4679,23 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
   const onbPage = readSource('app/onboarding/page.tsx');
   assert(cats.every((c) => new RegExp(`  ${c}: 'Adds 10 `).test(onbPage)) && !/Biryani, Naan\) ready/.test(onbPage),
     'Store setup hints match what is really added (AU-08)');
+}
+
+// v4.122.0 — "Shop deleted by the Admin" never empties a PC without a backup, never holds the start (AU-01).
+// v4.117.0 wiped bills / khata the moment a tombstone was seen (also for a deleted phone shop of the same Google account).
+{
+  assert(backupIsSafe({ status: 'saved' }) && backupIsSafe({ status: 'skipped', reason: 'empty-shop' })
+    && !backupIsSafe({ status: 'failed' }) && !backupIsSafe({ status: 'skipped', reason: 'busy' }) && !backupIsSafe({ status: 'skipped', reason: 'not-desktop' }),
+    'The PC is emptied only after a backup file was written (or the shop had nothing to keep)');
+  const ds = readSource('lib/cloud/deletedStore.ts');
+  assert(ds.indexOf('if (!backupIsSafe(outcome))') > 0 && ds.indexOf('if (!backupIsSafe(outcome))') < ds.indexOf('await purgeLocalDeviceData()')
+    && ds.includes('runAutoBackup({ force: true })') && ds.includes('isCloudSendOn() && acc?.bizId'),
+    'deletedStore: backup → check → only then purge; the cloud shop id counts only when this PC syncs with it');
+  const shell = readSource('components/layout/AppShell.tsx');
+  assert(!/purgeLocalDeviceData|getCloudAccount|deleted_businesses/.test(shell) && /void \(async \(\) => \{[\s\S]{0,400}idsToCheckOnThisPc\(ownId\)/.test(shell),
+    'App start does not wait for the cloud: the deleted-shop check runs in the background');
+  assert(['lib/sync/syncEngine.ts', 'lib/firebase/firestoreSync.ts'].every((f) => !readSource(f).includes('purgeLocalDeviceData') && readSource(f).includes('wipeAfterCloudDelete()')),
+    'Sync paths that find a tombstone use the same backup-first wipe');
 }
 
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.

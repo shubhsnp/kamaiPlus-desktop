@@ -28,12 +28,9 @@ export async function syncProfileToCloud(businessId: string): Promise<void> {
     ]);
 
     if (tombSnap?.exists()) {
-      console.warn(`🛑 Store ${businessId} was deleted in cloud. Purging local device data.`);
-      const { purgeLocalDeviceData } = await import('@/lib/auth');
-      await purgeLocalDeviceData().catch(() => {});
-      if (typeof window !== 'undefined') {
-        window.location.href = '/auth?deleted=true';
-      }
+      // v4.122.0 (AU-01): backup first; no backup = nothing deleted.
+      const { wipeAfterCloudDelete } = await import('@/lib/cloud/deletedStore');
+      await wipeAfterCloudDelete();
       return;
     }
 

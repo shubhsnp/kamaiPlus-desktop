@@ -58,7 +58,8 @@
 | A1 | Vertical profile engine: preset upar wala, restaurant mode khud on, GST switches GSTIN se, Settings se Features tab hatana. Purani dukaan same. | AU-04, AU-15, AU-07 | ✅ v4.118.0 `bf8e86d` |
 | A2 | Stock counting band = counter par stock check / badge nahi | AU-30 | ✅ v4.119.0 `2e139dc` |
 | A3 | GST GSTIN se: bina GSTIN "BILL OF SUPPLY", store setup mein GSTIN (optional), restaurant GST 0 / 5 | AU-12, AU-25 | ✅ v4.120.0 `e7edd7d` |
-| A4 | Sample data har vertical: GST 2.0 rate (sirf GSTIN par), retail = general items, kapde mein variants, restaurant unlimited, electronics 10, sahi hint, sirf vertical ki categories; units strip / plate / portion | AU-03, 08, 16, 21, 26, 29, 30 | ✅ v4.121.0 |
+| A4 | Sample data har vertical: GST 2.0 rate (sirf GSTIN par), retail = general items, kapde mein variants, restaurant unlimited, electronics 10, sahi hint, sirf vertical ki categories; units strip / plate / portion | AU-03, 08, 16, 21, 26, 29, 30 | ✅ v4.121.0 `054b4d3` |
+| AU-01 | Admin-delete wipe: backup pehle, startup intezaar nahi, sirf is PC ki dukaan | AU-01 | ✅ v4.122.0 |
 | A5 | Pharmacy: batch no. + expiry (item, bill line, bill print, expiry alert) + doctor / patient (bill) | AU-22, AU-13 | ⬜ |
 | A6 | Electronics: IMEI / serial + warranty bill line par | AU-13 | ⬜ |
 | A7 | Restaurant: KOT printer chunna; printer nahi = "sent" nahi | AU-31 | ⬜ |
@@ -144,3 +145,11 @@
 
 ### Agla: AU-01 (startup par bina backup wipe) — plan, kaam se pehle
 - `AppShell.tsx` ka tombstone check: (1) `cloudAcc.bizId` hatao — sirf is PC ki apni dukaan; (2) wipe se pehle `runAutoBackup({ force: true })` (backup na bane to wipe nahi); (3) app ka khulna Firestore ka intezaar na kare — check background mein, hydration pehle; (4) test Suite 9.
+
+### AU-01 — kya hua (2026-10-10)
+- Naya `src/lib/cloud/deletedStore.ts`: `idsToCheckOnThisPc` (apni dukaan + cloud dukaan sirf jab sync on), `storeDeletedInCloud`, `wipeAfterCloudDelete` (force backup → `backupIsSafe` → tabhi purge; backup nahi = data rehta).
+- `AppShell.tsx`: check background mein (app khulna nahi rukta). `syncEngine.ts`, `firestoreSync.ts`: wahi backup-pehle wipe.
+- Tests: Suite 9 "v4.122.0".
+
+### Agla: AU-24 (Cloud Functions Node 20 → 22) — plan, kaam se pehle
+- Android repo `functions/package.json` engines `"node": "22"`; `firebase-functions` / `firebase-admin` version check; `npm --prefix functions test`. **Deploy NAHI** (Rahul ke OK par) — sirf code + test, Android branch par local commit.
