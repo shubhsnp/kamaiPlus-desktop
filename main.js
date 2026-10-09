@@ -469,7 +469,7 @@ const licenceRefresh = async () => {
     if (changed && mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('kp:admin-messages', adminLink.readMessages(userDataDir));
     if (changed) notifyNewMessages(adminLink.readMessages(userDataDir));
   }
-  if (res.ok && res.control !== undefined) {
+  if (res.control !== undefined) {
     let changed = false;
     try {
       changed = adminLink.saveControl(userDataDir, res.control);

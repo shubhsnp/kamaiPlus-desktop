@@ -58,6 +58,10 @@ async function triggerLiveRefresh(reason: string): Promise<void> {
 function handleSignal(ping: number, reason: string, isFirstSnap: boolean): boolean {
   if (isFirstSnap) {
     lastSeenPing = Math.max(lastSeenPing, ping);
+    if (reason === 'wipe_and_reset' || reason.includes('wipe')) {
+      void triggerLiveRefresh(reason);
+      return true;
+    }
     return false;
   }
   if (ping > lastSeenPing) {
@@ -137,6 +141,7 @@ export function startDesktopLiveListener(): () => void {
       const status = await api.getLicenceStatus();
       if (status && 'key' in status && status.key) {
         bindKey(status.key);
+        void triggerLiveRefresh('startup');
       }
     } catch {}
 

@@ -6,7 +6,41 @@ import { CLOUD_SYNC_ENABLED } from '@/lib/firebase/cloudAvailability';
 import { getLanguage, tr } from '@/lib/i18n/core';
 import { markWhatsNewSeen } from '@/lib/whatsNew/changelog';
 import { APP_VERSION } from '@/lib/constants/version';
+import { FEATURE_SWITCHES_KEY, DEFAULT_FEATURE_SWITCHES, FeatureSwitches } from '@/lib/features/featureSwitches';
 import type { useRouter } from 'next/navigation';
+
+const CATEGORY_INITIAL_SWITCHES: Record<string, Partial<FeatureSwitches>> = {
+  clothing: {
+    product_size_colour: true,
+    product_variants: true,
+    product_selling_price: true,
+  },
+  pharmacy: {
+    product_hsn: true,
+    product_gst_rate: true,
+    product_cost_price: true,
+    gst_reports: true,
+  },
+  grocery: {
+    wholesale_price: true,
+    product_barcode: true,
+    stock_counting: true,
+  },
+  hardware: {
+    product_cost_price: true,
+    product_barcode: true,
+    stock_counting: true,
+  },
+  restaurant: {
+    product_variants: true,
+    product_barcode: false,
+    stock_counting: false,
+  },
+  retail: {
+    product_barcode: true,
+    stock_counting: true,
+  },
+};
 
 export interface CreateOnboardingSubmitDeps {
   router: ReturnType<typeof useRouter>;
@@ -107,14 +141,21 @@ export function createOnboardingSubmit(deps: CreateOnboardingSubmitDeps) {
       ]);
       await localDb.businesses.put(newBusinessRecord);
 
-      // Seed starter catalog products for selected category
+      // Seed category-tailored starter catalog products
       if (seedStarterCatalog) {
         try {
-          await seedBusinessStarterData(businessId);
+          await seedBusinessStarterData(businessId, businessType);
         } catch (seedErr) {
           console.warn('Starter catalog seed warning:', seedErr);
         }
       }
+
+      // Configure initial feature preset according to chosen retail category
+      const initialPreset = CATEGORY_INITIAL_SWITCHES[businessType] || {};
+      const finalSwitches = { ...DEFAULT_FEATURE_SWITCHES, ...initialPreset };
+      try {
+        localStorage.setItem(FEATURE_SWITCHES_KEY, JSON.stringify(finalSwitches));
+      } catch {}
 
       // 2. Write Complete Merchant Document to Firestore `merchants/{uid}`.
       // Firebase (~650 KB) is pulled in here, at the one moment onboarding needs

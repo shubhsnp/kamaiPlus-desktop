@@ -2504,9 +2504,11 @@ assert(readSource('app/billing/page.tsx').split('\n').length <= 401, `POS page s
   const licSrc = fs.readFileSync(path.join(__dirname, '..', 'licence.js'), 'utf8');
   const mainSrc2 = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
   const preloadSrc = fs.readFileSync(path.join(__dirname, '..', 'preload.js'), 'utf8');
-  assert(/if \(body\.code === 'revoked' \|\| body\.code === 'moved'\)/.test(licSrc) && /if \(call\.offline\) return \{ ok: false, offline: true \};/.test(licSrc)
+  assert(/if \(body\.code === 'revoked' \|\| body\.code === 'moved' \|\| body\.code === 'not-found'\)/.test(licSrc) && /if \(call\.offline\) return \{ ok: false, offline: true \};/.test(licSrc)
     && /payload\.key !== current\.key/.test(licSrc) && licSrc.includes("callServer({ action: 'refresh', key: current.key"),
-    'Check-in: only "revoked" / "moved" stop the app; offline or any other answer changes nothing; a licence for another key is refused');
+    'Check-in: only "revoked" / "moved" / "not-found" (key deleted, v4.117.0) stop the app; offline or any other answer changes nothing; a licence for another key is refused');
+  assert(licSrc.includes("control: body.code === 'revoked' ? body.control : undefined"),
+    "Check-in refused: only a blocked key's control (its wipe command) is used — a \"moved\" answer's commands are for the key's new PC and never run here");
   assert(/ipcMain\.handle\('kp:licence-refresh'/.test(mainSrc2) && /if \(app\.isPackaged && Date\.now\(\) - lastCheckIn >= checkInEveryMs\(\)\)/.test(mainSrc2) && /const LICENCE_CHECKIN_MS = 60 \* 60 \* 1000;/.test(mainSrc2)
     && /startLicenceWatch\(\);/.test(mainSrc2) && /webContents\.send\('kp:licence-changed', status\)/.test(mainSrc2)
     && /refreshLicence: \(\) => ipcRenderer\.invoke\('kp:licence-refresh'\)/.test(preloadSrc) && /ipcRenderer\.on\('kp:licence-changed', listener\)/.test(preloadSrc),
@@ -3042,6 +3044,26 @@ assert(readSource('app/billing/page.tsx').split('\n').length <= 401, `POS page s
       assert(r1.ok && firstSent.action === 'refresh' && (firstSent.health as { bills_today?: number })?.bills_today === 3 && r1.messages.length === 1 && r1.status.daysLeft === 5
         && r2.ok && r2.messages === undefined && !('health' in sent),
         "Check-in: health goes with the request, the Admin's messages and a new end date come back; an older server (no messages) changes nothing");
+    })());
+    // v4.117.0: refused check-ins — deleted key stops the app; only a blocked key's wipe command comes through.
+    const refused = (code: string, control?: object) => async () => ({ ok: false, status: code === 'not-found' ? 404 : code === 'moved' ? 409 : 403, json: async () => ({ error: 'x', code, control }) });
+    const wipe = { mode: 'normal', commands: [{ id: 'w-1', type: 'wipe_and_reset', at: null }] };
+    const freshDir = () => {
+      const d = fs.mkdtempSync(path.join(os.tmpdir(), 'kp-sim-refused-'));
+      fs.writeFileSync(path.join(d, 'licence.json'), JSON.stringify(sign(base)));
+      return d;
+    };
+    pendingAsyncChecks.push((async () => {
+      const dDel = freshDir(), dRev = freshDir(), dMov = freshDir(), dErr = freshDir();
+      const del = await lic.refresh({ userDataDir: dDel, appVersion: '4.117.0', fetchImpl: refused('not-found') });
+      const rev = await lic.refresh({ userDataDir: dRev, appVersion: '4.117.0', fetchImpl: refused('revoked', wipe) });
+      const mov = await lic.refresh({ userDataDir: dMov, appVersion: '4.117.0', fetchImpl: refused('moved', wipe) });
+      const err = await lic.refresh({ userDataDir: dErr, appVersion: '4.117.0', fetchImpl: refused('invalid-machine') });
+      assert(del.stopped && /deleted/.test(del.status.reason) && !fs.existsSync(path.join(dDel, 'licence.json')) && del.control === undefined
+        && rev.stopped && rev.control === wipe
+        && mov.stopped && mov.control === undefined
+        && !err.stopped && fs.existsSync(path.join(dErr, 'licence.json')),
+        'Refused check-in: a deleted key stops the app (it kept running before); a blocked key brings its wipe command; a "moved" answer never runs the key\'s commands here; any other refusal changes nothing');
     })());
   } else {
     assert(true, 'Check-in with a signed licence: skipped (no signing key on this PC)');

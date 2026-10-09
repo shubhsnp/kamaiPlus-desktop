@@ -290,7 +290,8 @@ async function activate({ userDataDir, key, appVersion, fetchImpl }) {
  *   { ok: true, status, messages, control } fresh licence saved (new end date, if any); messages =
  *                                        the Admin's messages for this PC (v4.98.0; undefined
  *                                        from an older server)
- *   { ok: false, stopped: true, status } key blocked / moved: the app must stop
+ *   { ok: false, stopped: true, status, control } key blocked / moved / deleted: the app must stop;
+ *                                        control = the blocked key's wipe command, if any
  *   { ok: false, offline: true }         no internet — nothing changes
  *   { ok: false, error }                 any other answer — nothing changes
  */
@@ -304,18 +305,23 @@ async function refresh({ userDataDir, appVersion, fetchImpl, timeoutMs, health =
   const { res, body } = call;
 
   if (!res.ok) {
-    // Only the two answers that mean "this computer may no longer use the key" stop the app.
-    if (body.code === 'revoked' || body.code === 'moved') {
-      const reason = body.error || (body.code === 'revoked'
-        ? 'This licence key has been blocked. Please contact KamaiPlus support.'
-        : 'This licence key is no longer on this computer. Enter the key again, or contact KamaiPlus support.');
+    // Only the answers that mean "this computer may no longer use the key" stop the app.
+    // v4.117.0: "not-found" too — the Admin deleted the key (before, the PC kept running on it).
+    if (body.code === 'revoked' || body.code === 'moved' || body.code === 'not-found') {
+      const reason = body.code === 'not-found'
+        ? 'This licence key has been deleted. Please contact KamaiPlus support.'
+        : body.error || (body.code === 'revoked'
+          ? 'This licence key has been blocked. Please contact KamaiPlus support.'
+          : 'This licence key is no longer on this computer. Enter the key again, or contact KamaiPlus support.');
       try {
         fs.writeFileSync(path.join(userDataDir, BLOCKED_FILE), JSON.stringify({ ...record, code: body.code, reason, at: new Date().toISOString() }, null, 2), 'utf8');
         fs.rmSync(licencePath(userDataDir), { force: true });
       } catch (err) {
         return { ok: false, error: `Could not update the licence on this computer: ${err.message}` };
       }
-      return { ok: false, stopped: true, status: { state: 'required', machineName: getMachineName(), reason } };
+      // The Admin's control (a wipe command) only from a blocked key — never from "moved": the key's
+      // commands are now for its new PC.
+      return { ok: false, stopped: true, status: { state: 'required', machineName: getMachineName(), reason }, control: body.code === 'revoked' ? body.control : undefined };
     }
     return { ok: false, error: body.error || `error ${res.status}` };
   }

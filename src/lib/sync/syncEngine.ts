@@ -28,7 +28,12 @@ export async function syncProfileToCloud(businessId: string): Promise<void> {
     ]);
 
     if (tombSnap?.exists()) {
-      console.warn(`🛑 Store ${businessId} was deleted in cloud. Aborting profile sync.`);
+      console.warn(`🛑 Store ${businessId} was deleted in cloud. Purging local device data.`);
+      const { purgeLocalDeviceData } = await import('@/lib/auth');
+      await purgeLocalDeviceData().catch(() => {});
+      if (typeof window !== 'undefined') {
+        window.location.href = '/auth?deleted=true';
+      }
       return;
     }
 
@@ -98,8 +103,7 @@ export async function syncProfileToCloud(businessId: string): Promise<void> {
         );
       }
 
-      // Clear any legacy tombstones for this active store and phone
-      await deleteDoc(doc(firestore, 'deleted_businesses', businessId)).catch(() => {});
+      // Clear any legacy deleted phone tombstones if active
       if (cleanPhone && cleanPhone.length === 10) {
         await deleteDoc(doc(firestore, 'deleted_phones', cleanPhone)).catch(() => {});
       }

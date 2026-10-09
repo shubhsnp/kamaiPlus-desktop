@@ -15,6 +15,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.117.0',
+    items: [
+      msg('Upgraded Store Onboarding: visual Category Selection Cards (Kirana, Pharmacy, Clothing, Hardware, Restaurant, Retail), vertical-tailored starter catalogs, and 1-click Cross-Device Cloud Store Restore.'),
+    ],
+  },
+  {
     version: '4.116.0',
     items: [
       msg('Realtime Live Sync: 1-second instant live reaction for Admin remote commands, lock mode, factory wipe, and messages via Firestore signals.'),

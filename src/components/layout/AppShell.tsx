@@ -86,6 +86,36 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         let localBiz = await localDb.businesses.toCollection().first();
 
         if (localBiz && localBiz.id && localBiz.is_onboarded) {
+          // Verify if store was permanently deleted by admin in cloud
+          if (typeof navigator !== 'undefined' && navigator.onLine) {
+            try {
+              const [{ getFirestoreDb }, { doc, getDoc }, { getCloudAccount }, { purgeLocalDeviceData }] = await Promise.all([
+                import('@/lib/firebase/config'),
+                import('firebase/firestore'),
+                import('@/lib/cloud/cloudAccount'),
+                import('@/lib/auth'),
+              ]);
+              const fs = getFirestoreDb();
+              if (fs) {
+                const cloudAcc = getCloudAccount();
+                const idsToCheck = [localBiz.id];
+                if (u.business_id && !idsToCheck.includes(u.business_id)) idsToCheck.push(u.business_id);
+                if (cloudAcc?.bizId && !idsToCheck.includes(cloudAcc.bizId)) idsToCheck.push(cloudAcc.bizId);
+                const results = await Promise.all(
+                  idsToCheck.map((id) => getDoc(doc(fs, 'deleted_businesses', id)).catch(() => null))
+                );
+                if (results.some((r) => r?.exists())) {
+                  console.warn('🛑 Store was permanently deleted by admin. Purging local device data.');
+                  await purgeLocalDeviceData().catch(() => {});
+                  window.location.href = '/auth?deleted=true';
+                  return;
+                }
+              }
+            } catch (cloudErr) {
+              // offline resilience: proceed with offline database
+            }
+          }
+
           const userPhone = (u.phone || '').replace(/\D/g, '').slice(-10);
           const bizPhone = (localBiz.phone || '').replace(/\D/g, '').slice(-10);
           const userEmail = (u.email || '').toLowerCase().trim();

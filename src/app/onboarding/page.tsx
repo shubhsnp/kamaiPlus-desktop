@@ -3,12 +3,25 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { BusinessType } from '@/types';
+import { db as localDb } from '@/lib/db';
 import { getStoredUser, AuthUser } from '@/lib/auth';
 import { Store, Sparkles, ArrowRight, User, AlertCircle, QrCode } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { tr } from '@/lib/i18n/core';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
 import { createOnboardingSubmit } from '@/components/onboarding/onboardingSubmit';
+import { CategorySelector } from '@/components/onboarding/CategorySelector';
+import { CloudRestoreBanner } from '@/components/onboarding/CloudRestoreBanner';
+import { findCloudStore, DetectedCloudStore } from '@/components/onboarding/cloudStoreRestore';
+
+const CATALOG_HINTS: Record<string, string> = {
+  grocery: 'Adds 10 grocery essentials (Atta, Rice, Dal, FMCG) with realistic prices & stock.',
+  pharmacy: 'Adds 10 pharma essentials (Paracetamol, Cough Syrup, Strips) with tax & stock.',
+  clothing: 'Adds 10 apparel items (T-Shirts, Jeans, Formal Shirts) with MRP & stock.',
+  hardware: 'Adds 10 hardware/mobile items (LED Bulbs, Cables, Screwdriver) with stock.',
+  restaurant: 'Adds 10 menu items (Paneer Butter Masala, Biryani, Naan) ready for billing.',
+  retail: 'Adds 10 general store items (Stationery, Bottles, Household) with prices & stock.',
+};
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -21,10 +34,30 @@ export default function OnboardingPage() {
   const [ownerName, setOwnerName] = useState<string>('');
   const [phone, setPhone] = useState<string>('');
   const [upiId, setUpiId] = useState<string>('');
-  const [businessType] = useState<BusinessType>('retail');
-  // v4.93.0: off by default — the sample items are fireworks, which a kirana or clothes shop
-  // then had to delete one by one. A shop that wants to try the app ticks it.
+  const [businessType, setBusinessType] = useState<BusinessType>('grocery');
   const [seedStarterCatalog, setSeedStarterCatalog] = useState<boolean>(false);
+
+  // Cloud Restore State
+  const [detectedCloudStore, setDetectedCloudStore] = useState<DetectedCloudStore | null>(null);
+  const [isDismissedCloud, setIsDismissedCloud] = useState<boolean>(false);
+
+  // Existing User Gate: If local store is already onboarded, immediately redirect to Home
+  useEffect(() => {
+    let isMounted = true;
+    const checkExistingGate = async () => {
+      try {
+        const biz = await localDb.businesses.toCollection().first();
+        if (biz && biz.is_onboarded) {
+          router.replace('/');
+          return;
+        }
+      } catch (gateErr) {
+        console.warn('Local business check error:', gateErr);
+      }
+    };
+    checkExistingGate();
+    return () => { isMounted = false; };
+  }, [router]);
 
   // Load current authenticated user and pre-fill details
   useEffect(() => {
@@ -42,7 +75,26 @@ export default function OnboardingPage() {
     }
   }, []);
 
+  // Cross-device Cloud Store Discovery Check
+  useEffect(() => {
+    let isCurrent = true;
+    const checkCloud = async () => {
+      if (isDismissedCloud) return;
+      const clean = phone.replace(/\D/g, '').slice(-10);
+      if (clean.length === 10 || currentUser?.uid) {
+        const cloudMatch = await findCloudStore({ uid: currentUser?.uid, phone: clean });
+        if (isCurrent && cloudMatch) {
+          setDetectedCloudStore(cloudMatch);
+        }
+      }
+    };
 
+    const debounceTimer = setTimeout(checkCloud, 400);
+    return () => {
+      isCurrent = false;
+      clearTimeout(debounceTimer);
+    };
+  }, [phone, currentUser, isDismissedCloud]);
 
   const { handleSubmit } = createOnboardingSubmit({
     router, currentUser, setIsLoading, setError, businessName, ownerName,
@@ -85,6 +137,15 @@ export default function OnboardingPage() {
           </a>
         </div>
 
+        {/* Cross-Device Cloud Restore Banner */}
+        {detectedCloudStore && !isDismissedCloud && (
+          <CloudRestoreBanner
+            store={detectedCloudStore}
+            router={router}
+            onDismiss={() => setIsDismissedCloud(true)}
+          />
+        )}
+
         {/* Onboarding Form Card */}
         <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl text-white">
           {error && (
@@ -116,7 +177,13 @@ export default function OnboardingPage() {
               </div>
             </div>
 
-            {/* 2. Owner Name */}
+            {/* 2. Category Selection Cards */}
+            <CategorySelector
+              selectedId={businessType}
+              onSelect={setBusinessType}
+            />
+
+            {/* 3. Owner Name */}
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
                 {tr('Owner / Manager Name')}
@@ -135,7 +202,7 @@ export default function OnboardingPage() {
               </div>
             </div>
 
-            {/* 3. Primary Mobile / Contact Number */}
+            {/* 4. Primary Mobile / Contact Number */}
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
                 {tr('Primary Contact Mobile Number *')}
@@ -161,7 +228,7 @@ export default function OnboardingPage() {
               </p>
             </div>
 
-            {/* 4. UPI ID (optional — adds the payment QR to bills) */}
+            {/* 5. UPI ID (optional — adds the payment QR to bills) */}
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 flex items-center justify-between">
                 <span>{tr('UPI ID / VPA (Optional)')}</span>
@@ -185,7 +252,7 @@ export default function OnboardingPage() {
               </p>
             </div>
 
-            {/* 5. Preload Starter Catalog Checkbox */}
+            {/* 6. Preload Starter Catalog Checkbox */}
             <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl">
               <label className="flex items-start gap-2.5 cursor-pointer select-none">
                 <input
@@ -199,7 +266,7 @@ export default function OnboardingPage() {
                     {tr('Pre-load starter product catalog')}
                   </span>
                   <span className="text-[10.5px] text-slate-400 block leading-tight mt-0.5">
-                    {tr('Adds 10 sample products (fireworks) with prices and stock — edit or delete them anytime.')}
+                    {tr(CATALOG_HINTS[businessType] || 'Adds 10 sample products with prices and stock — edit or delete them anytime.')}
                   </span>
                 </div>
               </label>

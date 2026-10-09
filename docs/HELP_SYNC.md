@@ -75,4 +75,5 @@ commit if you like; deploy it with the release.
 | 4.114.0 | Counter ✏️ edit: fractional quantities and quick chips for packets (¼, ½, ¾, 1, 1½, 2, 3, 5), pieces (¼, ½, ¾, 1, 1½, 2, 3, 5, 10), kg (750g added), litres (50ml, ½ L, 750ml, 1.5 L), and pharmacy strips (loose tablets converted to fractional strips). Pair, set, bottle, can remain whole units. | billing-counter, add-products | pending |
 | 4.115.0 | Remote Wipe & Factory Reset: Admin Console can remotely wipe all shop data (IndexedDB, local storage, cache) and revoke PC licence, requiring a new licence key and fresh onboarding / signup on restart. | — | none |
 | 4.116.0 | Instant 1-Second Realtime Listener: Desktop app listens to live signals via Firestore Realtime Listener, instantly syncing remote commands (Wipe & Reset, Lock, Restart), feature toggles, and admin messages in ~1 second live. | — | none |
+| 4.117.0 | Onboarding: category selection cards (Kirana, Pharmacy, Clothing, Hardware, Restaurant, Retail), tailored starter catalogs with integer paise pricing, existing user gate (instant redirect for onboarded stores), and 1-click cross-device cloud store restore. | getting-started | pending |
 

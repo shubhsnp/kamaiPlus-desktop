@@ -178,9 +178,13 @@ Admin Console (KamaiPlus Android repo, admin_console/) → Desktop Licences
   - **Online check-in** (`refresh()`, action `refresh` on the same Cloud Function): installed app
     only, 1 min after start and every hour (v4.98.0; was 6 h) (`startLicenceWatch` in main.js; every 30 min the
     status is re-checked for a passed end date). Same computer only — it never binds a key. A
-    fresh licence (new end date) is saved. `403 revoked` / `409 moved` (key blocked, or freed /
-    moved to another PC) **stop the app**: `licence.json` → `licence.blocked.json` (kept for
-    support), the activation screen shows the reason. No internet, 5xx, anything else: no change.
+    fresh licence (new end date) is saved. `403 revoked` / `409 moved` / `404 not-found` (key
+    blocked, freed / moved to another PC, or deleted in the Admin Console — v4.117.0) **stop the
+    app**: `licence.json` → `licence.blocked.json` (kept for support), the activation screen shows
+    the reason. No internet, 5xx, anything else: no change. Only a `revoked` answer carries the
+    key's control (so "Wipe data & reset PC", which also blocks the key, still runs —
+    `refusalControl` in licence_core.js); a `moved` answer never does (those commands are for the
+    key's new PC).
   - A PC that never goes online still works until its end date (lifetime = forever).
   - Server: `functions/licence_core.js` `executeActivate({mode})` + `validUntilIso` (Android repo,
     branch `feat/desktop-licence-validity`; its tests `functions/test/licence_core.test.js`).

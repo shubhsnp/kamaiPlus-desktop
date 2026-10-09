@@ -146,7 +146,7 @@ export {
 
 
 // Starter categories, sample products and marketing templates for a new shop.
-export async function seedBusinessStarterData(businessId: string) {
+export async function seedBusinessStarterData(businessId: string, categoryType?: string) {
   const now = new Date().toISOString();
 
   // 1. Seed the universal starter categories
@@ -162,7 +162,7 @@ export async function seedBusinessStarterData(businessId: string) {
   }
 
   // 2. Seed starter retail products into db.products (stock = 10, no barcode)
-  await seedCategoryDefaultProducts(businessId);
+  await seedCategoryDefaultProducts(businessId, categoryType);
 
   // 3. Marketing Templates for festival/growth
   const templates: Array<Omit<MarketingTemplate, 'id'>> = [
