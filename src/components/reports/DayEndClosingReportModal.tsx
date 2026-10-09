@@ -103,8 +103,10 @@ export const DayEndClosingReportModal: React.FC<DayEndClosingReportModalProps> =
     msg += `\n`;
 
     if (totalExpensePaise > 0) {
-      msg += `🔻 *STORE EXPENSES:*\n`;
-      msg += `• Total Expenses: -${formatINR(totalExpensePaise)}\n`;
+      // v4.130.0: return refunds are paid out of the drawer, not shop expenses — said so.
+      msg += day.cashRefunds > 0 ? `🔻 *PAID OUT (EXPENSES + RETURN REFUNDS):*\n` : `🔻 *STORE EXPENSES:*\n`;
+      if (day.cashRefunds > 0) msg += `• Cash refunds (returns): -${formatINR(day.cashRefunds)}\n`;
+      msg += `• ${day.cashRefunds > 0 ? 'Total paid out' : 'Total Expenses'}: -${formatINR(totalExpensePaise)}\n`;
       msg += `• 💵 Net Cash in Till: *${formatINR(netCashInTillPaise)}*\n\n`;
     }
 
@@ -206,7 +208,12 @@ export const DayEndClosingReportModal: React.FC<DayEndClosingReportModalProps> =
               <div className="text-base font-black text-emerald-400 font-mono mt-0.5">
                 {formatINR(netCashInTillPaise)}
               </div>
-              <span className="text-[10px] text-slate-400">{tr('After ₹')}{(cashExpensePaise / 100).toFixed(0)} {tr('expenses')}</span>
+              {/* v4.130.0: cash refunds of returns leave the drawer too — named, so the card adds up */}
+              <span className="text-[10px] text-slate-400" data-day-paid-out>
+                {day.cashRefunds > 0
+                  ? tr('After ₹{paidOut} paid out (₹{refunds} return refunds)', { paidOut: (cashExpensePaise / 100).toFixed(0), refunds: (day.cashRefunds / 100).toFixed(0) })
+                  : <>{tr('After ₹')}{(cashExpensePaise / 100).toFixed(0)} {tr('expenses')}</>}
+              </span>
             </div>
           </div>
 

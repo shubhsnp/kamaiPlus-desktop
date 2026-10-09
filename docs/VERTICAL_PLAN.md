@@ -208,4 +208,6 @@
 - **AU-33 (bug, fixed v4.129.0):** Sales Return dobara kholne par pichhla "Return Completed" screen — har opening ab saaf.
 - Script ki galtiyan (app sahi): estimate ka return app mana karti hai; poora wapas hua bill har screen ki ginti se bahar (isRevenueSale).
 - `full_live_audit.mjs` / `stress_1000_audit.mjs`: hata hua Features tab ki jagah switches localStorage mein.
+- **AU-34 (paisa, fixed v4.130.0):** Split button ka 50 / 50 `total / 200` → ₹2.01 par 1 paisa udhar. Ab paise mein.
+- **AU-35 (fixed v4.130.0):** Day Summary "After ₹915 expenses" jabki ₹915 return refunds the; ab "paid out (₹X return refunds)". Drawer ka number pehle bhi sahi tha.
 

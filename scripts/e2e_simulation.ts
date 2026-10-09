@@ -4851,6 +4851,37 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
     'Sales Return: every opening clears the last return / bill before showing the chosen bill');
 }
 
+// v4.130.0 — Split button's own 50 / 50 fill was "total / 200": ₹2.01 → 1.005 + 1.005, saved as ₹1.00 + ₹1.00 —
+// the missing paisa went on the customer's udhar (7 % of odd totals), the rest showed ₹0.01 "change".
+{
+  const footer = readSource('components/billing/PosCheckoutFooter.tsx');
+  assert(!footer.includes('grandTotalPaise / 200') && footer.includes('Math.floor(grandTotalPaise / 2)'),
+    'Split button: the two halves are worked out in paise, like the "50% Cash + 50% UPI" preset');
+  let off = 0;
+  for (let total = 1; total <= 100000; total++) {
+    const cashPaise = Math.floor(total / 2);
+    const cash = (cashPaise / 100).toFixed(2), upi = ((total - cashPaise) / 100).toFixed(2);
+    if (Math.round(parseFloat(cash) * 100) + Math.round(parseFloat(upi) * 100) !== total) off++;
+  }
+  assert(off === 0, `Split 50 / 50: every bill from ₹0.01 to ₹1,000 saves cash + UPI = the bill exactly (${off} off)`);
+}
+
+// v4.130.0 — Day Summary "Net Cash in Hand" said "After ₹915 expenses" when ₹915 was return refunds (cash
+// collections above are already net of returns, so the card did not add up). Refunds are named now.
+{
+  const m = readSource('components/reports/DayEndClosingReportModal.tsx');
+  assert(m.includes('data-day-paid-out') && m.includes("tr('After ₹{paidOut} paid out (₹{refunds} return refunds)'") && m.includes('Cash refunds (returns)'),
+    'Day Summary: cash refunds of returns are shown as refunds (card + WhatsApp text), not as shop expenses');
+  const d = summarizeDay({
+    sales: [
+      { id: 'a', invoice_number: 'INV-1', status: 'completed', payment_method: 'cash', grand_total: 10000, total_amount: 10000, items: [], created_at: new Date().toISOString() } as any,
+      { id: 'b', invoice_number: 'INV-2', status: 'completed', payment_method: 'upi', grand_total: 5000, total_amount: 5000, items: [], created_at: new Date().toISOString() } as any,
+    ],
+    expenses: [{ id: 'e', amount: 2000, category: 'refund', payment_mode: 'cash', created_at: new Date().toISOString() } as any],
+  });
+  assert(d.cashRefunds === 2000 && d.netCashInTillPaise === 8000, 'Day Summary: a ₹20 cash refund (even of a UPI bill) leaves the drawer: ₹100 cash − ₹20 = ₹80 in hand');
+}
+
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.
 Promise.allSettled(pendingAsyncChecks).then((results) => {
   for (const r of results) if (r.status === 'rejected') assert(false, 'An async check threw', String(r.reason));

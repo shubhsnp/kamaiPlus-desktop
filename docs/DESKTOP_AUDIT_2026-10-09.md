@@ -49,6 +49,7 @@ Desktop v4.118.0 – v4.127.0 mein sab findings theek (status column). Baaki: AU
 | AU-22 | **Pharmacy bill par batch no. / expiry nahi** (aur Schedule H dawai ke liye doctor / patient naam — Bible §9 ne hataye the). Dawai ki dukaan ke cash memo par ye zaroori maane jaate hain. Pharmacy vertical bina iske adhoora. | product + sale types, invoice | fixed v4.126.0 |
 | AU-04 | **Store setup mein "Cafe / Restaurant" chunne par restaurant mode nahi aata** — asli app: menu mein Billing POS, Barcode Studio, Inventory & Stock (retail jaisa). Tables / KOT sirf Admin Console se. Faisla: restaurant chunte hi mode on ho, ya card par likho "KamaiPlus support chalu karega". | `onboardingSubmit.ts` CATEGORY_INITIAL_SWITCHES | fixed v4.118.0 |
 | AU-33 | **Sales Return dobara kholne par pichhla "Sales Return Completed" dikhta** — bill A ka return → Done → bill B par Return dabao: bill B ke items ki jagah A ka "Credit Note RET-0001 … generated" screen. Dukaandar samjhe B ka return ho gaya. (Window mounted rehti hai, band karne par state saaf nahi hoti.) Stress test se mila. | `src/components/sales/SalesReturnModal.tsx` | fixed v4.129.0 |
+| AU-34 | **Split par 1 paisa galat (paisa).** "Split" dabate hi 50 / 50 bharta tha `total / 200` se: ₹2.01 → 1.005 + 1.005 → save ₹1.00 + ₹1.00 → bacha 1 paisa grahak ke **udhar** mein (7 % odd totals), baaki odd totals par bill par ₹0.01 "change". Screen "Matched Exactly" dikhata. ("50% Cash + 50% UPI" preset button pehle se paise mein sahi tha.) Stress test se mila. | `src/components/billing/PosCheckoutFooter.tsx` | fixed v4.130.0 |
 
 ## 🟡 P2
 
@@ -72,6 +73,7 @@ Desktop v4.118.0 – v4.127.0 mein sab findings theek (status column). Baaki: AU
 | AU-32 | Restaurant ke bill par bhi "Goods once sold can be exchanged within 7 days with bill receipt" (default terms) — khane ke bill par ajeeb. | default terms / restaurant | fixed v4.124.0 |
 | AU-19 | Estimate ki window mein "TOTAL BILLED" aur "PDF is always the full A4 Tax Invoice". | `InvoiceModal` | fixed v4.124.0 |
 | AU-27 | Add Product placeholder har dukaan mein "e.g. Fortune Sunflower Oil 1L". | product form | fixed v4.124.0 |
+| AU-35 | Day Summary "Net Cash in Hand" ke neeche "After ₹915 expenses" — jabki ₹915 return ke cash refund the (₹483 ek UPI bill ka). Upar "Cash Collections" pehle se returns ke baad, isliye card ka jod nahi milta tha (drawer ka number sahi). WhatsApp text bhi "STORE EXPENSES". | `DayEndClosingReportModal.tsx` | fixed v4.130.0 |
 | AU-09 | `isMounted` banaya par padha nahi (existing-store gate). | `src/app/onboarding/page.tsx` | fixed v4.124.0 |
 | AU-20 | `ENGINEERING_BIBLE.md` §9 / §6.5 aur `CLOUD_DATA_CONTRACT.md` §3.1 abhi bhi "`business_type` hamesha 'retail', koi nahi padhta / ek universal sample" — v4.117.0 ne dono badle, docs nahi (Rule 0.3). | Bible, contract | fixed (Bible §9.0b / §9.0c, contract) |
 | AU-28 | `docs/FUTURE_SCOPE.md` purana: FS-04 / FS-15 (v4.104.0), FS-09 (v4.102.0), FS-10 (v4.101.0) tracker mein Done, yahan `[ ]`. | `docs/FUTURE_SCOPE.md` | fixed v4.125.0 |

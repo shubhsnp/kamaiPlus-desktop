@@ -3113,5 +3113,7 @@
   "in a strip": "एका स्ट्रिपमध्ये",
   "{count} tablets": "{count} गोळ्या",
   "Pharmacy counter: loose tablets are billed with the strip's own tablet count (e.g. 3 of 15), never as tenths of a strip. Store setup card Electronics & Hardware matches the mobile app.": "फार्मसी काउंटर: सुट्या गोळ्या स्ट्रिपच्या स्वतःच्या संख्येने बिल होतात (उदा. 15 पैकी 3), स्ट्रिपच्या दहाव्या भागाप्रमाणे कधीही नाही. स्टोर सेटअपचे कार्ड Electronics & Hardware मोबाइल ॲपसारखे.",
-  "Sales Return opens fresh every time: after a return, Return on another bill shows that bill — not the last \"Sales Return Completed\" screen.": "सेल्स रिटर्न प्रत्येक वेळी नवीन उघडते: एका रिटर्ननंतर दुसऱ्या बिलावर Return दाबल्यास तेच बिल दिसते — मागील \"Sales Return Completed\" स्क्रीन नाही."
+  "Sales Return opens fresh every time: after a return, Return on another bill shows that bill — not the last \"Sales Return Completed\" screen.": "सेल्स रिटर्न प्रत्येक वेळी नवीन उघडते: एका रिटर्ननंतर दुसऱ्या बिलावर Return दाबल्यास तेच बिल दिसते — मागील \"Sales Return Completed\" स्क्रीन नाही.",
+  "After ₹{paidOut} paid out (₹{refunds} return refunds)": "₹{paidOut} बाहेर गेल्यानंतर (₹{refunds} रिटर्न रिफंड)",
+  "Split payment: the 50 / 50 fill is worked out in paise, so cash + UPI always equal the bill (an odd-paise bill could leave 1 paisa on udhar). Day Summary names cash refunds of returns as refunds, not expenses.": "स्प्लिट पेमेंट: 50 / 50 पैशांत विभागले जाते, म्हणून कॅश + UPI नेहमी बिलाइतके (विषम पैशांच्या बिलावर 1 पैसा उधारीत जाऊ शकत होता). डे समरीत रिटर्नचे कॅश रिफंड आता रिफंड म्हणून दिसतात, खर्च नाही."
 }

@@ -69,8 +69,11 @@ export function PosCheckoutFooter(props: PosCheckoutFooterProps) {
                 onClick={() => {
                   setPaymentMethod(m.id as PaymentMethod);
                   if (m.id === 'split' && !splitCash && !splitUpi) {
-                    setSplitCash((grandTotalPaise / 200).toString());
-                    setSplitUpi((grandTotalPaise / 200).toString());
+                    // Halves in paise (v4.130.0): "total / 200" gave ₹1.005 + ₹1.005 for ₹2.01 — saved as
+                    // ₹1.00 + ₹1.00, the missing paisa went on udhar (or ₹0.01 "change" on other totals).
+                    const cashPaise = Math.floor(grandTotalPaise / 2);
+                    setSplitCash((cashPaise / 100).toFixed(2));
+                    setSplitUpi(((grandTotalPaise - cashPaise) / 100).toFixed(2));
                   }
                   if (m.id === 'credit' && !selectedCustomerId && isDraftEmpty(customerDraft)) {
                     focusPosCustomerName();

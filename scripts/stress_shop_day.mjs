@@ -151,7 +151,7 @@ try {
   await go(page, '/billing/');
   const search = page.getByPlaceholder(/search/i).first();
   const customers = Array.from({ length: 20 }, (_, i) => ({ name: `Grahak ${String.fromCharCode(65 + i)}`, phone: `98${String(20000000 + i * 7919).slice(0, 8)}` }));
-  let estimates = 0;
+  let estimates = 0, splits = 0;
   for (let b = 1; b <= BILLS; b++) {
     const lines = 1 + Math.floor(rnd() * 5);
     const chosen = [];
@@ -167,7 +167,7 @@ try {
       }
       chosen.push(idx);
     }
-    const kind = b % 40 === 0 ? 'estimate' : b % 7 === 0 ? 'credit' : b % 3 === 0 ? 'upi' : 'cash';
+    const kind = b % 40 === 0 ? 'estimate' : b % 7 === 0 ? 'credit' : b % 11 === 0 ? 'split' : b % 3 === 0 ? 'upi' : 'cash';
     if (kind === 'credit') {
       const c = pick(customers);
       await page.getByPlaceholder('Customer name (optional)').fill(c.name);
@@ -176,7 +176,20 @@ try {
     } else if (kind === 'upi') {
       await page.getByRole('button', { name: /UPI \/ QR/ }).first().click();
     }
-    if (b % 10 === 0 && kind !== 'estimate') {
+    if (kind === 'split') {
+      // Split opens as 50 % cash + 50 % UPI; the cashier changes it: whole rupees in cash, the rest by UPI.
+      await page.getByRole('button', { name: /^Split/ }).first().click();
+      const box = (label) => page.locator('label', { hasText: label }).locator('xpath=following-sibling::input[1]');
+      const cashBox = box(/^Cash \(₹\)$/), upiBox = box(/^UPI \/ QR \(₹\)$/);
+      await cashBox.waitFor({ timeout: 10000 });
+      const due = rupees(await cashBox.inputValue()) + rupees(await upiBox.inputValue());
+      const cashPart = Math.max(100, Math.floor(due * 0.7 / 100) * 100);
+      await cashBox.fill(String(cashPart / 100));
+      await upiBox.fill(((due - cashPart) / 100).toFixed(2));
+      await page.getByText('✓ Matched Exactly').first().waitFor({ timeout: 5000 });
+      splits++;
+    }
+    if (b % 10 === 0 && kind !== 'estimate' && kind !== 'split') {
       await page.getByRole('button', { name: /% Percent/ }).click().catch(() => {});
       await page.getByPlaceholder('e.g. 5 or 10%').fill('5').catch(() => {});
     }
@@ -247,6 +260,9 @@ try {
   const lineSum = (s) => (s.items || []).reduce((n, i) => n + (i.total_amount || 0), 0);
   const badTotals = real.filter((s) => Math.abs(lineSum(s) - (s.grand_total ?? s.total_amount)) > 1 && !(s.items || []).some((i) => i.is_tax_inclusive === false));
   check(badTotals.length === 0, `Every bill total = the sum of its lines (${badTotals.length} wrong)`);
+  const splitBills = real.filter((x) => x.payment_method === 'split');
+  const splitOk = splitBills.every((x) => { const p = x.payment_split || {}; const sum = (p.cash_amount || 0) + (p.upi_amount || 0) + (p.card_amount || 0) + (p.credit_amount || 0); return p.cash_amount > 0 && p.upi_amount > 0 && Math.abs(sum - (x.grand_total ?? x.total_amount)) <= 1; });
+  check(splitBills.length === splits && splits > 0 && splitOk, `Split bills (cash + UPI): ${splitBills.length} / ${splits}, parts add up to the bill`);
   const taxOk = real.every((s) => (s.items || []).every((i) => (i.tax_rate || 0) === 0 ? (i.tax_amount || 0) === 0 : (i.tax_amount || 0) > 0));
   check(taxOk, 'GSTIN shop: a line with GST % carries GST, a 0 % line none');
 
@@ -289,11 +305,18 @@ try {
   const dayBox = page.locator('[aria-modal="true"]');
   await dayBox.getByText('Total Sales (Bikri)').waitFor({ timeout: 15000 });
   const day = await dayBox.innerText();
-  const amt = (label) => rupees((day.match(new RegExp(label + '[\s\S]{0,30}?₹([\d,]+(?:\.\d+)?)', 'i')) || [])[1] || '0');
-  const dTotal = amt('Total Sales \(Bikri\)'), dCash = amt('Cash Collections:'), dUpi = amt('UPI / QR Payments:'), dCredit = amt('Customer Udhar \(Credit\):');
-  const dHand = amt('Net Cash in Hand'), dKhata = amt('Udhar received in cash \(Khata\):');
-  check(Math.abs(dTotal - total) <= 100 && Math.abs(dCash + dUpi + dCredit - dTotal) <= 3 && Math.abs(dHand - (dCash + dKhata)) <= 3,
-    `Day Summary: total ₹${dTotal / 100} (db ₹${total / 100}) = cash ₹${dCash / 100} + UPI ₹${dUpi / 100} + udhar ₹${dCredit / 100}; cash in hand ₹${dHand / 100} = cash + khata cash ₹${dKhata / 100}`);
+  const amt = (label) => rupees((day.match(new RegExp(label + String.raw`[\s\S]{0,30}?₹([\d,]+(?:\.\d+)?)`, 'i')) || [])[1] || '0');
+  const dTotal = amt(String.raw`Total Sales \(Bikri\)`), dCash = amt('Cash Collections:'), dUpi = amt('UPI / QR Payments:'), dCredit = amt(String.raw`Customer Udhar \(Credit\):`);
+  const dHand = amt('Net Cash in Hand');
+  // The drawer from the database: cash kept on bills (split: its cash part) + udhar paid in cash − cash paid out (refunds, expenses).
+  const exps = await readStore(page, 'cash_expenses');
+  const ledgerNow = await readStore(page, 'ledger_transactions');
+  const cashKept = real.filter((x) => x.status !== 'cancelled').reduce((n, x) => n + (x.payment_method === 'cash' ? (x.grand_total ?? x.total_amount) : x.payment_method === 'split' ? (x.payment_split?.cash_amount || 0) : 0), 0);
+  const khataCash = ledgerNow.filter((l) => l.party_type === 'customer' && l.transaction_type === 'PAYMENT_RECEIVED' && String(l.payment_method || '').toLowerCase() === 'cash').reduce((n, l) => n + (l.amount || 0), 0);
+  const paidOut = exps.filter((e) => (e.payment_mode || 'cash') === 'cash').reduce((n, e) => n + (e.amount || 0), 0);
+  const drawerDb = cashKept + khataCash - paidOut;
+  check(Math.abs(dTotal - total) <= 100 && Math.abs(dCash + dUpi + dCredit - dTotal) <= 3 && Math.abs(dHand - drawerDb) <= 3,
+    `Day Summary: total ₹${dTotal / 100} (db ₹${total / 100}) = cash ₹${dCash / 100} + UPI ₹${dUpi / 100} + udhar ₹${dCredit / 100}; cash in hand ₹${dHand / 100} = db drawer ₹${drawerDb / 100} (cash kept ₹${cashKept / 100} + khata cash ₹${khataCash / 100} − paid out ₹${paidOut / 100})`);
   await page.screenshot({ path: path.join(SHOTS, 'day-summary.png') });
   await page.keyboard.press('Escape');
   await go(page, '/reports/');
