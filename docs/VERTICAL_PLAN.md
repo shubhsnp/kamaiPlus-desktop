@@ -71,7 +71,7 @@
 
 ## Abhi kya chal raha hai
 
-**D — poora Electron audit (2026-10-10, v4.128.0 build):** `scripts/stress_shop_day.mjs` — GSTIN kirana, 1,200 items Excel import, 300 bills (scan / cash / UPI / udhar / discount / estimate), returns, khata payments, sab number DB se mila kar, restart. Pehle chhota run (12 bills) script jaanchne ko, phir poora; mile bug → fix + Suite 9 test + version. Uske baad `npm run test:electron` + smoke, phir Android (phone CPH2691).
+**D — Electron audit poora (v4.129–4.131: AU-33…36 fixed; stress 15/15, E2E 135/135, smoke 52/52). Ab E — Android pass:** code audit + fix (AU-A3…A10, `docs/DESKTOP_AUDIT_2026-10-09.md`), `flutter test --concurrency=1`, phir Android commit (bina `website/` deletions). Phone (CPH2691) jud ne par on-device check + "Stay awake" band.
 
 ## Kaam log
 
