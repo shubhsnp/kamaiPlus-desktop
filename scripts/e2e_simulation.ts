@@ -4841,6 +4841,16 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
     'Counter: "Or tablets: 3 of 15 in a strip" = 0.2 strip; no strip chip assumes 10 tablets');
 }
 
+// v4.129.0 — Shop-day stress test (scripts/stress_shop_day.mjs): after a return, tapping Return on another
+// bill showed the last "Sales Return Completed" again (the window stays mounted). Each opening starts fresh.
+{
+  const rm = readSource('components/sales/SalesReturnModal.tsx');
+  const eff = rm.slice(rm.indexOf('useEffect(() => {'), rm.indexOf('}, [initialSaleId, isOpen]);'));
+  assert(eff.includes('if (!isOpen) return;') && eff.includes('setCompletedReturn(null)') && eff.includes('setSelectedSale(null)') && eff.includes("setSearchInvoice('')")
+    && eff.indexOf('setCompletedReturn(null)') < eff.indexOf('if (initialSaleId)'),
+    'Sales Return: every opening clears the last return / bill before showing the chosen bill');
+}
+
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.
 Promise.allSettled(pendingAsyncChecks).then((results) => {
   for (const r of results) if (r.status === 'rejected') assert(false, 'An async check threw', String(r.reason));

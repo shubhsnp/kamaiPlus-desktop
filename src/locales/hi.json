@@ -3112,5 +3112,6 @@
   "e.g. 3": "जैसे 3",
   "in a strip": "एक पत्ते में",
   "{count} tablets": "{count} गोलियाँ",
-  "Pharmacy counter: loose tablets are billed with the strip's own tablet count (e.g. 3 of 15), never as tenths of a strip. Store setup card Electronics & Hardware matches the mobile app.": "फार्मेसी काउंटर: खुली गोलियाँ पत्ते की अपनी गिनती से बिलती हैं (जैसे 15 में से 3), पत्ते के दसवें हिस्से की तरह कभी नहीं। स्टोर सेटअप का कार्ड Electronics & Hardware मोबाइल ऐप जैसा।"
+  "Pharmacy counter: loose tablets are billed with the strip's own tablet count (e.g. 3 of 15), never as tenths of a strip. Store setup card Electronics & Hardware matches the mobile app.": "फार्मेसी काउंटर: खुली गोलियाँ पत्ते की अपनी गिनती से बिलती हैं (जैसे 15 में से 3), पत्ते के दसवें हिस्से की तरह कभी नहीं। स्टोर सेटअप का कार्ड Electronics & Hardware मोबाइल ऐप जैसा।",
+  "Sales Return opens fresh every time: after a return, Return on another bill shows that bill — not the last \"Sales Return Completed\" screen.": "सेल्स रिटर्न हर बार नया खुलता है: एक रिटर्न के बाद दूसरे बिल पर Return दबाने से वही बिल दिखता है — पिछला \"Sales Return Completed\" स्क्रीन नहीं।"
 }

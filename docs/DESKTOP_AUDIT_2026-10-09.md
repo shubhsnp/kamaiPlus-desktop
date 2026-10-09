@@ -48,6 +48,7 @@ Desktop v4.118.0 – v4.127.0 mein sab findings theek (status column). Baaki: AU
 | AU-02 | **Cloud se "Restore" karne par bill number 1 se** (`next_invoice_number: 1`) — cloud mein INV-001… pehle se, naye bill ke number takrayenge. "Restore" sirf products + categories laata hai — customers, udhar balance, purane bills nahi. Restore se pehle local tables bina backup saaf. | `src/components/onboarding/cloudStoreRestore.ts:175-213` | fixed v4.124.0 |
 | AU-22 | **Pharmacy bill par batch no. / expiry nahi** (aur Schedule H dawai ke liye doctor / patient naam — Bible §9 ne hataye the). Dawai ki dukaan ke cash memo par ye zaroori maane jaate hain. Pharmacy vertical bina iske adhoora. | product + sale types, invoice | fixed v4.126.0 |
 | AU-04 | **Store setup mein "Cafe / Restaurant" chunne par restaurant mode nahi aata** — asli app: menu mein Billing POS, Barcode Studio, Inventory & Stock (retail jaisa). Tables / KOT sirf Admin Console se. Faisla: restaurant chunte hi mode on ho, ya card par likho "KamaiPlus support chalu karega". | `onboardingSubmit.ts` CATEGORY_INITIAL_SWITCHES | fixed v4.118.0 |
+| AU-33 | **Sales Return dobara kholne par pichhla "Sales Return Completed" dikhta** — bill A ka return → Done → bill B par Return dabao: bill B ke items ki jagah A ka "Credit Note RET-0001 … generated" screen. Dukaandar samjhe B ka return ho gaya. (Window mounted rehti hai, band karne par state saaf nahi hoti.) Stress test se mila. | `src/components/sales/SalesReturnModal.tsx` | fixed v4.129.0 |
 
 ## 🟡 P2
 
@@ -89,6 +90,24 @@ Desktop v4.118.0 – v4.127.0 mein sab findings theek (status column). Baaki: AU
 **Har vertical:** 21 screens, koi crash / console error nahi.
 
 ---
+
+## 🏪 Poora din — stress test (2026-10-10, v4.128.0 build)
+
+`node scripts/stress_shop_day.mjs` (BILLS=300, ITEMS=1200) — asli Electron app, GSTIN wali kirana store setup se.
+
+| Kya | Nateeja |
+|---|---|
+| Store setup GSTIN ke saath | profile `grocery`, `gst: true`, GSTIN saved ✅ |
+| Excel import 1,200 items (price, MRP, stock, GST, HSN, EAN-13) | 1,200 / 1,200, paise sahi, **3.4 s** ✅ |
+| 300 bills barcode scan se (1,055 scans) — cash / UPI / udhar (19 grahak) / 5 % discount / 7 estimate | 293 bills + 7 estimates; INV 1…293 bina gap / duplicate ✅ |
+| Har bill ka total = lines ka jod; GST % wali line par GST, 0 % par nahi | 0 galat ✅ |
+| 1,200 items ka stock = import − bika + wapas | 0 galat ✅ |
+| Home "Today's Sales" bills; Reports total vs database | 293 = 293; ₹2,61,058.05 = ₹2,61,058.05 ✅ |
+| GST Reports (GSTIN dukaan) | khulta, DB GST ₹16,934.32 ✅ |
+| Console / page error poore din | 0 ✅ |
+| Restart → password → sab data | 300 bills + 1,200 items ✅ |
+
+**Speed (1,200 items, 300 bills ke baad bhi):** scan → line ~40 ms · Complete Sale median 115 ms, p95 183 ms · Estimate 84 ms · Products / Inventory / Billing / Reports page 0.2–0.35 s · unlock → home 0.4 s.
 
 ## Android (baad mein — yahan sirf note)
 

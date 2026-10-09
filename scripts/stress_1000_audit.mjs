@@ -112,26 +112,22 @@ async function run() {
 
     // 2. Enable All Features in Settings
     console.log('\n--- 2. Enable Retail Pro Features ---');
-    await page.evaluate(() => { window.location.href = '/settings/?tab=features'; });
-    await page.waitForURL(/\/settings/, { timeout: 15000 });
-    await page.waitForTimeout(1000);
-
+    // Settings → Features was removed in v4.118.0 (a shop's switches follow its business category);
+    // tests turn switches on the way the app stores an explicit choice (kamai_feature_switches).
     const switches = [
       'cash_register', 'purchases', 'suppliers', 'gst_reports',
       'product_selling_price', 'product_cost_price', 'product_hsn',
       'product_gst_rate', 'product_variants', 'payment_keys'
     ];
-    for (const key of switches) {
-      const input = page.locator(`input[data-feature="${key}"]`);
-      if (await input.count()) {
-        const checked = await input.isChecked();
-        if (!checked) {
-          await page.locator(`label:has(input[data-feature="${key}"])`).click();
-          await page.waitForTimeout(100);
-        }
-      }
-    }
-    check(true, 'Enabled all 10 feature switches');
+    await page.evaluate((ids) => {
+      const cur = JSON.parse(localStorage.getItem('kamai_feature_switches') || '{}');
+      for (const id of ids) cur[id] = true;
+      localStorage.setItem('kamai_feature_switches', JSON.stringify(cur));
+    }, switches);
+    await page.reload();
+    await page.waitForTimeout(1500);
+    const on = await page.evaluate((ids) => { const c = JSON.parse(localStorage.getItem('kamai_feature_switches') || '{}'); return ids.every((id) => c[id] === true); }, switches);
+    check(on, 'Turned on all 10 feature switches');
 
     // 3. Inject 1,000+ Real-World Products into IndexedDB
     console.log('\n--- 3. Injecting 1,000+ Retail Products (Paise Math & Schema) ---');

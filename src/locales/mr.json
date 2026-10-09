@@ -3112,5 +3112,6 @@
   "e.g. 3": "उदा. 3",
   "in a strip": "एका स्ट्रिपमध्ये",
   "{count} tablets": "{count} गोळ्या",
-  "Pharmacy counter: loose tablets are billed with the strip's own tablet count (e.g. 3 of 15), never as tenths of a strip. Store setup card Electronics & Hardware matches the mobile app.": "फार्मसी काउंटर: सुट्या गोळ्या स्ट्रिपच्या स्वतःच्या संख्येने बिल होतात (उदा. 15 पैकी 3), स्ट्रिपच्या दहाव्या भागाप्रमाणे कधीही नाही. स्टोर सेटअपचे कार्ड Electronics & Hardware मोबाइल ॲपसारखे."
+  "Pharmacy counter: loose tablets are billed with the strip's own tablet count (e.g. 3 of 15), never as tenths of a strip. Store setup card Electronics & Hardware matches the mobile app.": "फार्मसी काउंटर: सुट्या गोळ्या स्ट्रिपच्या स्वतःच्या संख्येने बिल होतात (उदा. 15 पैकी 3), स्ट्रिपच्या दहाव्या भागाप्रमाणे कधीही नाही. स्टोर सेटअपचे कार्ड Electronics & Hardware मोबाइल ॲपसारखे.",
+  "Sales Return opens fresh every time: after a return, Return on another bill shows that bill — not the last \"Sales Return Completed\" screen.": "सेल्स रिटर्न प्रत्येक वेळी नवीन उघडते: एका रिटर्ननंतर दुसऱ्या बिलावर Return दाबल्यास तेच बिल दिसते — मागील \"Sales Return Completed\" स्क्रीन नाही."
 }

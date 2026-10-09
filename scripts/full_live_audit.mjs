@@ -155,11 +155,8 @@ async function run() {
 
     // ── STEP 4: Settings -> Enable All Feature Switches for Testing ──
     console.log('\n--- 3. Enabling All Feature Switches ---');
-    await page.evaluate(() => { window.location.href = '/settings/?tab=features'; });
-    await page.waitForURL(/\/settings/, { timeout: 10000 });
-    await page.waitForTimeout(800);
-    
-    // Enable Cash Register, Purchases, Suppliers, GST Reports, Product Selling Price, Cost Price, HSN, Variants
+    // Settings → Features was removed in v4.118.0 (a shop's switches follow its business category);
+    // tests turn switches on the way the app stores an explicit choice (kamai_feature_switches).
     const switchesToEnable = [
       'cash_register',
       'purchases',
@@ -172,18 +169,15 @@ async function run() {
       'product_variants',
       'payment_keys'
     ];
-    for (const key of switchesToEnable) {
-      const input = page.locator(`input[data-feature="${key}"]`);
-      if (await input.count()) {
-        const checked = await input.isChecked();
-        if (!checked) {
-          await page.locator(`label:has(input[data-feature="${key}"])`).click();
-          await page.waitForTimeout(150);
-        }
-      }
-    }
-    await page.waitForTimeout(500);
-    check(true, 'Enabled all feature switches in Settings -> Features');
+    await page.evaluate((ids) => {
+      const cur = JSON.parse(localStorage.getItem('kamai_feature_switches') || '{}');
+      for (const id of ids) cur[id] = true;
+      localStorage.setItem('kamai_feature_switches', JSON.stringify(cur));
+    }, switchesToEnable);
+    await page.reload();
+    await page.waitForTimeout(1500);
+    const on = await page.evaluate((ids) => { const c = JSON.parse(localStorage.getItem('kamai_feature_switches') || '{}'); return ids.every((id) => c[id] === true); }, switchesToEnable);
+    check(on, 'Feature switches turned on (stored like the app does)');
     await takeShot(page, '02_settings_features');
 
     // ── STEP 5: Products Catalog Master Inspection ──

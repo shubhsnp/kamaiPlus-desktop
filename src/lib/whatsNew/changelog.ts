@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.129.0',
+    items: [
+      msg('Sales Return opens fresh every time: after a return, Return on another bill shows that bill — not the last "Sales Return Completed" screen.'),
+    ],
+  },
+  {
     version: '4.128.0',
     items: [
       msg('Pharmacy counter: loose tablets are billed with the strip\'s own tablet count (e.g. 3 of 15), never as tenths of a strip. Store setup card Electronics & Hardware matches the mobile app.'),

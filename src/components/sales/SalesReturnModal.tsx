@@ -36,7 +36,15 @@ export const SalesReturnModal: React.FC<SalesReturnModalProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [completedReturn, setCompletedReturn] = useState<SalesReturn | null>(null);
 
+  // Every opening starts fresh (v4.129.0): the window stays mounted, so without this the last
+  // return's "Sales Return Completed" (or the last bill) showed again — even for a different bill.
   useEffect(() => {
+    if (!isOpen) return;
+    setCompletedReturn(null);
+    setSelectedSale(null);
+    setSearchInvoice('');
+    setReturnReason('');
+    setRefundMethod('cash');
     if (initialSaleId) {
       db.sales.get(initialSaleId).then((sale) => {
         if (sale) {

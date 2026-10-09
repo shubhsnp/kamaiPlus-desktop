@@ -71,7 +71,7 @@
 
 ## Abhi kya chal raha hai
 
-**A3** code + tests (v4.120.0) — commit ke baad agla **A4** (sample data + units).
+**D — poora Electron audit (2026-10-10, v4.128.0 build):** `scripts/stress_shop_day.mjs` — GSTIN kirana, 1,200 items Excel import, 300 bills (scan / cash / UPI / udhar / discount / estimate), returns, khata payments, sab number DB se mila kar, restart. Pehle chhota run (12 bills) script jaanchne ko, phir poora; mile bug → fix + Suite 9 test + version. Uske baad `npm run test:electron` + smoke, phir Android (phone CPH2691).
 
 ## Kaam log
 
@@ -202,3 +202,10 @@
 
 ### Agla: poora Electron audit (1000+ products, asli din, stress) — plan
 - Naya build (`npm run build`), driver se: har vertical setup, 1000+ products Excel import / bulk, 300+ bills (cash / UPI / udhar / split / discount / return / estimate), khata, purchases, cash register, reports / GST / Day Summary mila kar, search / scan speed, backup / restore, restart. Mile bug → fix + test + version.
+
+### D — Electron audit log (2026-10-10)
+- `scripts/stress_shop_day.mjs` 300 bills / 1,200 items: sab number DB se mile (bills 1…293, totals, GST, stock, Reports ₹2,61,058.05, restart). Speed: scan ~40 ms, sale 115 ms.
+- **AU-33 (bug, fixed v4.129.0):** Sales Return dobara kholne par pichhla "Return Completed" screen — har opening ab saaf.
+- Script ki galtiyan (app sahi): estimate ka return app mana karti hai; poora wapas hua bill har screen ki ginti se bahar (isRevenueSale).
+- `full_live_audit.mjs` / `stress_1000_audit.mjs`: hata hua Features tab ki jagah switches localStorage mein.
+
