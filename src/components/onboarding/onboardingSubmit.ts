@@ -12,6 +12,11 @@ import { validateGstin } from '@/lib/validation/validators';
 import { loadRestaurantSettings, saveRestaurantSettings } from '@/lib/restaurant/settings';
 import type { useRouter } from 'next/navigation';
 
+/** v4.124.0 (AU-32): bill terms that fit the category (a table, never a branch — Suite 9). */
+const BILL_TERMS: Record<string, string> = {
+  restaurant: 'Thank you for dining with us! Prices include taxes as shown.',
+};
+
 export interface CreateOnboardingSubmitDeps {
   router: ReturnType<typeof useRouter>;
   currentUser: AuthUser | null;
@@ -98,7 +103,8 @@ export function createOnboardingSubmit(deps: CreateOnboardingSubmitDeps) {
         language: getLanguage(),
         invoice_prefix: 'INV-',
         next_invoice_number: 1,
-        terms_conditions: 'Thank you for your business! Goods once sold can be exchanged within 7 days with bill receipt.',
+        // v4.124.0 (AU-32): a restaurant bill does not promise an exchange of goods.
+        terms_conditions: BILL_TERMS[businessType] || 'Thank you for your business! Goods once sold can be exchanged within 7 days with bill receipt.',
         footer_message: 'Thank you for shopping with us! Please visit again.',
         is_onboarded: true,
         sync_status: 'synced',

@@ -62,7 +62,8 @@
 | AU-01 | Admin-delete wipe: backup pehle, startup intezaar nahi, sirf is PC ki dukaan | AU-01 | ✅ v4.122.0 |
 | A5 | Pharmacy: batch no. + expiry (item, bill line, bill print, expiry alert) + doctor / patient (bill) | AU-22, AU-13 | ⬜ |
 | A6 | Electronics: IMEI / serial + warranty bill line par | AU-13 | ⬜ |
-| A7 | Restaurant: KOT printer chunna; printer nahi = "sent" nahi | AU-31 | ✅ v4.123.0 |
+| A7 | Restaurant: KOT printer chunna; printer nahi = "sent" nahi | AU-31 | ✅ v4.123.0 `e149c99` |
+| AU batch | AU-02 restore poora, AU-05/18 lookup sirf Google, AU-09, AU-17 Day Summary khata, AU-19 estimate text, AU-23 HSN + unit, AU-27 placeholder, AU-32 restaurant terms | — | ✅ v4.124.0 |
 | A8 | Category cards sach bolein; Bible / contract / FUTURE_SCOPE update | AU-13, AU-20, AU-28 | ⬜ |
 | B1 | Android: wahi preset table + profile (Android repo) | parity | ⬜ |
 | B2 | Android: batch / expiry, IMEI, doctor / patient fields same naam se | parity | ⬜ |
@@ -165,3 +166,8 @@
 ### Agla: AU-23 (GST screen HSN + unit) aur AU-17 (Day Summary khata line) — plan
 - `gstr1Generator.ts` HSN key mein UQC (`${hsn}_${uqc}_${rt}`), JSON jaisa; HSN row mein uqc dikhe.
 - Day Summary: "Udhar received (Khata)" line, cash in hand ke hisaab ke saath.
+
+### v4.124.0 — kya hua (2026-10-10)
+- AU-23 `gstr1Generator.ts` HSN key + UQC. AU-17 Day Summary "Udhar received in cash (Khata)" (screen + WhatsApp). AU-02 `cloudStoreRestore.ts` restore = `pullEverything` (sab tables) + pehle backup. AU-05/18 cloud lookup sirf jude Google account se (Firebase bhi tabhi load). AU-19 estimate / Bill of Supply words bill window mein. AU-27 Add Product example naam category se. AU-32 restaurant terms. AU-09 isMounted hataya.
+
+### Agla (plan): AU-10 (blocked key par wipe), AU-11 (Android firebase.json), AU-13 (category cards sach), AU-20 / AU-28 (docs), phir A5 pharmacy batch / expiry + doctor / patient, A6 IMEI / warranty.

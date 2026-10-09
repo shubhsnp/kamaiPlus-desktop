@@ -3072,5 +3072,15 @@
   "KOT not printed": "KOT नहीं छपा",
   "Yes, kitchen knows": "हाँ, किचन को पता है",
   "Marked as sent — no slip was printed ({label})": "भेजा हुआ माना — पर्ची नहीं छपी ({label})",
-  "Restaurant: with no kitchen (KOT) printer chosen, Send KOT no longer says sent — it asks whether the kitchen was told, and marks the order only then.": "रेस्टोरेंट: किचन (KOT) प्रिंटर न चुना हो तो Send KOT अब भेजा हुआ नहीं बताता — पूछता है कि किचन को बताया या नहीं, और तभी ऑर्डर पर निशान लगाता है।"
+  "Restaurant: with no kitchen (KOT) printer chosen, Send KOT no longer says sent — it asks whether the kitchen was told, and marks the order only then.": "रेस्टोरेंट: किचन (KOT) प्रिंटर न चुना हो तो Send KOT अब भेजा हुआ नहीं बताता — पूछता है कि किचन को बताया या नहीं, और तभी ऑर्डर पर निशान लगाता है।",
+  "Udhar received in cash (Khata):": "उधार की नकद वसूली (खाता):",
+  "Bill of Supply": "बिल ऑफ़ सप्लाई",
+  "Estimate total • #": "एस्टिमेट कुल • #",
+  "PDF is always the full A4 estimate.": "PDF हमेशा पूरा A4 एस्टिमेट होता है।",
+  "PDF is always the full A4 bill.": "PDF हमेशा पूरा A4 बिल होता है।",
+  "e.g. Dolo 650 Tablet (15 tab)": "जैसे Dolo 650 Tablet (15 tab)",
+  "e.g. Women Cotton Kurti": "जैसे Women Cotton Kurti",
+  "e.g. USB Type-C Charging Cable 1 m": "जैसे USB Type-C Charging Cable 1 m",
+  "e.g. Classmate Notebook 172 Pages": "जैसे Classmate Notebook 172 Pages",
+  "Day Summary shows udhar received in cash; GST screen lists each HSN per unit; restoring a shop from the cloud brings back customers, udhar and bills, and bill numbers carry on.": "डे समरी में नकद मिली उधार वसूली दिखती है; GST स्क्रीन पर हर HSN यूनिट के हिसाब से; क्लाउड से दुकान रीस्टोर करने पर ग्राहक, उधार और बिल वापस आते हैं और बिल नंबर आगे चलते हैं।"
 }

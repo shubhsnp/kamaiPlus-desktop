@@ -10,6 +10,16 @@ import { MASTER_UNITS } from '@/lib/constants/storeProfiles';
 import { VariantRow } from '@/components/products/VariantMatrixEditor';
 import { showSellingPriceField, useFeatureSwitches } from '@/lib/features/featureSwitches';
 import { tr } from '@/lib/i18n/core';
+import { readVerticalProfile } from '@/lib/business/verticalProfile';
+
+// v4.124.0 (AU-27): an example name that fits the shop's category (shops without one: as before).
+const NAME_EXAMPLE: Record<string, string> = {
+  pharmacy: 'e.g. Dolo 650 Tablet (15 tab)',
+  clothing: 'e.g. Women Cotton Kurti',
+  hardware: 'e.g. USB Type-C Charging Cable 1 m',
+  restaurant: 'e.g. Paneer Butter Masala',
+  retail: 'e.g. Classmate Notebook 172 Pages',
+};
 import { ProductFormDetails } from '@/components/products/ProductFormDetails';
 import { categoryLabel } from '@/lib/products/defaultCategory';
 
@@ -198,7 +208,7 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
         {/* Product Name */}
         <Input
           label={tr('Product / Item Full Name *')}
-          placeholder={tr('e.g. Fortune Sunflower Oil 1L')}
+          placeholder={tr(NAME_EXAMPLE[readVerticalProfile()?.vertical || ''] || 'e.g. Fortune Sunflower Oil 1L')}
           value={formName}
           onChange={(e) => setFormName(e.target.value)}
           required

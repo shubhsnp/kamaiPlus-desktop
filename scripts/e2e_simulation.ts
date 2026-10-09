@@ -4710,6 +4710,42 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
     'Send KOT without a printer asks the waiter; the order is marked sent only when they say the kitchen knows');
 }
 
+// v4.124.0 — GST screen HSN rows per unit (AU-23); Day Summary shows udhar collected in cash (AU-17).
+{
+  assert(readSource('lib/gst/gstr1Generator.ts').includes('const hsnKey = `${line.hsn}_${getGSTUQC(line.unit)}_${rt}`;'),
+    'GST screen HSN summary: one row per HSN + unit + rate, like the GSTR-1 JSON (a box and a bottle were "2 BOX")');
+  const dayModal = readSource('components/reports/DayEndClosingReportModal.tsx');
+  assert(dayModal.includes('const khataCashPaise = day.khataCashCollected;') && dayModal.includes('data-day-khata-cash') && dayModal.includes('Udhar received in cash (Khata)'),
+    'Day Summary: udhar paid back in cash is its own line (screen + WhatsApp), so Cash in Hand adds up');
+}
+
+// v4.124.0 — Cloud store restore brings the whole shop back, after a safety backup (AU-02).
+{
+  const rs = readSource('components/onboarding/cloudStoreRestore.ts');
+  assert(rs.includes('await pullEverything({ bizId: businessId, localBizId: businessId });') && !rs.includes("collection(firestore, `businesses/${businessId}/products`)")
+    && rs.indexOf('runAutoBackup({ force: true })') < rs.indexOf('localDb.businesses.clear()'),
+    'Restore pulls every table (customers + udhar, bills, khata…) so bill numbers continue; a backup is written before the PC is cleared');
+}
+
+// v4.124.0 — Store setup looks for an existing cloud shop only with a connected Google account (AU-05 / AU-18).
+{
+  const rs = readSource('components/onboarding/cloudStoreRestore.ts');
+  assert(rs.includes('if (!account || account.stub) return null;') && !rs.includes('wa_${cleanPhone}') && !rs.includes('user_${cleanPhone}'),
+    'No more refused Firestore reads by mobile number on every new shop; only the Google account\u2019s own shop is looked up');
+}
+
+// v4.124.0 — Small things from the audit: estimate window words (AU-19), name example per category (AU-27),
+// restaurant bill terms (AU-32), Bill of Supply in the bill window, unused isMounted (AU-09).
+{
+  const im = readSource('components/invoices/InvoiceModal.tsx');
+  assert(im.includes("estimate ? tr('Estimate total • #')") && im.includes("tr('PDF is always the full A4 estimate.')") && im.includes("gstAllowed() ? tr('Tax Invoice') : tr('Bill of Supply')"),
+    'Bill window: an estimate is not "billed" or a tax invoice; a shop without a GSTIN sees Bill of Supply');
+  assert(readSource('components/products/AddEditProductModal.tsx').includes("NAME_EXAMPLE[readVerticalProfile()?.vertical || ''] || 'e.g. Fortune Sunflower Oil 1L'"),
+    'Add Product: the example name fits the shop category (old shops keep the old example)');
+  assert(readSource('components/onboarding/onboardingSubmit.ts').includes("restaurant: 'Thank you for dining with us!") && !readSource('app/onboarding/page.tsx').includes('isMounted'),
+    'Restaurant bills do not promise a 7-day goods exchange; no dead isMounted flag in store setup');
+}
+
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.
 Promise.allSettled(pendingAsyncChecks).then((results) => {
   for (const r of results) if (r.status === 'rejected') assert(false, 'An async check threw', String(r.reason));

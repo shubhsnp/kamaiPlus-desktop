@@ -44,7 +44,6 @@ export default function OnboardingPage() {
 
   // Existing User Gate: If local store is already onboarded, immediately redirect to Home
   useEffect(() => {
-    let isMounted = true;
     const checkExistingGate = async () => {
       try {
         const biz = await localDb.businesses.toCollection().first();
@@ -57,7 +56,6 @@ export default function OnboardingPage() {
       }
     };
     checkExistingGate();
-    return () => { isMounted = false; };
   }, [router]);
 
   // Load current authenticated user and pre-fill details

@@ -28,6 +28,7 @@ import { getDesktopApi, PaperFormat } from '@/lib/desktop/desktopBridge';
 import { getPrintSettings } from '@/lib/hardware/printSettings';
 import { bluetoothPrinter } from '@/lib/hardware/bluetoothPrinter';
 import { getSalePaymentBreakdown, isEstimate } from '@/lib/sales/saleMath';
+import { gstAllowed } from '@/lib/business/verticalProfile';
 import { EditInvoiceModal } from '@/components/invoices/EditInvoiceModal';
 import { InvoicePreview } from '@/components/invoices/InvoicePreview';
 import { WhatsAppButton } from '@/components/whatsapp/WhatsAppButton';
@@ -198,7 +199,7 @@ export function InvoiceModal({
   ) : (
     <span className="flex items-center gap-2">
       <FileText className="w-4 h-4 text-slate-700" />
-      {estimate ? tr('Estimate / Quotation') : tr('Tax Invoice')} #{sale.invoice_number}
+      {estimate ? tr('Estimate / Quotation') : gstAllowed() ? tr('Tax Invoice') : tr('Bill of Supply')} #{sale.invoice_number}
     </span>
   );
 
@@ -209,7 +210,7 @@ export function InvoiceModal({
           {isPostSaleSuccess && (
             <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-3.5 flex flex-wrap items-center justify-between gap-3">
               <div>
-                <div className="text-[10.5px] font-black uppercase tracking-wider text-emerald-800">{tr('Total Billed • #')}{sale.invoice_number}</div>
+                <div className="text-[10.5px] font-black uppercase tracking-wider text-emerald-800">{estimate ? tr('Estimate total • #') : tr('Total Billed • #')}{sale.invoice_number}</div>
                 <div className="text-2xl font-black text-slate-900 font-mono">{formatINR(sale.grand_total)}</div>
                 {sale.balance_due > 0 && !estimate && (
                   <div className="text-xs font-bold text-amber-800">{formatINR(sale.balance_due)} {tr('added to')} {sale.customer_name}{tr('\'s Khata')}</div>
@@ -298,7 +299,8 @@ export function InvoiceModal({
                 <Palette className="w-3.5 h-3.5" /> {tr('Invoice theme')}
               </Link>
             )}
-            <span>{tr('PDF is always the full A4 Tax Invoice.')}</span>
+            {/* v4.124.0 (AU-19): an estimate / a bill of supply is not a tax invoice. */}
+            <span>{estimate ? tr('PDF is always the full A4 estimate.') : gstAllowed() ? tr('PDF is always the full A4 Tax Invoice.') : tr('PDF is always the full A4 bill.')}</span>
           </div>
 
           {notice && (

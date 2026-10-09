@@ -150,8 +150,9 @@ export function generateGSTR1Report(
     const igst = line.inter ? line.tax : 0;
     totalTaxablePaise += line.taxable;
 
-    // HSN summary (Table 12), net of credit notes.
-    const hsnKey = `${line.hsn}_${rt}`;
+    // HSN summary (Table 12), net of credit notes. v4.124.0 (AU-23): one row per HSN + unit (UQC) + rate,
+    // like the GSTR-1 JSON — a box and a bottle under one HSN were added up as "2 BOX".
+    const hsnKey = `${line.hsn}_${getGSTUQC(line.unit)}_${rt}`;
     const h = hsnMap.get(hsnKey);
     if (h) {
       h.total_qty += line.qty;

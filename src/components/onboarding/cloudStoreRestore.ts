@@ -1,5 +1,5 @@
 import { db as localDb } from '@/lib/db';
-import { Business, Product, Category } from '@/types';
+import { Business } from '@/types';
 import { setStoredUser, AuthUser } from '@/lib/auth';
 import { getLanguage } from '@/lib/i18n/core';
 import { markWhatsNewSeen } from '@/lib/whatsNew/changelog';
@@ -28,14 +28,21 @@ export async function findCloudStore(identifiers: {
   phone?: string | null;
 }): Promise<DetectedCloudStore | null> {
   try {
+    const { getCloudAccount } = await import('@/lib/cloud/cloudAccount');
+    const account = getCloudAccount();
+    if (!account || account.stub) return null;
     const { getFirestoreDb } = await import('@/lib/firebase/config');
     const { doc, getDoc } = await import('firebase/firestore');
 
     const firestore = getFirestoreDb();
     if (!firestore) return null;
 
-    const { uid, phone } = identifiers;
-    const cleanPhone = phone ? phone.replace(/\D/g, '').slice(-10) : '';
+    // v4.124.0 (AU-05 / AU-18): the shop's cloud documents can only be read by the Google account that
+    // owns them (Firestore rules). Without a connected Google account every lookup was refused — five
+    // failed reads (and log warnings) per new shop, by uid and by mobile number. Now: only the signed-in
+    // Google account's own shop is looked up; the mobile number is no longer used.
+    const uid = account.uid;
+    const cleanPhone = (identifiers.phone || '').replace(/\D/g, '').slice(-10);
 
     // 1. Search by UID in 'merchants' collection
     if (uid) {
@@ -83,32 +90,6 @@ export async function findCloudStore(identifiers: {
       }
     }
 
-    // 2. Search by Phone in 'merchants' collection (wa_<phone>, user_<phone>)
-    if (cleanPhone && cleanPhone.length === 10) {
-      for (const prefix of [`wa_${cleanPhone}`, `user_${cleanPhone}`]) {
-        try {
-          const phoneSnap = await getDoc(doc(firestore, 'merchants', prefix));
-          if (phoneSnap.exists()) {
-            const d = phoneSnap.data();
-            const name = d.business_name || d.shop_name;
-            if (name) {
-              return {
-                businessId: d.business_id || `biz_${prefix}`,
-                businessName: String(name),
-                ownerName: d.owner_name || 'Store Owner',
-                phone: cleanPhone,
-                businessType: d.business_type || 'retail',
-                upiId: d.upi_vpa || d.upi_id || '',
-                email: d.email || '',
-              };
-            }
-          }
-        } catch (phoneErr) {
-          console.warn(`Lookup by ${prefix} error:`, phoneErr);
-        }
-      }
-    }
-
     return null;
   } catch (err) {
     console.warn('Cloud store lookup failed:', err);
@@ -153,6 +134,11 @@ export async function restoreCloudStoreToLocal(
     await localDb.open();
   }
 
+  // A safety copy of whatever this PC holds, then clear it for the restored shop (v4.124.0).
+  try {
+    const { runAutoBackup } = await import('@/lib/backup/autoBackup');
+    await runAutoBackup({ force: true });
+  } catch {}
   // Clear stale data tables before restoring clean shop
   await Promise.all([
     localDb.businesses.clear().catch(() => {}),
@@ -188,40 +174,12 @@ export async function restoreCloudStoreToLocal(
   markWhatsNewSeen(APP_VERSION);
   setStoredUser(authUser);
 
-  // 4. Pull live products and categories from Cloud Firestore if available
+  // 4. v4.124.0 (AU-02): the whole shop comes back — products, categories, customers with their udhar,
+  // bills, khata, suppliers… (cloudPull.pullEverything, the cloud data contract). Bill numbers then go
+  // on after the restored bills instead of starting again at INV-001.
   try {
-    const [{ getFirestoreDb }, { collection, getDocs }, { fromCloud }] = await Promise.all([
-      import('@/lib/firebase/config'),
-      import('firebase/firestore'),
-      import('@/lib/cloud/cloudContract'),
-    ]);
-
-    const firestore = getFirestoreDb();
-    if (firestore) {
-      // Pull products
-      const prodSnap = await getDocs(collection(firestore, `businesses/${businessId}/products`));
-      if (!prodSnap.empty) {
-        const cloudProducts: Product[] = [];
-        prodSnap.forEach((d) => {
-          cloudProducts.push(fromCloud('products', { ...d.data(), id: d.id }, null, { bizId: businessId }) as Product);
-        });
-        if (cloudProducts.length > 0) {
-          await localDb.products.bulkPut(cloudProducts);
-        }
-      }
-
-      // Pull categories
-      const catSnap = await getDocs(collection(firestore, `businesses/${businessId}/categories`));
-      if (!catSnap.empty) {
-        const cloudCats: Category[] = [];
-        catSnap.forEach((d) => {
-          cloudCats.push(fromCloud('categories', { ...d.data(), id: d.id }, null, { bizId: businessId }) as Category);
-        });
-        if (cloudCats.length > 0) {
-          await localDb.categories.bulkPut(cloudCats);
-        }
-      }
-    }
+    const { pullEverything } = await import('@/lib/cloud/cloudPull');
+    await pullEverything({ bizId: businessId, localBizId: businessId });
   } catch (pullErr) {
     console.warn('Cloud restore data sync note:', pullErr);
   }

@@ -62,6 +62,8 @@ export const DayEndClosingReportModal: React.FC<DayEndClosingReportModalProps> =
   const cashSalesPaise = day.paidBy.cash;
   const upiSalesPaise = day.paidBy.upi + day.paidBy.card;
   const creditSalesPaise = day.paidBy.credit;
+  // v4.124.0 (AU-17): udhar paid back in cash is drawer money — shown, so cash in hand adds up.
+  const khataCashPaise = day.khataCashCollected;
   const totalItemsCount = day.itemsCount;
   const totalExpensePaise = day.totalExpensePaise;
   const cashExpensePaise = day.cashExpenses;
@@ -96,7 +98,9 @@ export const DayEndClosingReportModal: React.FC<DayEndClosingReportModalProps> =
     msg += `💳 *COLLECTIONS BREAKDOWN:*\n`;
     msg += `• 💵 Cash Sales: *${formatINR(cashSalesPaise)}*\n`;
     msg += `• 📱 UPI / Online QR: *${formatINR(upiSalesPaise)}*\n`;
-    msg += `• 📒 Customer Credit (Udhar): *${formatINR(creditSalesPaise)}*\n\n`;
+    msg += `• 📒 Customer Credit (Udhar): *${formatINR(creditSalesPaise)}*\n`;
+    if (khataCashPaise > 0) msg += `• 💰 Udhar received in cash (Khata): *${formatINR(khataCashPaise)}*\n`;
+    msg += `\n`;
 
     if (totalExpensePaise > 0) {
       msg += `🔻 *STORE EXPENSES:*\n`;
@@ -246,6 +250,14 @@ export const DayEndClosingReportModal: React.FC<DayEndClosingReportModalProps> =
               </span>
               <span className="font-bold text-white">{formatINR(creditSalesPaise)}</span>
             </div>
+            {khataCashPaise > 0 && (
+              <div className="flex justify-between items-center" data-day-khata-cash>
+                <span className="flex items-center gap-1.5 text-slate-400">
+                  <Banknote className="w-3.5 h-3.5 text-emerald-400" /> {tr('Udhar received in cash (Khata):')}
+                </span>
+                <span className="font-bold text-emerald-300">+{formatINR(khataCashPaise)}</span>
+              </div>
+            )}
           </div>
 
           {/* Top 3 Products */}
