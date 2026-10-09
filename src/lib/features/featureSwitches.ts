@@ -37,7 +37,8 @@ export type FeatureId =
   | 'stock_counting'
   | 'product_barcode'
   | 'product_batch_expiry'
-  | 'bill_prescription';
+  | 'bill_prescription'
+  | 'bill_serial_warranty';
 
 export type FeatureSwitches = Record<FeatureId, boolean>;
 
@@ -95,6 +96,8 @@ export const DEFAULT_FEATURE_SWITCHES: FeatureSwitches = {
   // v4.126.0 (AU-22): pharmacy — on for the pharmacy category (lib/business/verticalProfile.ts).
   product_batch_expiry: false,
   bill_prescription: false,
+  // v4.127.0 (AU-13): electronics / mobile — IMEI / serial and warranty on the bill line.
+  bill_serial_warranty: false,
 };
 
 /** Order and texts of Settings → Features (msg ids, translated where shown). */
@@ -121,6 +124,7 @@ export const FEATURES: FeatureInfo[] = [
   { id: 'product_variants', group: 'product_form', label: msg('Variants (Size / Colour)'), description: msg('One item in many sizes or colours, each with its own price and stock.') },
   { id: 'payment_keys', group: 'tools', label: msg('Payment keys F4 / F8 / F9'), description: msg('Cash (F4), UPI (F8) and Credit (F9) keys on the billing counter. Off: choose the payment with the mouse.') },
   { id: 'bill_prescription', group: 'tools', label: msg('Doctor & patient on the bill'), description: msg('Patient and doctor name boxes on the counter, printed on the bill (medicines on prescription).') },
+  { id: 'bill_serial_warranty', group: 'tools', label: msg('IMEI / serial & warranty on the bill'), description: msg('On the counter, each item line can carry its IMEI / serial no. and warranty months, printed on the bill.') },
   { id: 'whatsapp', group: 'tools', label: msg('WhatsApp messages'), description: msg('WhatsApp buttons for bills, udhar reminders, khata slips, restock orders and reports.') },
   { id: 'profit_privacy', group: 'privacy', label: msg('Hide profit from staff (Privacy PIN)'), description: msg('"Cashier Privacy" button on every screen; profit and cost prices open only with the owner PIN.') },
 ];

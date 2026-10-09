@@ -4793,6 +4793,17 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
     'Inventory lists medicines expired or expiring in 90 days (pharmacy)');
 }
 
+// v4.127.0 — Electronics / mobile: IMEI / serial + warranty on the bill line (AU-13, docs/VERTICAL_PLAN.md A6).
+{
+  assert(verticalSwitches({ vertical: 'hardware', gst: false }).bill_serial_warranty && !verticalSwitches({ vertical: 'grocery', gst: false }).bill_serial_warranty
+    && DEFAULT_FEATURE_SWITCHES.bill_serial_warranty === false,
+    'IMEI / warranty on the bill: on for electronics & mobile only (old shops: off)');
+  const em = readSource('components/billing/PosItemEditModal.tsx');
+  assert(em.includes('data-line-imei') && em.includes('data-line-warranty') && em.includes('useFeatureSwitches().bill_serial_warranty')
+    && readSource('components/billing/posCartActions.ts').includes('...(extra || {}),'),
+    'Counter ✏️: IMEI / serial and warranty months for that line, saved on it (A4 + thermal print them)');
+}
+
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.
 Promise.allSettled(pendingAsyncChecks).then((results) => {
   for (const r of results) if (r.status === 'rejected') assert(false, 'An async check threw', String(r.reason));

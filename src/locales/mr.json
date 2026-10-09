@@ -3099,5 +3099,11 @@
   "Batch {batch}": "बॅच {batch}",
   "Expired": "एक्सपायर",
   "Expiring soon": "लवकरच एक्सपायर",
-  "Pharmacy: batch no. and expiry month on medicines (printed on the bill), a warning when an expired medicine is added, a list of medicines expiring in 90 days on Inventory, and patient / doctor name on the bill.": "फार्मसी: औषधांवर बॅच नंबर आणि एक्सपायरी महिना (बिलावर छापला जातो), एक्सपायर औषध जोडल्यावर इशारा, इन्व्हेंटरीवर 90 दिवसांत एक्सपायर होणाऱ्या औषधांची यादी, आणि बिलावर रुग्ण / डॉक्टरचे नाव."
+  "Pharmacy: batch no. and expiry month on medicines (printed on the bill), a warning when an expired medicine is added, a list of medicines expiring in 90 days on Inventory, and patient / doctor name on the bill.": "फार्मसी: औषधांवर बॅच नंबर आणि एक्सपायरी महिना (बिलावर छापला जातो), एक्सपायर औषध जोडल्यावर इशारा, इन्व्हेंटरीवर 90 दिवसांत एक्सपायर होणाऱ्या औषधांची यादी, आणि बिलावर रुग्ण / डॉक्टरचे नाव.",
+  "IMEI / serial & warranty on the bill": "बिलावर IMEI / सिरीयल आणि वॉरंटी",
+  "On the counter, each item line can carry its IMEI / serial no. and warranty months, printed on the bill.": "काउंटरवर प्रत्येक ओळीत तिचा IMEI / सिरीयल नंबर आणि वॉरंटी (महिने), बिलावर छापले जातात.",
+  "IMEI / Serial No.": "IMEI / सिरीयल नंबर",
+  "Scan or type": "स्कॅन करा किंवा लिहा",
+  "Warranty (months)": "वॉरंटी (महिने)",
+  "Electronics & mobile shops: the ✏️ on a bill line takes the IMEI / serial no. and warranty months of that piece, printed on the bill.": "इलेक्ट्रॉनिक्स आणि मोबाइल दुकाने: बिल ओळीच्या ✏️ मध्ये त्या पीसचा IMEI / सिरीयल नंबर आणि वॉरंटी (महिने), बिलावर छापले जातात."
 }

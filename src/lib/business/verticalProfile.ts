@@ -70,6 +70,7 @@ const SHOP: Base = {
   product_barcode: true,
   product_batch_expiry: false,
   bill_prescription: false,
+  bill_serial_warranty: false,
 };
 
 /**
@@ -84,7 +85,7 @@ export const VERTICAL_BASE: Record<VerticalId, Base> = {
   // Price tags, sizes / colours.
   clothing: { ...SHOP, product_size_colour: true, product_variants: true },
   // Electronics & mobile: models in variants (128 GB / 256 GB, colour).
-  hardware: { ...SHOP, product_variants: true },
+  hardware: { ...SHOP, product_variants: true, bill_serial_warranty: true },
   retail: { ...SHOP },
   // Tables & KOT; dishes are never counted; one GST % from Restaurant Set-up.
   restaurant: {

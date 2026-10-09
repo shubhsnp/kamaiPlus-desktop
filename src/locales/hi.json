@@ -3099,5 +3099,11 @@
   "Batch {batch}": "बैच {batch}",
   "Expired": "एक्सपायर",
   "Expiring soon": "जल्द एक्सपायर",
-  "Pharmacy: batch no. and expiry month on medicines (printed on the bill), a warning when an expired medicine is added, a list of medicines expiring in 90 days on Inventory, and patient / doctor name on the bill.": "फार्मेसी: दवाइयों पर बैच नंबर और एक्सपायरी महीना (बिल पर छपता है), एक्सपायर दवाई जोड़ने पर चेतावनी, इन्वेंटरी पर 90 दिन में एक्सपायर होने वाली दवाइयों की सूची, और बिल पर मरीज़ / डॉक्टर का नाम।"
+  "Pharmacy: batch no. and expiry month on medicines (printed on the bill), a warning when an expired medicine is added, a list of medicines expiring in 90 days on Inventory, and patient / doctor name on the bill.": "फार्मेसी: दवाइयों पर बैच नंबर और एक्सपायरी महीना (बिल पर छपता है), एक्सपायर दवाई जोड़ने पर चेतावनी, इन्वेंटरी पर 90 दिन में एक्सपायर होने वाली दवाइयों की सूची, और बिल पर मरीज़ / डॉक्टर का नाम।",
+  "IMEI / serial & warranty on the bill": "बिल पर IMEI / सीरियल और वारंटी",
+  "On the counter, each item line can carry its IMEI / serial no. and warranty months, printed on the bill.": "काउंटर पर हर लाइन में उसका IMEI / सीरियल नंबर और वारंटी (महीने), बिल पर छपते हैं।",
+  "IMEI / Serial No.": "IMEI / सीरियल नंबर",
+  "Scan or type": "स्कैन करें या लिखें",
+  "Warranty (months)": "वारंटी (महीने)",
+  "Electronics & mobile shops: the ✏️ on a bill line takes the IMEI / serial no. and warranty months of that piece, printed on the bill.": "इलेक्ट्रॉनिक्स और मोबाइल दुकानें: बिल लाइन के ✏️ में उस पीस का IMEI / सीरियल नंबर और वारंटी (महीने), बिल पर छपते हैं।"
 }

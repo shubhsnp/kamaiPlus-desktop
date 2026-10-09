@@ -7,6 +7,7 @@ import { cn, formatINR } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
 import { dozenFromPieces, formatCartQty, lineAmountPaise, piecesInDozen, roundQty } from '@/lib/billing/unitQuantity';
 import { getQuantityConfigForUnit } from './posQuantityConfig';
+import { useFeatureSwitches } from '@/lib/features/featureSwitches';
 
 export interface PosItemEditModalProps {
   editingCartItem: CartItem | null;
@@ -20,7 +21,8 @@ export interface PosItemEditModalProps {
   setEditItemDiscountType: (type: "flat" | "percentage") => void;
   editItemDiscount: string;
   setEditItemDiscount: (val: string) => void;
-  handleSaveEditItem: () => void;
+  /** v4.127.0: the line's IMEI / serial and warranty (electronics) come back with the save. */
+  handleSaveEditItem: (extra?: Pick<CartItem, 'imei_serial' | 'warranty_period_months'>) => void;
 }
 
 export const PosItemEditModal: React.FC<PosItemEditModalProps> = ({
@@ -41,7 +43,16 @@ export const PosItemEditModal: React.FC<PosItemEditModalProps> = ({
   const [pieces, setPieces] = useState('');
   // Strip items (Pharmacy): loose tablets typed here convert to fractional strips (e.g. 3 tabs of 10 = 0.3 strip).
   const [tablets, setTablets] = useState('');
-  useEffect(() => { setPieces(''); setTablets(''); }, [editingCartItem]);
+  // v4.127.0 (AU-13): IMEI / serial + warranty of THIS piece (electronics / mobile shops).
+  const serialOn = useFeatureSwitches().bill_serial_warranty;
+  const [serial, setSerial] = useState('');
+  const [warranty, setWarranty] = useState('');
+  useEffect(() => {
+    setPieces(''); setTablets('');
+    setSerial(editingCartItem?.imei_serial || '');
+    setWarranty(editingCartItem?.warranty_period_months ? String(editingCartItem.warranty_period_months) : '');
+  }, [editingCartItem]);
+  const saveLine = () => handleSaveEditItem(serialOn ? { imei_serial: serial.trim() || undefined, warranty_period_months: Math.min(120, parseInt(warranty, 10) || 0) || undefined } : undefined);
 
   if (!editingCartItem) return null;
 
@@ -238,11 +249,24 @@ export const PosItemEditModal: React.FC<PosItemEditModalProps> = ({
           })()}
         </div>
 
+        {serialOn && (
+          <div className="grid grid-cols-3 gap-2" data-line-serial>
+            <div className="col-span-2">
+              <label className="block text-[11px] font-bold text-slate-600 mb-1">{tr('IMEI / Serial No.')}</label>
+              <Input value={serial} onChange={(e) => setSerial(e.target.value.toUpperCase().replace(/[^0-9A-Z/-]/g, '').slice(0, 40))} placeholder={tr('Scan or type')} data-line-imei />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-slate-600 mb-1">{tr('Warranty (months)')}</label>
+              <Input type="number" min="0" max="120" value={warranty} onChange={(e) => setWarranty(e.target.value.replace(/\D/g, '').slice(0, 3))} data-line-warranty />
+            </div>
+          </div>
+        )}
+
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="outline" size="sm" onClick={() => setEditingCartItem(null)}>
             {tr('Cancel')}
           </Button>
-          <Button size="sm" onClick={handleSaveEditItem} className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold">
+          <Button size="sm" onClick={saveLine} className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold">
             {tr('Update Line Item')}
           </Button>
         </div>

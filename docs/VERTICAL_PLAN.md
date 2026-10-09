@@ -61,7 +61,7 @@
 | A4 | Sample data har vertical: GST 2.0 rate (sirf GSTIN par), retail = general items, kapde mein variants, restaurant unlimited, electronics 10, sahi hint, sirf vertical ki categories; units strip / plate / portion | AU-03, 08, 16, 21, 26, 29, 30 | ✅ v4.121.0 `054b4d3` |
 | AU-01 | Admin-delete wipe: backup pehle, startup intezaar nahi, sirf is PC ki dukaan | AU-01 | ✅ v4.122.0 |
 | A5 | Pharmacy: batch no. + expiry (item, bill line, bill print, expiry alert) + doctor / patient (bill) | AU-22, AU-13 | ✅ v4.126.0 |
-| A6 | Electronics: IMEI / serial + warranty bill line par | AU-13 | ⬜ |
+| A6 | Electronics: IMEI / serial + warranty bill line par | AU-13 | ✅ v4.127.0 |
 | A7 | Restaurant: KOT printer chunna; printer nahi = "sent" nahi | AU-31 | ✅ v4.123.0 `e149c99` |
 | AU batch | AU-02 restore poora, AU-05/18 lookup sirf Google, AU-09, AU-17 Day Summary khata, AU-19 estimate text, AU-23 HSN + unit, AU-27 placeholder, AU-32 restaurant terms | — | ✅ v4.124.0 |
 | A8 | Category cards sach bolein; Bible / contract / FUTURE_SCOPE update | AU-13, AU-20, AU-28 | ⬜ |
@@ -187,3 +187,8 @@
 - Bill: A4 `lineMeta` Batch / Exp, details Patient / Dr; thermal Batch / Exp + IMEI line.
 - Inventory `ExpiryAlertsCard`.
 - Baaki (A5 se bahar): batch-wise stock (ek item ke kai batch) — abhi item par ek batch, jaise Android. Excel import mein Batch / Expiry column — baad mein.
+
+### A6 — kya hua (2026-10-10)
+- Switch `bill_serial_warranty` (electronics on) + Admin Console list.
+- `PosItemEditModal` mein IMEI / Serial No. + Warranty (months) (sirf switch on); `handleSaveEditItem(extra)` line par likhta. A4 `lineMeta` aur thermal (A5 mein) pehle se chhaapte.
+- Agla: AU-13 cards + A8 docs, phir B1 / B2 / C1 (Android), phir poora Electron audit + 1000+ products.

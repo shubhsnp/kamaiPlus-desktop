@@ -262,7 +262,7 @@ export function createCartActions(deps: CreateCartActionsDeps) {
     setEditItemDiscountType('flat');
   };
 
-  const handleSaveEditItem = () => {
+  const handleSaveEditItem = (extra?: Pick<CartItem, 'imei_serial' | 'warranty_period_months'>) => {
     if (!editingCartItem) return;
 
     // 6 decimals: 7 pcs of a dozen (7/12) still gives the exact paise (lib/billing/unitQuantity.ts).
@@ -309,6 +309,7 @@ export function createCartActions(deps: CreateCartActionsDeps) {
               discount_amount: discountPaise,
               total_amount: lineTotal,
               tax_amount: taxAmt,
+              ...(extra || {}),
             }
           : item
       )

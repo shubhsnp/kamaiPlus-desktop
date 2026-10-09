@@ -54,7 +54,7 @@ export interface PosCounterDialogsProps {
   selectedCustomer: Customer | undefined;
   getTotalCartQuantityForProduct: (productId: string, productName?: string | undefined) => number;
   addToCart: (product: Product, quantityToAdd?: number) => void;
-  handleSaveEditItem: () => void;
+  handleSaveEditItem: (extra?: Pick<CartItem, 'imei_serial' | 'warranty_period_months'>) => void;
   focusProductSearch: () => number;
   handleSaveQuickAddItem: (e: React.FormEvent) => Promise<void>;
   grandTotalPaise: number;
