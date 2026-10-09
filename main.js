@@ -236,6 +236,9 @@ function enqueuePrintJob(job) {
 
 class StepTimeout extends Error {}
 
+/** How long a silent print may take to answer before it is given up (v4.131.0). */
+const SILENT_PRINT_TIMEOUT_MS = 45000;
+
 function withTimeout(promise, ms) {
   let timer;
   return Promise.race([
@@ -357,7 +360,7 @@ async function printJob(opts) {
       || (paper === 'thermal-80' || paper === 'thermal-58'
         ? await thermalPageSize(job.win, paper === 'thermal-80' ? 80 : 58)
         : 'A4');
-    const result = await new Promise((resolve) => {
+    const printing = new Promise((resolve) => {
       job.win.webContents.print(
         {
           silent: Boolean(silent),
@@ -369,7 +372,18 @@ async function printJob(opts) {
         (success, failureReason) => resolve({ ok: success, error: success ? undefined : failureReason })
       );
     });
-    return result;
+    // v4.131.0: a silent job that never answers (a "Save as PDF" printer waiting on a hidden
+    // prompt, a hung driver) blocked the print queue — every later bill, KOT and label waited
+    // until a restart. It now gives up, the print window is recreated and the queue moves on.
+    // A print with the Windows dialog has no limit: the shopkeeper may take their time there.
+    if (!silent) return await printing;
+    try {
+      return await withTimeout(printing, SILENT_PRINT_TIMEOUT_MS);
+    } catch (err) {
+      if (!(err instanceof StepTimeout)) throw err;
+      resetPrintWindow();
+      return { ok: false, error: `The printer "${deviceName || 'default'}" did not answer. Check it is on and has paper (a "Print to PDF" printer cannot print bills).` };
+    }
   } catch (err) {
     return { ok: false, error: err && err.message ? err.message : 'Printing failed.' };
   } finally {

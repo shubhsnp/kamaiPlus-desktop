@@ -4882,6 +4882,19 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
   assert(d.cashRefunds === 2000 && d.netCashInTillPaise === 8000, 'Day Summary: a ₹20 cash refund (even of a UPI bill) leaves the drawer: ₹100 cash − ₹20 = ₹80 in hand');
 }
 
+// v4.131.0 — Electron E2E: a KOT went to "Microsoft Print to PDF" (silent print waits on a hidden Save-as
+// prompt) and never answered — the print queue is one at a time, so every later bill / KOT / label waited
+// until a restart. A silent print now gives up after a limit; the dialog print keeps no limit.
+{
+  const mj = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+  const job = mj.slice(mj.indexOf('async function printJob('), mj.indexOf("ipcMain.handle('kp:get-printers'"));
+  assert(/const SILENT_PRINT_TIMEOUT_MS = \d+/.test(mj) && job.includes('if (!silent) return await printing;')
+    && job.includes('withTimeout(printing, SILENT_PRINT_TIMEOUT_MS)') && job.includes('resetPrintWindow()'),
+    'Printing: a silent job that never answers is given up and the print window recreated — later prints are not stuck');
+  const e2e = fs.readFileSync(path.join(__dirname, 'electron_e2e.mjs'), 'utf8');
+  assert(e2e.includes("thermalPrinter: '', a4Printer: ''"), 'Electron E2E: the restaurant KOT check runs with no printer chosen (never a real printer)');
+}
+
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.
 Promise.allSettled(pendingAsyncChecks).then((results) => {
   for (const r of results) if (r.status === 'rejected') assert(false, 'An async check threw', String(r.reason));

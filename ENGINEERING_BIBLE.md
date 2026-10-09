@@ -1672,7 +1672,7 @@ Each was a real bug that cost real time. The test suite guards most of them.
 | 7 | **Invoice numbers skipped on a failed bill.** | Two-phase reserve → commit (§6.2). |
 | 8 | **Thermal printer garbled ₹ and bullets.** | `escpos.ts` transliterates to ASCII; never send raw UTF-8. Suite 4. |
 | 9 | **Cold print took ~5 s on the first bill of the day.** | `main.js` keeps one hidden print window, warms the PDF engine 1.5 s after launch, and queues jobs. |
-| 10 | **A hung print job blocked every later bill.** | `withTimeout` + `withPrintRecovery` recreate the window and retry once. |
+| 10 | **A hung print job blocked every later bill.** | `withTimeout` + `withPrintRecovery` recreate the window and retry once (loading the page). v4.131.0 (AU-36): the `webContents.print` call itself had no limit — a silent job to "Microsoft Print to PDF" / a hung driver never answered and the serial queue stopped every later bill, KOT and label. A silent print now gives up after `SILENT_PRINT_TIMEOUT_MS` (45 s), recreates the window and returns an error; a print with the Windows dialog keeps no limit. |
 | 11 | **Estimates counted as revenue** in reports/GST. | `isEstimate()` / `isRevenueSale()` in `saleMath.ts`. Suites 20–21. |
 | 12 | **Profit shown to counter staff.** | `cashierPrivacy.ts` owner PIN + `<ProfitMask>`. |
 | 13 | **Re-seeding a deliberately emptied catalog.** | `kamai_products_manually_cleared` flag. |

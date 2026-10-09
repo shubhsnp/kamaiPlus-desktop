@@ -1629,6 +1629,12 @@ async function run() {
       let step = 'start';
       try {
         await openShop(page);
+        // The counter test chose this PC's first Windows printer as the bill printer; a restaurant
+        // with no KOT printer is what is tested here (and the test never prints on a real printer).
+        await page.evaluate(() => {
+          const ps = JSON.parse(localStorage.getItem('kamai_print_settings') || '{}');
+          localStorage.setItem('kamai_print_settings', JSON.stringify({ ...ps, thermalPrinter: '', a4Printer: '' }));
+        });
         step = 'redirect';
         await page.evaluate(() => { window.location.href = '/billing/'; });
         const tables = page.locator('[data-restaurant-screen="tables"]');

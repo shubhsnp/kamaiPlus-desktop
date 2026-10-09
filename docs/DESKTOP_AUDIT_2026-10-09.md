@@ -50,6 +50,7 @@ Desktop v4.118.0 – v4.127.0 mein sab findings theek (status column). Baaki: AU
 | AU-04 | **Store setup mein "Cafe / Restaurant" chunne par restaurant mode nahi aata** — asli app: menu mein Billing POS, Barcode Studio, Inventory & Stock (retail jaisa). Tables / KOT sirf Admin Console se. Faisla: restaurant chunte hi mode on ho, ya card par likho "KamaiPlus support chalu karega". | `onboardingSubmit.ts` CATEGORY_INITIAL_SWITCHES | fixed v4.118.0 |
 | AU-33 | **Sales Return dobara kholne par pichhla "Sales Return Completed" dikhta** — bill A ka return → Done → bill B par Return dabao: bill B ke items ki jagah A ka "Credit Note RET-0001 … generated" screen. Dukaandar samjhe B ka return ho gaya. (Window mounted rehti hai, band karne par state saaf nahi hoti.) Stress test se mila. | `src/components/sales/SalesReturnModal.tsx` | fixed v4.129.0 |
 | AU-34 | **Split par 1 paisa galat (paisa).** "Split" dabate hi 50 / 50 bharta tha `total / 200` se: ₹2.01 → 1.005 + 1.005 → save ₹1.00 + ₹1.00 → bacha 1 paisa grahak ke **udhar** mein (7 % odd totals), baaki odd totals par bill par ₹0.01 "change". Screen "Matched Exactly" dikhata. ("50% Cash + 50% UPI" preset button pehle se paise mein sahi tha.) Stress test se mila. | `src/components/billing/PosCheckoutFooter.tsx` | fixed v4.130.0 |
+| AU-36 | **Ek atka print = saari printing band.** Silent print ka koi time limit nahi tha, aur print queue ek-ek karke chalti hai. Printer "Microsoft Print to PDF" (chhupa Save-as box) ya atka driver → jawab kabhi nahi → uske baad har bill / KOT / label restart tak ruka; KOT button "busy". Electron E2E se mila (KOT asli printer par gaya). Ab silent print 45 s mein chhod deta hai, window nayi, queue aage. | `main.js` printJob | fixed v4.131.0 |
 
 ## 🟡 P2
 
@@ -109,6 +110,9 @@ Desktop v4.118.0 – v4.127.0 mein sab findings theek (status column). Baaki: AU
 | Console / page error poore din | 0 ✅ |
 | Restart → password → sab data | 300 bills + 1,200 items ✅ |
 
+**Antim run v4.130.0 — 15 / 15 PASS:** 293 bills + 7 estimates · 24 split (cash + UPI) bills, hisse = bill · 19 udhar grahak, khata = balance · 5 returns (2 udhar, 3 cash / UPI) · Day Summary ₹2,60,253.63 = cash ₹1,49,547.62 + UPI ₹72,329.99 + udhar ₹38,376.02; cash in hand ₹1,49,364.62 = DB drawer · Home 290 bills (3 poore wapas bahar) · GST ₹16,941.81 · 0 console error · restart OK.
+**Is test se mile bug:** AU-33 (return window purana screen), AU-34 (split 1 paisa udhar), AU-35 (Day Summary refund = "expenses"). Android ke liye AU-A3.
+
 **Speed (1,200 items, 300 bills ke baad bhi):** scan → line ~40 ms · Complete Sale median 115 ms, p95 183 ms · Estimate 84 ms · Products / Inventory / Billing / Reports page 0.2–0.35 s · unlock → home 0.4 s.
 
 ## Android (baad mein — yahan sirf note)
@@ -117,3 +121,4 @@ Desktop v4.118.0 – v4.127.0 mein sab findings theek (status column). Baaki: AU
 |---|---|---|
 | AU-A1 | Har bill / product / customer cloud mein **do baar** likha jaata (`businesses/<id>/…` + root `sales` / `products` / `customers` purane band admin portal ke liye) — Firestore kharcha double. | open |
 | AU-A2 | Test phone par "Stay awake" (`svc power stayon usb`) on reh gaya — agli baar phone jodne par band karna. | open |
+| AU-A3 | Split 50 / 50 pehle se bharta hai **poore rupaye** mein aur discount se pehle ke total se (`pos_checkout_modal.dart` 213 / 444: `(grossCartPaise / 100).ceil()`): ₹69.01 → 35 + 35 = ₹70 → "Split total exceeds bill" — har paise / discount wale bill par cashier ko "Auto" dabana padta. Paisa nahi jaata (rokta hai), par asli dukaan mein pareshani. Desktop ki tarah paise mein, grand total se. | open (Android pass) |

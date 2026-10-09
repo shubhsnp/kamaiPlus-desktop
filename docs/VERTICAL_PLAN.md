@@ -210,4 +210,7 @@
 - `full_live_audit.mjs` / `stress_1000_audit.mjs`: hata hua Features tab ki jagah switches localStorage mein.
 - **AU-34 (paisa, fixed v4.130.0):** Split button ka 50 / 50 `total / 200` → ₹2.01 par 1 paisa udhar. Ab paise mein.
 - **AU-35 (fixed v4.130.0):** Day Summary "After ₹915 expenses" jabki ₹915 return refunds the; ab "paid out (₹X return refunds)". Drawer ka number pehle bhi sahi tha.
+- **AU-36 (fixed v4.131.0):** atka silent print poori print queue rokta tha (Electron E2E: KOT "Microsoft Print to PDF" par). Ab 45 s limit. E2E restaurant hissa ab bina printer (asli printer par kabhi nahi).
+- Electron E2E v4.130: 134 / 135 (sirf yahi KOT); smoke 52 / 52.
+- Android AU-A3 (split paise mein) — code + `test/split_math_test.dart` likha, commit Android pass mein.
 
