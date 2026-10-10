@@ -3151,5 +3151,18 @@
   "No kitchen printer here — KOT sent to the KOT PC ({label})": "इथे किचन प्रिंटर नाही — KOT, KOT च्या PC ला पाठवला ({label})",
   "KOT sent to PC": "KOT PC ला पाठवला",
   "Restaurant on many devices: with cloud sync on, the running orders of every table and parcel are the same on this PC and the waiters' phones (same Google account) — what one adds, the other sees in seconds; a paid order leaves all. Set-up → \"Print KOTs from the waiters' phones on this PC\" makes this PC print the KOTs a phone sends to the kitchen.": "अनेक डिव्हाइसवर रेस्टॉरंट: क्लाउड सिंक चालू असताना प्रत्येक टेबल आणि पार्सलचे चालू ऑर्डर या PC वर आणि वेटरच्या फोनवर (एकच Google खाते) सारखे राहतात — एकाने जोडले की दुसऱ्याला काही सेकंदात दिसते; बिल झाले की ऑर्डर सगळीकडून जाते. सेट-अप → \"वेटरच्या फोनचे KOT या PC वर छापा\" चालू केल्यावर फोनने पाठवलेले KOT हा PC छापतो.",
-  "PC + phone on one Google account now show the same business category: a shop set up on this PC before v4.137 had gone to the cloud as \"Kirana\" — its real category goes up now, and the phone follows it (with its items).": "एका Google खात्यावर PC + फोन आता एकच व्यवसाय कॅटेगरी दाखवतात: v4.137 पूर्वी या PC वर बनलेले दुकान क्लाउडमध्ये \"किराणा\" म्हणून गेले होते — आता त्याची खरी कॅटेगरी जाते, आणि फोनही तीच घेतो (आयटमसह)."
+  "PC + phone on one Google account now show the same business category: a shop set up on this PC before v4.137 had gone to the cloud as \"Kirana\" — its real category goes up now, and the phone follows it (with its items).": "एका Google खात्यावर PC + फोन आता एकच व्यवसाय कॅटेगरी दाखवतात: v4.137 पूर्वी या PC वर बनलेले दुकान क्लाउडमध्ये \"किराणा\" म्हणून गेले होते — आता त्याची खरी कॅटेगरी जाते, आणि फोनही तीच घेतो (आयटमसह).",
+  "Sign in with the Google account again (Backup & Restore), then try again.": "Google खात्याने पुन्हा साइन इन करा (बॅकअप आणि रिस्टोअर), मग पुन्हा प्रयत्न करा.",
+  "This Google account is not a test account.": "हे Google खाते टेस्ट खाते नाही.",
+  "Could not reset the test shop ({code}). Please try again.": "टेस्ट दुकान रीसेट झाले नाही ({code}). कृपया पुन्हा प्रयत्न करा.",
+  "Reset test shop": "टेस्ट दुकान रीसेट करा",
+  "Test account": "टेस्ट खाते",
+  "{email} is a test account. This erases the whole shop from the cloud and from this computer, so you can sign up again from the start. The Gmail stays usable. The licence on this computer is kept.": "{email} हे टेस्ट खाते आहे. यामुळे संपूर्ण दुकान क्लाउड आणि या कॉम्प्युटरवरून मिटेल, म्हणजे तुम्ही सुरुवातीपासून पुन्हा साइन अप करू शकता. Gmail चालू राहील. या कॉम्प्युटरचे लायसन्स राहील.",
+  "Everything of this shop is erased: cloud and this computer.": "या दुकानाचे सर्व काही मिटेल: क्लाउड आणि हा कॉम्प्युटर.",
+  "Other phones / computers signed in with this Gmail: press \"Reset test shop\" there too before you sign up again, or their old data goes back up.": "या Gmail ने जोडलेल्या इतर फोन / कॉम्प्युटरवरही पुन्हा साइन अप करण्यापूर्वी \"टेस्ट दुकान रीसेट करा\" दाबा, नाहीतर त्यांचा जुना डेटा पुन्हा क्लाउडवर जाईल.",
+  "A backup file is saved in Documents\\KamaiPlus first.": "आधी Documents\\KamaiPlus मध्ये एक बॅकअप फाइल सेव्ह होईल.",
+  "Resetting…": "रीसेट होत आहे…",
+  "Log out": "लॉग आउट",
+  "Logging out closes the shop on this computer. The shop's data stays here, and the master password opens it again.": "लॉग आउट केल्याने या कॉम्प्युटरवर दुकान बंद होते. दुकानाचा डेटा इथेच राहतो, आणि मास्टर पासवर्डने ते पुन्हा उघडते.",
+  "Settings: the profile's \"Log out\" now says what it does — the same shop opens again with the master password (it never switched to another shop).": "सेटिंग्ज: प्रोफाइलचे \"लॉग आउट\" आता स्पष्ट सांगते की ते काय करते — तेच दुकान मास्टर पासवर्डने पुन्हा उघडते (ते कधीच दुसऱ्या दुकानावर जात नव्हते)."
 }

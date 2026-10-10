@@ -24,6 +24,7 @@ import { ResetSalesModal } from './ResetSalesModal';
 import { FactoryResetModal } from './FactoryResetModal';
 import { ClearProductsModal } from './ClearProductsModal';
 import { DataHealthSummaryCards } from './DataHealthSummaryCards';
+import { TestShopResetCard } from './TestShopResetCard';
 
 interface DataMaintenanceTabProps {
   business: Business | null | undefined;
@@ -235,6 +236,9 @@ export const DataMaintenanceTab: React.FC<DataMaintenanceTabProps> = ({ business
           </button>
         </div>
       </Card>
+
+      {/* v4.142.0: only for the team's test Google accounts (the server decides) */}
+      <TestShopResetCard />
 
       {/* Backup Recommendation Card */}
       <Card className="p-4 bg-gradient-to-r from-sky-50/50 to-indigo-50/50 dark:from-sky-950/20 dark:to-indigo-950/20 border border-sky-200/70 dark:border-sky-800/60 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">

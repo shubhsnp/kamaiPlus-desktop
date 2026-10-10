@@ -299,7 +299,9 @@ export const Navbar: React.FC = () => {
                   className="w-full text-left px-3 py-2 text-xs text-rose-600 hover:bg-rose-50 rounded-lg flex items-center gap-2.5 font-bold mt-1 border-t border-slate-100 cursor-pointer"
                 >
                   <LogOut className="w-4 h-4 text-rose-500" />
-                  <span>{tr('Log Out / Switch Account')}</span>
+                  {/* v4.142.0: it never switched the shop — the same shop opens again with the password. */}
+                  <span className="flex-1">{tr('Log out')}</span>
+                  <span className="text-[10px] font-normal text-rose-400">{tr('password to open again')}</span>
                 </button>
               </div>
 

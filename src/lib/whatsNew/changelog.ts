@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.142.0',
+    items: [
+      msg('Settings: the profile\'s "Log out" now says what it does — the same shop opens again with the master password (it never switched to another shop).'),
+    ],
+  },
+  {
     version: '4.141.0',
     items: [
       msg('PC + phone on one Google account now show the same business category: a shop set up on this PC before v4.137 had gone to the cloud as "Kirana" — its real category goes up now, and the phone follows it (with its items).'),

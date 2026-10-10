@@ -616,69 +616,75 @@ async function runAdminCommand(cmd) {
         ok: true,
         note: 'Wiping all app data and resetting computer',
         after: () => {
-          setTimeout(async () => {
-            try {
-              if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.loadURL('about:blank');
-              }
-            } catch (e) {
-              console.error('Failed to navigate mainWindow to blank', e);
-            }
-            try {
-              if (session && session.defaultSession) {
-                await session.defaultSession.clearStorageData();
-              }
-            } catch (e) {
-              console.error('Failed to clear session storage data', e);
-            }
-            const userData = app.getPath('userData');
-            const filesToDelete = [
-              'licence.json',
-              'licence.blocked.json',
-              'licence_clock.json',
-              'admin_control.json',
-              'admin_commands.json',
-              'admin_messages.json',
-              'shop_counts.json',
-              'auto_backup_state.json',
-              'kamai_cloud_state.json',
-              'cash_drawer.json',
-              'app_errors.json'
-            ];
-            for (const file of filesToDelete) {
-              try {
-                const fullPath = path.join(userData, file);
-                if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
-              } catch (e) {
-                console.error('Failed to delete', file, e);
-              }
-            }
-            const dirsToDelete = [
-              'IndexedDB',
-              'Local Storage',
-              'Session Storage',
-              'blob_storage',
-              'Cache',
-              'Code Cache',
-              'GPUCache'
-            ];
-            for (const dir of dirsToDelete) {
-              try {
-                const fullPath = path.join(userData, dir);
-                if (fs.existsSync(fullPath)) fs.rmSync(fullPath, { recursive: true, force: true });
-              } catch (e) {
-                console.error('Failed to remove dir', dir, e);
-              }
-            }
-            app.relaunch();
-            app.exit(0);
-          }, 1500);
+          setTimeout(() => wipeAppDataAndRelaunch(), 1500);
         }
       };
     }
     default:
       return { ok: false, note: 'Unknown command' };
   }
+}
+
+// The Admin's "wipe_and_reset" (everything, licence too) and v4.142.0 "Reset test shop" (keepLicence: the
+// test PC stays activated): empties the app like a new install, then starts it again.
+const LICENCE_FILES = ['licence.json', 'licence.blocked.json', 'licence_clock.json'];
+async function wipeAppDataAndRelaunch({ keepLicence = false } = {}) {
+  try {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.loadURL('about:blank');
+    }
+  } catch (e) {
+    console.error('Failed to navigate mainWindow to blank', e);
+  }
+  try {
+    if (session && session.defaultSession) {
+      await session.defaultSession.clearStorageData();
+    }
+  } catch (e) {
+    console.error('Failed to clear session storage data', e);
+  }
+  const userData = app.getPath('userData');
+  const filesToDelete = [
+    'licence.json',
+    'licence.blocked.json',
+    'licence_clock.json',
+    'admin_control.json',
+    'admin_commands.json',
+    'admin_messages.json',
+    'shop_counts.json',
+    'auto_backup_state.json',
+    'kamai_cloud_state.json',
+    'cash_drawer.json',
+    'app_errors.json'
+  ];
+  for (const file of filesToDelete) {
+    if (keepLicence && LICENCE_FILES.includes(file)) continue;
+    try {
+      const fullPath = path.join(userData, file);
+      if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
+    } catch (e) {
+      console.error('Failed to delete', file, e);
+    }
+  }
+  const dirsToDelete = [
+    'IndexedDB',
+    'Local Storage',
+    'Session Storage',
+    'blob_storage',
+    'Cache',
+    'Code Cache',
+    'GPUCache'
+  ];
+  for (const dir of dirsToDelete) {
+    try {
+      const fullPath = path.join(userData, dir);
+      if (fs.existsSync(fullPath)) fs.rmSync(fullPath, { recursive: true, force: true });
+    } catch (e) {
+      console.error('Failed to remove dir', dir, e);
+    }
+  }
+  app.relaunch();
+  app.exit(0);
 }
 
 let commandsRunning = false;
@@ -798,6 +804,12 @@ const backupPaths = () => ({ documentsRoot: documentsRoot(), userDataDir: app.ge
 ipcMain.handle('kp:backup-write', async (_event, opts) =>
   backup.writeBackup({ ...backupPaths(), json: opts && opts.json, shopName: opts && opts.shopName })
 );
+
+// v4.142.0 "Reset test shop": the page has already erased the cloud shop (resetTestShop function).
+ipcMain.handle('kp:test-shop-reset', async () => {
+  setTimeout(() => wipeAppDataAndRelaunch({ keepLicence: true }), 300);
+  return { ok: true };
+});
 
 ipcMain.handle('kp:backup-info', async () => backup.getInfo(backupPaths()));
 

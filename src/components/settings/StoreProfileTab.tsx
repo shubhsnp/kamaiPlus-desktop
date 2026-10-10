@@ -237,7 +237,7 @@ export const StoreProfileTab: React.FC<StoreProfileTabProps> = ({
               {tr('Logged in as')} {ownerName || tr('Merchant')} ({phone || tr('Owner')})
             </div>
             <p className="text-[11px] text-slate-400">
-              {tr('Log out to switch accounts or securely sign in from another phone number / Google account.')}
+              {tr("Logging out closes the shop on this computer. The shop's data stays here, and the master password opens it again.")}
             </p>
           </div>
 

@@ -56,6 +56,7 @@ contextBridge.exposeInMainWorld('kamaiDesktop', {
   installUpdate: () => ipcRenderer.invoke('kp:update-install'),
   checkForUpdates: () => ipcRenderer.invoke('kp:update-check'),
   setBetaUpdates: (on) => ipcRenderer.invoke('kp:update-set-beta', on),
+  resetTestShopDevice: () => ipcRenderer.invoke('kp:test-shop-reset'),
   onUpdateReady: (callback) => {
     const listener = (_event, info) => callback(info);
     ipcRenderer.on('kp:update-ready', listener);

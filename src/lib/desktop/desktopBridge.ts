@@ -171,6 +171,8 @@ export interface KamaiDesktopApi {
   setBetaUpdates(on: boolean): Promise<UpdateStatus>;
   /** Fires once a newer version has finished downloading. Returns an unsubscribe. */
   onUpdateReady(callback: (info: { version: string }) => void): () => void;
+  /** v4.142.0 "Reset test shop": empties this PC like a new install (licence kept) and restarts the app. */
+  resetTestShopDevice?(): Promise<{ ok: boolean }>;
 }
 
 declare global {

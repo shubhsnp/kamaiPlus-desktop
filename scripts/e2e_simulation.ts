@@ -5101,6 +5101,36 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
     'Shop category: checked whenever the shop document arrives; a new cloud shop carries when it was chosen');
 }
 
+// v4.142.0 — "Reset test shop" (Rahul 2026-10-10): only the team's test Gmails (server list
+// admin_settings/test_accounts, checked by the resetTestShop function) can erase their shop from the cloud
+// with NO tombstone, then this PC is emptied like a new install — the licence is kept, a backup is made first.
+{
+  const lib = readSource('lib/cloud/testShopReset.ts');
+  const card = readSource('components/settings/TestShopResetCard.tsx');
+  const tab = readSource('components/settings/DataMaintenanceTab.tsx');
+  const mainSrc = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+  const preloadSrc = fs.readFileSync(path.join(__dirname, '..', 'preload.js'), 'utf8');
+  assert(lib.includes("TEST_SHOP_URL = 'https://us-central1-kamaiplus.cloudfunctions.net/resetTestShop'") && lib.includes('Authorization: `Bearer ${token}`'),
+    'Test shop reset: the server function decides, with the signed-in Google ID token');
+  assert(card.includes('if (!isTest) return null;') && card.includes('isTestShopAccount()') && tab.includes('<TestShopResetCard />'),
+    'Test shop reset: the card shows only when the server says this is a test account');
+  assert(/if \(!cloud\.ok\) return/.test(lib) && lib.indexOf("callTestShop('reset')") < lib.indexOf('runAutoBackup') && lib.indexOf('runAutoBackup') < lib.indexOf('resetTestShopDevice()'),
+    'Test shop reset: cloud first; this PC is emptied only after that worked, and a backup is written before');
+  assert(card.includes("confirmText.trim().toUpperCase() === 'RESET'"), 'Test shop reset: typing RESET is required');
+  assert(/case 'wipe_and_reset'[\s\S]{0,300}wipeAppDataAndRelaunch\(\)/.test(mainSrc) && mainSrc.includes('if (keepLicence && LICENCE_FILES.includes(file)) continue;')
+    && /kp:test-shop-reset[\s\S]{0,120}wipeAppDataAndRelaunch\(\{ keepLicence: true \}\)/.test(mainSrc) && preloadSrc.includes("resetTestShopDevice: () => ipcRenderer.invoke('kp:test-shop-reset')"),
+    'Test shop reset: the PC wipe keeps the licence; the Admin wipe_and_reset still removes everything');
+  pendingAsyncChecks.push((async () => {
+    const { callTestShop, testShopResetMessage } = await import('../src/lib/cloud/testShopReset');
+    let called = false;
+    const r = await callTestShop('reset', (async () => { called = true; return new Response('{}'); }) as any);
+    assert(!r.ok && r.error === 'signed_out' && !called, 'Test shop reset: without this shop Google sign-in nothing is sent');
+    assert(testShopResetMessage('not_test_account').length > 0 && testShopResetMessage('signed_out') !== testShopResetMessage('x'), 'Test shop reset: refusals are explained in the shop words');
+  })());
+  const nav = readSource('components/layout/Navbar.tsx');
+  assert(!nav.includes("tr('Log Out / Switch Account')") && nav.includes("tr('Log out')"), 'Logout no longer promises "Switch Account" (the same shop opens again with the password)');
+}
+
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.
 Promise.allSettled(pendingAsyncChecks).then((results) => {
   for (const r of results) if (r.status === 'rejected') assert(false, 'An async check threw', String(r.reason));

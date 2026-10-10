@@ -289,3 +289,11 @@ Aaj: items, grahak, bills, categories dono taraf; baaki tables sirf Desktop → 
 ### Category conflict (proventurein@, 2026-10-10) — v4.141.0 + Android
 - Mila: Sharma Resturant (PC par restaurant, 9 Oct) cloud mein 'grocery' (purana PC default); phone ne wahi liya; phone har sync par apni lock category cloud par likhta tha, PC kabhi nahi bhejta tha.
 - Ilaaj: cloud `business_type` + `business_type_set_at`; PC: cloud mein bina time wali / purani category ho to apni bhejta, nayi ho to leta (lib/cloud/shopCategory.ts); phone: category lock hai, isliye cloud ki leta (items + categories saath), apni sirf khaali doc mein likhta (shop_category_sync.dart).
+
+### Reset test shop (Rahul 2026-10-10) — Desktop v4.142.0 + Android + Functions + Admin
+- Test Gmails list: Firestore `admin_settings/test_accounts.emails` (proventurein@, rahulvjadhav4@, rahulvjadhav44@, vfxaurangabad@gmail.com). Koi app ise padh nahi sakti; badalna = Firebase console.
+- Function `resetTestShop` (Android repo functions/test_shop_core.js): status / reset; poora `businesses/biz_<uid>` (har subcollection), root copies, merchants, purana tombstone mitata; naya tombstone NAHI, Gmail band NAHI. **Deploy Rahul karega** (Node 22 deploy ke saath ek hi command).
+- Desktop: Settings → Data → "Reset test shop" card (sirf test Gmail par). Cloud pehle; phir backup, phir PC naye install jaisa saaf (licence rehta hai, main.js wipeAppDataAndRelaunch keepLicence).
+- Android: Backup & Restore screen par wahi card; cloud pehle, phir backup, sign-out, poora local data + prefs saaf, login screen.
+- Admin Console: Permanent delete mein "Sirf data saaf karo" checkbox (no tombstone, Gmail chalu); restaurant_orders bhi ab delete hote hain. Admin hosting deploy Rahul karega.
+- Desktop menu: "Log Out / Switch Account" -> "Log out (password to open again)"; woh kabhi dukaan nahi badalta tha.
