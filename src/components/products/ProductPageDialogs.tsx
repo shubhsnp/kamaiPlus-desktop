@@ -77,6 +77,8 @@ export interface ProductPageDialogsProps {
   formBatch: string;
   setFormBatch: React.Dispatch<React.SetStateAction<string>>;
   formExpiry: string;
+  formFoodType: string;
+  setFormFoodType: (v: string) => void;
   setFormExpiry: React.Dispatch<React.SetStateAction<string>>;
   formColor: string;
   setFormColor: React.Dispatch<React.SetStateAction<string>>;
@@ -112,7 +114,7 @@ export function ProductPageDialogs(props: ProductPageDialogsProps) {
     setFormPurchasePrice, formSellingPrice, setFormSellingPrice, formIsLooseItem, setFormIsLooseItem, formIsUnlimitedStock,
     setFormIsUnlimitedStock, formMrp, setFormMrp, formWholesalePrice, setFormWholesalePrice, formTaxRate,
     setFormTaxRate, formStock, setFormStock, formMinStock, setFormMinStock, formBarcode,
-    setFormBarcode, formHsn, setFormHsn, formSize, setFormSize, formBatch, setFormBatch, formExpiry, setFormExpiry, formColor,
+    setFormBarcode, formHsn, setFormHsn, formSize, setFormSize, formBatch, setFormBatch, formExpiry, setFormExpiry, formFoodType, setFormFoodType, formColor,
     setFormColor, formError, variantsEnabled, setVariantsEnabled, variantRows, setVariantRows,
     variantsParent, setVariantsParent, allProducts, categories, business, switches,
     handleBarcodeScanned, handleSaveProduct, handleDeleteProduct, handleOpenEditModal, handleCreateCategory, handleOpenAddModal,
@@ -158,6 +160,8 @@ export function ProductPageDialogs(props: ProductPageDialogsProps) {
         formBatch={formBatch}
         setFormBatch={setFormBatch}
         formExpiry={formExpiry}
+        formFoodType={formFoodType}
+        setFormFoodType={setFormFoodType}
         setFormExpiry={setFormExpiry}
         formColor={formColor}
         setFormColor={setFormColor}

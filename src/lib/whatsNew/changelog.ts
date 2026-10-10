@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.138.0',
+    items: [
+      msg('Restaurant: every dish can carry the Veg / Egg / Non-veg mark (set it on the item) — shown on the menu. New "Sold out today" button on the menu: tap dishes to mark them sold out; they cannot be ordered today, every device of the shop sees it, and they come back by themselves tomorrow.'),
+    ],
+  },
+  {
     version: '4.137.0',
     items: [
       msg('Same Google account on PC and phone: store setup on this PC now waits while it looks for your shop and shows only "Restore" when it finds it (no new-shop form). A new shop set up with a Google account goes to the cloud at once, so the phone opens it instead of asking to sign up. No Google account yet? Store setup offers "Connect Google Account".'),

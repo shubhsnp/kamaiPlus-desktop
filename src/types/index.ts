@@ -166,6 +166,10 @@ export interface Product {
   warranty_period_months?: number; // Brand warranty period
   batch_number?: string; // v4.126.0 pharmacy batch / lot no. (cloud contract §3.2)
   expiry_date?: string; // v4.126.0 expiry month 'YYYY-MM' (lib/products/expiry.ts)
+  /** v4.138.0 restaurant: 'veg' | 'egg' | 'nonveg' (lib/restaurant/dish.ts); same field on the phone. */
+  food_type?: string;
+  /** v4.138.0 restaurant "Aaj khatam": the local day (YYYY-MM-DD) the dish ran out; '' = available. */
+  sold_out_on?: string;
   current_stock: number;
   min_stock_level: number;
   supplier_id?: string;

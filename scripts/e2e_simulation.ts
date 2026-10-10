@@ -89,6 +89,7 @@ import { parseVoids, voidFromOrder, voidsOfDay } from '../src/lib/restaurant/voi
 import { buildCheckBody, shopUpiId } from '../src/lib/restaurant/checkPrint';
 import { defaultTableNames, sanitizeRestaurantSettings } from '../src/lib/restaurant/settings';
 import { parseRestState } from '../src/lib/restaurant/store';
+import { foodTypeOf, isSoldOutToday, localDay, soldOutPatch } from '../src/lib/restaurant/dish';
 import { buildKotBody } from '../src/lib/restaurant/kot';
 import { RESTAURANT_PRESET_OFF, applyRestaurantPreset, restaurantModeFromRaw } from '../src/lib/features/featureSwitches';
 import { RESTAURANT_WORDS } from '../src/lib/restaurant/words';
@@ -4991,6 +4992,30 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
   const ob = readSource('app/onboarding/page.tsx');
   assert(ob.includes('{!showRestoreOnly && !cloudChecking && (') && ob.includes('<CloudLookupNotice') && ob.includes('setTimeout(() => resolve(null), 12000)'),
     'Cross-device: PC store setup shows only "Restore" when the account\'s shop is found, waits (max 12 s) while looking, offers Connect Google otherwise');
+}
+
+// v4.138.0 — Restaurant: veg / egg / non-veg mark and "Aaj khatam" (sold out today, back tomorrow), same fields as
+// the phone (food_type, sold_out_on on the product document).
+{
+  assert(foodTypeOf({ food_type: 'Non-Veg' }) === 'nonveg' && foodTypeOf({ food_type: 'veg' }) === 'veg' && foodTypeOf({}) === null,
+    'Restaurant: food type read from any spelling (Non-Veg → nonveg), none when unset');
+  const late = new Date(2026, 9, 10, 23, 30);
+  assert(localDay(late) === '2026-10-10' && isSoldOutToday({ sold_out_on: '2026-10-10' }, late)
+    && !isSoldOutToday({ sold_out_on: '2026-10-10' }, new Date(2026, 9, 11, 0, 5)),
+    'Restaurant: "Aaj khatam" holds for the shop\'s day only — the dish is back by itself after midnight');
+  assert(soldOutPatch(false).sold_out_on === '', 'Restaurant: "back" is saved as \'\' so the cloud copy clears too (the phone sees it)');
+  const out = toCloud('products', { id: 'p1', name: 'Paneer Tikka', food_type: 'veg', sold_out_on: '2026-10-10', selling_price: 25000 }, { bizId: 'biz_U' });
+  const back = fromCloud('products', { ...out }, null, { bizId: 'biz_U' });
+  assert(out.food_type === 'veg' && out.sold_out_on === '2026-10-10' && back.food_type === 'veg' && back.sold_out_on === '2026-10-10',
+    'Restaurant: food_type / sold_out_on go to the cloud and come back on the product (both apps)');
+  const menu = readSource('components/restaurant/MenuPanel.tsx');
+  assert(menu.includes('<FoodMark type={foodTypeOf(d.product)}') && menu.includes('soldOutPatch(!soldOut(d))') && menu.includes('if (soldOut(d)) return;'),
+    'Restaurant menu: mark on every dish; "Sold out today" mode toggles a dish; a sold-out dish cannot be added');
+  const form = readSource('components/products/ProductFormDetails.tsx');
+  const acts = readSource('components/products/productActions.ts');
+  assert(form.includes('{restaurant && setFormFoodType && <FoodTypePicker') && acts.includes('food_type: foodTypeOf({ food_type: formFoodType }) || undefined')
+    && acts.includes('sold_out_on: editingProduct?.sold_out_on || undefined'),
+    'Product form (Restaurant mode): Veg / Egg / Non-veg saved; an edit keeps "Aaj khatam"');
 }
 
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.

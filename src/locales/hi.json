@@ -3129,5 +3129,12 @@
   "Already using KamaiPlus on your phone?": "क्या आप फ़ोन पर पहले से KamaiPlus चलाते हैं?",
   "Connect the same Google account — your shop opens here with all its items, bills and khata.": "वही Google अकाउंट जोड़ें — आपकी दुकान अपने सारे आइटम, बिल और खाते के साथ यहाँ खुलेगी।",
   "Connecting…": "जोड़ रहे हैं…",
-  "Connect Google Account": "Google अकाउंट जोड़ें"
+  "Connect Google Account": "Google अकाउंट जोड़ें",
+  "Veg": "वेज",
+  "Egg": "अंडा",
+  "Non-veg": "नॉन-वेज",
+  "Veg / Non-veg": "वेज / नॉन-वेज",
+  "Tap dishes to mark them sold out for today (they come back tomorrow)": "डिश पर टैप करें — आज के लिए खत्म हो जाएगी (कल अपने-आप वापस)",
+  "Sold out today": "आज खत्म",
+  "Restaurant: every dish can carry the Veg / Egg / Non-veg mark (set it on the item) — shown on the menu. New \"Sold out today\" button on the menu: tap dishes to mark them sold out; they cannot be ordered today, every device of the shop sees it, and they come back by themselves tomorrow.": "रेस्टोरेंट: हर डिश पर वेज / अंडा / नॉन-वेज का निशान लग सकता है (आइटम में चुनें) — मेन्यू पर दिखता है। मेन्यू पर नया \"आज खत्म\" बटन: डिश पर टैप करें, वह आज ऑर्डर नहीं होगी, दुकान के हर डिवाइस पर दिखेगा, और कल अपने-आप वापस आ जाएगी।"
 }

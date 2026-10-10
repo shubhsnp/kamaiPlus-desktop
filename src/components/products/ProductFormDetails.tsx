@@ -10,6 +10,8 @@ import { ProductBarcodeField } from './ProductBarcodeField';
 import type { VariantRow } from '@/components/products/VariantMatrixEditor';
 import type { FeatureSwitches } from '@/lib/features/featureSwitches';
 import type { Product } from '@/types';
+import { useRestaurantMode } from '@/lib/features/featureSwitches';
+import { FoodTypePicker } from '@/components/restaurant/FoodTypePicker';
 
 export interface ProductFormDetailsProps {
   editingProduct: Product | null;
@@ -38,6 +40,8 @@ export interface ProductFormDetailsProps {
   formBatch: string;
   setFormBatch: (val: string) => void;
   formExpiry: string;
+  formFoodType?: string;
+  setFormFoodType?: (v: string) => void;
   setFormExpiry: (val: string) => void;
   formColor: string;
   setFormColor: (val: string) => void;
@@ -60,11 +64,12 @@ export interface ProductFormDetailsProps {
  * unchanged): prices, barcode / HSN / GST, stock, size / colour and the variants matrix.
  */
 export function ProductFormDetails(props: ProductFormDetailsProps) {
+  const restaurant = useRestaurantMode();
   const {
     editingProduct, formPurchasePrice, setFormPurchasePrice, formSellingPrice, setFormSellingPrice, formIsUnlimitedStock,
     setFormIsUnlimitedStock, formMrp, formWholesalePrice, setFormWholesalePrice, setFormMrp, formTaxRate,
     setFormTaxRate, formStock, setFormStock, formMinStock, setFormMinStock, formBarcode,
-    setFormBarcode, formHsn, setFormHsn, formSize, setFormSize, formBatch, setFormBatch, formExpiry, setFormExpiry, formColor,
+    setFormBarcode, formHsn, setFormHsn, formSize, setFormSize, formBatch, setFormBatch, formExpiry, setFormExpiry, formFoodType, setFormFoodType, formColor,
     setFormColor, onBarcodeScanned, variantsEnabled, setVariantsEnabled, variantRows, setVariantRows,
     setShowSizeColor, sizeColorVisible, switches, showSellingPrice, priceFieldCount, codeFieldCount,
     SM_COLS,
@@ -167,6 +172,9 @@ export function ProductFormDetails(props: ProductFormDetailsProps) {
         )}
       </div>
       )}
+
+      {/* v4.138.0 restaurant: Veg / Egg / Non-veg — the mark on the menu, KOT and bill. */}
+      {restaurant && setFormFoodType && <FoodTypePicker value={formFoodType || ''} onChange={setFormFoodType} />}
 
       {/* v4.126.0 (AU-22): pharmacy batch no. + expiry month, printed on the bill. */}
       {switches.product_batch_expiry && (

@@ -66,6 +66,9 @@ interface AddEditProductModalProps {
   setFormBatch: (val: string) => void;
   formExpiry: string;
   setFormExpiry: (val: string) => void;
+  /** v4.138.0 restaurant: 'veg' | 'egg' | 'nonveg' | '' */
+  formFoodType?: string;
+  setFormFoodType?: (val: string) => void;
   formColor: string;
   setFormColor: (val: string) => void;
   /** A code scanned (USB gun + Enter) into the barcode box — fill name / MRP from the offline list. */
@@ -122,6 +125,8 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
   setFormBatch,
   formExpiry,
   setFormExpiry,
+  formFoodType = '',
+  setFormFoodType,
   formColor,
   setFormColor,
   onBarcodeScanned,
@@ -271,7 +276,7 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
             editingProduct, formPurchasePrice, setFormPurchasePrice, formSellingPrice, setFormSellingPrice, formIsUnlimitedStock,
             setFormIsUnlimitedStock, formMrp, formWholesalePrice, setFormWholesalePrice, setFormMrp, formTaxRate,
             setFormTaxRate, formStock, setFormStock, formMinStock, setFormMinStock, formBarcode,
-            setFormBarcode, formHsn, setFormHsn, formSize, setFormSize, formBatch, setFormBatch, formExpiry, setFormExpiry, formColor,
+            setFormBarcode, formHsn, setFormHsn, formSize, setFormSize, formBatch, setFormBatch, formExpiry, setFormExpiry, formFoodType, setFormFoodType, formColor,
             setFormColor, onBarcodeScanned, variantsEnabled, setVariantsEnabled, variantRows, setVariantRows,
             setShowSizeColor, sizeColorVisible, switches, showSellingPrice, priceFieldCount, codeFieldCount,
             SM_COLS,

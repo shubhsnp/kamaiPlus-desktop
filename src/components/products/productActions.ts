@@ -1,5 +1,6 @@
 import React from 'react';
 import { cleanExpiry } from '@/lib/products/expiry';
+import { foodTypeOf } from '@/lib/restaurant/dish';
 import { showConfirm } from '@/lib/ui/dialogs';
 import { db } from '@/lib/db';
 import { generalCategoryId } from '@/lib/products/defaultCategory';
@@ -62,6 +63,8 @@ export interface CreateProductActionsDeps {
   formBatch: string;
   setFormExpiry: React.Dispatch<React.SetStateAction<string>>;
   formExpiry: string;
+  setFormFoodType: (v: string) => void;
+  formFoodType: string;
   setFormColor: React.Dispatch<React.SetStateAction<string>>;
   formColor: string;
   setFormError: React.Dispatch<React.SetStateAction<string>>;
@@ -88,7 +91,7 @@ export function createProductActions(deps: CreateProductActionsDeps) {
     setFormSellingPrice, formSellingPrice, setFormIsLooseItem, formIsLooseItem, setFormIsUnlimitedStock, formIsUnlimitedStock,
     setFormMrp, formMrp, setFormWholesalePrice, formWholesalePrice, setFormTaxRate, formTaxRate,
     setFormStock, formStock, setFormMinStock, formMinStock, setFormBarcode, formBarcode,
-    setFormHsn, formHsn, setFormIsFavorite, formIsFavorite, setFormSize, formSize, setFormBatch, formBatch, setFormExpiry, formExpiry,
+    setFormHsn, formHsn, setFormIsFavorite, formIsFavorite, setFormSize, formSize, setFormBatch, formBatch, setFormExpiry, formExpiry, setFormFoodType, formFoodType,
     setFormColor, formColor, setFormError, setVariantsEnabled, variantsEnabled, setVariantRows,
     variantRows, allProducts, categories, business, switches,
   } = deps;
@@ -115,6 +118,7 @@ export function createProductActions(deps: CreateProductActionsDeps) {
     setFormSize('');
     setFormBatch('');
     setFormExpiry('');
+    setFormFoodType('');
     setFormColor('');
     setVariantsEnabled(false);
     setVariantRows([]);
@@ -145,6 +149,7 @@ export function createProductActions(deps: CreateProductActionsDeps) {
     setFormSize(p.size || '');
     setFormBatch(p.batch_number || '');
     setFormExpiry(cleanExpiry(p.expiry_date));
+    setFormFoodType(foodTypeOf(p) || '');
     setFormColor(p.color || '');
     setIsModalOpen(true);
   };
@@ -219,6 +224,9 @@ export function createProductActions(deps: CreateProductActionsDeps) {
       size: formSize.trim() || undefined,
       batch_number: formBatch.trim() || undefined,
       expiry_date: cleanExpiry(formExpiry) || undefined,
+      // v4.138.0 restaurant mark; an edit keeps "Aaj khatam" (set from the menu, not this form).
+      food_type: foodTypeOf({ food_type: formFoodType }) || undefined,
+      sold_out_on: editingProduct?.sold_out_on || undefined,
       color: formColor.trim() || undefined,
       is_favorite: formIsFavorite,
       is_active: true,

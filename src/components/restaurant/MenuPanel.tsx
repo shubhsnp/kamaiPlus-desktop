@@ -2,13 +2,16 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Search, UtensilsCrossed, X } from 'lucide-react';
+import { Ban, Search, UtensilsCrossed, X } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { cn, formatINR } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
 import { unitPriceFor } from '@/lib/billing/priceMode';
 import type { MenuPick } from '@/lib/restaurant/model';
 import { MenuDish, menuPick, useMenu } from '@/components/restaurant/useMenu';
+import { FoodMark } from '@/components/restaurant/FoodMark';
+import { foodTypeOf, isSoldOutToday, soldOutPatch } from '@/lib/restaurant/dish';
+import { db } from '@/lib/db';
 
 /**
  * The menu side of an order (v4.106.0): search, category chips and big touch tiles — one tap adds a
@@ -25,6 +28,11 @@ export function MenuPanel({ onPick, inOrder, searchRef }: {
   const [category, setCategory] = useState('all');
   const { dishes, categories, total } = useMenu(query, category);
   const [sizeFor, setSizeFor] = useState<MenuDish | null>(null);
+  // v4.138.0 "Aaj khatam": in this mode a tap marks the dish sold out for today (or back), on every
+  // device of the shop (the product syncs); it comes back by itself tomorrow.
+  const [soldOutMode, setSoldOutMode] = useState(false);
+  const soldOut = (d: MenuDish) => isSoldOutToday(d.product);
+  const soldOutCount = dishes.filter(soldOut).length;
   const gridRef = useRef<HTMLDivElement>(null);
 
   // Enter in the search box adds the first match (a waiter types "pan" and Enter).
@@ -33,6 +41,11 @@ export function MenuPanel({ onPick, inOrder, searchRef }: {
   };
 
   const choose = (d: MenuDish) => {
+    if (soldOutMode) {
+      void db.products.update(d.product.id, soldOutPatch(!soldOut(d)));
+      return;
+    }
+    if (soldOut(d)) return;
     if (d.sizes.length > 0) return setSizeFor(d);
     if (!(unitPriceFor(d.product, 'retail') > 0)) return;
     onPick(menuPick(d.product));
@@ -78,6 +91,21 @@ export function MenuPanel({ onPick, inOrder, searchRef }: {
             </button>
           )}
         </div>
+        <button
+          type="button"
+          onClick={() => setSoldOutMode((v) => !v)}
+          aria-pressed={soldOutMode}
+          data-sold-out-mode={soldOutMode ? 'on' : 'off'}
+          title={tr('Tap dishes to mark them sold out for today (they come back tomorrow)')}
+          className={cn(
+            'shrink-0 h-11 px-3 rounded-xl border text-xs font-bold flex items-center gap-1.5 cursor-pointer',
+            soldOutMode ? 'bg-rose-600 border-rose-600 text-white' : 'bg-white border-slate-300 text-slate-700 hover:border-slate-500'
+          )}
+        >
+          <Ban className="w-4 h-4" />
+          {soldOutMode ? tr('Done') : tr('Sold out today')}
+          {soldOutCount > 0 && !soldOutMode && <span className="ml-0.5 px-1.5 rounded-full bg-rose-100 text-rose-700 text-[10px]">{soldOutCount}</span>}
+        </button>
       </div>
 
       <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-1 px-1 shrink-0" role="tablist" aria-label={tr('Menu categories')}>
@@ -112,24 +140,30 @@ export function MenuPanel({ onPick, inOrder, searchRef }: {
           <div className="grid gap-2.5 pt-1 px-0.5 pb-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(148px, 1fr))' }}>
             {dishes.map((d) => {
               const n = countOf(d);
+              const out = soldOut(d);
               const noPrice = d.sizes.length === 0 && !(unitPriceFor(d.product, 'retail') > 0);
               return (
                 <button
                   key={d.product.id}
                   type="button"
-                  disabled={noPrice}
+                  disabled={noPrice && !soldOutMode}
                   onClick={() => choose(d)}
                   data-menu-dish={d.product.id}
+                  data-sold-out={out ? 'yes' : undefined}
                   className={cn(
                     'relative text-left rounded-2xl border bg-white p-3 min-h-[88px] flex flex-col justify-between gap-2 cursor-pointer transition-all duration-100',
                     'hover:border-emerald-500 hover:shadow-md active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600',
                     n > 0 ? 'border-emerald-500 ring-1 ring-emerald-500/30' : 'border-slate-200',
-                    noPrice && 'opacity-50 cursor-not-allowed'
+                    noPrice && !soldOutMode && 'opacity-50 cursor-not-allowed',
+                    out && 'bg-slate-50 border-dashed border-rose-300',
+                    soldOutMode && 'hover:border-rose-500'
                   )}
                 >
-                  <span className={cn('text-[13px] font-bold text-slate-900 leading-snug line-clamp-2', n > 0 && 'pr-6')}>
-                    {d.product.name}
+                  <span className={cn('flex items-start gap-1.5 text-[13px] font-bold leading-snug', n > 0 && 'pr-6', out ? 'text-slate-400 line-through' : 'text-slate-900')}>
+                    <FoodMark type={foodTypeOf(d.product)} className="mt-0.5" />
+                    <span className="line-clamp-2">{d.product.name}</span>
                   </span>
+                  {out && <span className="text-[10px] font-black uppercase text-rose-600" data-sold-out-badge>{tr('Sold out today')}</span>}
                   <span className="flex items-center justify-between gap-2">
                     <span className="text-xs font-black text-emerald-700 font-mono">{priceText(d)}</span>
                     {d.sizes.length > 0 && <span className="text-[10px] font-bold text-slate-500 uppercase">{d.sizes.map((s) => s.variant_label).filter(Boolean).slice(0, 2).join(' / ')}</span>}
