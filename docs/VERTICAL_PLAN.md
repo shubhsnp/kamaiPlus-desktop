@@ -71,7 +71,7 @@
 
 ## Abhi kya chal raha hai
 
-**D — Electron audit poora (v4.129–4.131: AU-33…36 fixed; stress 15/15, E2E 135/135, smoke 52/52). Ab E — Android pass:** code audit + fix (AU-A3…A10, `docs/DESKTOP_AUDIT_2026-10-09.md`), `flutter test --concurrency=1`, phir Android commit (bina `website/` deletions). Phone (CPH2691) jud ne par on-device check + "Stay awake" band.
+**D — Electron audit poora (v4.129–4.131). E — Android pass code audit (2026-10-10):** AU-A3…A16 fixed + tests (Android commits f6c0486 … 3e83446) — paise boxes, restock / edit GST, Full Void, khata cash + settle, GST 2,000 cap + quarters, counts, drawer double refund, supplier payment save, restaurant charges. Baaki: phone (CPH2691) par on-device check + "Stay awake" band; help sync (4.118–4.131 rows).
 
 ## Kaam log
 
