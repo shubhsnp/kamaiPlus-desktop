@@ -58,8 +58,9 @@ export function PayDialog({ order, settings, business, open, busy, onClose, onSe
       setReceived('');
       setDiscType('percentage');
       setDiscValue('');
-      setGuestName('');
-      setGuestPhone('');
+      // A takeaway / delivery guest typed when the order was opened (v4.139.0).
+      setGuestName(order.guest?.name || '');
+      setGuestPhone(order.guest?.phone || '');
       setPrintNow(readSilentPrint());
       setSplitCash('');
     }
@@ -97,6 +98,7 @@ export function PayDialog({ order, settings, business, open, busy, onClose, onSe
             {totals.discountTotal > 0 && <Row label={tr('Discount')} value={`− ${formatINR(totals.discountTotal)}`} tone="text-rose-600" />}
             {totals.serviceChargePaise > 0 && <Row label={`${tr('Service charge')} ${settings.serviceChargePercent}%`} value={formatINR(totals.serviceChargePaise)} />}
             {totals.packingPaise > 0 && <Row label={tr('Packing charge')} value={formatINR(totals.packingPaise)} />}
+            {totals.deliveryPaise > 0 && <Row label={tr('Delivery charge')} value={formatINR(totals.deliveryPaise)} />}
             <Row label={`GST ${settings.gstRate}% ${settings.gstInclusive ? tr('(included)') : tr('(added)')}`} value={formatINR(totals.taxTotal)} muted />
             <div className="flex items-end justify-between pt-2 mt-1 border-t border-slate-200">
               <span className="text-xs font-black uppercase tracking-wide text-slate-500">{tr('Total')}</span>

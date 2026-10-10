@@ -4307,7 +4307,7 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
   const iPut = settleSrc.indexOf('await db.sales.put(sale)');
   const iCommit = settleSrc.indexOf('await commitNextInvoiceNumber(');
   const iStock = settleSrc.indexOf("db.transaction('rw', db.products, db.inventory_movements");
-  assert(iNum > 0 && iNum < iPut && iPut < iCommit && iCommit < iStock && !/await cloud/.test(settleSrc) && settleSrc.includes("customer_name: billCustomerName(order, input.guestName)") && settleSrc.includes("payment_status: 'paid'")
+  assert(iNum > 0 && iNum < iPut && iPut < iCommit && iCommit < iStock && !/await cloud/.test(settleSrc) && settleSrc.includes("customer_name: billCustomerName(order, guestName)") && settleSrc.includes("payment_status: 'paid'")
     && settleSrc.includes('if (!prod || prod.is_unlimited_stock) continue;') && settleSrc.includes('SERVICE_CHARGE_ID') && settleSrc.includes("status: 'completed'"),
     'Restaurant pay: reserve the number → save the bill → commit the number → stock (counted items only); cloud never awaited; the table name is the bill\'s customer');
   const orderScreenAll = readSource('components/restaurant/OrderScreen.tsx');
@@ -4381,7 +4381,7 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
     && cleanGuestPhone('12345') === '' && cleanGuestPhone('5876543210') === '' && cleanGuestPhone('') === '',
     'Restaurant bill: "Rahul · Table T4" when the guest gives a name; a mobile is kept only when it is a real 10-digit Indian number');
   const settle2 = readSource('lib/restaurant/settle.ts');
-  assert(settle2.includes('...(cleanGuestPhone(input.guestPhone) ? { customer_phone: cleanGuestPhone(input.guestPhone) } : {})') && settle2.includes("notes: billLabel(order)"),
+  assert(settle2.includes('...(cleanGuestPhone(guestPhone) ? { customer_phone: cleanGuestPhone(guestPhone) } : {})') && settle2.includes("notes: address ? `${billLabel(order)} · ${address}` : billLabel(order)"),
     'The guest\'s mobile goes on the bill (customer_phone) so WhatsApp opens with it; the note stays the table name (Today\'s bills, reports)');
 
   // After paying: like the counter — "Print straight away" (same setting) or the bill window.
@@ -5016,6 +5016,32 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
   assert(form.includes('{restaurant && setFormFoodType && <FoodTypePicker') && acts.includes('food_type: foodTypeOf({ food_type: formFoodType }) || undefined')
     && acts.includes('sold_out_on: editingProduct?.sold_out_on || undefined'),
     'Product form (Restaurant mode): Veg / Egg / Non-veg saved; an edit keeps "Aaj khatam"');
+}
+
+// v4.139.0 — Restaurant takeaway / delivery: a delivery order (DL- token) with the guest's name, mobile and address;
+// packing on every parcel, a delivery charge (GST on top) on a delivery; the guest goes on the bill, KOT and check.
+{
+  const rs = sanitizeRestaurantSettings({ gstRate: 5, gstInclusive: true, packingChargePaise: 1000, deliveryChargePaise: 3000 });
+  assert(rs.deliveryChargePaise === 3000 && sanitizeRestaurantSettings({}).deliveryChargePaise === 0, 'Restaurant settings: delivery charge kept (0 by default)');
+  const tok = nextToken({ day: '2026-10-10', last: 4 }, new Date(2026, 9, 10, 12), 'DL');
+  assert(tok.label === 'DL-05' && nextToken(null, new Date(2026, 9, 10, 12)).label === 'TA-01', 'Restaurant: delivery tokens DL-05 share the day count; takeaway stays TA-');
+  const base = newOrder('delivery', 'DL-05', 'o1', '2026-10-10T07:00:00.000Z');
+  const dl = { ...addPiece(base, { productId: 'p1', name: 'Veg Thali', unit: 'plate', basePaise: 15000 }, '2026-10-10T07:00:00.000Z'), guest: { name: 'Ramesh', phone: '9876543210', address: 'Flat 4, Shivaji Nagar' } };
+  const t = orderTotals(dl, rs);
+  const ids = t.items.map((i: any) => i.product_id);
+  assert(t.packingPaise === 1000 && t.deliveryPaise === 3000 && ids.includes('restaurant_delivery_charge') && ids.includes('restaurant_packing_charge')
+    && t.grandTotal === 15000 + 1050 + 3150, 'Restaurant delivery bill: thali 150 + packing 10 + delivery 30, both charges with 5% GST on top = ₹192.00');
+  const tableT = orderTotals({ ...dl, kind: 'table' }, rs);
+  assert(tableT.packingPaise === 0 && tableT.deliveryPaise === 0, 'Restaurant: a table bill has no packing or delivery charge');
+  const parsed = parseRestState({ orders: [{ ...dl }] }).orders[0];
+  assert(parsed?.kind === 'delivery' && parsed.guest?.address === 'Flat 4, Shivaji Nagar', 'Restaurant: a running delivery order keeps its kind and guest after a restart');
+  assert(billCustomerName(dl, 'Ramesh') === 'Ramesh · Delivery DL-05', 'Restaurant: the bill name says "Delivery DL-05"');
+  const kot = buildKotBody({ order: dl, round: 1 });
+  const chk = buildCheckBody({ order: dl, settings: rs });
+  assert(kot.includes('DELIVERY · Ramesh') && chk.includes('Flat 4, Shivaji Nagar') && chk.includes('Delivery charge'), 'Restaurant: KOT says DELIVERY + guest; the check bill shows the address and the delivery charge');
+  const settleSrc = readSource('lib/restaurant/settle.ts');
+  assert(settleSrc.includes("const guestName = input.guestName || order.guest?.name || ''") && settleSrc.includes('DELIVERY_CHARGE_ID]'),
+    'Restaurant: the guest typed at "New delivery" is the bill\'s guest; the delivery charge line never touches stock');
 }
 
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.

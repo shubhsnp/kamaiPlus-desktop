@@ -13,7 +13,15 @@ import type { RestAddOn, RestaurantSettings } from '@/lib/restaurant/settings';
  * is saved in the shop's database.
  */
 
-export type OrderKind = 'table' | 'takeaway';
+/** v4.139.0: 'delivery' — a parcel taken to the guest (name, mobile, address, delivery charge). */
+export type OrderKind = 'table' | 'takeaway' | 'delivery';
+
+/** The guest of a takeaway / delivery order (v4.139.0) — printed on the KOT and the bill. */
+export interface OrderGuest {
+  name?: string;
+  phone?: string;
+  address?: string;
+}
 
 export interface RestLine {
   /** Same item + same add-ons + same note = same line (qty goes up). */
@@ -40,7 +48,13 @@ export interface RestOrder {
   updatedAt: string;
   /** How many KOT slips were printed (1st, 2nd…). */
   kotRounds: number;
+  /** Takeaway / delivery guest (v4.139.0). */
+  guest?: OrderGuest;
 }
+
+/** "Table T4" / "Takeaway TA-03" / "Delivery DL-02" — on the bill, the QR reference and Transactions. */
+export const orderRef = (order: Pick<RestOrder, 'kind' | 'label'>): string =>
+  order.kind === 'table' ? `Table ${order.label}` : order.kind === 'delivery' ? `Delivery ${order.label}` : `Takeaway ${order.label}`;
 
 export interface MenuPick {
   productId: string;
@@ -187,6 +201,7 @@ export function moveOrderTo(orders: RestOrder[], id: string, toTable: string, no
 export const RESTAURANT_HSN = '9963';
 export const SERVICE_CHARGE_ID = 'restaurant_service_charge';
 export const PACKING_CHARGE_ID = 'restaurant_packing_charge';
+export const DELIVERY_CHARGE_ID = 'restaurant_delivery_charge';
 
 export interface DiscountInput {
   type: 'flat' | 'percentage';
@@ -210,6 +225,8 @@ export interface OrderTotals {
   grandTotal: number;
   serviceChargePaise: number;
   packingPaise: number;
+  /** v4.139.0: the delivery charge of a delivery order. */
+  deliveryPaise: number;
   pieces: number;
 }
 
@@ -241,14 +258,18 @@ export function orderTotals(order: RestOrder, settings: RestaurantSettings, disc
   const discounted = allocateBillDiscount(food, disc);
   const foodTotals = computeBillTotals(discounted);
   const serviceChargePaise = settings.serviceChargePercent > 0 ? Math.round((foodTotals.subtotal * settings.serviceChargePercent) / 100) : 0;
-  const packingPaise = order.kind === 'takeaway' ? settings.packingChargePaise : 0;
+  // Packing on every parcel (takeaway and delivery); the delivery charge on a delivery (v4.139.0).
+  const packingPaise = order.kind !== 'table' ? settings.packingChargePaise : 0;
+  const deliveryPaise = order.kind === 'delivery' ? settings.deliveryChargePaise : 0;
   const items = [...discounted];
   if (serviceChargePaise > 0 && discounted.length) items.push(chargeLine(SERVICE_CHARGE_ID, `Service charge ${settings.serviceChargePercent}%`, serviceChargePaise, rate));
   if (packingPaise > 0 && discounted.length) items.push(chargeLine(PACKING_CHARGE_ID, 'Packing charge', packingPaise, rate));
+  if (deliveryPaise > 0 && discounted.length) items.push(chargeLine(DELIVERY_CHARGE_ID, 'Delivery charge', deliveryPaise, rate));
   const totals = computeBillTotals(items);
   return {
     items, subtotal: totals.subtotal, taxTotal: totals.taxTotal, discountTotal: totals.discountTotal, grandTotal: totals.grandTotal,
-    serviceChargePaise: discounted.length ? serviceChargePaise : 0, packingPaise: discounted.length ? packingPaise : 0, pieces: pieceCount(order),
+    serviceChargePaise: discounted.length ? serviceChargePaise : 0, packingPaise: discounted.length ? packingPaise : 0,
+    deliveryPaise: discounted.length ? deliveryPaise : 0, pieces: pieceCount(order),
   };
 }
 
@@ -263,12 +284,12 @@ export interface TokenCounter {
 export const localDay = (d: Date = new Date()): string =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-/** TA-01, TA-02… — starts again at 01 every day. */
-export function nextToken(counter: TokenCounter | null | undefined, now: Date = new Date()): { label: string; counter: TokenCounter } {
+/** TA-01, TA-02… (a delivery: DL-03…, the same day's count) — starts again at 01 every day. */
+export function nextToken(counter: TokenCounter | null | undefined, now: Date = new Date(), prefix: 'TA' | 'DL' = 'TA'): { label: string; counter: TokenCounter } {
   const day = localDay(now);
   const last = counter && counter.day === day ? Math.max(0, Math.floor(counter.last) || 0) : 0;
   const n = last + 1;
-  return { label: `TA-${String(n).padStart(2, '0')}`, counter: { day, last: n } };
+  return { label: `${prefix}-${String(n).padStart(2, '0')}`, counter: { day, last: n } };
 }
 
 /** Whole minutes an order has been open ("12 min"); 0 for a bad date. */

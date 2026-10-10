@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.139.0',
+    items: [
+      msg('Restaurant: new "New delivery" button — type the guest\'s name, mobile and address; the order gets a DL- token. Packing charge on every parcel and a delivery charge (set it in Set-up) go on the bill with GST. The guest and address show on the order, the KOT and the bill; the mobile fills the WhatsApp bill.'),
+    ],
+  },
+  {
     version: '4.138.0',
     items: [
       msg('Restaurant: every dish can carry the Veg / Egg / Non-veg mark (set it on the item) — shown on the menu. New "Sold out today" button on the menu: tap dishes to mark them sold out; they cannot be ordered today, every device of the shop sees it, and they come back by themselves tomorrow.'),

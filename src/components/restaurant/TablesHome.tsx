@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { ChefHat, Clock, Plus, Settings2, ShoppingBag, UtensilsCrossed } from 'lucide-react';
+import { Bike, ChefHat, Clock, Plus, Settings2, ShoppingBag, UtensilsCrossed } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { cn, formatINR } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
@@ -21,12 +21,14 @@ const LONG_MINUTES = 60;
  * the kitchen yet. Takeaway orders get their own row with a token (TA-01…), and today's paid bills
  * can be opened again (print, PDF, WhatsApp).
  */
-export function TablesHome({ orders, settings, onOpenTable, onOpenOrder, onNewTakeaway, onSetup, onOpenBill }: {
+export function TablesHome({ orders, settings, onOpenTable, onOpenOrder, onNewTakeaway, onNewDelivery, onSetup, onOpenBill }: {
   orders: RestOrder[];
   settings: RestaurantSettings;
   onOpenTable: (label: string) => void;
   onOpenOrder: (id: string) => void;
   onNewTakeaway: () => void;
+  /** v4.139.0: asks for the guest (name, mobile, address), then opens the order. */
+  onNewDelivery: () => void;
   onSetup: () => void;
   onOpenBill: (sale: Sale) => void;
 }) {
@@ -42,7 +44,8 @@ export function TablesHome({ orders, settings, onOpenTable, onOpenOrder, onNewTa
   // A table taken out of the set-up while it still has an order keeps showing until it is billed.
   const labels = [...settings.tables, ...Array.from(tableOrders.keys()).filter((l) => !settings.tables.includes(l))];
   const shown = labels.filter((l) => view === 'all' || (view === 'running') === tableOrders.has(l));
-  const takeaways = orders.filter((o) => o.kind === 'takeaway').sort((a, b) => a.openedAt.localeCompare(b.openedAt));
+  // Takeaway and delivery (v4.139.0) share the parcel row, oldest first.
+  const takeaways = orders.filter((o) => o.kind !== 'table').sort((a, b) => a.openedAt.localeCompare(b.openedAt));
   const free = Math.max(0, labels.length - tableOrders.size);
   const open = orders.reduce((n, o) => n + orderTotals(o, settings).grandTotal, 0);
   const unsent = orders.filter((o) => hasUnsentItems(o) && pieceCount(o) > 0).length;
@@ -63,6 +66,7 @@ export function TablesHome({ orders, settings, onOpenTable, onOpenOrder, onNewTa
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <Button type="button" variant="success" onClick={onNewTakeaway} data-new-takeaway className="flex-1 sm:flex-none"><Plus className="w-4 h-4" /> {tr('New takeaway')}</Button>
+          <Button type="button" variant="outline" onClick={onNewDelivery} data-new-delivery className="flex-1 sm:flex-none"><Bike className="w-4 h-4" /> {tr('New delivery')}</Button>
           <Button type="button" variant="outline" onClick={onSetup} data-restaurant-setup aria-label={tr('Set-up')}><Settings2 className="w-4 h-4" /> <span className="hidden sm:inline">{tr('Set-up')}</span></Button>
         </div>
       </div>
@@ -112,7 +116,7 @@ export function TablesHome({ orders, settings, onOpenTable, onOpenOrder, onNewTa
       </section>
 
       <section aria-label={tr('Takeaway orders')}>
-        <h2 className="text-[11px] font-black uppercase tracking-wider text-slate-500 mb-2.5">{tr('Takeaway')} · {takeaways.length}</h2>
+        <h2 className="text-[11px] font-black uppercase tracking-wider text-slate-500 mb-2.5">{tr('Takeaway & delivery')} · {takeaways.length}</h2>
         {takeaways.length === 0 ? (
           <button type="button" onClick={onNewTakeaway}
             className="w-full rounded-2xl border-2 border-dashed border-slate-200 bg-white/60 hover:border-emerald-400 hover:bg-emerald-50/40 px-4 py-6 text-center text-xs font-semibold text-slate-500 flex items-center justify-center gap-2 cursor-pointer transition-colors">
@@ -135,12 +139,15 @@ function OrderCard({ order, settings, now, onOpen, table }: { order: RestOrder; 
   const minutes = minutesOpen(order, now);
   const long = minutes >= LONG_MINUTES;
   const pieces = pieceCount(order);
-  const dataAttrs = table ? { 'data-table': order.label, 'data-table-state': 'running' } : { 'data-takeaway': order.label };
+  const dataAttrs = table ? { 'data-table': order.label, 'data-table-state': 'running' } : order.kind === 'delivery' ? { 'data-delivery': order.label } : { 'data-takeaway': order.label };
   return (
     <button type="button" onClick={onOpen} {...dataAttrs}
       className="text-left rounded-2xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 to-white hover:border-amber-400 hover:shadow-md hover:-translate-y-0.5 p-3.5 min-h-[116px] flex flex-col justify-between cursor-pointer transition-all active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500">
       <div className="flex items-start justify-between gap-2">
-        <span className={cn('font-black text-slate-900 leading-none', table ? 'text-xl' : 'text-lg')}>{order.label}</span>
+        <span className={cn('font-black text-slate-900 leading-none', table ? 'text-xl' : 'text-lg')}>
+          {order.kind === 'delivery' && <Bike className="w-4 h-4 inline -mt-1 mr-1 text-sky-700" />}{order.label}
+          {order.guest?.name && <span className="block text-[11px] font-bold text-slate-500 mt-1 truncate max-w-[130px]">{order.guest.name}</span>}
+        </span>
         {hasUnsentItems(order) && pieces > 0 && (
           <span className="inline-flex items-center gap-1 text-[10px] font-black text-rose-700 bg-rose-100 rounded-full px-1.5 py-0.5" title={tr('Not sent to the kitchen')}><ChefHat className="w-3 h-3" />KOT</span>
         )}

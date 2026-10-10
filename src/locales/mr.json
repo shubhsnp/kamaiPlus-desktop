@@ -3136,5 +3136,15 @@
   "Veg / Non-veg": "व्हेज / नॉन-व्हेज",
   "Tap dishes to mark them sold out for today (they come back tomorrow)": "डिशवर टॅप करा — आजसाठी संपली होईल (उद्या आपोआप परत)",
   "Sold out today": "आज संपले",
-  "Restaurant: every dish can carry the Veg / Egg / Non-veg mark (set it on the item) — shown on the menu. New \"Sold out today\" button on the menu: tap dishes to mark them sold out; they cannot be ordered today, every device of the shop sees it, and they come back by themselves tomorrow.": "रेस्टॉरंट: प्रत्येक डिशवर व्हेज / अंडे / नॉन-व्हेज खूण लावता येते (आयटममध्ये निवडा) — मेनूवर दिसते. मेनूवर नवीन \"आज संपले\" बटण: डिशवर टॅप करा, ती आज ऑर्डर होणार नाही, दुकानाच्या प्रत्येक डिव्हाइसवर दिसेल आणि उद्या आपोआप परत येईल."
+  "Restaurant: every dish can carry the Veg / Egg / Non-veg mark (set it on the item) — shown on the menu. New \"Sold out today\" button on the menu: tap dishes to mark them sold out; they cannot be ordered today, every device of the shop sees it, and they come back by themselves tomorrow.": "रेस्टॉरंट: प्रत्येक डिशवर व्हेज / अंडे / नॉन-व्हेज खूण लावता येते (आयटममध्ये निवडा) — मेनूवर दिसते. मेनूवर नवीन \"आज संपले\" बटण: डिशवर टॅप करा, ती आज ऑर्डर होणार नाही, दुकानाच्या प्रत्येक डिव्हाइसवर दिसेल आणि उद्या आपोआप परत येईल.",
+  "Delivery charge (₹)": "डिलिव्हरी चार्ज (₹)",
+  "Delivery charge": "डिलिव्हरी चार्ज",
+  "New delivery": "नवीन डिलिव्हरी",
+  "Takeaway & delivery": "टेकअवे आणि डिलिव्हरी",
+  "Delivery": "डिलिव्हरी",
+  "Who is it for? The address prints on the bill.": "कोणासाठी आहे? पत्ता बिलावर छापला जाईल.",
+  "Mobile (for the WhatsApp bill)": "मोबाइल (WhatsApp बिलासाठी)",
+  "Delivery address *": "डिलिव्हरीचा पत्ता *",
+  "Start delivery order": "डिलिव्हरी ऑर्डर सुरू करा",
+  "Restaurant: new \"New delivery\" button — type the guest's name, mobile and address; the order gets a DL- token. Packing charge on every parcel and a delivery charge (set it in Set-up) go on the bill with GST. The guest and address show on the order, the KOT and the bill; the mobile fills the WhatsApp bill.": "रेस्टॉरंट: नवीन \"नवीन डिलिव्हरी\" बटण — ग्राहकाचे नाव, मोबाइल आणि पत्ता टाका; ऑर्डरला DL- टोकन मिळतो. प्रत्येक पार्सलवर पॅकिंग चार्ज आणि डिलिव्हरी चार्ज (सेट-अपमध्ये) GST सह बिलावर जोडले जातात. ग्राहक आणि पत्ता ऑर्डर, KOT आणि बिलावर दिसतात; मोबाइल WhatsApp बिलात भरला जातो."
 }

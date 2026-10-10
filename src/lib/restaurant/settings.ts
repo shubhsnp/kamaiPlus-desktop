@@ -22,6 +22,8 @@ export interface RestaurantSettings {
   serviceChargePercent: number;
   /** Fixed packing charge added to every takeaway bill, paise (0 = none). */
   packingChargePaise: number;
+  /** v4.139.0: fixed delivery charge on every delivery order, paise (0 = none). */
+  deliveryChargePaise: number;
   /** Add-ons the waiter can pick from (a custom one can be typed too). */
   addOns: RestAddOn[];
 }
@@ -41,6 +43,7 @@ export const DEFAULT_RESTAURANT_SETTINGS: RestaurantSettings = {
   gstInclusive: true,
   serviceChargePercent: 0,
   packingChargePaise: 0,
+  deliveryChargePaise: 0,
   addOns: [
     { name: 'Extra cheese', pricePaise: 2000 },
     { name: 'Extra butter', pricePaise: 1000 },
@@ -83,6 +86,7 @@ export function sanitizeRestaurantSettings(raw: unknown): RestaurantSettings {
     gstInclusive: typeof r.gstInclusive === 'boolean' ? r.gstInclusive : d.gstInclusive,
     serviceChargePercent: Math.round(num(r.serviceChargePercent, d.serviceChargePercent, 0, 30) * 100) / 100,
     packingChargePaise: Math.round(num(r.packingChargePaise, d.packingChargePaise, 0, 1_000_000)),
+    deliveryChargePaise: Math.round(num(r.deliveryChargePaise, d.deliveryChargePaise, 0, 1_000_000)),
     // A missing list = the starter add-ons; an empty list saved on purpose stays empty.
     addOns: Array.isArray(r.addOns) ? addOns : d.addOns,
   };

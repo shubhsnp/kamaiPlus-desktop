@@ -46,7 +46,8 @@ export function OrderPanel({ order, settings, kotBusy, checkBusy, onBack, onQty,
   const pieces = pieceCount(order);
   const unsent = hasUnsentItems(order);
   const lines = order.lines;
-  const name = order.kind === 'table' ? `${tr('Table')} ${order.label}` : `${tr('Takeaway')} ${order.label}`;
+  const name = order.kind === 'table' ? `${tr('Table')} ${order.label}` : order.kind === 'delivery' ? `${tr('Delivery')} ${order.label}` : `${tr('Takeaway')} ${order.label}`;
+  const guest = [order.guest?.name, order.guest?.phone, order.guest?.address].filter(Boolean).join(' · ');
 
   return (
     <div className="flex flex-col min-h-0 h-full bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden" data-restaurant-order>
@@ -59,6 +60,7 @@ export function OrderPanel({ order, settings, kotBusy, checkBusy, onBack, onQty,
           <div className="text-[11px] text-slate-500 font-semibold">
             {piecesText(pieces)} · {formatOpenTime(minutesOpen(order))}
           </div>
+          {guest && <div className="text-[11px] text-sky-800 font-bold truncate" title={guest} data-order-guest>{guest}</div>}
         </div>
         {onMove && order.kind === 'table' && (
           <button type="button" onClick={onMove} className="h-9 px-2.5 rounded-lg border border-slate-300 bg-white hover:border-emerald-500 hover:text-emerald-700 text-xs font-bold flex items-center gap-1 cursor-pointer" title={tr('Move to another table')} data-order-move>
@@ -142,6 +144,7 @@ export function OrderPanel({ order, settings, kotBusy, checkBusy, onBack, onQty,
       <div className="border-t border-slate-200 bg-slate-50/70 px-3.5 pt-2.5 pb-3 space-y-1">
         {totals.serviceChargePaise > 0 && <TotalRow label={`${tr('Service charge')} ${settings.serviceChargePercent}%`} value={formatINR(totals.serviceChargePaise)} />}
         {totals.packingPaise > 0 && <TotalRow label={tr('Packing charge')} value={formatINR(totals.packingPaise)} />}
+        {totals.deliveryPaise > 0 && <TotalRow label={tr('Delivery charge')} value={formatINR(totals.deliveryPaise)} />}
         <TotalRow label={`GST ${settings.gstRate}% ${settings.gstInclusive ? tr('(included)') : tr('(added)')}`} value={formatINR(totals.taxTotal)} muted />
         <div className="flex items-end justify-between pt-1">
           <span className="text-[11px] font-black uppercase tracking-wide text-slate-500">{tr('Total')}</span>

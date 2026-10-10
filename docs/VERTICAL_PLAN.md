@@ -255,7 +255,7 @@ Aaj: items, grahak, bills, categories dono taraf; baaki tables sirf Desktop → 
 **Ab karna (is kram se):**
 - [ ] R1 Restaurant P0: chalu table orders cloud se sync (waiter phone ↔ PC cashier / KOT printer)
 - [ ] R2 Restaurant P0: dish "Aaj khatam" (dono devices); item par "Stock ginein" (bottle / packet) — Purchases + Suppliers NAHI chahiye
-- [ ] R3 Takeaway / delivery: grahak phone, address, delivery charge, token
+- [x] R3 Takeaway / delivery (Desktop v4.139.0; Android next)
 - [x] R4 UI: veg / non-veg nishaan (Desktop v4.138.0 + Android)
 - [ ] A-1 Android restaurant form se batch / expiry hatana; settle sheet par packing line
 - [ ] A-2 Android product form mein HSN box
@@ -268,3 +268,4 @@ Aaj: items, grahak, bills, categories dono taraf; baaki tables sirf Desktop → 
 **Sirf samjhana:** AU-A1 (phone har bill do jagah likhta) — karna nahi.
 **Baad mein:** website / help guides sync; phone par A3, A4, A5, A7, A12, A15 checks; Desktop Ctrl+V PDF asli WhatsApp par; installer code-signing; staff login / roles.
 - R2 (aadha): "Aaj khatam" ho gaya — product par `sold_out_on` (aaj ki taareekh), kal apne-aap wapas; Desktop menu "Sold out today" mode, Android "Khatam" mode; dono taraf product sync se. "Stock ginein" (bottle) abhi baaki.
+

@@ -10,7 +10,8 @@ import { newId } from '@/lib/ids';
 import { tr } from '@/lib/i18n/core';
 import { cn } from '@/lib/utils';
 import type { Sale } from '@/types';
-import { newOrder, nextToken } from '@/lib/restaurant/model';
+import { OrderGuest, newOrder, nextToken } from '@/lib/restaurant/model';
+import { DeliveryDialog } from '@/components/restaurant/DeliveryDialog';
 import { useRestaurant } from '@/lib/restaurant/store';
 import { OrderScreen } from '@/components/restaurant/OrderScreen';
 import { SetupDialog } from '@/components/restaurant/SetupDialog';
@@ -31,6 +32,8 @@ export function RestaurantPage() {
   const { state, settings, update } = useRestaurant();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [setupOpen, setSetupOpen] = useState(false);
+  // v4.139.0: "New delivery" asks for the guest first; "New takeaway" may take a name / mobile too.
+  const [guestFor, setGuestFor] = useState<'takeaway' | 'delivery' | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   // The bill window: right after paying ("Show the bill") or a bill opened again from Today's bills.
   const [saleToShow, setSaleToShow] = useState<{ sale: Sale; justPaid: boolean } | null>(null);
@@ -60,14 +63,17 @@ export function RestaurantPage() {
     setSelectedId(id);
   };
 
-  const newTakeaway = () => {
+  const newParcel = (kind: 'takeaway' | 'delivery', guest?: OrderGuest) => {
     const id = newId('rord');
     update((s) => {
-      const t = nextToken(s.token);
-      return { token: t.counter, orders: [...s.orders, newOrder('takeaway', t.label, id, new Date().toISOString())] };
+      const t = nextToken(s.token, new Date(), kind === 'delivery' ? 'DL' : 'TA');
+      const o = newOrder(kind, t.label, id, new Date().toISOString());
+      const g = guest && (guest.name || guest.phone || guest.address) ? guest : undefined;
+      return { token: t.counter, orders: [...s.orders, g ? { ...o, guest: g } : o] };
     });
     setSelectedId(id);
   };
+  const newTakeaway = () => newParcel('takeaway');
 
   const back = useCallback(() => {
     setSelectedId(null);
@@ -110,12 +116,13 @@ export function RestaurantPage() {
           <OrderScreen order={order} settings={settings} update={update} business={business} freeTables={freeTables} onBack={back} onSettled={onSettled} notify={notify} />
         ) : (
           <div className="h-full overflow-y-auto pr-1">
-            <TablesHome orders={state.orders} settings={settings} onOpenTable={openTable} onOpenOrder={setSelectedId} onNewTakeaway={newTakeaway} onSetup={() => setSetupOpen(true)} onOpenBill={(sale) => setSaleToShow({ sale, justPaid: false })} />
+            <TablesHome orders={state.orders} settings={settings} onOpenTable={openTable} onOpenOrder={setSelectedId} onNewTakeaway={newTakeaway} onNewDelivery={() => setGuestFor('delivery')} onSetup={() => setSetupOpen(true)} onOpenBill={(sale) => setSaleToShow({ sale, justPaid: false })} />
           </div>
         )}
       </div>
 
       <SetupDialog open={setupOpen} settings={settings} onClose={() => setSetupOpen(false)} />
+      <DeliveryDialog open={guestFor === 'delivery'} onClose={() => setGuestFor(null)} onStart={(g) => { setGuestFor(null); newParcel('delivery', g); }} />
       {saleToShow && (
         <InvoiceModal isOpen onClose={() => setSaleToShow(null)} onNewBill={() => setSaleToShow(null)} sale={saleToShow.sale} business={business || null}
           isPostSaleSuccess={saleToShow.justPaid} initialPhone={saleToShow.sale.customer_phone} />

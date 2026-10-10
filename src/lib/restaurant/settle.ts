@@ -3,7 +3,7 @@ import { newId } from '@/lib/ids';
 import { commitNextInvoiceNumber, getNextUniqueInvoiceNumber } from '@/lib/invoices/invoiceNumberService';
 import { cloudMerge, cloudSyncSoon, cloudTrackInvoice } from '@/lib/firebase/lazyCloud';
 import type { Business, CartItem, PaymentMethod, Product, Sale } from '@/types';
-import { DiscountInput, PACKING_CHARGE_ID, RestOrder, SERVICE_CHARGE_ID, orderTotals } from '@/lib/restaurant/model';
+import { DELIVERY_CHARGE_ID, DiscountInput, PACKING_CHARGE_ID, RestOrder, SERVICE_CHARGE_ID, orderRef, orderTotals } from '@/lib/restaurant/model';
 import type { RestaurantSettings } from '@/lib/restaurant/settings';
 
 /*
@@ -31,7 +31,7 @@ export interface SettleInput {
   guestPhone?: string;
 }
 
-export const billLabel = (order: Pick<RestOrder, 'kind' | 'label'>): string => (order.kind === 'table' ? `Table ${order.label}` : `Takeaway ${order.label}`);
+export const billLabel = (order: Pick<RestOrder, 'kind' | 'label'>): string => orderRef(order);
 
 /** The name on the bill: "Table T4", or "Rahul · Table T4" when the guest gave a name. */
 export const billCustomerName = (order: Pick<RestOrder, 'kind' | 'label'>, guestName?: string): string => {
@@ -62,7 +62,12 @@ export async function settleOrder(input: SettleInput): Promise<Sale> {
   const saleId = newId('sale');
 
   // The buying rate of each item is frozen on the bill (profit reports), like at the counter.
-  const dishIds = totals.items.filter((i) => i.product_id !== SERVICE_CHARGE_ID && i.product_id !== PACKING_CHARGE_ID).map((i) => i.product_id);
+  const chargeIds = new Set([SERVICE_CHARGE_ID, PACKING_CHARGE_ID, DELIVERY_CHARGE_ID]);
+  const dishIds = totals.items.filter((i) => !chargeIds.has(i.product_id)).map((i) => i.product_id);
+  // v4.139.0: a takeaway / delivery guest typed when the order was opened is the bill's guest.
+  const guestName = input.guestName || order.guest?.name || '';
+  const guestPhone = input.guestPhone || order.guest?.phone || '';
+  const address = (order.guest?.address || '').trim();
   const products = new Map<string, Product>();
   for (const p of await db.products.bulkGet(dishIds)) if (p) products.set(p.id, p);
   const items: CartItem[] = totals.items.map((i) => {
@@ -75,8 +80,8 @@ export async function settleOrder(input: SettleInput): Promise<Sale> {
     id: saleId,
     business_id: businessId,
     invoice_number: invoiceNumber,
-    customer_name: billCustomerName(order, input.guestName),
-    ...(cleanGuestPhone(input.guestPhone) ? { customer_phone: cleanGuestPhone(input.guestPhone) } : {}),
+    customer_name: billCustomerName(order, guestName),
+    ...(cleanGuestPhone(guestPhone) ? { customer_phone: cleanGuestPhone(guestPhone) } : {}),
     items,
     subtotal: totals.subtotal,
     discount_total: totals.discountTotal,
@@ -89,7 +94,7 @@ export async function settleOrder(input: SettleInput): Promise<Sale> {
     change_returned: Math.max(0, received - grand),
     payment_status: 'paid',
     status: 'completed',
-    notes: billLabel(order),
+    notes: address ? `${billLabel(order)} · ${address}` : billLabel(order),
     created_by: 'owner',
     created_at: now,
     updated_at: now,

@@ -39,10 +39,12 @@ export function parseRestState(raw: unknown): RestState {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, any>;
   const orders: RestOrder[] = [];
   for (const o of Array.isArray(r.orders) ? r.orders : []) {
-    if (!o || typeof o !== 'object' || !o.id || !o.label || (o.kind !== 'table' && o.kind !== 'takeaway')) continue;
+    if (!o || typeof o !== 'object' || !o.id || !o.label || (o.kind !== 'table' && o.kind !== 'takeaway' && o.kind !== 'delivery')) continue;
+    const g = o.guest && typeof o.guest === 'object' ? o.guest : null;
     orders.push({
       id: str(o.id), kind: o.kind, label: str(o.label, 30), openedAt: str(o.openedAt, 40), updatedAt: str(o.updatedAt, 40), kotRounds: int(o.kotRounds),
       lines: (Array.isArray(o.lines) ? o.lines : []).map(cleanLine).filter((l: RestLine | null): l is RestLine => Boolean(l)),
+      ...(g ? { guest: { name: str(g.name, 40), phone: str(g.phone, 15), address: str(g.address, 160) } } : {}),
     });
   }
   const t = r.token;
