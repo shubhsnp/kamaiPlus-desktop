@@ -39,9 +39,13 @@ export function cloudDocFor(table: CloudTable, row: Row, bizId: string, absolute
 }
 
 /** The shop document. A shop new to the cloud gets 'grocery' (the phone never overwrites its own vertical). */
+const NEW_SHOP_TYPES = new Set(['grocery', 'pharmacy', 'clothing', 'hardware', 'restaurant', 'retail']);
+
 export async function writeShopDoc(bizId: string, row: Row, isNewShop: boolean): Promise<void> {
   const shop = cloudDocFor('businesses', row, bizId, true);
-  if (isNewShop) shop.business_type = 'grocery';
+  // A new cloud shop takes this shop's category (v4.137.0 — it was always 'grocery', so a PC chemist
+  // opened on the phone as a kirana). Both apps use the same six ids.
+  if (isNewShop) shop.business_type = NEW_SHOP_TYPES.has(row?.business_type) ? row.business_type : 'grocery';
   else delete shop.business_type;
   await setDoc(doc(firestore(), 'businesses', bizId), { ...shop, synced_at: serverTimestamp() }, { merge: true });
 }

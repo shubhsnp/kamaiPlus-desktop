@@ -102,7 +102,12 @@ const SPECS: Record<CloudTable, TableSpec> = {
       'trial_started_at', 'device_reported_pro', 'device_reported_plan', 'device_reported_expiry', 'device_reported_tier',
       'total_sales_count', 'total_revenue_paise', 'last_sale_at', 'category'],
     dates: DATES,
-    out: (row, doc) => { doc.platform = 'desktop'; },
+    out: (row, doc) => {
+      doc.platform = 'desktop';
+      // v4.137.0: the phone reads the shop's name as store_name (older builds: only that or business_name).
+      // With `name` alone a shop made on the PC looked like "no shop" and the phone showed its signup form.
+      if (typeof row.name === 'string' && row.name.trim()) doc.store_name = doc.shop_name = doc.business_name = row.name;
+    },
     in: (doc, row, local) => {
       if (local) return;
       // This computer has no shop yet (a restore onto a new PC): what the Desktop needs to open.

@@ -13,6 +13,8 @@ import { createOnboardingSubmit } from '@/components/onboarding/onboardingSubmit
 import { CategorySelector } from '@/components/onboarding/CategorySelector';
 import { CloudRestoreBanner } from '@/components/onboarding/CloudRestoreBanner';
 import { findCloudStore, DetectedCloudStore } from '@/components/onboarding/cloudStoreRestore';
+import { CloudLookupNotice } from '@/components/onboarding/CloudLookupNotice';
+import { getCloudAccount } from '@/lib/cloud/cloudAccount';
 
 const CATALOG_HINTS: Record<string, string> = {
   grocery: 'Adds 10 kirana items (atta, rice, dal, oil, Maggi, biscuits) with prices and stock.',
@@ -41,6 +43,11 @@ export default function OnboardingPage() {
   // Cloud Restore State
   const [detectedCloudStore, setDetectedCloudStore] = useState<DetectedCloudStore | null>(null);
   const [isDismissedCloud, setIsDismissedCloud] = useState<boolean>(false);
+  // v4.137.0: one Google account = one shop on every device. With a Google account on this
+  // computer the form waits for the lookup; a found shop shows only "Restore" (no signup form).
+  const [cloudLinked, setCloudLinked] = useState<boolean>(false);
+  const [cloudChecking, setCloudChecking] = useState<boolean>(false);
+  const [accountTick, setAccountTick] = useState<number>(0);
 
   // Existing User Gate: If local store is already onboarded, immediately redirect to Home
   useEffect(() => {
@@ -77,14 +84,23 @@ export default function OnboardingPage() {
   // Cross-device Cloud Store Discovery Check
   useEffect(() => {
     let isCurrent = true;
+    const account = getCloudAccount();
+    const linked = Boolean(account && !account.stub);
+    setCloudLinked(linked);
     const checkCloud = async () => {
       if (isDismissedCloud) return;
       const clean = phone.replace(/\D/g, '').slice(-10);
-      if (clean.length === 10 || currentUser?.uid) {
-        const cloudMatch = await findCloudStore({ uid: currentUser?.uid, phone: clean });
+      if (clean.length === 10 || currentUser?.uid || linked) {
+        if (linked && !detectedCloudStore) setCloudChecking(true);
+        // Offline the lookup could wait long — after 12 s the form shows.
+        const cloudMatch = await Promise.race([
+          findCloudStore({ uid: currentUser?.uid, phone: clean }),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 12000)),
+        ]);
         if (isCurrent && cloudMatch) {
           setDetectedCloudStore(cloudMatch);
         }
+        if (isCurrent) setCloudChecking(false);
       }
     };
 
@@ -93,7 +109,9 @@ export default function OnboardingPage() {
       isCurrent = false;
       clearTimeout(debounceTimer);
     };
-  }, [phone, currentUser, isDismissedCloud]);
+  }, [phone, currentUser, isDismissedCloud, accountTick]);
+
+  const showRestoreOnly = Boolean(detectedCloudStore && !isDismissedCloud);
 
   const { handleSubmit } = createOnboardingSubmit({
     router, currentUser, setIsLoading, setError, businessName, ownerName,
@@ -145,7 +163,12 @@ export default function OnboardingPage() {
           />
         )}
 
-        {/* Onboarding Form Card */}
+        {!showRestoreOnly && (
+          <CloudLookupNotice checking={cloudChecking} linked={cloudLinked} onConnected={() => setAccountTick((n) => n + 1)} />
+        )}
+
+        {/* Onboarding Form Card — not while the cloud lookup runs, nor when the shop was found */}
+        {!showRestoreOnly && !cloudChecking && (
         <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl text-white">
           {error && (
             <div className="mb-5 p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs rounded-xl flex items-start gap-2.5">
@@ -313,6 +336,7 @@ export default function OnboardingPage() {
             </Button>
           </form>
         </div>
+        )}
       </div>
     </main>
   );

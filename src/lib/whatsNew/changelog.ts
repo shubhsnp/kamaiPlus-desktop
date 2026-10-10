@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.137.0',
+    items: [
+      msg('Same Google account on PC and phone: store setup on this PC now waits while it looks for your shop and shows only "Restore" when it finds it (no new-shop form). A new shop set up with a Google account goes to the cloud at once, so the phone opens it instead of asking to sign up. No Google account yet? Store setup offers "Connect Google Account".'),
+    ],
+  },
+  {
     version: '4.136.0',
     items: [
       msg('Sales Return: for a bill that still has udhar on it, the refund now comes off the customer\'s khata by default (Credit Balance −) instead of cash. You can still pick Cash or UPI.'),

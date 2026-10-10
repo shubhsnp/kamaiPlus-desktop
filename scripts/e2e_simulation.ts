@@ -4972,6 +4972,27 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
     'Sales Return: an udhar bill (balance due) refunds to the khata by default, a paid bill to cash (AU-37)');
 }
 
+// v4.137.0 — One Google account = one shop on every device (Rahul: "vahi email se cross device par login karta hai
+// to signup form ana nahi chahiye"). Three causes: the PC's cloud shop had only `name` (the phone reads store_name →
+// "no shop" → signup form); a new PC shop with a Google account never went to the cloud (sync was off); the PC's
+// store setup showed the signup form even under "Existing cloud store found".
+{
+  const out = toCloud('businesses', { id: 'biz_l', name: 'Sharma Medical', business_type: 'pharmacy' }, { bizId: 'biz_U' });
+  assert(out.name === 'Sharma Medical' && out.store_name === 'Sharma Medical' && out.shop_name === 'Sharma Medical' && out.business_name === 'Sharma Medical',
+    'Cross-device: the PC\'s cloud shop carries its name as store_name / shop_name / business_name too (the phone finds it, no signup form)');
+  const back = fromCloud('businesses', out, { id: 'biz_l', name: 'Sharma Medical' }, { bizId: 'biz_U' });
+  assert(!('store_name' in back) && !('shop_name' in back) && !('business_name' in back), 'Cross-device: those copies never come back into the PC\'s shop row');
+  const cw = readSource('lib/cloud/cloudWrite.ts');
+  assert(cw.includes("NEW_SHOP_TYPES.has(row?.business_type) ? row.business_type : 'grocery'"),
+    'Cross-device: a new cloud shop takes the PC\'s category (a PC chemist opens on the phone as a pharmacy, not a kirana)');
+  const sub = readSource('components/onboarding/onboardingSubmit.ts');
+  assert(sub.includes('if (account && !account.stub) {') && sub.includes('setCloudSendOn(true);'),
+    'Cross-device: a new PC shop with a Google account turns cloud sync on at once (the phone with the same account opens it)');
+  const ob = readSource('app/onboarding/page.tsx');
+  assert(ob.includes('{!showRestoreOnly && !cloudChecking && (') && ob.includes('<CloudLookupNotice') && ob.includes('setTimeout(() => resolve(null), 12000)'),
+    'Cross-device: PC store setup shows only "Restore" when the account\'s shop is found, waits (max 12 s) while looking, offers Connect Google otherwise');
+}
+
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.
 Promise.allSettled(pendingAsyncChecks).then((results) => {
   for (const r of results) if (r.status === 'rejected') assert(false, 'An async check threw', String(r.reason));

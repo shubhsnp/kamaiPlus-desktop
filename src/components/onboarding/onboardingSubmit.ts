@@ -240,6 +240,20 @@ export function createOnboardingSubmit(deps: CreateOnboardingSubmitDeps) {
       markWhatsNewSeen(APP_VERSION);
       setStoredUser(completeAuthUser);
 
+      // v4.137.0: a new shop with a Google account on this computer goes to the cloud at once, so the
+      // same account on the phone opens this shop (not a signup form) and both stay in sync.
+      try {
+        const [{ getCloudAccount }, { setCloudSendOn, sendToCloudNow }] = await Promise.all([
+          import('@/lib/cloud/cloudAccount'),
+          import('@/lib/cloud/cloudPush'),
+        ]);
+        const account = getCloudAccount();
+        if (account && !account.stub) {
+          setCloudSendOn(true);
+          void sendToCloudNow();
+        }
+      } catch {}
+
       // Sync profile to cloud
       try {
         const { syncProfileToCloud } = await import('@/lib/sync/syncEngine');
