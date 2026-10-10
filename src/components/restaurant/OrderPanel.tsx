@@ -68,6 +68,7 @@ export function OrderPanel({ order, settings, kotBusy, checkBusy, onBack, onQty,
           </button>
         )}
         {order.kotRounds > 0 && <span className="text-[10px] font-black uppercase tracking-wide text-amber-800 bg-amber-100 rounded-full px-2 py-1">KOT {order.kotRounds}</span>}
+        {order.kotRequestedAt && unsent && <span className="text-[10px] font-black uppercase tracking-wide text-sky-800 bg-sky-100 rounded-full px-2 py-1" data-kot-asked>{tr('KOT sent to PC')}</span>}
         <div className="relative" ref={menuRef}>
           <button type="button" onClick={() => setMenuOpen((v) => !v)} aria-haspopup="menu" aria-expanded={menuOpen} aria-label={tr('More')}
             className="h-9 w-9 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 flex items-center justify-center cursor-pointer" data-order-more>

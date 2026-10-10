@@ -45,6 +45,7 @@ export function parseRestState(raw: unknown): RestState {
       id: str(o.id), kind: o.kind, label: str(o.label, 30), openedAt: str(o.openedAt, 40), updatedAt: str(o.updatedAt, 40), kotRounds: int(o.kotRounds),
       lines: (Array.isArray(o.lines) ? o.lines : []).map(cleanLine).filter((l: RestLine | null): l is RestLine => Boolean(l)),
       ...(g ? { guest: { name: str(g.name, 40), phone: str(g.phone, 15), address: str(g.address, 160) } } : {}),
+      ...(o.kotRequestedAt ? { kotRequestedAt: str(o.kotRequestedAt, 40) } : {}),
     });
   }
   const t = r.token;
@@ -61,7 +62,7 @@ export function loadRestState(): RestState {
   }
 }
 
-function saveRestState(state: RestState): void {
+export function saveRestState(state: RestState): void {
   try {
     localStorage.setItem(RESTAURANT_ORDERS_KEY, JSON.stringify(state));
   } catch {}

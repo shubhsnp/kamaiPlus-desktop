@@ -50,6 +50,11 @@ export interface RestOrder {
   kotRounds: number;
   /** Takeaway / delivery guest (v4.139.0). */
   guest?: OrderGuest;
+  /**
+   * v4.140.0: a device with no kitchen printer (the waiter's phone) asked for a KOT at this time; the PC
+   * set to print other devices' KOTs prints it and clears this (lib/restaurant/cloudOrders.ts).
+   */
+  kotRequestedAt?: string;
 }
 
 /** "Table T4" / "Takeaway TA-03" / "Delivery DL-02" — on the bill, the QR reference and Transactions. */
@@ -155,7 +160,13 @@ export function kotChanges(order: RestOrder): KotLine[] {
 /** After the slip is printed: the kitchen is up to date; cancelled lines can go. */
 export function markKotSent(order: RestOrder, now: string): RestOrder {
   const lines = order.lines.filter((l) => l.qty > 0).map((l) => ({ ...l, kotQty: l.qty }));
-  return { ...order, lines, updatedAt: now, kotRounds: order.kotRounds + 1 };
+  const { kotRequestedAt: _asked, ...rest } = order;
+  return { ...rest, lines, updatedAt: now, kotRounds: order.kotRounds + 1 };
+}
+
+/** No kitchen printer here: ask the shop's KOT PC to print this order's changes (v4.140.0). */
+export function requestKot(order: RestOrder, now: string): RestOrder {
+  return { ...order, kotRequestedAt: now, updatedAt: now };
 }
 
 export const hasUnsentItems = (order: RestOrder): boolean => order.lines.some((l) => l.qty !== l.kotQty);

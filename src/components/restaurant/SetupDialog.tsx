@@ -25,6 +25,7 @@ export function SetupDialog({ open, settings, onClose }: { open: boolean; settin
   const [service, setService] = useState('0');
   const [packing, setPacking] = useState('0');
   const [delivery, setDelivery] = useState('0');
+  const [remoteKots, setRemoteKots] = useState(false);
   const [addOns, setAddOns] = useState<{ name: string; price: string }[]>([]);
   const [count, setCount] = useState('10');
 
@@ -37,6 +38,7 @@ export function SetupDialog({ open, settings, onClose }: { open: boolean; settin
     setService(String(settings.serviceChargePercent));
     setPacking(String(settings.packingChargePaise / 100));
     setDelivery(String(settings.deliveryChargePaise / 100));
+    setRemoteKots(settings.printRemoteKots);
     setAddOns(settings.addOns.map((a) => ({ name: a.name, price: String(a.pricePaise / 100) })));
   }, [open, settings]);
 
@@ -48,6 +50,7 @@ export function SetupDialog({ open, settings, onClose }: { open: boolean; settin
       serviceChargePercent: parseFloat(service) || 0,
       packingChargePaise: packing ? parseRupeesToPaise(packing) : 0,
       deliveryChargePaise: delivery ? parseRupeesToPaise(delivery) : 0,
+      printRemoteKots: remoteKots,
       addOns: addOns.map((a) => ({ name: a.name, pricePaise: a.price ? parseRupeesToPaise(a.price) : 0 })),
     }));
     onClose();
@@ -103,6 +106,10 @@ export function SetupDialog({ open, settings, onClose }: { open: boolean; settin
               <input id="rest-delivery" value={delivery} onChange={(e) => setDelivery(e.target.value.replace(/[^\d.]/g, ''))} inputMode="decimal" className={cn(field, 'w-full font-mono')} data-rest-delivery-charge />
             </div>
             <p className="col-span-2 text-[11px] text-slate-500">{tr('Service and packing charges get the same GST. Ask your CA which rate applies to you.')}</p>
+            <label className="col-span-2 flex items-start gap-2 text-xs font-semibold text-slate-700 cursor-pointer" data-rest-remote-kots>
+              <input type="checkbox" checked={remoteKots} onChange={(e) => setRemoteKots(e.target.checked)} className="mt-0.5 w-4 h-4" />
+              <span>{tr("Print KOTs from the waiters' phones on this PC (the PC with the kitchen printer; needs cloud sync on)")}</span>
+            </label>
           </div>
         </section>
 

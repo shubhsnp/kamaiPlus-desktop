@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.140.0',
+    items: [
+      msg('Restaurant on many devices: with cloud sync on, the running orders of every table and parcel are the same on this PC and the waiters\' phones (same Google account) — what one adds, the other sees in seconds; a paid order leaves all. Set-up → "Print KOTs from the waiters\' phones on this PC" makes this PC print the KOTs a phone sends to the kitchen.'),
+    ],
+  },
+  {
     version: '4.139.0',
     items: [
       msg('Restaurant: new "New delivery" button — type the guest\'s name, mobile and address; the order gets a DL- token. Packing charge on every parcel and a delivery charge (set it in Set-up) go on the bill with GST. The guest and address show on the order, the KOT and the bill; the mobile fills the WhatsApp bill.'),

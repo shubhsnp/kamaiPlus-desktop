@@ -84,12 +84,13 @@ import { generalCategoryId } from '../src/lib/products/defaultCategory';
 import { nextSupplierBalance } from '../src/lib/suppliers/supplierLedger';
 import { cleanVariantLabels, DEFAULT_COUNTED_STOCK, summarizeVariants, tracksOwnStock } from '../src/lib/products/variants';
 import { buildBillCustomer, cleanCustomerNameInput, cleanMobileInput, isDraftEmpty, resolveBillCustomer, splitDraft, suggestCustomers } from '../src/lib/billing/billCustomer';
-import { MenuPick, PACKING_CHARGE_ID, SERVICE_CHARGE_ID, addPiece, applyToOnePiece, cancelOrderChanges, changeQty, discountPaise, formatOpenTime, hasUnsentItems, kotChanges, lineKey, lineUnitPaise, markKotSent, moveOrderTo, newOrder, nextToken, orderTotals, pieceCount, piecesInKitchen, removeLine, reprintKotLines } from '../src/lib/restaurant/model';
+import { MenuPick, PACKING_CHARGE_ID, SERVICE_CHARGE_ID, requestKot, addPiece, applyToOnePiece, cancelOrderChanges, changeQty, discountPaise, formatOpenTime, hasUnsentItems, kotChanges, lineKey, lineUnitPaise, markKotSent, moveOrderTo, newOrder, nextToken, orderTotals, pieceCount, piecesInKitchen, removeLine, reprintKotLines } from '../src/lib/restaurant/model';
 import { parseVoids, voidFromOrder, voidsOfDay } from '../src/lib/restaurant/voids';
 import { buildCheckBody, shopUpiId } from '../src/lib/restaurant/checkPrint';
 import { defaultTableNames, sanitizeRestaurantSettings } from '../src/lib/restaurant/settings';
 import { parseRestState } from '../src/lib/restaurant/store';
 import { foodTypeOf, isSoldOutToday, localDay, soldOutPatch } from '../src/lib/restaurant/dish';
+import { isShared, kotToPrintHere, mergeCloudOrder, orderFromCloud, orderToCloud, ordersToSend, reconcileFirstRead, removeCloudOrder, tableOrderId } from '../src/lib/restaurant/cloudOrders';
 import { buildKotBody } from '../src/lib/restaurant/kot';
 import { RESTAURANT_PRESET_OFF, applyRestaurantPreset, restaurantModeFromRaw } from '../src/lib/features/featureSwitches';
 import { RESTAURANT_WORDS } from '../src/lib/restaurant/words';
@@ -5042,6 +5043,41 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
   const settleSrc = readSource('lib/restaurant/settle.ts');
   assert(settleSrc.includes("const guestName = input.guestName || order.guest?.name || ''") && settleSrc.includes('DELIVERY_CHARGE_ID]'),
     'Restaurant: the guest typed at "New delivery" is the bill\'s guest; the delivery charge line never touches stock');
+}
+
+// v4.140.0 — R1: running restaurant orders shared by the shop's devices (waiter phone ↔ counter PC) through
+// businesses/{biz}/restaurant_orders, newer updatedAt wins per order; a paid order's document is deleted.
+{
+  assert(tableOrderId('T4') === 'table_t4' && tableOrderId(' Garden 2 ') === 'table_garden_2', 'Restaurant sync: a table\'s order id comes from its name (both devices open ONE order for T4)');
+  const o1 = addPiece(newOrder('table', 'T4', 'table_t4', '2026-10-10T07:00:00.000Z'), { productId: 'p1', name: 'Chai', unit: 'piece', basePaise: 2000 }, '2026-10-10T07:01:00.000Z');
+  assert(!isShared(newOrder('table', 'T5', 'table_t5', '2026-10-10T07:00:00.000Z')) && isShared(o1), 'Restaurant sync: an empty table card is not shared; one with a dish is');
+  const back = orderFromCloud(orderToCloud(o1, 'desk_1') as any, 'table_t4');
+  assert(back !== null && back.lines[0].qty === 1 && back.updatedAt === o1.updatedAt, 'Restaurant sync: an order goes to the cloud and comes back the same');
+  const st = { orders: [o1], token: null };
+  const newer = { ...o1, lines: [{ ...o1.lines[0], qty: 3 }], updatedAt: '2026-10-10T07:05:00.000Z' };
+  const older = { ...o1, lines: [{ ...o1.lines[0], qty: 9 }], updatedAt: '2026-10-10T07:00:30.000Z' };
+  assert(mergeCloudOrder(st, newer).orders[0].lines[0].qty === 3 && mergeCloudOrder(st, older) === st && mergeCloudOrder(st, o1) === st,
+    'Restaurant sync: a newer change from the other device replaces this one; an older one or our own echo changes nothing');
+  const ta = { ...newOrder('takeaway', 'TA-07', 'rord_x', new Date(2026, 9, 10, 12).toISOString()), lines: o1.lines };
+  const bumped = mergeCloudOrder({ orders: [], token: { day: '2026-10-10', last: 3 } }, ta, new Date(2026, 9, 10, 12, 5));
+  assert(bumped.token?.last === 7 && nextToken(bumped.token, new Date(2026, 9, 10, 12, 6)).label === 'TA-08', 'Restaurant sync: the phone\'s TA-07 moves this PC\'s count on — its next token is TA-08, not a repeat');
+  assert(removeCloudOrder(st, 'table_t4').orders.length === 0, 'Restaurant sync: an order paid / cancelled on the other device leaves this one');
+  const sent = new Map([['table_t4', o1.updatedAt], ['table_t9', 'x']]);
+  const plan = ordersToSend(sent, [newer, newOrder('table', 'T5', 'table_t5', 'z')]);
+  assert(plan.put.length === 1 && plan.put[0].id === 'table_t4' && plan.del.join() === 'table_t9', 'Restaurant sync: only changed orders go up; a paid one is deleted in the cloud; an empty card is not sent');
+  const firstRead = reconcileFirstRead({ orders: [o1, { ...o1, id: 'local_new' }], token: null }, new Map([['table_t4', o1.updatedAt]]), new Set());
+  assert(firstRead.orders.length === 1 && firstRead.orders[0].id === 'local_new', 'Restaurant sync: an order paid elsewhere while this PC was closed is dropped at start (never sent back to life); one made here offline stays');
+  const asked = requestKot(o1, '2026-10-10T07:02:00.000Z');
+  assert(kotToPrintHere(asked, true) && !kotToPrintHere(asked, false) && !kotToPrintHere(o1, true), 'Restaurant KOT: the PC with "Print KOTs from the waiters\' phones" prints an asked order; other PCs do not');
+  const printed = markKotSent(asked, '2026-10-10T07:03:00.000Z');
+  assert(!('kotRequestedAt' in printed) && !kotToPrintHere(printed, true) && parseRestState({ orders: [asked] }).orders[0].kotRequestedAt === asked.kotRequestedAt,
+    'Restaurant KOT: printing clears the request (no second slip); the request survives a restart');
+  assert(sanitizeRestaurantSettings({ printRemoteKots: true }).printRemoteKots === true && sanitizeRestaurantSettings({}).printRemoteKots === false, 'Restaurant set-up: "print other devices\' KOTs" is off unless switched on');
+  const sched = readSource('components/layout/CloudSyncScheduler.tsx');
+  const screen = readSource('components/restaurant/OrderScreen.tsx');
+  const page = readSource('components/restaurant/RestaurantPage.tsx');
+  assert(sched.includes('const target = want && isRestaurantMode() ? want : \'\'') && screen.includes('res.noPrinter && cloudSendActive()') && page.includes('tableOrderId(label)'),
+    'Restaurant sync: runs with cloud sync in Restaurant mode only; no printer here → the KOT goes to the KOT PC; tables use the shared id');
 }
 
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.

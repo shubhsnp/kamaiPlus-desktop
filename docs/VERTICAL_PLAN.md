@@ -253,7 +253,7 @@ Aaj: items, grahak, bills, categories dono taraf; baaki tables sirf Desktop → 
 
 ### Rahul ki list (2026-10-10, shaam) — kya ab, kya baad mein
 **Ab karna (is kram se):**
-- [ ] R1 Restaurant P0: chalu table orders cloud se sync (waiter phone ↔ PC cashier / KOT printer)
+- [x] R1 Restaurant P0: chalu table orders cloud se sync — Desktop v4.140.0 (Android next)
 - [ ] R2 Restaurant P0: dish "Aaj khatam" (dono devices); item par "Stock ginein" (bottle / packet) — Purchases + Suppliers NAHI chahiye
 - [x] R3 Takeaway / delivery (Desktop v4.139.0; Android next)
 - [x] R4 UI: veg / non-veg nishaan (Desktop v4.138.0 + Android)
@@ -268,4 +268,4 @@ Aaj: items, grahak, bills, categories dono taraf; baaki tables sirf Desktop → 
 **Sirf samjhana:** AU-A1 (phone har bill do jagah likhta) — karna nahi.
 **Baad mein:** website / help guides sync; phone par A3, A4, A5, A7, A12, A15 checks; Desktop Ctrl+V PDF asli WhatsApp par; installer code-signing; staff login / roles.
 - R2 (aadha): "Aaj khatam" ho gaya — product par `sold_out_on` (aaj ki taareekh), kal apne-aap wapas; Desktop menu "Sold out today" mode, Android "Khatam" mode; dono taraf product sync se. "Stock ginein" (bottle) abhi baaki.
-
+- R1 kaise: har chalu order = `businesses/{biz}/restaurant_orders/{orderId}` (dono apps ka same shape); badlaav turant upar, naya `updatedAt` jeetta; bill / cancel = doc delete = sab device se hata. Table ki id naam se (`table_t4`) — do device ek hi order. PC khulne par server ka pehla jawab aane tak kuch nahi bhejta; jo order pehle bheja tha aur ab cloud mein nahi (doosre device par bill ho gaya) woh yahan bhi hatta — wapas zinda nahi hota. KOT: phone ke paas printer nahi → `kotRequestedAt` → PC (Set-up switch) chhaapta + sent mark. Takeaway token: doosre device ka TA-07 dekhkar apni ginti aage.

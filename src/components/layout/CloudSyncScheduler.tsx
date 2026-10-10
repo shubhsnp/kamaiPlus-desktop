@@ -3,7 +3,8 @@
 import { useEffect } from 'react';
 import { CLOUD_ACCOUNT_EVENT, getCloudAccount } from '@/lib/cloud/cloudAccount';
 import { OUTBOX_EVENT, outboxSize, setOutboxRecording } from '@/lib/cloud/cloudOutbox';
-import { CLOUD_STATUS_EVENT, cloudSendActive, needsFullPush, sendToCloudNow, setCloudStatus } from '@/lib/cloud/cloudPush';
+import { CLOUD_STATUS_EVENT, cloudSendActive, deviceId, needsFullPush, sendToCloudNow, setCloudStatus } from '@/lib/cloud/cloudPush';
+import { isRestaurantMode } from '@/lib/features/featureSwitches';
 
 const FIRST_RUN_MS = 20 * 1000;
 const CHECK_EVERY_MS = 60 * 1000;
@@ -24,6 +25,9 @@ export function CloudSyncScheduler() {
   useEffect(() => {
     let stopListening: (() => void) | null = null;
     let listeningFor = '';
+    // v4.140.0: running restaurant orders shared by the shop's devices (lib/restaurant/cloudOrders.ts).
+    let stopRestaurant: (() => void) | null = null;
+    let restaurantFor = '';
     let soon: number | undefined;
 
     const idle = (go: () => void) => {
@@ -32,9 +36,36 @@ export function CloudSyncScheduler() {
       else go();
     };
 
+    const syncRestaurant = async (want: string) => {
+      const target = want && isRestaurantMode() ? want : '';
+      if (target === restaurantFor) return;
+      stopRestaurant?.();
+      stopRestaurant = null;
+      restaurantFor = target;
+      if (!target) return;
+      try {
+        const [{ startRestaurantCloud }, { printKot }, { db }] = await Promise.all([
+          import('@/lib/restaurant/cloudOrders'), import('@/lib/restaurant/kot'), import('@/lib/db'),
+        ]);
+        const stop = await startRestaurantCloud(target, deviceId(), {
+          printKot: async (order) => {
+            const biz = await db.businesses.toCollection().first();
+            return (await printKot({ order, shopName: biz?.name, round: order.kotRounds + 1 })).ok;
+          },
+          onError: (e: any) => console.warn('Restaurant cloud notice:', e?.message),
+        });
+        if (restaurantFor === target) stopRestaurant = stop;
+        else stop();
+      } catch (e) {
+        restaurantFor = '';
+        console.warn('Restaurant cloud could not start:', e);
+      }
+    };
+
     const syncListeners = async () => {
       const account = getCloudAccount();
       const want = cloudSendActive() && account && !needsFullPush() ? account.bizId : '';
+      void syncRestaurant(want);
       if (want === listeningFor) return;
       stopListening?.();
       stopListening = null;

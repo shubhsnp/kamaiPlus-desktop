@@ -13,6 +13,7 @@ import type { Sale } from '@/types';
 import { OrderGuest, newOrder, nextToken } from '@/lib/restaurant/model';
 import { DeliveryDialog } from '@/components/restaurant/DeliveryDialog';
 import { useRestaurant } from '@/lib/restaurant/store';
+import { tableOrderId } from '@/lib/restaurant/cloudOrders';
 import { OrderScreen } from '@/components/restaurant/OrderScreen';
 import { SetupDialog } from '@/components/restaurant/SetupDialog';
 import { TablesHome } from '@/components/restaurant/TablesHome';
@@ -58,7 +59,9 @@ export function RestaurantPage() {
   const openTable = (label: string) => {
     const existing = state.orders.find((o) => o.kind === 'table' && o.label === label);
     if (existing) return setSelectedId(existing.id);
-    const id = newId('rord');
+    // v4.140.0: from the table name, so a phone and this PC opening T4 together share ONE order.
+    // A moved order keeps its old id (table_t4 now on T6): then this table gets a fresh one.
+    const id = state.orders.some((o) => o.id === tableOrderId(label)) ? newId('rord') : tableOrderId(label);
     update((s) => (s.orders.some((o) => o.kind === 'table' && o.label === label) ? s : { ...s, orders: [...s.orders, newOrder('table', label, id, new Date().toISOString())] }));
     setSelectedId(id);
   };

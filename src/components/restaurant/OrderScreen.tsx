@@ -3,7 +3,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { Business, Sale } from '@/types';
 import { tr } from '@/lib/i18n/core';
-import { MenuPick, RestLine, RestOrder, addPiece, applyToOnePiece, cancelOrderChanges, changeQty, lineTitle, liveLines, markKotSent, moveOrderTo, removeLine, reprintKotLines } from '@/lib/restaurant/model';
+import { MenuPick, RestLine, RestOrder, addPiece, applyToOnePiece, cancelOrderChanges, changeQty, lineTitle, liveLines, markKotSent, moveOrderTo, removeLine, reprintKotLines, requestKot } from '@/lib/restaurant/model';
+import { cloudSendActive } from '@/lib/cloud/cloudPush';
 import type { RestAddOn, RestaurantSettings } from '@/lib/restaurant/settings';
 import type { RestState } from '@/lib/restaurant/store';
 import { printKot } from '@/lib/restaurant/kot';
@@ -123,6 +124,10 @@ export function OrderScreen({ order, settings, update, business, freeTables, onB
       if (res.ok) {
         update((s) => mapOrder(s, order.id, (o) => markKotSent(o, now())));
         notify(tr('KOT sent to the kitchen ({label})', { label: order.label }), 'success');
+      } else if (res.noPrinter && cloudSendActive()) {
+        // v4.140.0: the shop's KOT PC (Set-up switch) prints it; this order shows "KOT asked" until then.
+        update((s) => mapOrder(s, order.id, (o) => requestKot(o, now())));
+        notify(tr('No kitchen printer here — KOT sent to the KOT PC ({label})', { label: order.label }), 'info');
       } else if (res.noPrinter) {
         // v4.123.0 (AU-31): no kitchen printer — the waiter tells the kitchen and confirms it here.
         const told = await showConfirm(tr('No kitchen (KOT) printer is chosen, so no slip was printed. Choose it in Printer setup (bill printer). Mark this order as told to the kitchen anyway?'), { title: tr('KOT not printed'), confirmLabel: tr('Yes, kitchen knows') });

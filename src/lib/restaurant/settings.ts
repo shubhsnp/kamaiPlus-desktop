@@ -26,6 +26,11 @@ export interface RestaurantSettings {
   deliveryChargePaise: number;
   /** Add-ons the waiter can pick from (a custom one can be typed too). */
   addOns: RestAddOn[];
+  /**
+   * v4.140.0: this PC prints the KOTs the shop's other devices (a waiter's phone) send to the kitchen.
+   * One PC per shop — the one with the kitchen printer.
+   */
+  printRemoteKots: boolean;
 }
 
 export const RESTAURANT_SETTINGS_KEY = 'kamai_restaurant_settings';
@@ -44,6 +49,7 @@ export const DEFAULT_RESTAURANT_SETTINGS: RestaurantSettings = {
   serviceChargePercent: 0,
   packingChargePaise: 0,
   deliveryChargePaise: 0,
+  printRemoteKots: false,
   addOns: [
     { name: 'Extra cheese', pricePaise: 2000 },
     { name: 'Extra butter', pricePaise: 1000 },
@@ -87,6 +93,7 @@ export function sanitizeRestaurantSettings(raw: unknown): RestaurantSettings {
     serviceChargePercent: Math.round(num(r.serviceChargePercent, d.serviceChargePercent, 0, 30) * 100) / 100,
     packingChargePaise: Math.round(num(r.packingChargePaise, d.packingChargePaise, 0, 1_000_000)),
     deliveryChargePaise: Math.round(num(r.deliveryChargePaise, d.deliveryChargePaise, 0, 1_000_000)),
+    printRemoteKots: r.printRemoteKots === true,
     // A missing list = the starter add-ons; an empty list saved on purpose stays empty.
     addOns: Array.isArray(r.addOns) ? addOns : d.addOns,
   };
