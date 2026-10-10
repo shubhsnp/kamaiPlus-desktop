@@ -4895,6 +4895,16 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
   assert(e2e.includes("thermalPrinter: '', a4Printer: ''"), 'Electron E2E: the restaurant KOT check runs with no printer chosen (never a real printer)');
 }
 
+// v4.132.0 — Rahul: "jahan-jahan WhatsApp hai, wahan Android jaisa official WhatsApp logo". One icon for all.
+{
+  const btn = readSource('components/whatsapp/WhatsAppButton.tsx');
+  assert(btn.includes('data-whatsapp-logo') && btn.includes('fill="#25D366"') && !btn.includes('MessageCircle'),
+    'WhatsApp: the official logo (green circle, white mark) is the one WhatsAppIcon');
+  const raw = ['components/purchases/PurchaseOrdersCard.tsx', 'components/settings/HelpSupportTab.tsx', 'components/support/SupportContact.tsx']
+    .filter((f) => readSource(f).includes('MessageCircle'));
+  assert(raw.length === 0, `WhatsApp buttons use WhatsAppIcon, never a chat bubble (${raw.join(', ') || 'none left'})`);
+}
+
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.
 Promise.allSettled(pendingAsyncChecks).then((results) => {
   for (const r of results) if (r.status === 'rejected') assert(false, 'An async check threw', String(r.reason));

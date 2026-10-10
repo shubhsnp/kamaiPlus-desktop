@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.132.0',
+    items: [
+      msg('WhatsApp buttons show the official WhatsApp logo, the same as the mobile app.'),
+    ],
+  },
+  {
     version: '4.131.0',
     items: [
       msg('Printing: a printer that never answers (a switched-off printer, or "Microsoft Print to PDF" chosen as the bill printer) no longer blocks every later bill, KOT and label — after 45 seconds that print says it failed and the next one goes out.'),

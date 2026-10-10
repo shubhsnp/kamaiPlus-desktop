@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Check, Copy, Globe, Headset, Mail, MessageCircle, Phone } from 'lucide-react';
+import { Check, Copy, Globe, Headset, Mail, Phone } from 'lucide-react';
+import { WhatsAppIcon } from '@/components/whatsapp/WhatsAppButton';
 import { tr } from '@/lib/i18n/core';
 import { cn } from '@/lib/utils';
 import {
@@ -58,7 +59,7 @@ export const SupportContactCard: React.FC<{ shopName?: string | null }> = ({ sho
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
         <div className="p-3 rounded-xl border border-emerald-200 bg-emerald-50/60 flex flex-col gap-2">
           <div className="flex items-center gap-1.5 text-[11px] font-black text-emerald-800 uppercase tracking-wide">
-            <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
+            <WhatsAppIcon className="w-3.5 h-3.5" /> WhatsApp
           </div>
           <div className="text-sm font-black text-slate-900 font-mono">{SUPPORT_PHONE_DISPLAY}</div>
           <a
@@ -67,7 +68,7 @@ export const SupportContactCard: React.FC<{ shopName?: string | null }> = ({ sho
             rel="noreferrer"
             className="mt-auto h-9 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-1.5"
           >
-            <MessageCircle className="w-3.5 h-3.5" /> {tr('Chat on WhatsApp')}
+            <WhatsAppIcon className="w-3.5 h-3.5" /> {tr('Chat on WhatsApp')}
           </a>
         </div>
 
@@ -132,7 +133,7 @@ export const SupportContactLine: React.FC<{ message: string; className?: string 
       rel="noreferrer"
       className="inline-flex items-center gap-1 font-bold text-emerald-500 hover:text-emerald-400"
     >
-      <MessageCircle className="w-3.5 h-3.5" /> WhatsApp {SUPPORT_PHONE_DISPLAY}
+      <WhatsAppIcon className="w-3.5 h-3.5" /> WhatsApp {SUPPORT_PHONE_DISPLAY}
     </a>
     <a
       href={supportEmailUrl('KamaiPlus Desktop', message)}

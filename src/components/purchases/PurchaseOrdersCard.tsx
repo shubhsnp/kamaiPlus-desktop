@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ClipboardList, MessageCircle, PackageCheck, X } from 'lucide-react';
+import { ClipboardList, PackageCheck, X } from 'lucide-react';
+import { WhatsAppIcon } from '@/components/whatsapp/WhatsAppButton';
 import { db } from '@/lib/db';
 import { Card } from '@/components/ui/Card';
 import { ProfitMask } from '@/components/privacy/ProfitMask';
@@ -66,7 +67,7 @@ export function PurchaseOrdersCard({ shopName, onMessage }: { shopName?: string;
             <div className="flex gap-1.5 shrink-0">
               <button type="button" onClick={() => void openWhatsApp(toWhatsAppNumber(phoneOf(o)), purchaseOrderText(o, shopName))}
                 className="h-8 px-2.5 rounded-lg border border-emerald-300 text-emerald-700 hover:bg-emerald-50 font-bold flex items-center gap-1 cursor-pointer">
-                <MessageCircle className="w-3.5 h-3.5" /> {tr('WhatsApp')}
+                <WhatsAppIcon className="w-3.5 h-3.5" /> {tr('WhatsApp')}
               </button>
               <button type="button" onClick={() => void receive(o)} className="h-8 px-2.5 rounded-lg bg-slate-900 text-white hover:bg-slate-800 font-bold flex items-center gap-1 cursor-pointer" data-receive-order>
                 <PackageCheck className="w-3.5 h-3.5" /> {tr('Received')}

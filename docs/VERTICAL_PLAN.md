@@ -214,3 +214,7 @@
 - Electron E2E v4.130: 134 / 135 (sirf yahi KOT); smoke 52 / 52.
 - Android AU-A3 (split paise mein) — code + `test/split_math_test.dart` likha, commit Android pass mein.
 
+### Rahul ke naye kaam (2026-10-10, phone test ke beech)
+- **N1 Desktop WhatsApp logo:** Desktop mein jahan-jahan WhatsApp hai (button, icon, menu) wahan Android jaisa **official WhatsApp logo / icon**. ✅ v4.132.0 (`WhatsAppIcon` = official mark; Purchases / Help / Support bhi)
+- **N2 WhatsApp bill = PDF + text:** jab bhi grahak ko bill WhatsApp par jaye, invoice (PDF) saath mein text ke saath — Android + Desktop dono par confirm. Test number: Rahul ka 9595997711. ⬜
+

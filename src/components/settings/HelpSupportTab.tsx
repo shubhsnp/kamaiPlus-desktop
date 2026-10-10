@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Copy, FolderOpen, LifeBuoy, CheckCircle2, AlertTriangle, RefreshCw, Download, MessageCircle, Mail, Sparkles } from 'lucide-react';
+import { Copy, FolderOpen, LifeBuoy, CheckCircle2, AlertTriangle, RefreshCw, Download, Mail, Sparkles } from 'lucide-react';
+import { WhatsAppIcon } from '@/components/whatsapp/WhatsAppButton';
 import { getDesktopApi, UpdateStatus } from '@/lib/desktop/desktopBridge';
 import { tr } from '@/lib/i18n/core';
 import { useBusiness } from '@/components/layout/BusinessProvider';
@@ -175,7 +176,7 @@ export function HelpSupportTab() {
             <Copy className="w-3.5 h-3.5" /> {tr('Copy report for support')}
           </button>
           <button type="button" onClick={() => sendReport('whatsapp')} className="h-9 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer">
-            <MessageCircle className="w-3.5 h-3.5" /> {tr('Send report on WhatsApp')}
+            <WhatsAppIcon className="w-3.5 h-3.5" /> {tr('Send report on WhatsApp')}
           </button>
           <button type="button" onClick={() => sendReport('email')} className="h-9 px-4 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-800 text-xs font-bold flex items-center gap-1.5 cursor-pointer">
             <Mail className="w-3.5 h-3.5" /> {tr('Send report by email')}
