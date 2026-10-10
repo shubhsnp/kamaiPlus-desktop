@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Printer, Trash2 } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { cn, parseRupeesToPaise } from '@/lib/utils';
@@ -106,10 +106,29 @@ export function SetupDialog({ open, settings, onClose }: { open: boolean; settin
               <input id="rest-delivery" value={delivery} onChange={(e) => setDelivery(e.target.value.replace(/[^\d.]/g, ''))} inputMode="decimal" className={cn(field, 'w-full font-mono')} data-rest-delivery-charge />
             </div>
             <p className="col-span-2 text-[11px] text-slate-500">{tr('Service and packing charges get the same GST. Ask your CA which rate applies to you.')}</p>
-            <label className="col-span-2 flex items-start gap-2 text-xs font-semibold text-slate-700 cursor-pointer" data-rest-remote-kots>
-              <input type="checkbox" checked={remoteKots} onChange={(e) => setRemoteKots(e.target.checked)} className="mt-0.5 w-4 h-4" />
-              <span>{tr("Print KOTs from the waiters' phones on this PC (the PC with the kitchen printer; needs cloud sync on)")}</span>
-            </label>
+            {/* v4.143.0: a switch card like the app's other on / off settings (was a bare checkbox). */}
+            <button
+              type="button"
+              role="switch"
+              aria-checked={remoteKots}
+              onClick={() => setRemoteKots((v) => !v)}
+              data-rest-remote-kots={remoteKots ? 'on' : 'off'}
+              className={cn(
+                'col-span-2 flex items-center gap-3 p-3 rounded-xl border text-left cursor-pointer transition-colors',
+                remoteKots ? 'border-emerald-500 bg-emerald-50/70' : 'border-slate-200 bg-white hover:border-slate-400'
+              )}
+            >
+              <span className={cn('w-9 h-9 rounded-xl flex items-center justify-center shrink-0', remoteKots ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-500')}>
+                <Printer className="w-4 h-4" />
+              </span>
+              <span className="flex-1 min-w-0">
+                <span className="block text-xs font-black text-slate-900">{tr("Print the waiters' KOTs on this PC")}</span>
+                <span className="block text-[11px] font-semibold text-slate-500 leading-snug">{tr('For the PC with the kitchen printer. Needs cloud sync on.')}</span>
+              </span>
+              <span className={cn('relative w-10 h-6 rounded-full shrink-0 transition-colors', remoteKots ? 'bg-emerald-600' : 'bg-slate-300')}>
+                <span className={cn('absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all', remoteKots ? 'left-[18px]' : 'left-0.5')} />
+              </span>
+            </button>
           </div>
         </section>
 

@@ -3164,5 +3164,12 @@
   "Resetting…": "रीसेट होत आहे…",
   "Log out": "लॉग आउट",
   "Logging out closes the shop on this computer. The shop's data stays here, and the master password opens it again.": "लॉग आउट केल्याने या कॉम्प्युटरवर दुकान बंद होते. दुकानाचा डेटा इथेच राहतो, आणि मास्टर पासवर्डने ते पुन्हा उघडते.",
-  "Settings: the profile's \"Log out\" now says what it does — the same shop opens again with the master password (it never switched to another shop).": "सेटिंग्ज: प्रोफाइलचे \"लॉग आउट\" आता स्पष्ट सांगते की ते काय करते — तेच दुकान मास्टर पासवर्डने पुन्हा उघडते (ते कधीच दुसऱ्या दुकानावर जात नव्हते)."
+  "Settings: the profile's \"Log out\" now says what it does — the same shop opens again with the master password (it never switched to another shop).": "सेटिंग्ज: प्रोफाइलचे \"लॉग आउट\" आता स्पष्ट सांगते की ते काय करते — तेच दुकान मास्टर पासवर्डने पुन्हा उघडते (ते कधीच दुसऱ्या दुकानावर जात नव्हते).",
+  "Tap a dish to mark it sold out for today. Tap it again to bring it back. Sold-out dishes come back by themselves tomorrow.": "आजसाठी संपली म्हणून डिशवर टॅप करा. परत आणण्यासाठी पुन्हा टॅप करा. संपलेल्या डिश उद्या आपोआप परत येतात.",
+  "{count} sold out": "{count} संपल्या",
+  "Delivered before — name and last address filled": "आधी डिलिव्हरी झाली आहे — नाव आणि मागचा पत्ता भरला",
+  "Added to the bill: {charges}": "बिलात जोडले जाईल: {charges}",
+  "Print the waiters' KOTs on this PC": "वेटरचे KOT या PC वर छापा",
+  "For the PC with the kitchen printer. Needs cloud sync on.": "ज्या PC ला किचन प्रिंटर आहे त्यासाठी. क्लाउड सिंक चालू हवे.",
+  "Restaurant: \"New delivery\" asks the mobile first — a guest you delivered to before fills the name and last address by itself — and shows the charges that will be added. The order shows the guest's name, mobile and full address. \"Sold out today\" says what to do while it is on. A delivery's bill now says \"Delivery DL-…\".": "रेस्टॉरंट: \"नवी डिलिव्हरी\" आधी मोबाइल विचारते — ज्या पाहुण्याला आधी डिलिव्हरी केली आहे, त्याचे नाव आणि मागचा पत्ता आपोआप भरतो — आणि बिलात जोडले जाणारे चार्ज दाखवते. ऑर्डरवर पाहुण्याचे नाव, मोबाइल आणि पूर्ण पत्ता दिसतो. \"आज संपले\" चालू असताना काय करायचे ते सांगते. डिलिव्हरीचे बिल आता \"Delivery DL-…\" म्हणते."
 }

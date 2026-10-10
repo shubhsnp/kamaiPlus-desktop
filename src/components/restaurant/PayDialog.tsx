@@ -81,7 +81,8 @@ export function PayDialog({ order, settings, business, open, busy, onClose, onSe
     return Array.from(new Set(steps.filter((v) => v >= g))).slice(0, 4);
   }, [totals.grandTotal]);
   const foodPaise = totals.items.reduce((n, i) => n + (i.product_id.startsWith('restaurant_') ? 0 : i.total_amount + i.discount_amount), 0);
-  const who = order.kind === 'table' ? `${tr('Table')} ${order.label}` : `${tr('Takeaway')} ${order.label}`;
+  // v4.143.0: a delivery said "Takeaway DL-01" here.
+  const who = order.kind === 'table' ? `${tr('Table')} ${order.label}` : order.kind === 'delivery' ? `${tr('Delivery')} ${order.label}` : `${tr('Takeaway')} ${order.label}`;
 
   const choosePrint = (on: boolean) => {
     setPrintNow(on);

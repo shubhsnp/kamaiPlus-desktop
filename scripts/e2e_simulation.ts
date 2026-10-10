@@ -5131,6 +5131,37 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
   assert(!nav.includes("tr('Log Out / Switch Account')") && nav.includes("tr('Log out')"), 'Logout no longer promises "Switch Account" (the same shop opens again with the password)');
 }
 
+// v4.143.0 — Restaurant screens made to match the app (Rahul: "naye screens ka UI match nahi hota"): New delivery
+// laid out like the other dialogs, mobile first, a guest delivered to before fills itself; the order shows the guest
+// as a card; sold-out mode says what it does; the KOT setting is a switch; a delivery bill no longer says "Takeaway".
+{
+  pendingAsyncChecks.push((async () => {
+    const { deliveryAddressOf, guestNameOf, pickKnownGuest } = await import('../src/lib/restaurant/guestLookup');
+    assert(deliveryAddressOf('Delivery DL-04 · Flat 4, Shivaji Nagar') === 'Flat 4, Shivaji Nagar' && deliveryAddressOf('Table T4') === '' && deliveryAddressOf('Takeaway TA-02') === '',
+      'Delivery guest: the address comes back only from a paid delivery bill');
+    assert(guestNameOf('Ramesh · Delivery DL-04') === 'Ramesh' && guestNameOf('Delivery DL-04') === '', 'Delivery guest: the name is the guest\'s, never the order\'s');
+    const sales = [
+      { customer_phone: '9876543210', customer_name: 'Ramesh · Delivery DL-01', notes: 'Delivery DL-01 · Old address', created_at: '2026-10-01T10:00:00Z' },
+      { customer_phone: '+91 98765 43210', customer_name: 'Ramesh P · Delivery DL-07', notes: 'Delivery DL-07 · New address', created_at: '2026-10-09T10:00:00Z' },
+      { customer_phone: '9876543210', customer_name: 'Ramesh · Table T2', notes: 'Table T2', created_at: '2026-10-10T10:00:00Z' },
+    ];
+    const g = pickKnownGuest('98765 43210', sales as any, []);
+    assert(g?.name === 'Ramesh P' && g?.address === 'New address', 'Delivery guest: the LAST delivery to that mobile fills name + address (a table bill is skipped)');
+    const c = pickKnownGuest('9822001122', [], [{ name: 'Sunita', phone: '9822001122', address: 'Plot 9' }]);
+    assert(c?.name === 'Sunita' && c?.address === 'Plot 9' && pickKnownGuest('12345', sales as any, []) === null && pickKnownGuest('9000000000', sales as any, []) === null,
+      'Delivery guest: a khata customer with the mobile counts; a wrong or unknown mobile fills nothing');
+  })());
+  const dlg = readSource('components/restaurant/DeliveryDialog.tsx');
+  assert(dlg.indexOf('data-delivery-phone') < dlg.indexOf('data-delivery-name') && dlg.includes('findKnownGuest(p)') && dlg.includes("setName((v) => v || g.name)")
+    && dlg.includes("{tr('Cancel')}") && dlg.includes('data-delivery-charges'), 'New delivery: mobile first, known guest fills only empty boxes, Cancel + charges shown');
+  assert(readSource('components/restaurant/RestaurantPage.tsx').includes('<DeliveryDialog open={guestFor === \'delivery\'} settings={settings}'), 'New delivery: knows the packing / delivery charges');
+  const panel = readSource('components/restaurant/OrderPanel.tsx');
+  assert(panel.includes('data-order-guest') && panel.includes('<MapPin') && panel.includes('line-clamp-2'), 'Restaurant order: the guest is a card with the full address');
+  assert(readSource('components/restaurant/MenuPanel.tsx').includes('{soldOutMode && (') && readSource('components/restaurant/MenuPanel.tsx').includes('data-sold-out-banner'), 'Sold out today: the mode shows what to do');
+  assert(readSource('components/restaurant/SetupDialog.tsx').includes('role="switch"') && !readSource('components/restaurant/SetupDialog.tsx').includes('type="checkbox"'), 'Restaurant set-up: KOT printing is a switch like the app\'s other settings');
+  assert(readSource('components/restaurant/PayDialog.tsx').includes("order.kind === 'delivery' ? `${tr('Delivery')} ${order.label}`"), 'Restaurant pay: a delivery bill says "Delivery DL-…", not "Takeaway"');
+}
+
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.
 Promise.allSettled(pendingAsyncChecks).then((results) => {
   for (const r of results) if (r.status === 'rejected') assert(false, 'An async check threw', String(r.reason));

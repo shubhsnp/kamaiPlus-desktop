@@ -125,7 +125,7 @@ export function RestaurantPage() {
       </div>
 
       <SetupDialog open={setupOpen} settings={settings} onClose={() => setSetupOpen(false)} />
-      <DeliveryDialog open={guestFor === 'delivery'} onClose={() => setGuestFor(null)} onStart={(g) => { setGuestFor(null); newParcel('delivery', g); }} />
+      <DeliveryDialog open={guestFor === 'delivery'} settings={settings} onClose={() => setGuestFor(null)} onStart={(g) => { setGuestFor(null); newParcel('delivery', g); }} />
       {saleToShow && (
         <InvoiceModal isOpen onClose={() => setSaleToShow(null)} onNewBill={() => setSaleToShow(null)} sale={saleToShow.sale} business={business || null}
           isPostSaleSuccess={saleToShow.justPaid} initialPhone={saleToShow.sale.customer_phone} />

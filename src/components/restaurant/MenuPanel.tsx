@@ -108,6 +108,17 @@ export function MenuPanel({ onPick, inOrder, searchRef }: {
         </button>
       </div>
 
+      {/* v4.143.0: say what the mode does — the grid alone looked unchanged. */}
+      {soldOutMode && (
+        <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-rose-200 bg-rose-50 text-rose-900 shrink-0" role="status" data-sold-out-banner>
+          <Ban className="w-4 h-4 text-rose-600 shrink-0" />
+          <p className="text-xs font-semibold leading-snug flex-1">
+            {tr('Tap a dish to mark it sold out for today. Tap it again to bring it back. Sold-out dishes come back by themselves tomorrow.')}
+          </p>
+          <span className="text-[11px] font-black text-rose-700 shrink-0">{tr('{count} sold out', { count: soldOutCount })}</span>
+        </div>
+      )}
+
       <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-1 px-1 shrink-0" role="tablist" aria-label={tr('Menu categories')}>
         {[{ id: 'all', name: tr('All') }, ...categories.map((c) => ({ id: c.id, name: c.name }))].map((c) => (
           <button

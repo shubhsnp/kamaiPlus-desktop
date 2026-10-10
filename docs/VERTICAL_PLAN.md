@@ -297,3 +297,8 @@ Aaj: items, grahak, bills, categories dono taraf; baaki tables sirf Desktop → 
 - Android: Backup & Restore screen par wahi card; cloud pehle, phir backup, sign-out, poora local data + prefs saaf, login screen.
 - Admin Console: Permanent delete mein "Sirf data saaf karo" checkbox (no tombstone, Gmail chalu); restaurant_orders bhi ab delete hote hain. Admin hosting deploy Rahul karega.
 - Desktop menu: "Log Out / Switch Account" -> "Log out (password to open again)"; woh kabhi dukaan nahi badalta tha.
+
+### Restaurant UI match (Rahul 2026-10-10: "naye screens ka UI apne UI se match nahi hota") — Desktop v4.143.0 + Android
+- Desktop: DeliveryDialog naya (mobile pehle, icons, pehchana guest naam + pichla address khud bharta — lib/restaurant/guestLookup.ts, charges, Cancel); OrderPanel guest card (naam / mobile / poora address); MenuPanel sold-out banner; SetupDialog KOT = switch card; PayDialog delivery title fix ("Takeaway DL-01" aata tha).
+- Android: naya RestaurantDeliverySheet (AlertDialog ki jagah, khata customer / pichle bill se naam + address); Tables header mein "New takeaway" + "New delivery" do bade button (delivery ek akela icon tha); order sheet guest strip, "Khatam" -> "Sold out" + count + banner, "AAJ KHATAM" -> "SOLD OUT TODAY".
+- Phone par screenshot se check baaki (phone disconnect tha).

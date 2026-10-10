@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRightLeft, Check, ChefHat, FileText, Minus, MoreVertical, Plus, Printer, Receipt, Sparkles, Trash2, XCircle } from 'lucide-react';
+import { ArrowLeft, ArrowRightLeft, Check, ChefHat, FileText, MapPin, Minus, MoreVertical, Phone, Plus, Printer, Receipt, Sparkles, Trash2, UserRound, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { cn, formatINR } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
@@ -60,7 +60,6 @@ export function OrderPanel({ order, settings, kotBusy, checkBusy, onBack, onQty,
           <div className="text-[11px] text-slate-500 font-semibold">
             {piecesText(pieces)} · {formatOpenTime(minutesOpen(order))}
           </div>
-          {guest && <div className="text-[11px] text-sky-800 font-bold truncate" title={guest} data-order-guest>{guest}</div>}
         </div>
         {onMove && order.kind === 'table' && (
           <button type="button" onClick={onMove} className="h-9 px-2.5 rounded-lg border border-slate-300 bg-white hover:border-emerald-500 hover:text-emerald-700 text-xs font-bold flex items-center gap-1 cursor-pointer" title={tr('Move to another table')} data-order-move>
@@ -88,6 +87,24 @@ export function OrderPanel({ order, settings, kotBusy, checkBusy, onBack, onQty,
           )}
         </div>
       </div>
+
+      {/* v4.143.0: the takeaway / delivery guest as a card (the one cut-off line hid the address). */}
+      {guest && (
+        <div className="px-3 py-2 border-b border-sky-100 bg-sky-50/70 text-[12px] text-sky-950 space-y-0.5" title={guest} data-order-guest>
+          {(order.guest?.name || order.guest?.phone) && (
+            <div className="flex items-center gap-3 font-bold">
+              {order.guest?.name && <span className="inline-flex items-center gap-1 min-w-0"><UserRound className="w-3.5 h-3.5 text-sky-600 shrink-0" /><span className="truncate">{order.guest.name}</span></span>}
+              {order.guest?.phone && <span className="inline-flex items-center gap-1 font-mono shrink-0"><Phone className="w-3.5 h-3.5 text-sky-600" />{order.guest.phone}</span>}
+            </div>
+          )}
+          {order.guest?.address && (
+            <div className="flex items-start gap-1 font-semibold text-sky-900">
+              <MapPin className="w-3.5 h-3.5 text-sky-600 shrink-0 mt-0.5" />
+              <span className="line-clamp-2">{order.guest.address}</span>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-slate-100" data-order-lines>
         {lines.length === 0 ? (
