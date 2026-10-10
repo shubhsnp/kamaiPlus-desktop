@@ -105,3 +105,4 @@ commit if you like; deploy it with the release.
 | 4.144.0 | New Settings → Staff tab (add staff, one-time code / QR for their phone, online status, remove); restaurant order cards show "by <waiter>"; phone login has "Staff sign-in". | store-settings, billing-counter | pending |
 | 4.145.0 | Browser tab after Google sign-in redesigned (shows the connected Gmail). | — | none |
 | 4.146.0 | Restaurant: Home / Khata say "Guest" (not Customer); no GST on staff phones for a shop without GSTIN. | billing-counter | pending |
+| 4.147.0 | Home: quick actions aligned with the 4 Pulse cards, compact tiles, restaurant Average Bill (no Profit); Invoice Themes options by shop type (GST/HSN only with GSTIN, no MRP savings in restaurant). | getting-started, billing-counter, invoice-themes | pending |

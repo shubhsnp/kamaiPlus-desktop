@@ -13,7 +13,7 @@ import { AdvancedAnalyticsBanner } from '@/components/dashboard/AdvancedAnalytic
 import { getLocalDayRange, getSaleNetTotal, isRevenueSale } from '@/lib/sales/saleMath';
 import { computeDrawerSummary, dayOpeningFloat, localDateKey } from '@/lib/reports/cashDrawer';
 import { buildAdvancedReport, isProfitPartial } from '@/lib/reports/advancedReports';
-import { useFeatureSwitches } from '@/lib/features/featureSwitches';
+import { isRestaurantMode, useFeatureSwitches } from '@/lib/features/featureSwitches';
 import { billStats, showProfitCard } from '@/lib/dashboard/homeTiles';
 import { openPrintersWindow } from '@/lib/hardware/printerWatch';
 
@@ -96,6 +96,7 @@ export default function DashboardHome() {
     costPriceOn: switches.product_cost_price,
     anyProductHasCost: products.some((p) => Number(p.purchase_price) > 0),
     costedRevenuePaise: todaysProfit.costedRevenuePaise,
+    restaurant: isRestaurantMode(),
   });
 
   // ── Batched query 3: Khata debtors + Recent sales in ONE subscription ──

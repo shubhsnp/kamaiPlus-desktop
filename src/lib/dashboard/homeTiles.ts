@@ -43,7 +43,9 @@ export const GST_STAND_IN_HREF = '/settings?tab=data';
  * some item has a buying price, or today's sales carried one. Otherwise the card shows the
  * average bill instead of a profit that is always ₹0.
  */
-export function showProfitCard(input: { costPriceOn: boolean; anyProductHasCost: boolean; costedRevenuePaise?: number }): boolean {
+export function showProfitCard(input: { costPriceOn: boolean; anyProductHasCost: boolean; costedRevenuePaise?: number; restaurant?: boolean }): boolean {
+  // v4.147.0: a restaurant has no buying price per dish — always Average Bill (the phone the same).
+  if (input.restaurant) return false;
   return input.costPriceOn || input.anyProductHasCost || (input.costedRevenuePaise || 0) > 0;
 }
 

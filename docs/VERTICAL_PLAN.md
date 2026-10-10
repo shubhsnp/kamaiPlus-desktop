@@ -317,3 +317,9 @@ Aaj: items, grahak, bills, categories dono taraf; baaki tables sirf Desktop → 
 - GST: bina GSTIN koi GST nahi (PC pehle se sahi tha; phone 5% jodta tha; PC cloud mein 5 bhejta tha) — Android `billingSettings`, Desktop `settingsForCloud(s, gstAllowed())`.
 - Shabd: dono par "Guest" (Desktop ke bache 4 "Customer" bhi).
 - Android restaurant: Inventory / Expiry radar, Stock box (dish form), Stock Inward hataye (Desktop jaisa).
+
+### Home + Invoice options by vertical (Rahul 2026-10-10) — Desktop v4.147.0 + Android
+- Desktop Home: QuickActionDock = Pulse jaisa 2/4 grid; QuickToolsGrid auto-fill 190px (lambe tiles nahi); restaurant = Average Bill (showProfitCard restaurant).
+- Invoice options: GST breakup / HSN sirf GSTIN, MRP savings restaurant mein nahi; Android same + Pharmacy Rx sirf pharmacy.
+- Android: restaurant se Rapid Barcode Inward hata; Home GST card sirf GSTIN; Home par Add Staff (restaurant).
+- Baaki: Android Menu ka kram Desktop sidebar jaisa (agla), vertical-by-vertical Rahul batayega.

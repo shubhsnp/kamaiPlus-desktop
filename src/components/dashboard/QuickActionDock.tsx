@@ -56,11 +56,12 @@ export const QuickActionDock: React.FC<QuickActionDockProps> = ({ onOpenClosingR
         </h2>
       </div>
 
-      <div className="flex flex-wrap gap-2.5 sm:gap-3">
+      {/* v4.147.0: the same columns as Today's Business Pulse above (2 / 4), so the cards line up. */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3" data-home-action-grid>
         {actions.map((a) => {
           if (a.id === 'new_bill') {
             return (
-              <Link key={a.id} href={a.href || '/billing'} className="group grow-[1.6] basis-56 min-w-0" data-home-action={a.id}>
+              <Link key={a.id} href={a.href || '/billing'} className="group min-w-0" data-home-action={a.id}>
                 <div className="h-full bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400 hover:from-amber-500 hover:to-amber-600 text-slate-950 rounded-2xl p-3 sm:p-3.5 flex items-center justify-between gap-2.5 shadow-md shadow-amber-500/20 active:scale-[0.98] transition-all cursor-pointer border border-amber-300">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div className="w-10 h-10 rounded-xl bg-slate-950 text-amber-400 flex items-center justify-center font-black shrink-0 shadow-xs group-hover:scale-105 transition-transform">
@@ -93,7 +94,7 @@ export const QuickActionDock: React.FC<QuickActionDockProps> = ({ onOpenClosingR
               </div>
             </div>
           );
-          const cls = 'group grow basis-44 min-w-0';
+          const cls = 'group min-w-0';
           return a.href ? (
             <Link key={a.id} href={a.href} className={cls} data-home-action={a.id}>{body}</Link>
           ) : (

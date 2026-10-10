@@ -150,12 +150,13 @@ export const QuickToolsGrid: React.FC<QuickToolsGridProps> = ({
             </h2>
           </div>
 
-          {/* Tiles grow to fill the row, so a switched-off screen never leaves a gap (v4.78.0). */}
-          <div className="flex flex-wrap gap-2 sm:gap-2.5">
+          {/* Tiles re-flow, so a switched-off screen never leaves a gap (v4.78.0); v4.147.0: each tile
+              keeps a compact width instead of stretching across a wide screen (one tile was a full row). */}
+          <div className="grid gap-2 sm:gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))' }} data-home-tool-grid>
             {sec.tools.map((tool) => {
               const Icon = tool.icon;
               return (
-                <Link key={tool.title} href={tool.href} className="group block grow basis-40 min-w-0" data-home-tool={tool.href}>
+                <Link key={tool.title} href={tool.href} className="group block min-w-0" data-home-tool={tool.href}>
                   <div className="h-full p-2.5 sm:p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 shadow-2xs hover:shadow-xs active:scale-[0.98] transition-all flex items-center justify-between gap-2 cursor-pointer">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold shrink-0 border ${tool.bg} ${tool.color} group-hover:scale-105 transition-transform`}>

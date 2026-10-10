@@ -56,6 +56,9 @@ export const RESTAURANT_WORDS: Record<string, string> = {
   'Customer Udhar (Credit):': 'Guest Udhar (Credit):',
   '+ Add First Customer': '+ Add First Guest',
   'Select a Customer': 'Select a Guest',
+  // v4.147.0: Home — a restaurant has no margins or dead stock
+  'Deep sales reports • Customer udhar & margins • Dead stock': 'Deep sales reports • Top dishes • Guest udhar',
+  'Parties • Items • Profit': 'Guests • Dishes • Bills',
 
   // Bill window after paying
   '+ New Bill': 'Back to Tables',

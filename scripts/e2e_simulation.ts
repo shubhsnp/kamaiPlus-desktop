@@ -1881,9 +1881,10 @@ assert(readSource('app/billing/page.tsx').split('\n').length <= 401, `POS page s
   const dock = readSource('components/dashboard/QuickActionDock.tsx');
   const tools = readSource('components/dashboard/QuickToolsGrid.tsx');
   const home = readSource('components/dashboard/DashboardHome.tsx');
-  assert(/quickActionsFor\(useFeatureSwitches\(\)\)/.test(dock) && /flex flex-wrap/.test(dock) && !/grid-cols-4/.test(dock)
-    && /flex flex-wrap/.test(tools) && /grow basis-40/.test(tools) && /switches\.gst_reports \? \[\] :/.test(tools) && GST_STAND_IN_HREF === '/settings?tab=data',
-    'Home tiles re-flow (no fixed 4-column grid), so a hidden screen leaves no gap; GST off → Backup & CA exports');
+  // v4.147.0: quick actions in the Pulse cards' columns (Rahul: same widths); tool tiles in an auto-fill grid.
+  assert(/quickActionsFor\(useFeatureSwitches\(\)\)/.test(dock) && dock.includes('grid grid-cols-2 lg:grid-cols-4') && !/grow basis/.test(dock)
+    && tools.includes("repeat(auto-fill, minmax(190px, 1fr))") && !/grow basis/.test(tools) && /switches\.gst_reports \? \[\] :/.test(tools) && GST_STAND_IN_HREF === '/settings?tab=data',
+    'Home: quick actions line up with the 4 Pulse cards; tool tiles re-flow at a compact width (no stretching), so a hidden screen leaves no gap; GST off → Backup & CA exports');
   const printersWin = readSource('components/printers/PrintersWindow.tsx');
   assert(/onOpenPrinters=\{openPrintersWindow\}/.test(home) && /<FastBarcodeInwardModal onClose/.test(home) && /showProfit=\{showProfit\}/.test(home)
     && SILENT_PRINT_KEY === 'kamai_silent_print' && /onAutoPrintChange=\{saveSilentPrint\}/.test(printersWin) && /'kamai_silent_print'/.test(readCounter())
@@ -5228,6 +5229,24 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
   assert(W['Customer Udhar'] === 'Guest Udhar' && W['+ Add First Customer'] === '+ Add First Guest' && W['Select a Customer'] === 'Select a Guest',
     'Restaurant mode: Home / Khata say Guest (as the phone does), not Customer');
   assert(readSource('lib/restaurant/cloudOrders.ts').includes('settingsForCloud(loadRestaurantSettings(), gstAllowed())'), 'Restaurant settings are published with the shop\'s GST rule');
+}
+
+// v4.147.0 — Home and invoice options follow the kind of shop (Rahul): a restaurant's Home shows Average Bill
+// (no buying price per dish), invoice options hide GST breakup / HSN without a GSTIN and MRP savings for dishes,
+// and the restaurant Home words drop margins / dead stock.
+{
+  assert(!showProfitCard({ costPriceOn: true, anyProductHasCost: true, costedRevenuePaise: 900, restaurant: true }) && showProfitCard({ costPriceOn: true, anyProductHasCost: false }),
+    'Home: a restaurant never shows Today\'s Profit (Average Bill instead); other shops as before');
+  pendingAsyncChecks.push((async () => {
+    const { visibleToggles } = await import('../src/components/invoices/designer/DesignerSections');
+    const keys = (gst: boolean, rest: boolean) => visibleToggles(gst, rest).map((t) => t.key);
+    assert(!keys(false, false).includes('show_gst_breakup') && !keys(false, false).includes('show_hsn_code') && keys(true, false).includes('show_hsn_code')
+      && !keys(true, true).includes('show_mrp_savings') && keys(true, false).includes('show_mrp_savings') && keys(false, true).includes('show_logo'),
+      'Invoice options: GST breakup / HSN only with a GSTIN; no MRP savings for a restaurant');
+  })());
+  assert(RESTAURANT_WORDS['Deep sales reports • Customer udhar & margins • Dead stock'] === 'Deep sales reports • Top dishes • Guest udhar'
+    && RESTAURANT_WORDS['Parties • Items • Profit'] === 'Guests • Dishes • Bills', 'Restaurant Home: no margins / dead stock / profit words');
+  assert(readSource('components/dashboard/DashboardHome.tsx').includes('restaurant: isRestaurantMode(),'), 'Home passes Restaurant mode to the profit card choice');
 }
 
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.

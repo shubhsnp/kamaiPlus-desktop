@@ -1,5 +1,7 @@
 'use client';
 
+import { gstAllowed } from '@/lib/business/verticalProfile';
+import { isRestaurantMode } from '@/lib/features/featureSwitches';
 import React from 'react';
 import Link from 'next/link';
 import { Check } from 'lucide-react';
@@ -75,6 +77,14 @@ const TOGGLES: { key: keyof InvoiceThemeConfig; label: string }[] = [
   { key: 'show_terms', label: msg('Show Terms & Conditions') },
 ];
 
+/**
+ * v4.147.0 (Rahul: options by the kind of shop, the phone the same): GST breakup / HSN only for a shop
+ * with a GSTIN; no MRP savings for a restaurant's dishes.
+ */
+export function visibleToggles(gst = gstAllowed(), restaurant = isRestaurantMode()) {
+  return TOGGLES.filter((t) => !((t.key === 'show_gst_breakup' || t.key === 'show_hsn_code') && !gst) && !(t.key === 'show_mrp_savings' && restaurant));
+}
+
 /** 2. Heading and display toggles — every one of them changes the printed bill (A4 and thermal). */
 export function DisplayOptionsSection({ config, onChange, hasUpi = true }: { config: InvoiceThemeConfig; onChange: Patch; hasUpi?: boolean }) {
   return (
@@ -99,7 +109,7 @@ export function DisplayOptionsSection({ config, onChange, hasUpi = true }: { con
         </div>
       </div>
       <div className="grid grid-cols-2 gap-1.5">
-        {TOGGLES.map((t) => {
+        {visibleToggles().map((t) => {
           const checked = Boolean(config[t.key]);
           return (
             <button
