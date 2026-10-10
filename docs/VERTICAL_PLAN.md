@@ -309,3 +309,6 @@ Aaj: items, grahak, bills, categories dono taraf; baaki tables sirf Desktop → 
 - Android: login par "Staff sign-in" (QR / 6 digit) → StaffHomeScreen (sirf Tables; Settle & Bill, Cancel, Sold out, Setup chhupe); StaffShopSync (menu, categories, settings, apni entry, orders); owner ka Menu → Staff page; dukaan chhodna = pehle sync band, phir copy saaf.
 - Roles: har vertical ki list dikhti hai; aaj sirf Restaurant Waiter chalta hai. Agla: Cashier / Captain / Kitchen, retail Billing staff (har device ki invoice series chahiye), Stock.
 - **Rahul ko deploy karna hai:** functions (staff, onStaffWritten, resetTestShop) + `firestore:rules`.
+
+### Google sign-in browser tab (Rahul 2026-10-10) — v4.145.0
+- googleSignIn.js `page(kind, …)`: wordmark, animated ✓ / ✕ / !, Gmail chip, apne classes (extension ka chhupa div pehle khaali card ban jaata tha).

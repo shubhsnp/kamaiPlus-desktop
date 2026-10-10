@@ -5206,6 +5206,15 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
   assert(readSource('components/restaurant/TablesHome.tsx').includes('data-order-taken-by'), 'Tables: the order card shows who took it');
 }
 
+// v4.145.0 — The browser tab after Google sign-in: KamaiPlus wordmark, animated mark, the signed-in account.
+// Its styles are on its own classes — a browser extension's hidden <div> showed up as an empty card beside it.
+{
+  const gsPage = fs.readFileSync(path.join(__dirname, '..', 'googleSignIn.js'), 'utf8');
+  assert(!/[{}\n]div\{/.test(gsPage) && gsPage.includes('.kp-card{') && gsPage.includes("page('ok', 'You’re signed in'") && gsPage.includes('{ email: claims.email, name: claims.name }'),
+    'Google sign-in tab: own classes only (no bare div style), says who signed in');
+  assert(gsPage.includes("const esc = (v) =>") && /\$\{esc\(account\.email/.test(gsPage), 'Google sign-in tab: the name / email are escaped');
+}
+
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.
 Promise.allSettled(pendingAsyncChecks).then((results) => {
   for (const r of results) if (r.status === 'rejected') assert(false, 'An async check threw', String(r.reason));

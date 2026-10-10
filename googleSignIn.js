@@ -79,10 +79,63 @@ async function exchangeCode({ clientId, clientSecret, code, verifier, redirectUr
   return { idToken: json.id_token };
 }
 
-const page = (title, text) => `<!doctype html><html><head><meta charset="utf-8"><title>KamaiPlus</title>
-<style>body{font-family:system-ui,Segoe UI,sans-serif;background:#0f172a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
-div{text-align:center;max-width:420px;padding:32px;border-radius:20px;background:#1e293b}h1{font-size:20px;margin:0 0 8px}p{color:#94a3b8;font-size:14px;margin:0}</style>
-</head><body><div><h1>${title}</h1><p>${text}</p></div></body></html>`;
+const esc = (v) => String(v || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+
+/**
+ * The browser tab Google sends back to (v4.144.0 redesign): KamaiPlus wordmark, an animated mark, the
+ * signed-in account, and where to go next. Every style is on its own class — a browser extension's own
+ * (hidden) <div> showed up as an empty card beside the old one, which styled every div.
+ * kind: 'ok' | 'cancel' | 'fail'.
+ */
+const page = (kind, title, text, account = null) => {
+  const tone = kind === 'ok' ? '#10b981' : kind === 'cancel' ? '#f59e0b' : '#ef4444';
+  const mark = kind === 'ok'
+    ? '<path class="kp-draw" d="M15 27l8 8 16-17"/>'
+    : kind === 'cancel'
+      ? '<path class="kp-draw" d="M18 18l18 18M36 18L18 36"/>'
+      : '<path class="kp-draw" d="M27 15v15"/><circle cx="27" cy="38" r="2.2" fill="#fff" stroke="none"/>';
+  const who = account && (account.email || account.name)
+    ? `<div class="kp-acct"><span class="kp-av">${esc((account.name || account.email || '?').slice(0, 1).toUpperCase())}</span><span class="kp-acct-t">${account.name ? `<b>${esc(account.name)}</b>` : ''}<span>${esc(account.email || '')}</span></span></div>`
+    : '';
+  const close = kind === 'ok' ? '<script>setTimeout(function(){try{window.close()}catch(e){}},4000)</script>' : '';
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KamaiPlus · ${esc(title)}</title>
+<style>
+html,body{margin:0;height:100%}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:radial-gradient(1200px 600px at 50% -10%,#1e1b4b 0%,#0b0f19 55%) #0b0f19;color:#e2e8f0;display:flex;align-items:center;justify-content:center;-webkit-font-smoothing:antialiased}
+.kp-wrap{width:100%;max-width:440px;padding:24px;box-sizing:border-box;text-align:center}
+.kp-brand{font-weight:900;font-size:22px;letter-spacing:-.5px;margin-bottom:28px;color:#fff}
+.kp-brand span{color:#ef4444}
+.kp-card{background:rgba(30,41,59,.72);border:1px solid rgba(148,163,184,.16);border-radius:24px;padding:36px 28px 30px;box-shadow:0 30px 80px rgba(0,0,0,.45);animation:kp-up .45s cubic-bezier(.2,.8,.2,1) both}
+.kp-ic{width:76px;height:76px;margin:0 auto 20px;border-radius:50%;background:${tone};display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 10px ${tone}22,0 12px 32px ${tone}66;animation:kp-pop .5s .1s cubic-bezier(.3,1.6,.5,1) both}
+.kp-ic svg{width:54px;height:54px;fill:none;stroke:#fff;stroke-width:4.5;stroke-linecap:round;stroke-linejoin:round}
+.kp-draw{stroke-dasharray:60;stroke-dashoffset:60;animation:kp-draw .45s .45s ease-out forwards}
+.kp-h{font-size:22px;font-weight:800;margin:0 0 8px;color:#fff}
+.kp-p{font-size:14.5px;line-height:1.55;color:#94a3b8;margin:0}
+.kp-acct{display:inline-flex;align-items:center;gap:10px;margin:20px auto 0;padding:8px 14px 8px 8px;border-radius:999px;background:rgba(15,23,42,.7);border:1px solid rgba(148,163,184,.18);text-align:left;max-width:100%}
+.kp-av{width:30px;height:30px;flex:none;border-radius:50%;background:#4f46e5;color:#fff;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center}
+.kp-acct-t{display:flex;flex-direction:column;font-size:12.5px;color:#cbd5e1;min-width:0}
+.kp-acct-t b{color:#fff;font-size:13px}
+.kp-acct-t span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kp-next{margin-top:22px;font-size:13px;color:#cbd5e1;display:flex;align-items:center;justify-content:center;gap:8px}
+.kp-dot{width:8px;height:8px;border-radius:50%;background:${tone};animation:kp-pulse 1.4s infinite}
+.kp-foot{margin-top:22px;font-size:11.5px;color:#64748b}
+@keyframes kp-up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes kp-pop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes kp-draw{to{stroke-dashoffset:0}}
+@keyframes kp-pulse{0%,100%{opacity:1}50%{opacity:.3}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}.kp-draw{stroke-dashoffset:0}}
+</style></head><body><main class="kp-wrap">
+<div class="kp-brand">Kamai<span>Plus</span></div>
+<section class="kp-card" role="status">
+<div class="kp-ic"><svg viewBox="0 0 54 54" aria-hidden="true">${mark}</svg></div>
+<h1 class="kp-h">${esc(title)}</h1>
+<p class="kp-p">${esc(text)}</p>
+${who}
+<div class="kp-next"><span class="kp-dot"></span>${kind === 'ok' ? 'KamaiPlus is ready — this tab can be closed.' : 'Switch back to the KamaiPlus app.'}</div>
+</section>
+<div class="kp-foot">Secure Google sign-in · only this computer received the answer</div>
+</main>${close}</body></html>`;
+};
 
 /**
  * Opens the browser and waits (up to 3 min) for Google's answer.
@@ -114,19 +167,19 @@ function signIn({ shell, clientId, clientSecret, fetchImpl = fetch, timeoutMs = 
       const back = parseCallback(req.url, state);
       if (back.error) {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end(page('Sign-in cancelled', 'Go back to the KamaiPlus app and try again.'));
+        res.end(page('cancel', 'Sign-in cancelled', 'Nothing was changed. Go back to the KamaiPlus app and try again.'));
         finish({ ok: false, error: back.error });
         return;
       }
       const token = await exchangeCode({ clientId, clientSecret, code: back.code, verifier, redirectUri }, fetchImpl).catch((e) => ({ error: e.message }));
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       if (token.error) {
-        res.end(page('Sign-in failed', 'Go back to the KamaiPlus app and try again.'));
+        res.end(page('fail', 'Sign-in did not finish', 'Check the internet, then go back to the KamaiPlus app and try again.'));
         finish({ ok: false, error: token.error });
         return;
       }
-      res.end(page('✅ Signed in to KamaiPlus', 'You can close this tab and go back to the app.'));
       const claims = decodeIdToken(token.idToken);
+      res.end(page('ok', 'You’re signed in', 'Your Google account is now connected to KamaiPlus.', { email: claims.email, name: claims.name }));
       finish({ ok: true, idToken: token.idToken, email: claims.email || null, name: claims.name || null, picture: claims.picture || null });
     });
 
