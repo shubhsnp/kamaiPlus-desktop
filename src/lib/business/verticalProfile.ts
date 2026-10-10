@@ -21,6 +21,12 @@ export interface VerticalProfile {
   vertical: VerticalId;
   /** The shop has a GSTIN: GST rate / HSN on items, GST reports, tax invoices. */
   gst: boolean;
+  /**
+   * v4.141.0: when the category was chosen (ISO). Shared with the phone through the shop document's
+   * `business_type_set_at` (lib/cloud/shopCategory.ts) — the newer choice wins. Missing on profiles saved
+   * before v4.141.0.
+   */
+  at?: string;
 }
 
 export const isVerticalId = (v: unknown): v is VerticalId => typeof v === 'string' && (VERTICAL_IDS as string[]).includes(v);
@@ -31,7 +37,7 @@ export function parseVerticalProfile(raw: string | null | undefined): VerticalPr
   try {
     const p = JSON.parse(raw);
     if (!p || typeof p !== 'object' || !isVerticalId(p.vertical)) return null;
-    return { v: 1, vertical: p.vertical, gst: p.gst === true };
+    return { v: 1, vertical: p.vertical, gst: p.gst === true, ...(typeof p.at === 'string' && p.at ? { at: p.at } : {}) };
   } catch {
     return null;
   }
@@ -114,10 +120,13 @@ export function verticalSwitches(profile: Pick<VerticalProfile, 'vertical' | 'gs
 }
 
 /** Store setup / cloud restore: this shop now follows its category. */
-export function saveVerticalProfile(vertical: VerticalId, gst: boolean) {
+export function saveVerticalProfile(vertical: VerticalId, gst: boolean, at?: string) {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.setItem(VERTICAL_PROFILE_KEY, JSON.stringify({ v: 1, vertical, gst } satisfies VerticalProfile));
+    // The time of the choice stays when only GST changes (v4.141.0); a new category is stamped now.
+    const prev = readVerticalProfile();
+    const stamp = at || (prev && prev.vertical === vertical ? prev.at : undefined) || new Date().toISOString();
+    localStorage.setItem(VERTICAL_PROFILE_KEY, JSON.stringify({ v: 1, vertical, gst, at: stamp } satisfies VerticalProfile));
   } catch {}
 }
 

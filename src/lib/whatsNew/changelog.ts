@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.141.0',
+    items: [
+      msg('PC + phone on one Google account now show the same business category: a shop set up on this PC before v4.137 had gone to the cloud as "Kirana" — its real category goes up now, and the phone follows it (with its items).'),
+    ],
+  },
+  {
     version: '4.140.0',
     items: [
       msg('Restaurant on many devices: with cloud sync on, the running orders of every table and parcel are the same on this PC and the waiters\' phones (same Google account) — what one adds, the other sees in seconds; a paid order leaves all. Set-up → "Print KOTs from the waiters\' phones on this PC" makes this PC print the KOTs a phone sends to the kitchen.'),

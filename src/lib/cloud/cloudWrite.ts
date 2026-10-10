@@ -1,4 +1,5 @@
 import { collection, doc, getDoc, getDocs, increment, runTransaction, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore';
+import { readVerticalProfile } from '@/lib/business/verticalProfile';
 import { getFirestoreDb } from '@/lib/firebase/config';
 import { sanitizeForFirestore } from '@/lib/firebase/firestoreSync';
 import { CloudTable, CLOUD_TABLES, toCloud } from './cloudContract';
@@ -45,7 +46,11 @@ export async function writeShopDoc(bizId: string, row: Row, isNewShop: boolean):
   const shop = cloudDocFor('businesses', row, bizId, true);
   // A new cloud shop takes this shop's category (v4.137.0 — it was always 'grocery', so a PC chemist
   // opened on the phone as a kirana). Both apps use the same six ids.
-  if (isNewShop) shop.business_type = NEW_SHOP_TYPES.has(row?.business_type) ? row.business_type : 'grocery';
+  if (isNewShop) {
+    shop.business_type = NEW_SHOP_TYPES.has(row?.business_type) ? row.business_type : 'grocery';
+    // v4.141.0: when the category was chosen — the phone follows the newer choice (lib/cloud/shopCategory.ts).
+    shop.business_type_set_at = readVerticalProfile()?.at || new Date().toISOString();
+  }
   else delete shop.business_type;
   await setDoc(doc(firestore(), 'businesses', bizId), { ...shop, synced_at: serverTimestamp() }, { merge: true });
 }

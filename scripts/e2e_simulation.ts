@@ -90,6 +90,7 @@ import { buildCheckBody, shopUpiId } from '../src/lib/restaurant/checkPrint';
 import { defaultTableNames, sanitizeRestaurantSettings } from '../src/lib/restaurant/settings';
 import { parseRestState } from '../src/lib/restaurant/store';
 import { foodTypeOf, isSoldOutToday, localDay, soldOutPatch } from '../src/lib/restaurant/dish';
+import { resolveShopCategory } from '../src/lib/cloud/shopCategory';
 import { isShared, kotToPrintHere, mergeCloudOrder, orderFromCloud, orderToCloud, ordersToSend, reconcileFirstRead, removeCloudOrder, tableOrderId } from '../src/lib/restaurant/cloudOrders';
 import { buildKotBody } from '../src/lib/restaurant/kot';
 import { RESTAURANT_PRESET_OFF, applyRestaurantPreset, restaurantModeFromRaw } from '../src/lib/features/featureSwitches';
@@ -5078,6 +5079,26 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
   const page = readSource('components/restaurant/RestaurantPage.tsx');
   assert(sched.includes('const target = want && isRestaurantMode() ? want : \'\'') && screen.includes('res.noPrinter && cloudSendActive()') && page.includes('tableOrderId(label)'),
     'Restaurant sync: runs with cloud sync in Restaurant mode only; no printer here → the KOT goes to the KOT PC; tables use the shared id');
+}
+
+// v4.141.0 — One shop, one category on every device (proventurein@: phone kirana, PC restaurant). A PC shop made
+// before v4.137 went to the cloud as 'grocery' with no time; the PC's own choice now goes up, a newer cloud choice
+// comes down, and the phone follows the cloud.
+{
+  const r = { v: 1 as const, vertical: 'restaurant' as const, gst: false, at: '2026-10-09T04:38:00.000Z' };
+  assert(resolveShopCategory(r, { business_type: 'grocery' }) === 'push', 'Shop category: the cloud\'s unstamped "grocery" (old PC default) is replaced by this PC\'s restaurant');
+  assert(resolveShopCategory(r, { business_type: 'restaurant' }) === 'push' && resolveShopCategory(r, { business_type: 'restaurant', business_type_set_at: r.at }) === 'same',
+    'Shop category: the same category is stamped once, then left alone');
+  assert(resolveShopCategory(r, { business_type: 'pharmacy', business_type_set_at: '2026-10-10T05:00:00.000Z' }) === 'adopt'
+    && resolveShopCategory(r, { business_type: 'pharmacy', business_type_set_at: '2026-10-01T05:00:00.000Z' }) === 'push',
+    'Shop category: a newer choice in the cloud comes down here; an older one is replaced');
+  assert(resolveShopCategory(null, { business_type: 'grocery' }) === 'none', 'Shop category: a shop set up before v4.118 (no profile) is never touched');
+  assert(parseVerticalProfile(JSON.stringify({ v: 1, vertical: 'restaurant', gst: false, at: r.at }))?.at === r.at && parseVerticalProfile(JSON.stringify({ v: 1, vertical: 'grocery' }))?.at === undefined,
+    'Vertical profile keeps when the category was chosen (old profiles have none)');
+  const sched = readSource('components/layout/CloudSyncScheduler.tsx');
+  const cw = readSource('lib/cloud/cloudWrite.ts');
+  assert(sched.includes('syncShopCategory(data,') && cw.includes("shop.business_type_set_at = readVerticalProfile()?.at"),
+    'Shop category: checked whenever the shop document arrives; a new cloud shop carries when it was chosen');
 }
 
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.

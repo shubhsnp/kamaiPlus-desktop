@@ -28,6 +28,7 @@ export function CloudSyncScheduler() {
     // v4.140.0: running restaurant orders shared by the shop's devices (lib/restaurant/cloudOrders.ts).
     let stopRestaurant: (() => void) | null = null;
     let restaurantFor = '';
+    let categoryBusy = false;
     let soon: number | undefined;
 
     const idle = (go: () => void) => {
@@ -78,6 +79,23 @@ export function CloudSyncScheduler() {
         stopListening = listenToCloud({ bizId: want, localBizId: local.id }, {
           onChange: () => setCloudStatus({ lastPulledAt: new Date().toISOString() }),
           onShop: (data) => {
+            // v4.141.0: one shop, one category on every device (lib/cloud/shopCategory.ts).
+            if (!categoryBusy) {
+              categoryBusy = true;
+              void (async () => {
+                try {
+                  const [{ syncShopCategory }, { getFirestoreDb }, { doc, setDoc }] = await Promise.all([
+                    import('@/lib/cloud/shopCategory'), import('@/lib/firebase/config'), import('firebase/firestore'),
+                  ]);
+                  const fs = getFirestoreDb();
+                  if (fs) await syncShopCategory(data, (fields) => setDoc(doc(fs, 'businesses', want), fields, { merge: true }));
+                } catch (e: any) {
+                  console.warn('Shop category sync notice:', e?.message);
+                } finally {
+                  categoryBusy = false;
+                }
+              })();
+            }
             // The Admin Console's switch, as on the phone.
             window.dispatchEvent(data.account_disabled === true ? new CustomEvent('account_frozen', { detail: { message: 'Your store has been blocked by the platform administrator.' } }) : new Event('account_unfrozen'));
           },

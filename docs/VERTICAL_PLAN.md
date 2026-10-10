@@ -285,3 +285,7 @@ Aaj: items, grahak, bills, categories dono taraf; baaki tables sirf Desktop → 
 - AU-A1 phone root copy (sirf samjhaya — karna nahi)
 - Admin Console: permanent delete mein `restaurant_orders` bhi jode (abhi 15 tables)
 - Rahul ke haath: Cloud Functions Node 22 deploy (30 Oct se pehle); Android branch feat/desktop-health-message → main merge ka faisla
+
+### Category conflict (proventurein@, 2026-10-10) — v4.141.0 + Android
+- Mila: Sharma Resturant (PC par restaurant, 9 Oct) cloud mein 'grocery' (purana PC default); phone ne wahi liya; phone har sync par apni lock category cloud par likhta tha, PC kabhi nahi bhejta tha.
+- Ilaaj: cloud `business_type` + `business_type_set_at`; PC: cloud mein bina time wali / purani category ho to apni bhejta, nayi ho to leta (lib/cloud/shopCategory.ts); phone: category lock hai, isliye cloud ki leta (items + categories saath), apni sirf khaali doc mein likhta (shop_category_sync.dart).
