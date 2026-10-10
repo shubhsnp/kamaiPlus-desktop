@@ -1353,6 +1353,10 @@ async function run() {
           globalThis.__waJobs.push(req);
           return { ok: true, via: 'web', copied: false };
         });
+        // v4.133.0: the bill PDF onto the clipboard — caught here, the real clipboard is never touched.
+        globalThis.__clipFiles = [];
+        ipcMain.removeHandler('kp:copy-file');
+        ipcMain.handle('kp:copy-file', async (_e, target) => { globalThis.__clipFiles.push(String(target)); return { ok: true }; });
       });
       const waJobs = () => app.evaluate(() => globalThis.__waJobs);
       await page.evaluate(() => { window.location.href = '/transactions/'; });
@@ -1370,6 +1374,11 @@ async function run() {
       await page.locator('[data-wa-send]').click();
       await page.locator('[data-wa-result]').waitFor({ timeout: 10000 });
       const waBillJob = (await waJobs())[0] || {};
+      const clipFiles = await app.evaluate(() => globalThis.__clipFiles);
+      const pasteNote = await page.locator('[data-wa-pdf-paste]').isVisible().catch(() => false);
+      const pdfAsked = await page.locator('[data-wa-result]').innerText().then((t) => /PDF/.test(t)).catch(() => false);
+      check(!pdfAsked || (clipFiles.length === 1 && /\.pdf$/i.test(clipFiles[0]) && pasteNote),
+        `WhatsApp bill with the PDF: the PDF goes on the clipboard and the window says "press Ctrl+V" (${JSON.stringify(clipFiles)})`);
       await page.keyboard.press('Escape');
       await page.waitForTimeout(300);
       check(waBillJob.phone === '919822012345' && /\*(INVOICE|ESTIMATE) #/.test(waBillJob.text || '') && /💰 \*Total: ₹/.test(waBillJob.text || '') && /बिल #|एस्टिमेट #/.test(hindiText) && !(await composer.isVisible().catch(() => false)),

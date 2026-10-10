@@ -128,7 +128,7 @@ import { SILENT_PRINT_KEY } from '../src/lib/hardware/printerWatch';
 import { toWhatsAppNumber, upiPayLink, whatsAppWebUrl } from '../src/lib/whatsapp/whatsappLinks';
 import { billMessage, khataReminderMessage, ledgerSlipMessage, MAX_BILL_LINES, paymentRequestMessage } from '../src/lib/whatsapp/customerMessages';
 import { cashTallyMessage, gstForCaMessage, restockOrderMessage, suggestedOrderQty } from '../src/lib/whatsapp/businessMessages';
-import { parseWhatsAppSettings } from '../src/lib/whatsapp/whatsappSettings';
+import { DEFAULT_WHATSAPP_SETTINGS, parseWhatsAppSettings } from '../src/lib/whatsapp/whatsappSettings';
 import { categoryKey, findCategoryByName } from '../src/lib/products/categories';
 import { allowsFractionalQty, dozenFromPieces, formatCartQty, lineAmountPaise, piecesInDozen, roundQty } from '../src/lib/billing/unitQuantity';
 import { getQuantityConfigForUnit } from '../src/components/billing/posQuantityConfig';
@@ -2056,7 +2056,8 @@ assert(readSource('app/billing/page.tsx').split('\n').length <= 401, `POS page s
     && suggestedOrderQty({ current_stock: 2, min_stock_level: 10 } as any) === 18 && suggestedOrderQty({ current_stock: 50, min_stock_level: 5 } as any) === 1,
     'Business messages: restock order (qty + unit, stock never below 0, zero lines left out), GST figures for the CA, cash count with shortage; order qty back to twice the alert level');
   assert(parseWhatsAppSettings(null).payLink === true && parseWhatsAppSettings('{"lang":"xx","payLink":false,"signOff":7}').lang === '' && parseWhatsAppSettings('{"payLink":false}').payLink === false
-    && parseWhatsAppSettings('bad').attachPdf === false, 'WhatsApp settings: pay link on by default, bad saved values fall back');
+    && parseWhatsAppSettings('bad').attachPdf === true && parseWhatsAppSettings('{"attachPdf":false}').attachPdf === false,
+    'WhatsApp settings: pay link and the bill PDF on by default (v4.133.0), a shop turning it off is kept, bad saved values fall back');
 
   const { whatsAppUrls } = require('../whatsapp.js');
   const u1 = whatsAppUrls('919822012345', 'hi there');
@@ -4903,6 +4904,18 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
   const raw = ['components/purchases/PurchaseOrdersCard.tsx', 'components/settings/HelpSupportTab.tsx', 'components/support/SupportContact.tsx']
     .filter((f) => readSource(f).includes('MessageCircle'));
   assert(raw.length === 0, `WhatsApp buttons use WhatsAppIcon, never a chat bubble (${raw.join(', ') || 'none left'})`);
+}
+
+// v4.133.0 — Rahul: every bill to a customer on WhatsApp goes WITH the invoice PDF. Desktop WhatsApp cannot take a
+// file in a link, so the PDF is put on the clipboard as a file (Ctrl+V in the chat attaches it); on by default.
+{
+  const mj = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+  const h = mj.slice(mj.indexOf("ipcMain.handle('kp:copy-file'"), mj.indexOf("ipcMain.handle('kp:show-in-folder'"));
+  assert(h.includes('insideDocuments(target)') && h.includes('\.pdf$/i') && h.includes('$env:KP_CLIP_FILE') && h.includes('KP_CLIP_FILE: file') && !h.includes('${file}'),
+    'Bill PDF to the clipboard: only a PDF inside Documents\KamaiPlus, the path passed to PowerShell as data (never in the command)');
+  const comp = readSource('components/whatsapp/WhatsAppComposer.tsx');
+  assert(comp.includes('!open.copied') && comp.includes('copyFileToClipboard') && DEFAULT_WHATSAPP_SETTINGS.attachPdf === true,
+    'WhatsApp bill: the PDF goes with it by default and is copied for Ctrl+V (not when the long text took the clipboard)');
 }
 
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.

@@ -39,7 +39,7 @@ export function WhatsAppComposer({ request, onClose }: { request: WhatsAppReques
   const [showSettings, setShowSettings] = useState(false);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [result, setResult] = useState<{ open: WhatsAppOpenResult; pdfPath?: string } | null>(null);
+  const [result, setResult] = useState<{ open: WhatsAppOpenResult; pdfPath?: string; pdfPasteReady?: boolean } | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -110,12 +110,17 @@ export function WhatsAppComposer({ request, onClose }: { request: WhatsAppReques
         const { saveInvoicePdf } = await import('@/lib/invoices/invoiceOutput');
         const customer = draft.pdfSale.customer_id ? await db.customers.get(draft.pdfSale.customer_id) : undefined;
         const res = await saveInvoicePdf({ sale: draft.pdfSale, business, customer, upiVpa: getPrimaryUpiVpa(business) });
-        if (res.ok && res.path) {
-          pdfPath = res.path;
-          void desktop.showItemInFolder(res.path);
-        }
+        if (res.ok && res.path) pdfPath = res.path;
       }
-      setResult({ open: await openWhatsApp(number, text), pdfPath });
+      const open = await openWhatsApp(number, text);
+      // v4.133.0 (Rahul): the PDF goes on the clipboard as a file — Ctrl+V in the chat attaches it.
+      // Not when the text itself had to be copied (too long for the link); then the folder opens to drag it.
+      let pdfPasteReady = false;
+      if (pdfPath && desktop) {
+        pdfPasteReady = !open.copied && Boolean(desktop.copyFileToClipboard) && (await desktop.copyFileToClipboard!(pdfPath)).ok;
+        if (!pdfPasteReady) void desktop.showItemInFolder(pdfPath);
+      }
+      setResult({ open, pdfPath, pdfPasteReady });
     } finally {
       setBusy(false);
     }
@@ -185,7 +190,7 @@ export function WhatsAppComposer({ request, onClose }: { request: WhatsAppReques
               {draft.pdfSale && getDesktopApi() && (
                 <label className="flex items-center gap-1.5 cursor-pointer text-slate-700">
                   <input type="checkbox" checked={attachPdf} onChange={(e) => setAttachPdf(e.target.checked)} data-wa-attach-pdf />
-                  {tr('Also save the bill PDF and open its folder, to drag it into the chat')}
+                  {tr('Send the bill PDF too — it is copied, press Ctrl+V in the chat')}
                 </label>
               )}
               <div className="rounded-xl border border-slate-200">
@@ -205,7 +210,7 @@ export function WhatsAppComposer({ request, onClose }: { request: WhatsAppReques
                   </div>
                 )}
               </div>
-              {result && <SentNote result={result.open} pdfPath={result.pdfPath} />}
+              {result && <SentNote result={result.open} pdfPath={result.pdfPath} pdfPasteReady={result.pdfPasteReady} />}
             </>
           )}
         </div>

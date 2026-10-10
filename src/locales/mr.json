@@ -3117,5 +3117,8 @@
   "After ₹{paidOut} paid out (₹{refunds} return refunds)": "₹{paidOut} बाहेर गेल्यानंतर (₹{refunds} रिटर्न रिफंड)",
   "Split payment: the 50 / 50 fill is worked out in paise, so cash + UPI always equal the bill (an odd-paise bill could leave 1 paisa on udhar). Day Summary names cash refunds of returns as refunds, not expenses.": "स्प्लिट पेमेंट: 50 / 50 पैशांत विभागले जाते, म्हणून कॅश + UPI नेहमी बिलाइतके (विषम पैशांच्या बिलावर 1 पैसा उधारीत जाऊ शकत होता). डे समरीत रिटर्नचे कॅश रिफंड आता रिफंड म्हणून दिसतात, खर्च नाही.",
   "Printing: a printer that never answers (a switched-off printer, or \"Microsoft Print to PDF\" chosen as the bill printer) no longer blocks every later bill, KOT and label — after 45 seconds that print says it failed and the next one goes out.": "प्रिंटिंग: जो प्रिंटर उत्तरच देत नाही (बंद प्रिंटर, किंवा बिल प्रिंटरमध्ये \"Microsoft Print to PDF\") तो आता पुढचे प्रत्येक बिल, KOT आणि लेबल अडवत नाही — 45 सेकंदांनंतर तो प्रिंट फेल सांगतो आणि पुढचा निघतो.",
-  "WhatsApp buttons show the official WhatsApp logo, the same as the mobile app.": "WhatsApp बटणांवर आता खरा WhatsApp लोगो, मोबाइल ॲपसारखा."
+  "WhatsApp buttons show the official WhatsApp logo, the same as the mobile app.": "WhatsApp बटणांवर आता खरा WhatsApp लोगो, मोबाइल ॲपसारखा.",
+  "Bill PDF is copied: click in the WhatsApp chat, press Ctrl+V, then Send.": "बिल PDF कॉपी झाला: WhatsApp चॅटमध्ये क्लिक करा, Ctrl+V दाबा, मग Send.",
+  "Send the bill PDF too — it is copied, press Ctrl+V in the chat": "बिल PDF पण पाठवा — ते कॉपी होते, चॅटमध्ये Ctrl+V दाबा",
+  "WhatsApp bill: the invoice PDF now goes with the message by default — it is copied for you, so just press Ctrl+V in the WhatsApp chat and Send.": "WhatsApp बिल: इनव्हॉइस PDF आता मेसेजसोबत आपोआप जाते — ते कॉपी होते, फक्त WhatsApp चॅटमध्ये Ctrl+V दाबा आणि Send करा."
 }

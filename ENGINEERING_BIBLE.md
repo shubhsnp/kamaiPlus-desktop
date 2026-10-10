@@ -113,6 +113,7 @@ Defined in `main.js` (`ipcMain.handle`), exposed in `preload.js`, typed in
 | `kp:open-whatsapp` | `openWhatsApp({phone, text})` | v4.79.0: `whatsapp.js` — WhatsApp Desktop (`whatsapp://send`) if installed, else `wa.me` in the browser; text over the Windows link limit → clipboard + empty chat → `{ok, via: 'app'\|'web', copied}` (§9.11) |
 | `kp:open-path` | `openPath(target)` | Opens a saved file — **only inside `Documents/KamaiPlus`** |
 | `kp:show-in-folder` | `showItemInFolder(target)` | Same path restriction |
+| `kp:copy-file` | `copyFileToClipboard(target)` | v4.133.0: a bill PDF inside Documents\KamaiPlus onto the Windows clipboard as a file (PowerShell `Set-Clipboard -LiteralPath`, path passed in an env var) — the WhatsApp composer copies it so Ctrl+V in the chat attaches the bill (§9.11) |
 | `kp:app-info` | `getAppInfo()` | `{version, documentsDir}` |
 | `kp:licence-status` | `getLicenceStatus()` | Offline licence check (§2.1) → `{state:'active',…, validUntil, daysLeft}`, `{state:'expired',…, validUntil}` (v4.85.0) or `{state:'required', machineName, reason?}` |
 | `kp:licence-refresh` | `refreshLicence()` | v4.85.0: online check-in now ("Check again" on the licence-ended screen) → `{ok, offline?, stopped?, status}` (§2.1). The main process also checks in by itself (installed app, every hour since v4.98.0, was 6 h) and sends `kp:licence-changed` (`onLicenceChanged`) when the state, end date or days left change (v4.98.0: a renewal too). Since v4.98.0 the answer may carry `messages` (§2.1b). |

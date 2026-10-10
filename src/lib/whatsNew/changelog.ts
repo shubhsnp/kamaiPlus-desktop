@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.133.0',
+    items: [
+      msg('WhatsApp bill: the invoice PDF now goes with the message by default — it is copied for you, so just press Ctrl+V in the WhatsApp chat and Send.'),
+    ],
+  },
+  {
     version: '4.132.0',
     items: [
       msg('WhatsApp buttons show the official WhatsApp logo, the same as the mobile app.'),

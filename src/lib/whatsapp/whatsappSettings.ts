@@ -15,7 +15,7 @@ export interface WhatsAppSettings {
   payLink: boolean;
   /** Last line of customer messages ('' = the standard thank-you). */
   signOff: string;
-  /** Save the bill PDF (to drag into the chat) when sending a bill. */
+  /** Send the bill PDF with a bill (copied as a file: Ctrl+V in the chat). On unless the shop turned it off (v4.133.0). */
   attachPdf: boolean;
   ownerPhone: string;
   caPhone: string;
@@ -27,7 +27,7 @@ export const DEFAULT_WHATSAPP_SETTINGS: WhatsAppSettings = {
   lang: '',
   payLink: true,
   signOff: '',
-  attachPdf: false,
+  attachPdf: true,
   ownerPhone: '',
   caPhone: '',
 };
@@ -43,7 +43,7 @@ export function parseWhatsAppSettings(raw: string | null | undefined): WhatsAppS
       lang: LANGS.includes(s.lang) ? s.lang : '',
       payLink: typeof s.payLink === 'boolean' ? s.payLink : d.payLink,
       signOff: typeof s.signOff === 'string' ? s.signOff.slice(0, 200) : '',
-      attachPdf: s.attachPdf === true,
+      attachPdf: typeof s.attachPdf === 'boolean' ? s.attachPdf : d.attachPdf,
       ownerPhone: typeof s.ownerPhone === 'string' ? s.ownerPhone : '',
       caPhone: typeof s.caPhone === 'string' ? s.caPhone : '',
     };

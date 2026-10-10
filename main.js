@@ -422,6 +422,23 @@ ipcMain.handle('kp:open-path', async (_event, target) => {
   return error ? { ok: false, error } : { ok: true };
 });
 
+// v4.133.0 (Rahul): the bill PDF goes on the clipboard as a FILE (like Explorer's Copy), so the
+// shop presses Ctrl+V in the WhatsApp chat and the bill is attached. Only a PDF inside
+// Documents\KamaiPlus; the path reaches PowerShell through an environment variable (never the command).
+ipcMain.handle('kp:copy-file', async (_event, target) => {
+  if (!insideDocuments(target) || !/\.pdf$/i.test(String(target))) return { ok: false, error: 'Path not allowed.' };
+  const file = path.normalize(target);
+  if (!fs.existsSync(file)) return { ok: false, error: 'File not found.' };
+  return new Promise((resolve) => {
+    require('child_process').execFile(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-Command', 'Set-Clipboard -LiteralPath $env:KP_CLIP_FILE'],
+      { env: { ...process.env, KP_CLIP_FILE: file }, windowsHide: true, timeout: 15000 },
+      (err) => resolve(err ? { ok: false, error: err.message } : { ok: true })
+    );
+  });
+});
+
 ipcMain.handle('kp:show-in-folder', async (_event, target) => {
   if (!insideDocuments(target)) return { ok: false, error: 'Path not allowed.' };
   shell.showItemInFolder(path.normalize(target));

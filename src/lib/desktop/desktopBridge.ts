@@ -133,6 +133,8 @@ export interface KamaiDesktopApi {
   openWhatsApp?(request: { phone: string; text: string }): Promise<{ ok: boolean; via: 'app' | 'web'; copied: boolean; error?: string }>;
   openPath(path: string): Promise<DesktopResult>;
   showItemInFolder(path: string): Promise<DesktopResult>;
+  /** A bill PDF (in Documents\KamaiPlus) onto the clipboard as a file — Ctrl+V in WhatsApp attaches it (v4.133.0). */
+  copyFileToClipboard?(path: string): Promise<DesktopResult>;
   getAppInfo(): Promise<{ version: string; documentsDir: string }>;
   getLicenceStatus(): Promise<LicenceStatus>;
   activateLicence(key: string): Promise<LicenceActivationResult>;

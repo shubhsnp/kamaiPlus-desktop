@@ -86,7 +86,7 @@ export function RecipientField(props: {
 const VIA: Record<WhatsAppOpenResult['via'], string> = { app: msg('WhatsApp Desktop'), web: msg('WhatsApp Web (browser)') };
 
 /** What happened after "Open WhatsApp". */
-export function SentNote({ result, pdfPath }: { result: WhatsAppOpenResult; pdfPath?: string }) {
+export function SentNote({ result, pdfPath, pdfPasteReady }: { result: WhatsAppOpenResult; pdfPath?: string; pdfPasteReady?: boolean }) {
   const desktop = getDesktopApi();
   if (!result.ok) {
     return (
@@ -103,9 +103,14 @@ export function SentNote({ result, pdfPath }: { result: WhatsAppOpenResult; pdfP
         {tr('{app} opened — check the message and press Send.', { app: tr(VIA[result.via]) })}
       </p>
       {result.copied && <p className="font-bold">{tr('The message was too long for a link, so it is copied: click in the chat and press Ctrl+V.')}</p>}
+      {pdfPath && pdfPasteReady && (
+        <p className="font-black text-emerald-800" data-wa-pdf-paste>
+          {tr('Bill PDF is copied: click in the WhatsApp chat, press Ctrl+V, then Send.')}
+        </p>
+      )}
       {pdfPath && (
         <p className="flex flex-wrap items-center gap-2">
-          <span>{tr('Bill PDF saved — drag it from the folder into the chat.')}</span>
+          {!pdfPasteReady && <span>{tr('Bill PDF saved — drag it from the folder into the chat.')}</span>}
           {desktop && (
             <button type="button" onClick={() => desktop.showItemInFolder(pdfPath)} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white border border-emerald-300 font-bold cursor-pointer">
               <FolderOpen className="w-3 h-3" /> {tr('Show PDF')}

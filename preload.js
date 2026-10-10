@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('kamaiDesktop', {
   openWhatsApp: (request) => ipcRenderer.invoke('kp:open-whatsapp', request),
   openPath: (target) => ipcRenderer.invoke('kp:open-path', target),
   showItemInFolder: (target) => ipcRenderer.invoke('kp:show-in-folder', target),
+  copyFileToClipboard: (target) => ipcRenderer.invoke('kp:copy-file', target),
   getAppInfo: () => ipcRenderer.invoke('kp:app-info'),
   getLicenceStatus: () => ipcRenderer.invoke('kp:licence-status'),
   activateLicence: (key) => ipcRenderer.invoke('kp:licence-activate', key),

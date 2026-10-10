@@ -216,5 +216,5 @@
 
 ### Rahul ke naye kaam (2026-10-10, phone test ke beech)
 - **N1 Desktop WhatsApp logo:** Desktop mein jahan-jahan WhatsApp hai (button, icon, menu) wahan Android jaisa **official WhatsApp logo / icon**. ✅ v4.132.0 (`WhatsAppIcon` = official mark; Purchases / Help / Support bhi)
-- **N2 WhatsApp bill = PDF + text:** jab bhi grahak ko bill WhatsApp par jaye, invoice (PDF) saath mein text ke saath — Android + Desktop dono par confirm. Test number: Rahul ka 9595997711. ⬜
+- **N2 WhatsApp bill = PDF + text:** jab bhi grahak ko bill WhatsApp par jaye, invoice (PDF) saath mein text ke saath — Android + Desktop dono par confirm. Test number: Rahul ka 9595997711. ✅ Android phone par PDF + text pahuncha (Rahul ne confirm kiya); dono WhatsApp hon to dukaandar chune. Desktop v4.133.0: PDF by default, clipboard par file — Ctrl+V.
 
