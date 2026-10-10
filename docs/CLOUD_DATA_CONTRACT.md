@@ -45,7 +45,7 @@ jo naam chahein rakhein; cloud mein likhte / padhte waqt is contract ke naam use
 | :-- | :-- | :-- |
 | dukaan, `products`, `customers`, `sales` | likhta + padhta | contract ke naam (§7) |
 | `categories` | sirf padhta (C15) | likhe bhi |
-| `ledger_transactions`, `suppliers`, `cash_expenses`, `inventory_movements`, `cash_registers`, `sales_returns`, `purchase_bills` | — (phone par hi) | baad mein padhe / likhe — naam §3.7 |
+| `ledger_transactions`, `suppliers`, `cash_expenses`, `inventory_movements`, `cash_registers`, `sales_returns`, `purchase_bills` | **likhta + padhta (N4, 2026-10-10)** — `lib/services/cloud_extra_contract.dart` + `cloud_extra_sync.dart`, §8 S8–S10 | — |
 | `marketing_templates`, `audit_logs` | — | Desktop-only |
 | Root `/products`, `/customers`, `/sales`, `/merchants` (admin copy) | likhta | Desktop nahi likhta; admin panel `businesses/{id}/…` padhe (khula sawaal, admin_console) |
 
@@ -234,9 +234,22 @@ mein v4.83.0 se.) Desktop padhte waqt `pcs` / `pc` / `nos` → `piece`, `pkt` �
   writes `hasPendingWrites` chhod do).
 - **S4 — Desktop apni dukaan ID rakhta hai:** cloud `biz_<uid>`, Desktop row par apna `business_id`; dukaan ka doc
   Desktop ki apni row par milta hai.
-- **S5 — Delete:** product / customer / category / supplier ek taraf delete = doosri taraf delete.
+- **S5 — Delete:** product / customer / category / supplier ek taraf delete = doosri taraf delete. N4 (v4.135.0) se
+  khata entry (`ledger_transactions`), kharcha (`cash_expenses`), purchase order (`purchase_bills`) bhi. Bill, stock
+  movement, return, shift ka cloud delete kabhi follow nahi hota.
 - **S6 — Store barcode (`200…`) ke number bante hain:** Desktop 1–49,999 phir 100,000–549,999; phone 50,000–99,999
   phir 550,000+. (Loose-pack `29…` code mein 99,999 tak aata hai.)
 - **S7 — Bill number har device ka apna** (R10): Desktop `INV-…`, phone apna — ek hi series nahi.
+- **S8 — Phone ki baaki tables (N4, 2026-10-10):** phone table ↔ cloud: `ledger_transactions` (credit/debit ↔
+  `CREDIT_SALE`/`PAYMENT_RECEIVED`, `customer_id` ↔ `party_id`, `description` ↔ `notes`, cash = `payment_method: cash`),
+  `expenses` ↔ `cash_expenses` (category map + `android_category`, `payment_mode` — drawer sirf cash ginta),
+  `cash_register_shifts` ↔ `cash_registers` (sirf closed), `suppliers`, `sale_returns` ↔ `sales_returns`
+  (`sale_id` ↔ `original_sale_id`, refund `credit` ↔ `khata_deduction`, `credit_note` ↔ `store_credit`),
+  `inventory_movements` (`PARTIAL_RETURN` → `RETURN` + `android_movement_type`), `purchase_orders` ↔ `purchase_bills`
+  sirf `kind: 'order'` (Received ↔ `confirmed`). Phone ki row cloud jaakar wapas aaye to badalti nahi (test).
+- **S9 — Aayi row ka koi side effect nahi:** stock, udhar, bill — sab apne document se aate hain. Phone ki jo row abhi
+  bheji nahi (`sync_status = 'pending'`) us par cloud ki row kabhi nahi likhti.
+- **S10 — Desktop par badla bill phone par bhi:** phone `sales` ko `synced_at` se sunta hai; Desktop ka likha bill
+  (`source: desktop`) status / total / payment / returned_quantity badle to phone ka bill update (stock nahi chhoota).
 - **Test:** Desktop `npm run test:cloud` — asli Firestore + Auth emulator, isi repo ke rules, ek "phone" jo
   Android jaisa likhta hai.

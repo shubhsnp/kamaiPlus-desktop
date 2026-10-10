@@ -225,3 +225,16 @@
 - Gap (salah #3): phone ki khata entry (₹100 Jama) PC par nahi aati — sirf balance.
 - **Delete ke baad purana data wapas aane ki asli wajah:** live Firestore rules purane — `deleted_businesses` padhna PERMISSION_DENIED → dono apps ka delete-check chupchaap fail → device data dobara bhejta. Ilaaj: Android repo se `firestore.rules` deploy (Rahul ka OK) + Admin delete saari 14 tables.
 
+### N4 — Sab kuch dono taraf sync (Rahul, 2026-10-10: "dono taraf cloud sync chahiye sab kuch") — S1–S7 DONE (Android `cloud_extra_sync.dart`, Desktop v4.135.0)
+Aaj: items, grahak, bills, categories dono taraf; baaki tables sirf Desktop → cloud. Phone ko Desktop ke contract naam (`CLOUD_DATA_CONTRACT.md` §3.7) se bhejna + padhna hai. Har step = Android code + test + commit; Desktop side check (Desktop pehle se 13 tables padhta / likhta).
+- [x] S1 khata entries `ledger_transactions` (phone type credit/debit ↔ CREDIT_SALE / PAYMENT_RECEIVED…, `party_id`, `amount` paise, `balance_after`, `payment_method`). Balance NAHI badalna (balance customers ke increment se aata — dohra nahi).
+- [x] S2 returns `sales_returns` (phone `sale_returns`) — bill ka status / returned_quantity sales se aata; return receipt alag.
+- [x] S3 kharche `cash_expenses` (phone `expenses`), category Refund / Supplier Payment.
+- [x] S4 cash shift `cash_registers` (phone shifts).
+- [x] S5 suppliers `suppliers`.
+- [x] S6 purchase: phone `inward_orders` ↔ Desktop `purchase_bills` (alag cheez — map jitna mel khaaye; na mile to dono app ek doosre ka dikhaye read-only).
+- [x] S7 stock movements `inventory_movements` (sirf record; stock khud products increment se).
+- Desktop-only rahenge: `audit_logs`, `marketing_templates` (contract §2).
+- [ ] S8 test: phone + PC asli sync, har table dono taraf; flutter + Desktop suite; Electron E2E.
+- Kaise (N4): phone ki har table par `sync_status` (purani rows 'pending' = ek baar upar jaati hain), 400 ki batch + `synced_at`; cloud se aayi row seedhi likhi jaati hai (stock / udhar / bill nahi badalta), phone ki unsent row par kabhi nahi. Kharche mein `payment_mode` — PC ka UPI kharcha phone ke galle se nahi ghatta. Phone ka 'Desktop ne bill return kiya' ab phone ke bill par bhi dikhta hai (S2). Desktop v4.135.0: phone ki delete hui khata entry / kharcha / PO PC se bhi hatta. Shift history ke banaye hue (09:00–22:00, ₹0) din phone par hi rehte hain. Supplier ki khata (Desktop party_type supplier) phone par nahi — phone mein woh screen nahi.
+- Android test: `test/cloud_extra_sync_test.dart` (14). Asli phone + PC test: S8.

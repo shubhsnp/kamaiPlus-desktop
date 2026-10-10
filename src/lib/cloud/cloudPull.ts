@@ -32,7 +32,12 @@ const DATA_TABLES = CLOUD_TABLES.filter((t) => t !== 'businesses') as Exclude<Cl
 const NEWER_WINS = new Set<CloudTable>(['products', 'customers', 'suppliers', 'sales']);
 /** Changed by the phone without `synced_at` (stock increments), and small: listened to whole. */
 const WHOLE = new Set<CloudTable>(['products', 'customers', 'categories', 'suppliers']);
-const FOLLOW_DELETES = WHOLE;
+/**
+ * Deleted in the cloud → deleted here. The whole tables, plus (v4.135.0, N4) what the phone now
+ * shares both ways and can delete: a khata entry, an expense, a purchase order. Those are listened
+ * by `synced_at` (it only grows), so a document leaves that listener only when it is deleted.
+ */
+const FOLLOW_DELETES = new Set<CloudTable>([...Array.from(WHOLE), 'ledger_transactions', 'cash_expenses', 'purchase_bills']);
 
 export const PULL_CURSOR_KEY = 'kamai_cloud_pull_cursor';
 /** Listeners re-read this much before the last change seen (clock differences, slow writes). */

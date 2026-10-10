@@ -4189,7 +4189,10 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
   const androidRules = path.join(SRC_ROOT, '..', '..', 'KamaiPlus Android', 'firestore.rules');
   if (fs.existsSync(androidRules)) {
     const rulesCode = fs.readFileSync(androidRules, 'utf8');
-    assert(rulesCode.includes('match /desktop_signals/{key}') && rulesCode.includes('allow read: if true') && rulesCode.includes('allow write: if isAdmin()'),
+    // v4.135.0: one signal is readable by anyone who knows its licence key (allow get); the list of all keys is
+    // admin-only (allow list) — the 2026-10-10 rules deploy.
+    const sig = rulesCode.slice(rulesCode.indexOf('match /desktop_signals/{key}'), rulesCode.indexOf('match /desktop_signals/{key}') + 400);
+    assert(sig.includes('allow get: if true') && sig.includes('allow list: if isAdmin()') && sig.includes('allow write: if isAdmin()'),
       'firestore.rules allows reading desktop_signals and restricts writing to admin');
   }
   const adminService = path.join(SRC_ROOT, '..', '..', 'KamaiPlus Android', 'admin_console', 'lib', 'services', 'admin_firestore_service.dart');
@@ -4946,6 +4949,18 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
   const counted: any = fromCloud('products', { id: 'p8', business_id: 'biz_UID1', name: 'Soap', selling_price_paise: 4000, stock_quantity: 12 }, null, ctx3);
   assert(unl.is_unlimited_stock === true && !counted.is_unlimited_stock && counted.current_stock === 12,
     'Cloud: a phone item with stock >= 99990 is "unlimited" here (not 99,999 pieces in stock value); counted items keep their stock');
+}
+
+// v4.135.0 — N4: the phone now shares khata entries, expenses, closed shifts, suppliers, returns, stock movements
+// and purchase orders both ways. A khata entry / expense / purchase order the phone deletes must leave the PC too
+// (else the PC's drawer and khata re-count it). Only these three join the deletes the PC follows.
+{
+  const pull = readSource('lib/cloud/cloudPull.ts');
+  const fd = pull.slice(pull.indexOf('const FOLLOW_DELETES'), pull.indexOf('export const PULL_CURSOR_KEY'));
+  assert(fd.includes("...Array.from(WHOLE)") && fd.includes("'ledger_transactions'") && fd.includes("'cash_expenses'") && fd.includes("'purchase_bills'"),
+    'PC follows phone deletes of khata entries, expenses and purchase orders (N4)');
+  assert(!fd.includes("'sales'") && !fd.includes("'inventory_movements'") && !fd.includes("'sales_returns'") && !fd.includes("'cash_registers'"),
+    'PC never follows cloud deletes of bills, stock movements, returns or shifts (N4)');
 }
 
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.

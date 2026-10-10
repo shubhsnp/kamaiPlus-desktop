@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.135.0',
+    items: [
+      msg('Mobile + PC: khata entries, expenses, cash shifts, suppliers, returns, stock history and purchase orders made on the phone now come to this PC (and this PC\'s go to the phone). A khata entry, expense or purchase order deleted on the phone is removed here too.'),
+    ],
+  },
+  {
     version: '4.134.0',
     items: [
       msg('Mobile + PC on one Google account: store setup now finds the phone\'s shop reliably and restores it with its category and GSTIN; after the restore this PC syncs with the phone by itself. Phone items marked unlimited stay unlimited here.'),
