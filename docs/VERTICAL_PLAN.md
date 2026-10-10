@@ -250,3 +250,20 @@ Aaj: items, grahak, bills, categories dono taraf; baaki tables sirf Desktop → 
 - **Bug mila + theek (Android 74d9ab5):** phone khulte hi har item / grahak dobara bhejta tha — purana stock cloud ke naye par "farak" ban kar (PC ka return Atta 20 → 19 mita) + `updated_at = abhi` (PC ke naye daam ko harata). Ab startup sirf wahi bhejta jo cloud mein nahi. Live: phone band, cloud Atta 21 → phone khula → 21 hi raha, phone par bhi 21 ✅.
 - **Cross-device login live:** cloud doc mein store_name / business_name / shop_name khali (purane PC doc jaisa) → app uninstall + install → usi Google se login → seedha dashboard, signup form nahi; 13 items sahi stock, Khata Sync Grahak ₹100 + 4 entries (PC + phone) ✅.
 - Test data note: INV-003 (udhar) ka return v4.135 par cash mein hua tha (AU-37 se pehle) → khata mein ₹100 abhi bhi 'Pending Bills (1)'. Asli dukaan par v4.136 se aisa nahi hoga.
+
+### Rahul ki list (2026-10-10, shaam) — kya ab, kya baad mein
+**Ab karna (is kram se):**
+- [ ] R1 Restaurant P0: chalu table orders cloud se sync (waiter phone ↔ PC cashier / KOT printer)
+- [ ] R2 Restaurant P0: dish "Aaj khatam" (dono devices); item par "Stock ginein" (bottle / packet) — Purchases + Suppliers NAHI chahiye
+- [ ] R3 Takeaway / delivery: grahak phone, address, delivery charge, token
+- [ ] R4 UI: veg / non-veg nishaan
+- [ ] A-1 Android restaurant form se batch / expiry hatana; settle sheet par packing line
+- [ ] A-2 Android product form mein HSN box
+- [ ] A-3 Label par nakli barcode band
+- [ ] A-4 Android bill edit
+- [ ] A-5 Android auto-backup
+- [ ] A-6 Hindi / Marathi har Android screen par
+- [x] Purchase order ki nakli "Wholesale Inward Consignment" line (Android 78bf222)
+- [ ] Cloud Functions Node 22 deploy — code + tests (93/93) taiyaar, live code = local (desktopLicence 9 Oct); deploy Claude ke session mein roka gaya → Rahul khud chalayein
+**Sirf samjhana:** AU-A1 (phone har bill do jagah likhta) — karna nahi.
+**Baad mein:** website / help guides sync; phone par A3, A4, A5, A7, A12, A15 checks; Desktop Ctrl+V PDF asli WhatsApp par; installer code-signing; staff login / roles.
