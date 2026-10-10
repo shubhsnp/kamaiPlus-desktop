@@ -73,6 +73,9 @@ export const SalesReturnModal: React.FC<SalesReturnModalProps> = ({
     const previous = await db.sales_returns.where('original_sale_id').equals(sale.id).toArray();
     setAlreadyReturned(getReturnedQtyByLine(sale, previous));
     setSelectedSale(sale);
+    // v4.136.0 (AU-37): a bill with udhar still on it refunds to the khata by default. It opened on
+    // Cash, so returning an unpaid udhar bill handed back cash never paid while the udhar stayed.
+    setRefundMethod(sale.customer_id && (sale.balance_due || 0) > 0 ? 'khata_deduction' : 'cash');
     const initialQty: { [line: number]: number } = {};
     const initialRestock: { [line: number]: boolean } = {};
     sale.items.forEach((_, idx) => {

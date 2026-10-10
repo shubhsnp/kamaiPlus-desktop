@@ -4963,6 +4963,15 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
     'PC never follows cloud deletes of bills, stock movements, returns or shifts (N4)');
 }
 
+// v4.136.0 — AU-37 (N4 live test): Sales Return of an udhar bill (₹250 still due) opened on "Cash Refund" →
+// ₹270 cash handed back, khata untouched. A bill with udhar on it now refunds to the khata by default.
+{
+  const m = readSource('components/sales/SalesReturnModal.tsx');
+  const sel = m.slice(m.indexOf('const handleSelectSale'), m.indexOf('const maxReturnable'));
+  assert(sel.includes("setRefundMethod(sale.customer_id && (sale.balance_due || 0) > 0 ? 'khata_deduction' : 'cash')"),
+    'Sales Return: an udhar bill (balance due) refunds to the khata by default, a paid bill to cash (AU-37)');
+}
+
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.
 Promise.allSettled(pendingAsyncChecks).then((results) => {
   for (const r of results) if (r.status === 'rejected') assert(false, 'An async check threw', String(r.reason));
