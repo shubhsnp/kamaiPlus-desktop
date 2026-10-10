@@ -128,6 +128,9 @@ const SPECS: Record<CloudTable, TableSpec> = {
     dates: DATES,
     in: (doc, row, local) => {
       row.unit = normalizeUnit(row.unit) || 'piece';
+      // v4.134.0: the phone writes "unlimited / uncounted" as stock >= 99990 (no flag). Taken as stock it
+      // counted 999999 pieces — Inventory Asset ₹5.5 crore for one ₹55 item (live sync test).
+      if (Number(row.current_stock) >= 99990) row.is_unlimited_stock = true;
       if (local) return;
       // A product first made on the phone: the fields the Desktop screens expect.
       row.category_id ??= '';

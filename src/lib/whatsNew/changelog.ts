@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.134.0',
+    items: [
+      msg('Mobile + PC on one Google account: store setup now finds the phone\'s shop reliably and restores it with its category and GSTIN; after the restore this PC syncs with the phone by itself. Phone items marked unlimited stay unlimited here.'),
+    ],
+  },
+  {
     version: '4.133.0',
     items: [
       msg('WhatsApp bill: the invoice PDF now goes with the message by default — it is copied for you, so just press Ctrl+V in the WhatsApp chat and Send.'),

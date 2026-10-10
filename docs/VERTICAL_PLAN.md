@@ -217,4 +217,11 @@
 ### Rahul ke naye kaam (2026-10-10, phone test ke beech)
 - **N1 Desktop WhatsApp logo:** Desktop mein jahan-jahan WhatsApp hai (button, icon, menu) wahan Android jaisa **official WhatsApp logo / icon**. ✅ v4.132.0 (`WhatsAppIcon` = official mark; Purchases / Help / Support bhi)
 - **N2 WhatsApp bill = PDF + text:** jab bhi grahak ko bill WhatsApp par jaye, invoice (PDF) saath mein text ke saath — Android + Desktop dono par confirm. Test number: Rahul ka 9595997711. ✅ Android phone par PDF + text pahuncha (Rahul ne confirm kiya); dono WhatsApp hon to dukaandar chune. Desktop v4.133.0: PDF by default, clipboard par file — Ctrl+V.
+- **N3 Android signup: UPI ID optional** (Desktop jaisa; abhi `*` zaroori). Aur Android signup mein GSTIN box nahi (Desktop mein hai) — parity. ⬜
+
+### Realtime sync test (2026-10-10, phone CPH2691 + PC test folder, rahulvjadhav44@gmail.com)
+- Pass: phone item → PC ~1–2 s; PC bill → phone; phone bill INV-002 → PC <1 s (no number clash); stock 50 → 47 dono; udhar ₹270 PC → phone, ₹100 Jama phone → PC ₹170 ~2 s; PC daam ₹60 → phone; PC delete → phone.
+- Bug fixed v4.134.0: PC phone ki dukaan dhoondh nahi paata tha (Firebase login wapas aane se pehle lookup = permission denied); restore 'retail' (merchants doc), GSTIN nahi, sync off; phone ka 999999 stock = ₹5.5 cr asset. Android: Desktop ka unlimited item phone par 0 stock.
+- Gap (salah #3): phone ki khata entry (₹100 Jama) PC par nahi aati — sirf balance.
+- **Delete ke baad purana data wapas aane ki asli wajah:** live Firestore rules purane — `deleted_businesses` padhna PERMISSION_DENIED → dono apps ka delete-check chupchaap fail → device data dobara bhejta. Ilaaj: Android repo se `firestore.rules` deploy (Rahul ka OK) + Admin delete saari 14 tables.
 

@@ -14,6 +14,8 @@ export interface DetectedCloudStore {
   phone: string;
   businessType: string;
   upiId?: string;
+  /** The shop's GSTIN in the cloud (v4.134.0) — a GST shop stays a GST shop after the restore. */
+  gstin?: string;
   address?: string;
   email?: string;
   productCount?: number;
@@ -31,11 +33,19 @@ export async function findCloudStore(identifiers: {
     const { getCloudAccount } = await import('@/lib/cloud/cloudAccount');
     const account = getCloudAccount();
     if (!account || account.stub) return null;
-    const { getFirestoreDb } = await import('@/lib/firebase/config');
+    const { getFirestoreDb, getFirebaseAuth } = await import('@/lib/firebase/config');
     const { doc, getDoc } = await import('firebase/firestore');
 
     const firestore = getFirestoreDb();
     if (!firestore) return null;
+    // v4.134.0: wait until the saved Google session is back (a page load restores it from IndexedDB a
+    // moment later). Asking before that went out signed-out → "Missing or insufficient permissions",
+    // so a PC joining the phone's account never found the phone's shop.
+    const auth = getFirebaseAuth();
+    if (auth) {
+      await auth.authStateReady();
+      if (auth.currentUser?.uid !== account.uid) return null;
+    }
 
     // v4.124.0 (AU-05 / AU-18): the shop's cloud documents can only be read by the Google account that
     // owns them (Firestore rules). Without a connected Google account every lookup was refused — five
@@ -44,8 +54,32 @@ export async function findCloudStore(identifiers: {
     const uid = account.uid;
     const cleanPhone = (identifiers.phone || '').replace(/\D/g, '').slice(-10);
 
-    // 1. Search by UID in 'merchants' collection
     if (uid) {
+      // v4.134.0: the shop's own doc first — it carries business_type ("grocery"). merchants/<uid> (the
+      // phone's admin copy) has none, so the restored PC became "retail" and lost the kirana features.
+      try {
+        const bSnap = await getDoc(doc(firestore, 'businesses', `biz_${uid}`));
+        if (bSnap.exists()) {
+          const d = bSnap.data();
+          const name = d.name || d.business_name;
+          if (name) {
+            return {
+              businessId: `biz_${uid}`,
+              businessName: String(name),
+              ownerName: d.owner_name || 'Store Owner',
+              phone: d.phone || cleanPhone || '',
+              businessType: d.business_type || 'retail',
+              upiId: d.upi_id || d.upi_vpa || '',
+              gstin: typeof d.gstin === 'string' ? d.gstin.trim().toUpperCase() : '',
+              email: d.email || '',
+            };
+          }
+        }
+      } catch (bizErr) {
+        console.warn('Lookup by bizId error:', bizErr);
+      }
+
+      // Fallback: the merchants copy (older phone builds)
       try {
         const mSnap = await getDoc(doc(firestore, 'merchants', uid));
         if (mSnap.exists()) {
@@ -65,28 +99,6 @@ export async function findCloudStore(identifiers: {
         }
       } catch (uidErr) {
         console.warn('Lookup by uid error:', uidErr);
-      }
-
-      // Also check 'businesses' collection
-      try {
-        const bSnap = await getDoc(doc(firestore, 'businesses', `biz_${uid}`));
-        if (bSnap.exists()) {
-          const d = bSnap.data();
-          const name = d.name || d.business_name;
-          if (name) {
-            return {
-              businessId: `biz_${uid}`,
-              businessName: String(name),
-              ownerName: d.owner_name || 'Store Owner',
-              phone: d.phone || cleanPhone || '',
-              businessType: d.business_type || 'retail',
-              upiId: d.upi_id || d.upi_vpa || '',
-              email: d.email || '',
-            };
-          }
-        }
-      } catch (bizErr) {
-        console.warn('Lookup by bizId error:', bizErr);
       }
     }
 
@@ -117,6 +129,7 @@ export async function restoreCloudStoreToLocal(
     phone: store.phone,
     address: store.address || '',
     upi_id: store.upiId || undefined,
+    gstin: store.gstin || undefined,
     email: store.email || undefined,
     currency: 'INR',
     language: getLanguage(),
@@ -155,7 +168,7 @@ export async function restoreCloudStoreToLocal(
   try {
     localStorage.removeItem(FEATURE_SWITCHES_KEY);
   } catch {}
-  saveVerticalProfile(isVerticalId(store.businessType) ? store.businessType : 'retail', false);
+  saveVerticalProfile(isVerticalId(store.businessType) ? store.businessType : 'retail', Boolean(store.gstin));
   window.dispatchEvent(new Event(FEATURE_SWITCHES_EVENT));
 
   // 3. Set Authenticated User session in localStorage
@@ -184,6 +197,13 @@ export async function restoreCloudStoreToLocal(
     console.warn('Cloud restore data sync note:', pullErr);
   }
 
-  // 5. Navigate to Home
+  // 5. v4.134.0: this PC joined the phone's shop — sync both ways from now on (it stayed off until the
+  // shop found Backup → Google Account, so a bill made here never reached the phone).
+  try {
+    const { setCloudSendOn } = await import('@/lib/cloud/cloudPush');
+    setCloudSendOn(true);
+  } catch {}
+
+  // 6. Navigate to Home
   router.replace('/');
 }

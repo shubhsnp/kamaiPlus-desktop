@@ -29,9 +29,13 @@ export async function idsToCheckOnThisPc(localBizId: string): Promise<string[]> 
 export async function storeDeletedInCloud(ids: string[]): Promise<boolean> {
   if (!ids.length || (typeof navigator !== 'undefined' && !navigator.onLine)) return false;
   try {
-    const [{ getFirestoreDb }, { doc, getDoc }] = await Promise.all([import('@/lib/firebase/config'), import('firebase/firestore')]);
+    const [{ getFirestoreDb, getFirebaseAuth }, { doc, getDoc }] = await Promise.all([import('@/lib/firebase/config'), import('firebase/firestore')]);
     const fs = getFirestoreDb();
     if (!fs) return false;
+    // v4.134.0: the check ran before the saved Google session was back — a signed-out read is refused,
+    // the error became "not deleted", and a deleted shop's PC kept going (and sending its data up).
+    const auth = getFirebaseAuth();
+    if (auth) await auth.authStateReady();
     const snaps = await Promise.all(ids.map((id) => getDoc(doc(fs, 'deleted_businesses', id)).catch(() => null)));
     return snaps.some((s) => Boolean(s?.exists()));
   } catch {

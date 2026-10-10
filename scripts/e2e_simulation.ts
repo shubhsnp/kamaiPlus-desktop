@@ -4918,6 +4918,36 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
     'WhatsApp bill: the PDF goes with it by default and is copied for Ctrl+V (not when the long text took the clipboard)');
 }
 
+// v4.134.0 — Live sync test (phone + PC, same Google account): the PC never found the phone's shop. The lookup
+// ran before Firebase had restored the saved Google session → signed-out read → "Missing or insufficient
+// permissions". The deleted-shop check had the same race (a refused read = "not deleted"). Both wait now.
+{
+  const find = readSource('components/onboarding/cloudStoreRestore.ts');
+  const fi = find.slice(find.indexOf('export async function findCloudStore'), find.indexOf("doc(firestore, 'merchants'"));
+  assert(fi.includes('await auth.authStateReady()') && fi.includes('auth.currentUser?.uid !== account.uid'),
+    'Cloud shop lookup waits for the saved Google session before reading (PC finds the phone\'s shop)');
+  const del = readSource('lib/cloud/deletedStore.ts');
+  const di = del.slice(del.indexOf('export async function storeDeletedInCloud'), del.indexOf("doc(fs, 'deleted_businesses'"));
+  assert(di.includes('await auth.authStateReady()'), 'Deleted-shop check waits for the Google session (a refused read was "not deleted")');
+}
+
+// v4.134.0 — Live sync test, more: the restored PC became "retail" (merchants/<uid> has no business_type;
+// the shop doc says "grocery"), lost the GSTIN, stayed with sync OFF; the phone's unlimited item (stock 999999)
+// counted as 999,999 pieces (Inventory Asset ₹5.5 crore).
+{
+  const find = readSource('components/onboarding/cloudStoreRestore.ts');
+  assert(find.indexOf("doc(firestore, 'businesses'") < find.indexOf("doc(firestore, 'merchants'") && find.includes('gstin: typeof d.gstin'),
+    'Cloud shop lookup reads the shop doc first (its business_type and GSTIN), merchants only as a fallback');
+  const rest = find.slice(find.indexOf('export async function restoreCloudStoreToLocal'));
+  assert(rest.includes('setCloudSendOn(true)') && rest.includes('Boolean(store.gstin)') && rest.includes('gstin: store.gstin'),
+    'Restore: the PC syncs with the phone from then on, and a GST shop stays a GST shop');
+  const ctx3 = { bizId: 'biz_UID1' };
+  const unl: any = fromCloud('products', { id: 'p9', business_id: 'biz_UID1', name: 'Paneer Tikka', selling_price_paise: 25000, stock_quantity: 99999 }, null, ctx3);
+  const counted: any = fromCloud('products', { id: 'p8', business_id: 'biz_UID1', name: 'Soap', selling_price_paise: 4000, stock_quantity: 12 }, null, ctx3);
+  assert(unl.is_unlimited_stock === true && !counted.is_unlimited_stock && counted.current_stock === 12,
+    'Cloud: a phone item with stock >= 99990 is "unlimited" here (not 99,999 pieces in stock value); counted items keep their stock');
+}
+
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.
 Promise.allSettled(pendingAsyncChecks).then((results) => {
   for (const r of results) if (r.status === 'rejected') assert(false, 'An async check threw', String(r.reason));
