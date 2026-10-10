@@ -13,6 +13,7 @@ import { validateUpiId } from '@/lib/validation/validators';
 
 // Modular Tab Components
 import { SettingsNavTabs, SettingsTabType } from '@/components/settings/SettingsNavTabs';
+import { StaffTab } from '@/components/settings/staff/StaffTab';
 import { StoreProfileTab } from '@/components/settings/StoreProfileTab';
 import { UpiBankingTab } from '@/components/settings/UpiBankingTab';
 import { InvoiceSettingsTab } from '@/components/settings/InvoiceSettingsTab';
@@ -366,6 +367,8 @@ export default function SettingsPage() {
           setFooterMessage={setFooterMessage}
         />
       )}
+
+      {activeTab === 'staff' && <StaffTab />}
 
       {activeTab === 'data' && (
         <DataMaintenanceTab business={business} />

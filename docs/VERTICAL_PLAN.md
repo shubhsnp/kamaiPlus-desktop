@@ -302,3 +302,10 @@ Aaj: items, grahak, bills, categories dono taraf; baaki tables sirf Desktop → 
 - Desktop: DeliveryDialog naya (mobile pehle, icons, pehchana guest naam + pichla address khud bharta — lib/restaurant/guestLookup.ts, charges, Cancel); OrderPanel guest card (naam / mobile / poora address); MenuPanel sold-out banner; SetupDialog KOT = switch card; PayDialog delivery title fix ("Takeaway DL-01" aata tha).
 - Android: naya RestaurantDeliverySheet (AlertDialog ki jagah, khata customer / pichle bill se naam + address); Tables header mein "New takeaway" + "New delivery" do bade button (delivery ek akela icon tha); order sheet guest strip, "Khatam" -> "Sold out" + count + banner, "AAJ KHATAM" -> "SOLD OUT TODAY".
 - Phone par screenshot se check baaki (phone disconnect tha).
+
+### Staff sign-in Phase 1 (Rahul 2026-10-10: "jo jaroori hai implement karo, carefully") — Desktop v4.144.0 + Android + Functions + rules
+- Server: `staff` function (create_code owner / join staff), onStaffWritten (hataya = sign-out); staff user `kpst_<owner uid>_<staffId>`, claims kp_biz/kp_sid/kp_role. Rules: sirf naye alag `allow` (owner/admin ka kuch nahi badla) — 30/30 Rules-test-API cases (tool/firestore_rules_check.cjs).
+- Desktop: Settings → Staff (add, code + QR 15 min, online / not signed in / removed, remove / add back); restaurant settings cloud mein (`restaurant_meta/settings`, PC ka KOT-printer option nahi); order par "by Raju".
+- Android: login par "Staff sign-in" (QR / 6 digit) → StaffHomeScreen (sirf Tables; Settle & Bill, Cancel, Sold out, Setup chhupe); StaffShopSync (menu, categories, settings, apni entry, orders); owner ka Menu → Staff page; dukaan chhodna = pehle sync band, phir copy saaf.
+- Roles: har vertical ki list dikhti hai; aaj sirf Restaurant Waiter chalta hai. Agla: Cashier / Captain / Kitchen, retail Billing staff (har device ki invoice series chahiye), Stock.
+- **Rahul ko deploy karna hai:** functions (staff, onStaffWritten, resetTestShop) + `firestore:rules`.

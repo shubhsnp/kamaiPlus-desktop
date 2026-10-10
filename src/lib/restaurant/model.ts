@@ -55,6 +55,8 @@ export interface RestOrder {
    * set to print other devices' KOTs prints it and clears this (lib/restaurant/cloudOrders.ts).
    */
   kotRequestedAt?: string;
+  /** v4.144.0: the staff member (a waiter's phone, staff sign-in) who took the order. */
+  takenBy?: string;
 }
 
 /** "Table T4" / "Takeaway TA-03" / "Delivery DL-02" — on the bill, the QR reference and Transactions. */

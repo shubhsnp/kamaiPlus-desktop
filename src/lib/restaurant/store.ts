@@ -46,6 +46,7 @@ export function parseRestState(raw: unknown): RestState {
       lines: (Array.isArray(o.lines) ? o.lines : []).map(cleanLine).filter((l: RestLine | null): l is RestLine => Boolean(l)),
       ...(g ? { guest: { name: str(g.name, 40), phone: str(g.phone, 15), address: str(g.address, 160) } } : {}),
       ...(o.kotRequestedAt ? { kotRequestedAt: str(o.kotRequestedAt, 40) } : {}),
+      ...(o.takenBy ? { takenBy: str(o.takenBy, 40) } : {}),
     });
   }
   const t = r.token;

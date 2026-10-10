@@ -7,7 +7,8 @@ import {
   Sparkles,
   Palette,
   HardDrive,
-  LifeBuoy
+  LifeBuoy,
+  Users
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -15,7 +16,7 @@ import { tr } from '@/lib/i18n/core';
 import { useFeatureSwitches } from '@/lib/features/featureSwitches';
 
 // UPI QR & bank details live in the Store Profile tab since v4.78.0 (no separate tab).
-export type SettingsTabType = 'profile' | 'invoicing' | 'data' | 'help';
+export type SettingsTabType = 'profile' | 'invoicing' | 'staff' | 'data' | 'help';
 
 interface SettingsNavTabsProps {
   activeTab: SettingsTabType;
@@ -41,6 +42,13 @@ export const SettingsNavTabs: React.FC<SettingsNavTabsProps> = ({
       label: tr('Invoice & Bill Rules'),
       shortLabel: tr('Invoices'),
       icon: Receipt,
+    },
+    {
+      // v4.144.0: staff sign in on their own phones (components/settings/staff/StaffTab.tsx)
+      id: 'staff' as SettingsTabType,
+      label: tr('Staff'),
+      shortLabel: tr('Staff'),
+      icon: Users,
     },
     {
       id: 'data' as SettingsTabType,

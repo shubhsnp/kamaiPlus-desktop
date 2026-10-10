@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.144.0',
+    items: [
+      msg('New: Settings → Staff. Add your staff (restaurant waiters today) and sign in their phone with a one-time code or QR — no Google account on their phone. A waiter\'s phone only takes orders and sends KOTs; bills, money, khata and reports stay with you. Remove a staff member and their phone is signed out at once. Each order shows who took it.'),
+    ],
+  },
+  {
     version: '4.143.0',
     items: [
       msg('Restaurant: "New delivery" asks the mobile first — a guest you delivered to before fills the name and last address by itself — and shows the charges that will be added. The order shows the guest\'s name, mobile and full address. "Sold out today" says what to do while it is on. A delivery\'s bill now says "Delivery DL-…".'),

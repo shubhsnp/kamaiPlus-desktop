@@ -1,6 +1,6 @@
 import type { RestOrder } from '@/lib/restaurant/model';
 import { hasUnsentItems, localDay, markKotSent } from '@/lib/restaurant/model';
-import { RESTAURANT_CHANGED_EVENT, loadRestaurantSettings } from '@/lib/restaurant/settings';
+import { RESTAURANT_CHANGED_EVENT, RestaurantSettings, loadRestaurantSettings } from '@/lib/restaurant/settings';
 import { RestState, loadRestState, parseRestState, saveRestState } from '@/lib/restaurant/store';
 
 /*
@@ -115,6 +115,16 @@ function writeSent(sent: Map<string, string>) {
   } catch {}
 }
 
+/**
+ * Staff sign-in (v4.144.0): the restaurant's tables, GST, charges and add-ons, for the staff phones (they
+ * read `businesses/{biz}/restaurant_meta/settings`). "Print the waiters' KOTs on this PC" stays on this PC.
+ */
+export const RESTAURANT_META = 'restaurant_meta';
+export function settingsForCloud(s: RestaurantSettings): Record<string, unknown> {
+  const { printRemoteKots: _ignored, ...shared } = s; // eslint-disable-line @typescript-eslint/no-unused-vars
+  return JSON.parse(JSON.stringify(shared));
+}
+
 /** Listens to the shop's running orders and sends this device's changes. Returns a stop function. */
 export async function startRestaurantCloud(bizId: string, device: string, hooks: RestaurantCloudHooks): Promise<() => void> {
   const [{ getFirestoreDb }, fs] = await Promise.all([import('@/lib/firebase/config'), import('firebase/firestore')]);
@@ -155,6 +165,18 @@ export async function startRestaurantCloud(bizId: string, device: string, hooks:
     }
   };
 
+  // The settings go up at start and whenever they change here (staff phones read them).
+  let publishedSettings = '';
+  const publishSettings = () => {
+    if (stopped) return;
+    const json = JSON.stringify(settingsForCloud(loadRestaurantSettings()));
+    if (json === publishedSettings) return;
+    publishedSettings = json;
+    fs.setDoc(fs.doc(db, `businesses/${bizId}/${RESTAURANT_META}/settings`), { ...JSON.parse(json), updated_at: new Date().toISOString(), device })
+      .catch((e) => { publishedSettings = ''; hooks.onError?.(e); });
+  };
+  publishSettings();
+
   const unsub = fs.onSnapshot(col, { includeMetadataChanges: true }, (snap) => {
     let state = loadRestState();
     const before = state;
@@ -187,9 +209,11 @@ export async function startRestaurantCloud(bizId: string, device: string, hooks:
   }, (e) => hooks.onError?.(e));
 
   window.addEventListener(RESTAURANT_CHANGED_EVENT, push);
+  window.addEventListener(RESTAURANT_CHANGED_EVENT, publishSettings);
   return () => {
     stopped = true;
     unsub();
     window.removeEventListener(RESTAURANT_CHANGED_EVENT, push);
+    window.removeEventListener(RESTAURANT_CHANGED_EVENT, publishSettings);
   };
 }

@@ -59,6 +59,7 @@ export function OrderPanel({ order, settings, kotBusy, checkBusy, onBack, onQty,
           <div className="text-base font-black text-slate-900 truncate">{name}</div>
           <div className="text-[11px] text-slate-500 font-semibold">
             {piecesText(pieces)} · {formatOpenTime(minutesOpen(order))}
+            {order.takenBy && <span className="text-indigo-700"> · {tr('by {name}', { name: order.takenBy })}</span>}
           </div>
         </div>
         {onMove && order.kind === 'table' && (

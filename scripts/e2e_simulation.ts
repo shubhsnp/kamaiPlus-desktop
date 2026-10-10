@@ -5162,6 +5162,50 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
   assert(readSource('components/restaurant/PayDialog.tsx').includes("order.kind === 'delivery' ? `${tr('Delivery')} ${order.label}`"), 'Restaurant pay: a delivery bill says "Delivery DL-…", not "Takeaway"');
 }
 
+// v4.144.0 — Staff sign-in (Rahul 2026-10-10): staff join on their own phones with a one-time code from
+// Settings → Staff — never the owner's Google account; each role sees only its work (server rules). The
+// restaurant settings go to the cloud for the staff phones; an order keeps who took it.
+{
+  pendingAsyncChecks.push((async () => {
+    const st = await import('../src/lib/cloud/staff');
+    const rest = st.staffRolesFor('restaurant');
+    assert(rest.filter((r) => r.available).map((r) => r.id).join() === 'waiter' && !st.staffRolesFor('grocery').some((r) => r.available)
+      && st.staffRolesFor('clothing').some((r) => r.id === 'salesperson') && st.staffRolesFor('hardware').some((r) => r.id === 'godown'),
+      'Staff roles: every kind of shop has its roles; only restaurant waiters sign in today');
+    const d = st.staffDraft('  Raju   Patil ', 'waiter', 'restaurant', '2026-10-10T12:00:00.000Z');
+    assert(d.ok && JSON.stringify(d.doc) === JSON.stringify({ name: 'Raju Patil', role: 'waiter', active: true, created_at: '2026-10-10T12:00:00.000Z' })
+      && !st.staffDraft('R', 'waiter', 'restaurant', 'x').ok && !st.staffDraft('Raju', 'cashier', 'restaurant', 'x').ok && !st.staffDraft('Raju', 'waiter', 'grocery', 'x').ok,
+      'Add staff: a name and an available role of this shop are needed');
+    const now = Date.parse('2026-10-10T12:00:00Z');
+    const m = (x: Record<string, unknown>) => st.parseStaff('st_raju1', { name: 'Raju', role: 'waiter', ...x })!;
+    assert(st.staffStatus(m({ active: true, joined_at: 'x', last_seen_at: '2026-10-10T11:58:00Z' }), now) === 'online'
+      && st.staffStatus(m({ active: true, joined_at: 'x', last_seen_at: '2026-10-10T10:00:00Z' }), now) === 'joined'
+      && st.staffStatus(m({ active: true }), now) === 'not_joined' && st.staffStatus(m({ active: false, joined_at: 'x' }), now) === 'removed',
+      'Staff list: online now / signed in / not signed in yet / removed');
+    assert(st.parseStaff('../x', { name: 'A' }) === null && st.parseStaff('st_raju1', { name: '' }) === null && /^st_[a-z0-9]{10}$/.test(st.newStaffId()),
+      'Staff list: bad entries never crash the page; ids are safe');
+    assert(st.sortStaff([m({ active: false }), { ...m({ active: true }), name: 'Zed' }, { ...m({ active: true }), name: 'Amit' }]).map((x) => x.name).join() === 'Amit,Zed,Raju',
+      'Staff list: active first, then by name');
+    let called = false;
+    const r = await st.createJoinCode('st_raju1', (async () => { called = true; return new Response('{}'); }) as any);
+    assert(!r.ok && !called, 'Join code: never asked for without this shop\'s Google sign-in');
+    const { settingsForCloud } = await import('../src/lib/restaurant/cloudOrders');
+    const { DEFAULT_RESTAURANT_SETTINGS } = await import('../src/lib/restaurant/settings');
+    const pub = settingsForCloud({ ...DEFAULT_RESTAURANT_SETTINGS, printRemoteKots: true });
+    assert(!('printRemoteKots' in pub) && Array.isArray(pub.tables) && pub.gstRate === 5, 'Restaurant settings for staff phones: tables / GST / charges / add-ons, never this PC\'s KOT-printer choice');
+    const { parseRestState } = await import('../src/lib/restaurant/store');
+    const o = parseRestState({ orders: [{ id: 'o1', kind: 'table', label: 'T4', lines: [], openedAt: 'x', updatedAt: 'x', kotRounds: 0, takenBy: 'Raju' }] }).orders[0];
+    assert(o.takenBy === 'Raju', 'Restaurant: an order keeps the staff member who took it (from the waiter\'s phone)');
+  })());
+  const co = readSource('lib/restaurant/cloudOrders.ts');
+  assert(co.includes('publishSettings();') && co.includes('window.addEventListener(RESTAURANT_CHANGED_EVENT, publishSettings);') && co.includes('if (json === publishedSettings) return;'),
+    'Restaurant settings go up at start and when they change (only when different)');
+  const tab = readSource('components/settings/staff/StaffTab.tsx');
+  assert(tab.includes("if (!account || account.stub)") && tab.includes('setStaffActive(m.id, false)') && readSource('components/settings/SettingsNavTabs.tsx').includes("id: 'staff' as SettingsTabType")
+    && readSource('app/settings/page.tsx').includes("{activeTab === 'staff' && <StaffTab />}"), 'Settings → Staff: needs the Google account; remove = active false (the phone is signed out)');
+  assert(readSource('components/restaurant/TablesHome.tsx').includes('data-order-taken-by'), 'Tables: the order card shows who took it');
+}
+
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.
 Promise.allSettled(pendingAsyncChecks).then((results) => {
   for (const r of results) if (r.status === 'rejected') assert(false, 'An async check threw', String(r.reason));

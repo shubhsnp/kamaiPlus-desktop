@@ -147,6 +147,8 @@ function OrderCard({ order, settings, now, onOpen, table }: { order: RestOrder; 
         <span className={cn('font-black text-slate-900 leading-none', table ? 'text-xl' : 'text-lg')}>
           {order.kind === 'delivery' && <Bike className="w-4 h-4 inline -mt-1 mr-1 text-sky-700" />}{order.label}
           {order.guest?.name && <span className="block text-[11px] font-bold text-slate-500 mt-1 truncate max-w-[130px]">{order.guest.name}</span>}
+          {/* v4.144.0: the staff member who took it (staff sign-in) */}
+          {order.takenBy && <span className="block text-[10px] font-bold text-indigo-700 mt-1 truncate max-w-[130px]" data-order-taken-by>{tr('by {name}', { name: order.takenBy })}</span>}
         </span>
         {hasUnsentItems(order) && pieces > 0 && (
           <span className="inline-flex items-center gap-1 text-[10px] font-black text-rose-700 bg-rose-100 rounded-full px-1.5 py-0.5" title={tr('Not sent to the kitchen')}><ChefHat className="w-3 h-3" />KOT</span>

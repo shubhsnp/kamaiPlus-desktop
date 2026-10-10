@@ -5,7 +5,7 @@
  * the page's own switch still asks about unsaved changes first.
  */
 
-export type SettingsTabId = 'profile' | 'invoicing' | 'data' | 'help';
+export type SettingsTabId = 'profile' | 'invoicing' | 'staff' | 'data' | 'help';
 
 export const SETTINGS_TAB_EVENT = 'kamai_settings_tab';
 
@@ -18,6 +18,7 @@ const QUERY_TABS: Record<string, SettingsTabId> = {
   upi: 'profile',
   invoice: 'invoicing',
   invoicing: 'invoicing',
+  staff: 'staff',
   data: 'data',
   help: 'help',
 };
