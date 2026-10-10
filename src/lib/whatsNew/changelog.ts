@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.146.0',
+    items: [
+      msg('Restaurant: the PC and the phone now match — a restaurant without a GSTIN charges no GST on the staff phones either (Bill of Supply), and Home / Khata say "Guest" like the phone.'),
+    ],
+  },
+  {
     version: '4.145.0',
     items: [
       msg('Google sign-in: the browser tab after signing in now shows KamaiPlus, a clear tick, and which Google account was connected (no empty box beside it).'),

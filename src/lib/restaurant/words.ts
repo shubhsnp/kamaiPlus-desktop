@@ -51,6 +51,11 @@ export const RESTAURANT_WORDS: Record<string, string> = {
   'registered customers •': 'guests •',
   'Add Customer': 'Add Guest',
   'No customers found': 'No guests found',
+  // v4.146.0: the last "Customer" words in Restaurant mode (the phone says Guest everywhere too)
+  'Customer Udhar': 'Guest Udhar',
+  'Customer Udhar (Credit):': 'Guest Udhar (Credit):',
+  '+ Add First Customer': '+ Add First Guest',
+  'Select a Customer': 'Select a Guest',
 
   // Bill window after paying
   '+ New Bill': 'Back to Tables',

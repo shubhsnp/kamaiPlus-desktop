@@ -312,3 +312,8 @@ Aaj: items, grahak, bills, categories dono taraf; baaki tables sirf Desktop → 
 
 ### Google sign-in browser tab (Rahul 2026-10-10) — v4.145.0
 - googleSignIn.js `page(kind, …)`: wordmark, animated ✓ / ✕ / !, Gmail chip, apne classes (extension ka chhupa div pehle khaali card ban jaata tha).
+
+### Restaurant PC = phone (Rahul 2026-10-10) — Desktop v4.146.0 + Android
+- GST: bina GSTIN koi GST nahi (PC pehle se sahi tha; phone 5% jodta tha; PC cloud mein 5 bhejta tha) — Android `billingSettings`, Desktop `settingsForCloud(s, gstAllowed())`.
+- Shabd: dono par "Guest" (Desktop ke bache 4 "Customer" bhi).
+- Android restaurant: Inventory / Expiry radar, Stock box (dish form), Stock Inward hataye (Desktop jaisa).

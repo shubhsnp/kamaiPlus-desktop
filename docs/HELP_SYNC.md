@@ -104,3 +104,4 @@ commit if you like; deploy it with the release.
 | 4.143.0 | Restaurant: New delivery form (mobile first, known guest fills itself, charges shown, Cancel button); guest card on the order; "Sold out today" banner; Set-up "Print the waiters' KOTs on this PC" is a switch. | billing-counter | pending |
 | 4.144.0 | New Settings → Staff tab (add staff, one-time code / QR for their phone, online status, remove); restaurant order cards show "by <waiter>"; phone login has "Staff sign-in". | store-settings, billing-counter | pending |
 | 4.145.0 | Browser tab after Google sign-in redesigned (shows the connected Gmail). | — | none |
+| 4.146.0 | Restaurant: Home / Khata say "Guest" (not Customer); no GST on staff phones for a shop without GSTIN. | billing-counter | pending |

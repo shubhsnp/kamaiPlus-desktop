@@ -3241,5 +3241,10 @@
   "New code": "नया कोड",
   "by {name}": "{name} द्वारा",
   "New: Settings → Staff. Add your staff (restaurant waiters today) and sign in their phone with a one-time code or QR — no Google account on their phone. A waiter's phone only takes orders and sends KOTs; bills, money, khata and reports stay with you. Remove a staff member and their phone is signed out at once. Each order shows who took it.": "नया: सेटिंग्स → स्टाफ। अपना स्टाफ जोड़ें (आज रेस्टोरेंट वेटर) और एक बार के कोड या QR से उनका फ़ोन साइन इन करें — उनके फ़ोन पर Google खाता नहीं। वेटर का फ़ोन सिर्फ़ ऑर्डर लेता है और KOT भेजता है; बिल, पैसा, खाता और रिपोर्ट आपके पास रहते हैं। स्टाफ हटाते ही उनका फ़ोन साइन आउट हो जाता है। हर ऑर्डर पर दिखता है कि किसने लिया।",
-  "Google sign-in: the browser tab after signing in now shows KamaiPlus, a clear tick, and which Google account was connected (no empty box beside it).": "Google साइन-इन: साइन इन के बाद ब्राउज़र टैब अब KamaiPlus, साफ़ ✓ और कौन सा Google खाता जुड़ा, यह दिखाता है (बगल में खाली डिब्बा नहीं)।"
+  "Google sign-in: the browser tab after signing in now shows KamaiPlus, a clear tick, and which Google account was connected (no empty box beside it).": "Google साइन-इन: साइन इन के बाद ब्राउज़र टैब अब KamaiPlus, साफ़ ✓ और कौन सा Google खाता जुड़ा, यह दिखाता है (बगल में खाली डिब्बा नहीं)।",
+  "Guest Udhar": "मेहमान उधार",
+  "Guest Udhar (Credit):": "मेहमान उधार (क्रेडिट):",
+  "+ Add First Guest": "+ पहला मेहमान जोड़ें",
+  "Select a Guest": "एक मेहमान चुनें",
+  "Restaurant: the PC and the phone now match — a restaurant without a GSTIN charges no GST on the staff phones either (Bill of Supply), and Home / Khata say \"Guest\" like the phone.": "रेस्टोरेंट: PC और फ़ोन अब एक जैसे — बिना GSTIN वाला रेस्टोरेंट स्टाफ फ़ोन पर भी GST नहीं लगाता (बिल ऑफ़ सप्लाई), और होम / खाता फ़ोन की तरह \"मेहमान\" कहते हैं।"
 }

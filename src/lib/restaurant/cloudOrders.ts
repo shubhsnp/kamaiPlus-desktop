@@ -2,6 +2,7 @@ import type { RestOrder } from '@/lib/restaurant/model';
 import { hasUnsentItems, localDay, markKotSent } from '@/lib/restaurant/model';
 import { RESTAURANT_CHANGED_EVENT, RestaurantSettings, loadRestaurantSettings } from '@/lib/restaurant/settings';
 import { RestState, loadRestState, parseRestState, saveRestState } from '@/lib/restaurant/store';
+import { gstAllowed } from '@/lib/business/verticalProfile';
 
 /*
  * Running restaurant orders on every device of the shop (v4.140.0, Rahul 2026-10-10, R1): the waiter's
@@ -120,9 +121,10 @@ function writeSent(sent: Map<string, string>) {
  * read `businesses/{biz}/restaurant_meta/settings`). "Print the waiters' KOTs on this PC" stays on this PC.
  */
 export const RESTAURANT_META = 'restaurant_meta';
-export function settingsForCloud(s: RestaurantSettings): Record<string, unknown> {
+export function settingsForCloud(s: RestaurantSettings, gstAllowed = true): Record<string, unknown> {
   const { printRemoteKots: _ignored, ...shared } = s; // eslint-disable-line @typescript-eslint/no-unused-vars
-  return JSON.parse(JSON.stringify(shared));
+  // v4.146.0: a shop without a GSTIN charges no GST (Bill of Supply) — the staff phones must not add it.
+  return JSON.parse(JSON.stringify({ ...shared, gstRate: gstAllowed ? shared.gstRate : 0 }));
 }
 
 /** Listens to the shop's running orders and sends this device's changes. Returns a stop function. */
@@ -169,7 +171,7 @@ export async function startRestaurantCloud(bizId: string, device: string, hooks:
   let publishedSettings = '';
   const publishSettings = () => {
     if (stopped) return;
-    const json = JSON.stringify(settingsForCloud(loadRestaurantSettings()));
+    const json = JSON.stringify(settingsForCloud(loadRestaurantSettings(), gstAllowed()));
     if (json === publishedSettings) return;
     publishedSettings = json;
     fs.setDoc(fs.doc(db, `businesses/${bizId}/${RESTAURANT_META}/settings`), { ...JSON.parse(json), updated_at: new Date().toISOString(), device })

@@ -5215,6 +5215,21 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
   assert(gsPage.includes("const esc = (v) =>") && /\$\{esc\(account\.email/.test(gsPage), 'Google sign-in tab: the name / email are escaped');
 }
 
+// v4.146.0 — Restaurant: PC and phone the same. A shop without a GSTIN publishes GST 0 for the staff phones
+// (Bill of Supply — the phone used to add 5 %); the last "Customer" words say "Guest" in Restaurant mode.
+{
+  pendingAsyncChecks.push((async () => {
+    const { settingsForCloud } = await import('../src/lib/restaurant/cloudOrders');
+    const { DEFAULT_RESTAURANT_SETTINGS } = await import('../src/lib/restaurant/settings');
+    assert(settingsForCloud(DEFAULT_RESTAURANT_SETTINGS, false).gstRate === 0 && settingsForCloud({ ...DEFAULT_RESTAURANT_SETTINGS, gstRate: 18 }, true).gstRate === 18,
+      'Restaurant settings for staff phones: no GSTIN → GST 0; with a GSTIN the shop\'s own rate');
+  })());
+  const W = RESTAURANT_WORDS;
+  assert(W['Customer Udhar'] === 'Guest Udhar' && W['+ Add First Customer'] === '+ Add First Guest' && W['Select a Customer'] === 'Select a Guest',
+    'Restaurant mode: Home / Khata say Guest (as the phone does), not Customer');
+  assert(readSource('lib/restaurant/cloudOrders.ts').includes('settingsForCloud(loadRestaurantSettings(), gstAllowed())'), 'Restaurant settings are published with the shop\'s GST rule');
+}
+
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.
 Promise.allSettled(pendingAsyncChecks).then((results) => {
   for (const r of results) if (r.status === 'rejected') assert(false, 'An async check threw', String(r.reason));
