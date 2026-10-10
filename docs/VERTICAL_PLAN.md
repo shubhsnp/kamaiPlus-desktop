@@ -243,3 +243,10 @@ Aaj: items, grahak, bills, categories dono taraf; baaki tables sirf Desktop → 
 ### Cross-device login (Rahul 2026-10-10: "vahi email se cross device par login → signup form nahi") — v4.137.0 + Android
 - Mile: (1) PC ka cloud shop doc sirf `name` → phone `store_name` padhta → "dukaan nahi" → signup form (aur phone usi biz_<uid> par nayi dukaan likh deta). (2) PC par Google jodne ke baad bhi nayi dukaan ka cloud sync BAND → dukaan cloud mein hi nahi. (3) PC store setup: dukaan mile to bhi neeche poora signup form; Google skip kiya to jodne ka rasta nahi. (4) Nayi PC dukaan cloud mein hamesha 'grocery'.
 - Ilaaj: PC doc mein store_name/shop_name/business_name; Google wali nayi dukaan = sync ON; setup form dhoondhte waqt ruka (max 12 s), mile to sirf Restore; "Connect Google Account" box; naya type = PC ki category. Android: `CloudStoreRestore` (naam kisi bhi field se, Desktop ka upi_id bhi); signup screen khulte hi + Complete Setup se pehle cloud dekhti → dukaan mile to seedha dashboard.
+
+### Asli phone test (2026-10-10, CPH2691, APK = N4 + login fix + startup fix + sirf En/Hi/Mr)
+- Phone ki purani rows (₹100 Jama, movements) khulte hi cloud → PC ✅. Phone par INV-004 (11 items) + EST-001 → PC: bills, stock (Atta 21, Soap 8, Lux 23, Maggi 46), 17 movements ✅.
+- PC bill INV-005 (Lux ×1) → phone billing par Lux 22 bina chhue ✅ (realtime).
+- **Bug mila + theek (Android 74d9ab5):** phone khulte hi har item / grahak dobara bhejta tha — purana stock cloud ke naye par "farak" ban kar (PC ka return Atta 20 → 19 mita) + `updated_at = abhi` (PC ke naye daam ko harata). Ab startup sirf wahi bhejta jo cloud mein nahi. Live: phone band, cloud Atta 21 → phone khula → 21 hi raha, phone par bhi 21 ✅.
+- **Cross-device login live:** cloud doc mein store_name / business_name / shop_name khali (purane PC doc jaisa) → app uninstall + install → usi Google se login → seedha dashboard, signup form nahi; 13 items sahi stock, Khata Sync Grahak ₹100 + 4 entries (PC + phone) ✅.
+- Test data note: INV-003 (udhar) ka return v4.135 par cash mein hua tha (AU-37 se pehle) → khata mein ₹100 abhi bhi 'Pending Bills (1)'. Asli dukaan par v4.136 se aisa nahi hoga.
