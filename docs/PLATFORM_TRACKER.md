@@ -146,20 +146,20 @@ Order zaroori hai: **pehle data surakshit → phir data ka ek format → phir lo
 | ID | Kami | Level | Status |
 | :--- | :--- | :--- | :--- |
 | K-P01 | Band ki hui web app abhi bhi live: `kamaiplus.web.app/billing`, `/admin`, `/api/admin/*` chal rahe | 🔴 | Open |
-| K-P02 | `kamaiplus.web.app` par 2 repo (web app + Android `website/`) deploy kar sakte — jo baad mein deploy kare wahi dikhe | 🟠 | Open |
+| K-P02 | `kamaiplus.web.app` par 2 repo (web app + Android `website/`) deploy kar sakte — jo baad mein deploy kare wahi dikhe | 🟠 | Done (checked 2026-10-11) — Android firebase.json has no `kamaiplus` target; old web app folder gone; Website `legacy-redirect/` is the only owner |
 | K-P03 | `ssrkamaiplus` Cloud Function (web app server) chal raha — kharcha + khula API | 🔴 | Done (checked 2026-10-11: `ssrkamaiplus` is not in `firebase functions:list`; site still serves the old static pages — K-P01) |
 | K-P04 | Web app ki live keys (Razorpay, WhatsApp token, Supabase service role, Gemini, admin password, JWT) aur Vercel / Supabase projects band ke baad bhi active | 🔴 | Open |
 | K-P05 | Purani PWA kuch browsers mein install / cache (`sw.js`, `firebase-messaging-sw.js`) | 🟠 | Open |
-| K-P06 | Main site (Android `website/`) par Desktop download nahi | 🟠 | Open |
-| K-P07 | Main site par "Super Admin Console" ka public link (3 jagah: `website/index.html` 41, 60, 765; `help.html` 59, 390) | 🟠 | Open |
+| K-P06 | Main site (Android `website/`) par Desktop download nahi | 🟠 | Done — kamaiplus.com/download (Website repo) |
+| K-P07 | Main site par "Super Admin Console" ka public link (3 jagah: `website/index.html` 41, 60, 765; `help.html` 59, 390) | 🟠 | Done — Android `website/` retired; kamaiplus.com has no admin link |
 | K-P08 | Nakli emails `@kamaiplus.com` — domain hamara nahi, mail bounce / koi aur le sakta hai: `support@` (Android `remote_config_service.dart:33`, `website/privacy.html:72`), `billing@` (`razorpay_service.dart:86`), `legal@` (`website/terms.html:60`), `admin@` (admin login prefill) | 🔴 | Done 2026-10-11 — support@kamaiplus.com is a real Hostinger mailbox; Android 4.42.0 removed the made-up billing@ prefill; legal@ / admin@ went with Android `website/` and the old admin login |
 | K-P09 | `kamaiplus.com` abhi register nahi — koi aur le sakta hai | 🟠 | ✅ Done 2026-10-04 — Rahul ne Hostinger se liya (3 saal, expiry 2029-10-04). Firebase se jodna baaki (§5 work log) |
 | K-P10 | Play Store listing ke 3 URL (`/privacy-policy`, `/terms-of-service`, `/refund-policy`) purani web app se chal rahe — nayi site par bhi inhi URL par chalne chahiye, warna listing ka link toot jayega | 🔴 | Open (URL pata, 2026-09-30) |
-| K-P11 | Android `main` 17 commit peeche; purani branches / worktrees (`agents/greeting-user-initialization`, `fix/cross-screen-wiring`, `.kilo/…/respected-foe`) | 🟢 | Open |
-| K-P12 | Uncommitted kaam: Desktop `docs/FUTURE_SCOPE.md`, Android `DEVELOPMENT_LOG.md`, web app 45 files | 🟢 | Open |
+| K-P11 | Android `main` 17 commit peeche; purani branches / worktrees (`agents/greeting-user-initialization`, `fix/cross-screen-wiring`, `.kilo/…/respected-foe`) | 🟢 | Done — Android main fast-forwarded 2026-10-10; new work on feat/desktop-health-message |
+| K-P12 | Uncommitted kaam: Desktop `docs/FUTURE_SCOPE.md`, Android `DEVELOPMENT_LOG.md`, web app 45 files | 🟢 | Done — both trees clean (only the old Android `website/` deletions, never committed) |
 | K-P13 | Policy pages ka content aaj ki apps se mel nahi khaata. Live (web app): purana naam "KamaiPlus / ProVenture", `info@proventure.in`, `kamaiplus.proventure.in`, mobile + PIN login, Supabase, browser storage, "Enterprise" plan, "voice billing". Android `website/privacy.html`: OTP login, `support@kamaiplus.com`. Dono mein nahi: Google Sign-In, Firebase sync, notification access (UPI payment padhna), contacts, fingerprint, AI photo scan (Gemini), Crashlytics, Google Drive, push, Razorpay (Android), aur **Desktop app bilkul nahi** (licence activation par PC ka naam / id jaata hai) | 🔴 | Done on kamaiplus.com (website v1.6.0+: Desktop, Google, Gemini, Crashlytics, notifications, Drive, delete, grievance all covered). Old copies on kamaiplus.web.app go with K-P01 / K-P10 |
 | K-P16 | Google login (OAuth consent screen → Branding) ke home / privacy / terms links `kamaiplus.proventure.in/...` par — teeno **404** (2026-09-30 curl se check). `kamaiplus.web.app/`, `/privacy-policy`, `/terms-of-service` 200. Rahul Branding mein badal rahe; content abhi purana (K-P13). **Branding verification pehle fail hua tha:** "homepage `https://kamaiplus.web.app/` is not registered to you" → Google Search Console mein URL-prefix property + site par verification file / meta tag chahiye = `kamaiplus.web.app` par deploy (website kaam §1b roka hua). Login iske bina chalta hai (sirf basic scopes); verification website ke saath: deploy → Search Console verify → 24 h → "I have fixed the issues" | 🟠 | Links: Rahul badal rahe · Verification: website ke saath |
-| K-P14 | Refund policy mein Desktop ki one-time licence ka koi niyam nahi; Android Pro ke niyam purane ("Pro & Enterprise", "Free Forever Tier") | 🟠 | Open — Rahul ka faisla chahiye |
+| K-P14 | Refund policy mein Desktop ki one-time licence ka koi niyam nahi; Android Pro ke niyam purane ("Pro & Enterprise", "Free Forever Tier") | 🟠 | Done — refund rule accepted 2026-10-04, on kamaiplus.com/refund-policy |
 | K-P15 | Desktop aur Android ka cloud data format mel nahi khaata (sync band hai, isliye abhi nuksaan nahi — **sync chalu karne se pehle zaroori**): (1) Desktop businessId `biz_<8 akshar>_<time>` (`app/onboarding/page.tsx:101`), Android + Firestore rules `biz_<uid>` maangte hain; (2) Desktop paise wale field `_paise` naam ke bina bhejta hai (`subtotal`, `selling_price` — dono paise mein), Android `subtotal_paise ?? subtotal*100` aur `selling_price_paise ?? price*100` padhta hai (`firestore_sync_service.dart:413, 732, 799`) → Desktop ka ₹100 ka bill Android par ₹10,000, product ka daam ₹0. **Poori list (C1–C16, dono apps) + fix: `docs/CLOUD_DATA_CONTRACT.md`** | 🔴 | Done — contract v1.0, Desktop v4.83.0, Android cloud_contract.dart (main since 2026-10-10), two-way sync Step 4 |
 | K-P17 | Cloud Functions Node.js 20 par — Google 2026-10-30 ko band karega, uske baad functions deploy nahi honge (`firebase deploy` ki warning, 2026-09-30). `functions/package.json` engines Node 22 + `firebase-functions` update chahiye | 🟠 | Done — all functions nodejs22 (`firebase functions:list`, 2026-10-11) |
 
@@ -167,23 +167,23 @@ Order zaroori hai: **pehle data surakshit → phir data ka ek format → phir lo
 
 | ID | Kami | Level | Status |
 | :--- | :--- | :--- | :--- |
-| K-A01 | Barcode Studio "Print" kuch print nahi karta — sirf "Sent N label(s) to Bluetooth printer" message (`views/tools/barcode_studio_screen.dart` `_dispatchPrint`). Pro feature hai | 🔴 | Open |
-| K-A02 | Label preview ki bars sirf design (`List.generate`), asli barcode nahi | 🟠 | Open |
+| K-A01 | Barcode Studio "Print" kuch print nahi karta — sirf "Sent N label(s) to Bluetooth printer" message (`views/tools/barcode_studio_screen.dart` `_dispatchPrint`). Pro feature hai | 🔴 | Done in code — `_dispatchPrint` → ThermalPrinterService.printBarcodeLabels (saved printer MAC) + PDF sheet; real Bluetooth printer test still worth one run |
+| K-A02 | Label preview ki bars sirf design (`List.generate`), asli barcode nahi | 🟠 | Done — A-3 (no fake barcode on labels) |
 | K-A03 | Bhasha list mein 9, par sirf ~17 labels translate (bottom bar, Home) — Hindi chunne par bhi app English | 🟠 | Open |
 | K-A04 | `APP_FEATURE_MEMORY.md` ke daave jo code mein nahi: khata voice note (audio package hi nahi), GSTR-3B / ZIP CA pack | 🟢 | Open |
-| K-A05 | Khata entry edit / delete nahi | 🟠 | Open |
-| K-A06 | Bana hua bill edit nahi | 🟢 | Open |
-| K-A07 | Automatic (rozana) backup nahi — sirf haath se / Drive (Pro) | 🟠 | Open |
+| K-A05 | Khata entry edit / delete nahi | 🟠 | Done in code — khata_screen "Edit Entry" |
+| K-A06 | Bana hua bill edit nahi | 🟢 | Done — A-4 Android bill edit |
+| K-A07 | Automatic (rozana) backup nahi — sirf haath se / Drive (Pro) | 🟠 | Done — A-5 auto_backup_service.dart |
 | K-A08 | Bina barcode wale item ka apna barcode nahi banta | 🟠 | ✅ Done (branch `feat/cloud-data-contract`) — `lib/core/utils/store_barcodes.dart`, phone ki range 50,000–99,999 (Desktop 1–49,999) |
 | K-A09 | English mein type karke Hindi naam wala item nahi milta | 🟢 | ✅ Done (branch) — `lib/core/utils/sound_search.dart`, Desktop ke `productSearch.ts` jaisa; test fixture Desktop ka asli output |
-| K-A10 | `showQuotationEstimate` flag bana, estimate / quotation feature nahi | 🟢 | Open |
+| K-A10 | `showQuotationEstimate` flag bana, estimate / quotation feature nahi | 🟢 | Done — savePosEstimate; button on every shop type since 4.41.0 (TF-01) |
 | K-A11 | `DESKTOP_FIXES_ANDROID_CHECK.md` ka audit (double-tap = do bill, cash leak, short cash udhar, split excess, GSTR-1 JSON …) abhi tak hua hi nahi | 🔴 | Open |
 | K-A13 | Bill-discount GST kam nahi karta — `processPosBill` GST chhoot se pehle ki rakam par lagata, `total = grand − discount` (GST report mein zyada tax); `subtotal` mein inclusive / exclusive lines mili. Desktop ne ye `saleMath.allocateBillDiscount` se theek kiya tha (contract C16) | 🔴 | ✅ Done (branch `feat/cloud-data-contract`, abhi Play Store build mein nahi) — `BillMath`, `test/bill_math_test.dart` |
 | K-A14 | Checkout / cart / payment modal ka total GST-exclusive item ka GST nahi jodta (saved bill jodta — cash chips, UPI QR, split kam rakam maangte); GST "5% andaza" (`grandTotal × 0.05`) dikhta; invoice PDF `is_tax_inclusive != false` se `0` ko inclusive maanta (exclusive line ka GST galat chhapta); GST export bill-discount se pehle ki rakam par GST (contract C17) | 🔴 | ✅ Done (branch `feat/cloud-data-contract`, abhi Play Store build mein nahi) — sab screens `cartBillTotals` se |
 | K-A15 | Poora `flutter test` ek saath chalane par DB wale tests (advanced_sales_report, customer_edit_crud, inventory_inward_service, referral) 30 s timeout — akele (`--concurrency=1`) sab pass. Test timeout / DB setup sudharna hai | 🟢 | Open |
 | K-A16 | Checkout mein cart badalne (item hatane) par "Cash Tendered" purani rakam par atka rehta — ₹517 likha raha jab bill ₹118 ho gaya, "Return Change ₹399" dikha (phone par dekha, 2026-09-30) | 🟢 | ✅ Done (branch) — box bill ke saath chalta hai jab tak cashier khud rakam na likhe |
 | K-A17 | Admin Console (`admin_console/`) ka purana `widget_test` pehle se toota — `dart:html` ki wajah se test VM par chalta hi nahi (naye 7 test pass, 2026-10-03) | 🟢 | Open |
-| K-A12 | Account delete karne ka koi tarika nahi (app mein bhi nahi, web par bhi nahi). Google Sign-In se account banta hai, to Play policy dono maangti hai (Data safety → "Delete account URL") | 🔴 | Open |
+| K-A12 | Account delete karne ka koi tarika nahi (app mein bhi nahi, web par bhi nahi). Google Sign-In se account banta hai, to Play policy dono maangti hai (Data safety → "Delete account URL") | 🔴 | Done — Store Profile "Delete Account & Data" + kamaiplus.com/delete-account |
 
 ### Desktop (K-D)
 
@@ -208,7 +208,7 @@ Order zaroori hai: **pehle data surakshit → phir data ka ek format → phir lo
 | K-D17 | Electron E2E ka pehla licensed launch check ("Set Master Password" 20 s mein) naye build ke baad thande start par fail ho jaata hai — agle steps pass hote hain (screen der se aati hai). Timeout / wait sudharna hai | 🟢 | Done v4.103.0 (60 s wait) |
 | K-D18 | Automatic backup din mein sirf **ek** baar — app khulne ke 2 min baad (`AutoBackupScheduler.tsx`, "one backup per calendar day"). Matlab aaj ke bill kal subah tak kisi auto backup mein nahi; shaam ko disk / PC kharab = poore din ke bill gaye (FS-03) | 🔴 | ✅ Done v4.82.0 — din ki file har ghante nayi (data badla ho + counter 30 s khaali; rush mein bhi max 2 ghante), Bible §2.3 / §10 #34, test §9j(r) |
 | K-D19 | Staff login / roles nahi — kaun sa cashier kaunsa bill kaata, record nahi; cashier ko discount / return / delete se rok nahi sakte (sirf owner PIN profit chhupata hai). `staff_id` sirf `lib/auth/session.ts` mein (FS-07) | 🟠 | Open |
-| K-D20 | Batch / expiry nahi — product type mein field hi nahi (pharmacy / FMCG ke liye zaroori) (FS-08) | 🟠 | Open |
+| K-D20 | Batch / expiry nahi — product type mein field hi nahi (pharmacy / FMCG ke liye zaroori) (FS-08) | 🟠 | Done — v4.126.0 batch_number / expiry_date (switch product_batch_expiry) |
 | K-D21 | Purchase return / debit note / purchase order nahi (FS-09) | 🟢 | Done v4.102.0 (Purchases → "Return to Supplier" DN-001, "Purchase Order" PO-001 + WhatsApp + "Received") |
 | K-D22 | GSTR-3B summary, e-invoice (IRN), e-way bill nahi — `src` mein koi code nahi (FS-10, FS-11, FS-12) | 🟢 | Done v4.101.0 (GSTR-3B summary; e-invoice / e-way bill ko IRP / GSP API account chahiye — offline nahi ho sakta) |
 | K-D24 | Electron E2E ka "Transactions tab drag, phir click se khule" check kabhi-kabhi fail (v4.82.0 par 2 run mein 1 baar: click ke 600 ms baad drawer screen par nahi) — doosre run mein 71/71. Wait badhana / drawer ke khulne ka intezaar karna hai | 🟢 | ✅ Done v4.83.0 — test ab drawer ke khulne ka 3 s tak intezaar karta hai (300 ms slide), fail par overlay / path / tab likhta hai; 71/71 |
