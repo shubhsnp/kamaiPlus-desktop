@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation';
 import { BusinessType } from '@/types';
 import { db as localDb } from '@/lib/db';
 import { getStoredUser, AuthUser } from '@/lib/auth';
-import { Store, Sparkles, ArrowRight, User, AlertCircle, QrCode, Receipt } from 'lucide-react';
+import { Store, Sparkles, ArrowRight, User, AlertCircle, Receipt } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { tr } from '@/lib/i18n/core';
-import { FIELD_MAX, typeMobile, typeName, typeNoSpace } from '@/lib/validation/validators';
+import { FIELD_MAX, typeMobile, typeName } from '@/lib/validation/validators';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
 import { createOnboardingSubmit } from '@/components/onboarding/onboardingSubmit';
 import { CategorySelector } from '@/components/onboarding/CategorySelector';
@@ -36,7 +36,6 @@ export default function OnboardingPage() {
   const [businessName, setBusinessName] = useState<string>('');
   const [ownerName, setOwnerName] = useState<string>('');
   const [phone, setPhone] = useState<string>('');
-  const [upiId, setUpiId] = useState<string>('');
   const [gstin, setGstin] = useState<string>('');
   const [businessType, setBusinessType] = useState<BusinessType>('grocery');
   const [seedStarterCatalog, setSeedStarterCatalog] = useState<boolean>(false);
@@ -116,7 +115,7 @@ export default function OnboardingPage() {
 
   const { handleSubmit } = createOnboardingSubmit({
     router, currentUser, setIsLoading, setError, businessName, ownerName,
-    phone, upiId, businessType, seedStarterCatalog, gstin,
+    phone, upiId: '', businessType, seedStarterCatalog, gstin,
   });
 
   return (
@@ -253,30 +252,7 @@ export default function OnboardingPage() {
               </p>
             </div>
 
-            {/* 5. UPI ID (optional — adds the payment QR to bills) */}
-            <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 flex items-center justify-between">
-                <span>{tr('UPI ID / VPA (Optional)')}</span>
-                <span className="text-[10px] text-slate-500 font-semibold normal-case">{tr('Can be added later in Settings')}</span>
-              </label>
-              <div className="relative flex items-center">
-                <span className="absolute left-3.5 text-cyan-400 pointer-events-none">
-                  <QrCode className="w-4 h-4" />
-                </span>
-                <input
-                  type="text"
-                  value={upiId}
-                  maxLength={FIELD_MAX.upi}
-                  onChange={(e) => setUpiId(typeNoSpace(e.target.value, FIELD_MAX.upi))}
-                  placeholder={tr('e.g. 9876543210@paytm or store@okaxis')}
-                  data-onboarding-upi
-                  className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl focus:ring-2 focus:ring-amber-400 focus:outline-none text-white text-sm font-mono placeholder:font-sans placeholder:text-slate-600 transition"
-                />
-              </div>
-              <p className="text-[11px] text-slate-500 mt-1">
-                {tr('If added, bills print a UPI QR code for the bill amount. Leave blank if you do not take UPI.')}
-              </p>
-            </div>
+            {/* No UPI at sign-up (v4.158.0, = Android 4.38): the shop adds it later in Settings → UPI & Banking. */}
 
             {/* 5b. GSTIN (optional, v4.120.0) — decides GST on bills and the GST screens */}
             <div>

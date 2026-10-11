@@ -3531,9 +3531,10 @@ assert(longPages.reduce((a, p) => a + p.length, 0) === 40, 'Pagination keeps eve
     'Invoice Themes preview and the real print render the same ThermalReceipt — what you see is what prints');
 
   const onbSrc = readOnboarding();
-  assert(!onbSrc.includes('It is compulsory for generating payment QR') && onbSrc.includes('if (cleanUpiId && !upiRegex.test(cleanUpiId))') && onbSrc.includes('upi_id: cleanUpiId || undefined,')
-    && !/data-onboarding-upi[\s\S]{0,40}required/.test(onbSrc),
-    'Sign-up: UPI ID is optional (blank is fine, a typed one must be valid)');
+  // v4.158.0 (Rahul, = Android 4.38): no UPI box at sign-up; UPI is added later in Settings → UPI & Banking.
+  assert(!onbSrc.includes('data-onboarding-upi') && !onbSrc.includes("tr('UPI ID / VPA (Optional)')") && onbSrc.includes("upiId: ''")
+    && onbSrc.includes('upi_id: cleanUpiId || undefined,') && readSource('components/settings/UpiBankingTab.tsx').includes("tr('+ Add UPI ID / VPA')"),
+    'Sign-up: no UPI field (same as the phone) — the shop adds UPI later in Settings → UPI & Banking');
   const setSrc = readSettingsPage();
   assert(setSrc.includes("validateIndianPhone(phone2, false,") && setSrc.includes('phone2: phone2.trim() ?') && readSource('components/settings/StoreProfileTab.tsx').includes('data-settings-phone2'),
     'Settings → Contact & Store Location: optional second number, checked like a mobile number, saved on the shop');

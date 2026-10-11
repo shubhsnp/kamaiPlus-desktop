@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.158.0',
+    items: [
+      msg('Sign-up is shorter: no UPI box. Add your UPI ID later in Settings → UPI & Banking (same as the phone app).'),
+    ],
+  },
+  {
     version: '4.157.0',
     items: [
       msg('Products and Inventory tiles are cleaner: no small corner labels, and low stock reads "Time to reorder".'),
