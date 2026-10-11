@@ -1254,26 +1254,20 @@ async function run() {
       await page.waitForTimeout(500);
       const homeIds = await page.locator('[data-home-action]').evaluateAll((els) => els.map((e) => e.getAttribute('data-home-action')).join(','));
       const gstStandIn = await page.locator('[data-home-tool="/settings?tab=data"]').isVisible().catch(() => false);
-      // Every row of every tile group reaches the right edge: no empty slot anywhere.
+      // v4.147.0 (Rahul: the quick actions as wide as the 4 Pulse cards; tiles compact): every quick action has
+      // the same width, and every tool tile has the same width — nothing stretched to fill a row.
       const rowsFull = await page.evaluate(() => {
-        const groups = [document.querySelector('[data-home-action]')?.parentElement, ...Array.from(document.querySelectorAll('[data-home-tool]')).map((t) => t.parentElement)];
-        return Array.from(new Set(groups.filter(Boolean))).every((g) => {
-          const right = g.getBoundingClientRect().right;
-          const rows = new Map();
-          for (const c of Array.from(g.children)) {
-            const r = c.getBoundingClientRect();
-            const key = Math.round(r.top);
-            rows.set(key, Math.max(rows.get(key) || 0, r.right));
-          }
-          return Array.from(rows.values()).every((edge) => Math.abs(edge - right) < 2);
-        });
+        const same = (ws) => ws.length > 0 && ws.every((w) => Math.abs(w - ws[0]) < 2);
+        const acts = Array.from(document.querySelectorAll('[data-home-action]')).map((e) => e.getBoundingClientRect().width);
+        const tools = Array.from(document.querySelectorAll('[data-home-tool]')).map((e) => e.getBoundingClientRect().width);
+        return same(acts) && same(tools);
       });
       await page.locator('[data-home-action="fast_inward"]').click();
       const fastOnHome = await page.locator('[data-fast-scan]').waitFor({ timeout: 10000 }).then(() => true).catch(() => false);
       await page.keyboard.press('Escape');
       await page.waitForTimeout(400);
       check(homeIds === 'new_bill,khata,fast_inward,day_summary,printers' && gstStandIn && rowsFull && fastOnHome && /\/$/.test(new URL(page.url()).pathname),
-        `Home with Purchases / GST off: tiles "${homeIds}", Backup & CA exports in GST's place, every row full; Fast barcode inward opens right on Home`);
+        `Home with Purchases / GST off: tiles "${homeIds}", Backup & CA exports in GST's place, equal compact tiles; Fast barcode inward opens right on Home`);
 
       // v4.93.0 (UX audit, batch 2) — Home shows shop facts; profit starts locked once an owner PIN exists.
       step = 'home insights';

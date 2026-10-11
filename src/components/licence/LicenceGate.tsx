@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { KeyRound, Monitor, ShieldCheck, Loader2, AlertCircle, Wifi, Gift, Hourglass } from 'lucide-react';
+import { KeyRound, Monitor, ShieldCheck, Loader2, AlertCircle, Wifi } from 'lucide-react';
 import { getDesktopApi, LicenceStatus, TrialInfo } from '@/lib/desktop/desktopBridge';
 import { tr } from '@/lib/i18n/core';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
@@ -24,6 +24,9 @@ import { LicenceEndedScreen } from './LicenceEndedScreen';
  */
 export const LicenceGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [status, setStatus] = useState<LicenceStatus | 'checking' | 'no-desktop'>('checking');
+  // v4.148.0 (Rahul: no trial button — the shop just signs up): a computer without a key
+  // starts / takes back its free trial by itself; only when that is not possible the key screen shows.
+  const [trialNote, setTrialNote] = useState<string | null | undefined>(undefined);
 
   useEffect(() => {
     const api = getDesktopApi();
@@ -48,7 +51,45 @@ export const LicenceGate: React.FC<{ children: React.ReactNode }> = ({ children 
     if (status.trial) return <ActivationScreen status={{ state: 'required', machineName: status.machineName }} trialEnded onActivated={setStatus} />;
     return <LicenceEndedScreen status={status} onChecked={setStatus} />;
   }
-  return <ActivationScreen status={status} onActivated={setStatus} />;
+  if (!status.reason && trialNote === undefined) {
+    return <TrialAutoStart onStarted={setStatus} onNotStarted={(note) => setTrialNote(note)} />;
+  }
+  return <ActivationScreen status={trialNote ? { ...status, reason: status.reason || trialNote } : status} onActivated={setStatus} />;
+};
+
+/**
+ * v4.148.0 — no button: asks the server whether this computer has (or may start) a free trial and
+ * starts it at once, then the normal signup (master password → store setup) follows. Not possible
+ * (trial off, used up, no internet) → the key screen, with a note only when the internet was missing.
+ */
+const TrialAutoStart: React.FC<{ onStarted: (s: LicenceStatus) => void; onNotStarted: (note: string | null) => void }> = ({ onStarted, onNotStarted }) => {
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const api = getDesktopApi();
+      if (!api?.getTrialInfo || !api.startTrial) return onNotStarted(null);
+      const info: TrialInfo = await api.getTrialInfo().catch(() => ({ offline: true as const }));
+      if (!alive) return;
+      if ('offline' in info) return onNotStarted(tr('No internet. Connect to the internet and open KamaiPlus again to start — or enter your licence key.'));
+      if (!('available' in info)) return onNotStarted(null);
+      const running = info.used && info.endsAt && Date.parse(info.endsAt) > Date.now();
+      if (!info.available && !running) return onNotStarted(null);
+      const res = await api.startTrial().catch(() => null);
+      if (!alive) return;
+      if (res && res.ok) onStarted(res.status);
+      else onNotStarted(res && !res.ok ? res.error : null);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <main className="min-h-screen bg-slate-950 flex items-center justify-center" data-trial-auto>
+      <div className="flex items-center gap-2.5 text-slate-400 text-sm font-semibold">
+        <Loader2 className="w-4 h-4 animate-spin text-amber-400" /> {tr('Getting KamaiPlus ready…')}
+      </div>
+    </main>
+  );
 };
 
 /**
@@ -71,34 +112,6 @@ const ActivationScreen: React.FC<{
   const [keyBody, setKeyBody] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(status.reason || null);
-  const [trial, setTrial] = useState<TrialInfo | null>(null);
-  const [startingTrial, setStartingTrial] = useState(false);
-
-  // v4.148.0: is a free trial offered to this computer? (Never asked once a trial has ended.)
-  useEffect(() => {
-    const api = getDesktopApi();
-    if (trialEnded || !api?.getTrialInfo) return;
-    let alive = true;
-    api.getTrialInfo().then((t) => alive && setTrial(t)).catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [trialEnded]);
-  const trialOffer = trial && 'available' in trial && trial.available ? trial : null;
-
-  const handleStartTrial = async () => {
-    const api = getDesktopApi();
-    if (!api?.startTrial || startingTrial) return;
-    setStartingTrial(true);
-    setError(null);
-    const result = await api.startTrial().catch(() => ({ ok: false as const, error: tr('The free trial could not start. Please try again.') }));
-    if (result.ok) onActivated(result.status);
-    else {
-      setError(result.error);
-      setStartingTrial(false);
-    }
-  };
-
   const complete = keyBody.replace(/-/g, '').length === 16;
   const key = `KPD-${keyBody}`;
 
@@ -138,26 +151,6 @@ const ActivationScreen: React.FC<{
           </p>
         </div>
 
-        {trialOffer && (
-          <div className="rounded-2xl border border-emerald-700/60 bg-emerald-950/40 p-4 space-y-3" data-trial-offer>
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-300 flex items-center justify-center shrink-0"><Gift className="w-5 h-5" /></div>
-              <div>
-                <div className="text-sm font-black text-white">{tr('Try KamaiPlus free for {days} days', { days: trialOffer.days })}</div>
-                <div className="text-xs text-emerald-100/70 leading-relaxed mt-0.5">{tr('No key needed now. When the trial ends, enter a licence key to continue — your data stays.')}</div>
-              </div>
-            </div>
-            <button type="button" onClick={handleStartTrial} disabled={startingTrial}
-              className="w-full h-11 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-60 text-slate-950 font-black text-sm flex items-center justify-center gap-2 cursor-pointer transition-colors" data-trial-start>
-              {startingTrial ? <Loader2 className="w-4 h-4 animate-spin" /> : <Hourglass className="w-4 h-4" />}
-              {startingTrial ? tr('Starting…') : tr('Start free trial')}
-            </button>
-            <div className="flex items-center gap-3 text-[11px] text-slate-500 font-semibold">
-              <span className="h-px flex-1 bg-slate-800" />{tr('or activate with your licence key')}<span className="h-px flex-1 bg-slate-800" />
-            </div>
-          </div>
-        )}
-
         <div className="space-y-1.5">
           <label htmlFor="licence-key" className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
             <KeyRound className="w-3.5 h-3.5 text-amber-400" />
@@ -167,7 +160,7 @@ const ActivationScreen: React.FC<{
             <span className="pl-4 pr-1 text-lg font-mono tracking-wider text-slate-500 select-none">KPD-</span>
             <input
               id="licence-key"
-              autoFocus={!trialOffer}
+              autoFocus
               spellCheck={false}
               autoComplete="off"
               value={keyBody}

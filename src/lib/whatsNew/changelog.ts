@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.149.0',
+    items: [
+      msg('A new computer starts its free trial by itself when you sign up — no button to press. Restaurant Home: the second card now shows your staff (how many, who is online) with Add / Manage.'),
+    ],
+  },
+  {
     version: '4.148.0',
     items: [
       msg('A new computer without a licence key can start the free trial (the number of days is set by KamaiPlus). A strip shows the days left, and a key can be entered any time — nothing is deleted. Computers with a key are not affected.'),

@@ -3266,5 +3266,17 @@
   "The key replaces the free trial on this computer. Nothing is deleted.": "की या कॉम्प्युटरवर फ्री ट्रायलची जागा घेते. काहीही मिटत नाही.",
   "Need a key? Contact KamaiPlus support:": "की हवी आहे? KamaiPlus सपोर्टशी संपर्क करा:",
   "Updates are on hold for this computer (set by KamaiPlus support). This version keeps working.": "या कॉम्प्युटरचे अपडेट थांबवले आहेत (KamaiPlus सपोर्टकडून). हे व्हर्जन चालू राहील.",
-  "A new computer without a licence key can start the free trial (the number of days is set by KamaiPlus). A strip shows the days left, and a key can be entered any time — nothing is deleted. Computers with a key are not affected.": "लायसन्स की नसलेला नवीन कॉम्प्युटर फ्री ट्रायल सुरू करू शकतो (दिवस KamaiPlus ठरवते). वर पट्टी बाकी दिवस दाखवते, आणि की कधीही टाकता येते — काहीही मिटत नाही. की असलेल्या कॉम्प्युटरवर काही परिणाम नाही."
+  "A new computer without a licence key can start the free trial (the number of days is set by KamaiPlus). A strip shows the days left, and a key can be entered any time — nothing is deleted. Computers with a key are not affected.": "लायसन्स की नसलेला नवीन कॉम्प्युटर फ्री ट्रायल सुरू करू शकतो (दिवस KamaiPlus ठरवते). वर पट्टी बाकी दिवस दाखवते, आणि की कधीही टाकता येते — काहीही मिटत नाही. की असलेल्या कॉम्प्युटरवर काही परिणाम नाही.",
+  "Your free trial is still running — {days} days left": "तुमचे फ्री ट्रायल अजून चालू आहे — {days} दिवस बाकी",
+  "Continue free trial": "फ्री ट्रायल चालू ठेवा",
+  "No internet. Connect to the internet and open KamaiPlus again to start — or enter your licence key.": "इंटरनेट नाही. सुरू करण्यासाठी इंटरनेट जोडून KamaiPlus पुन्हा उघडा — किंवा लायसन्स की टाका.",
+  "Getting KamaiPlus ready…": "KamaiPlus तयार होत आहे…",
+  "{count} online": "{count} ऑनलाइन",
+  "Team": "टीम",
+  "Set up": "सेट करा",
+  "Add waiters — no Google on their phone": "वेटर जोडा — त्यांच्या फोनवर Google नको",
+  "Staff member": "स्टाफ सदस्य",
+  "Staff members": "स्टाफ सदस्य",
+  "Manage": "व्यवस्थापन",
+  "A new computer starts its free trial by itself when you sign up — no button to press. Restaurant Home: the second card now shows your staff (how many, who is online) with Add / Manage.": "नवीन कॉम्प्युटर साइन-अप करताच फ्री ट्रायल आपोआप सुरू करतो — कोणतेही बटण दाबायचे नाही. रेस्टॉरंट होम: दुसरे कार्ड आता तुमचा स्टाफ दाखवते (किती, कोण ऑनलाइन) — जोडा / व्यवस्थापन सह."
 }

@@ -1498,6 +1498,10 @@ The ✏️ on a bill line (`components/billing/PosItemEditModal.tsx`, chips per 
 - `TodayBusinessPulse`: with no buying price anywhere (`showProfitCard` — cost field off, no
   product `purchase_price`, no costed revenue today) the Profit card becomes **Average Bill**
   (`billStats`: day revenue ÷ bills, plus the biggest bill) — profit would always say ₹0.
+  v4.149.0: in Restaurant mode card 2 is **Staff** (`dashboard/StaffPulseCard.tsx` — active staff,
+  how many online, opens `/settings?tab=staff`), the same as the Android Home Pulse.
+- v4.147.0: quick actions are a `grid grid-cols-2 lg:grid-cols-4` under the 4 Pulse cards (same
+  widths), tool tiles `auto-fill minmax(190px)` — the E2E checks equal widths, not full rows.
 - v4.93.0 (UX audit batch 2): the pulse cards show whole rupees without ".00"
   (`formatINRCompact`; paise show when there are any), a zero amount is grey (`amountTone`),
   ribbons never show "-₹0.00" (`formatINRSigned`) — `lib/utils.ts`. The tools grid no longer

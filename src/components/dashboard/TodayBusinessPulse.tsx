@@ -15,7 +15,8 @@ import {
   ShoppingBasket
 } from 'lucide-react';
 import { tr } from '@/lib/i18n/core';
-import { useFeatureSwitches } from '@/lib/features/featureSwitches';
+import { useFeatureSwitches, useRestaurantMode } from '@/lib/features/featureSwitches';
+import { StaffPulseCard } from '@/components/dashboard/StaffPulseCard';
 
 /** A Home card that opens its screen — or, with that screen switched off, just shows the figure. */
 function CardLink({ on, href, children, ...data }: { on: boolean; href: string; children: React.ReactNode } & Record<`data-${string}`, boolean | undefined>) {
@@ -63,6 +64,7 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
   const cashRegisterOn = switches.cash_register;
   const khataOn = switches.khata;
   const reportsOn = switches.sales_reports;
+  const restaurant = useRestaurantMode();
   const cashInHandCard = (
     <Card className="p-3 sm:p-3.5 bg-gradient-to-br from-white to-amber-50/60 dark:from-slate-900 dark:to-amber-950/20 border border-amber-200/90 dark:border-amber-800/60 hover:border-amber-400 active:scale-[0.98] transition-all rounded-2xl shadow-2xs group-hover:shadow-md h-full flex flex-col justify-between cursor-pointer">
       <div>
@@ -141,8 +143,11 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
           </Card>
         </Link>
 
-        {/* 2. Today's Profit (With Privacy Mask) — or, with no buying prices anywhere, the average bill */}
-        {showProfit ? (
+        {/* 2. Today's Profit (With Privacy Mask) — or, with no buying prices anywhere, the average bill.
+            A restaurant shows its staff here instead, as the Android Home does (v4.149.0). */}
+        {restaurant ? (
+        <StaffPulseCard />
+        ) : showProfit ? (
         <div className="group block focus:outline-none">
           <Card className="p-3 sm:p-3.5 bg-gradient-to-br from-white to-blue-50/60 dark:from-slate-900 dark:to-blue-950/20 border border-blue-200/90 dark:border-blue-800/60 hover:border-blue-400 active:scale-[0.98] transition-all rounded-2xl shadow-2xs group-hover:shadow-md h-full flex flex-col justify-between">
             <div>

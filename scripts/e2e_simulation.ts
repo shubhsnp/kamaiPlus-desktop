@@ -830,7 +830,8 @@ assert(readSource('app/billing/page.tsx').split('\n').length <= 401, `POS page s
 // and no update-publisher lock is set before a signed build exists (Bible §2.2).
 {
   const mainJsSrc = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
-  assert(/if \(process\.env\.KAMAI_E2E_DIR && !app\.isPackaged\)/.test(mainJsSrc) && (mainJsSrc.match(/KAMAI_E2E_DIR/g) || []).length === 3, 'KAMAI_E2E_DIR (test data folder) is honoured only by unpackaged runs');
+  assert(/if \(process\.env\.KAMAI_E2E_DIR && !app\.isPackaged\)/.test(mainJsSrc) && (mainJsSrc.match(/KAMAI_E2E_DIR/g) || []).length === 4
+    && /Boolean\(process\.env\.KAMAI_E2E_DIR\) && process\.env\.KAMAI_E2E_TRIAL !== '1' && !app\.isPackaged/.test(mainJsSrc), 'KAMAI_E2E_DIR (test data folder) is honoured only by unpackaged runs (the 4th use: no real trial in a test run, v4.148.0)');
   assert(pkgJson.scripts?.['test:electron'] === 'node scripts/electron_e2e.mjs' && !JSON.stringify(pkgJson.build?.win || {}).includes('publisherName'), 'Electron E2E script is wired up; no publisherName until the first signed release');
 }
 
@@ -5270,8 +5271,12 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
       'Trial: offer read from the server; offline = no offer; an unsigned answer never becomes a trial');
   })());
   const gate = readSource('components/licence/LicenceGate.tsx');
-  assert(gate.includes('if (status.trial) return <ActivationScreen') && gate.includes('data-trial-start') && gate.includes("if (trialEnded || !api?.getTrialInfo) return;"),
-    'Trial: the activation screen offers it (never after it ended); an ended trial asks for a key');
+  // Rahul: no "Start free trial" button — the shop just signs up; the trial starts by itself (or comes back
+  // after a reinstall); only when it cannot (off / used / no internet) the key screen shows. Test runs never start one.
+  assert(gate.includes('if (status.trial) return <ActivationScreen') && gate.includes('<TrialAutoStart onStarted={setStatus}') && !gate.includes('Start free trial')
+    && gate.includes("const running = info.used && info.endsAt && Date.parse(info.endsAt) > Date.now();")
+    && fs.readFileSync(path.join(REPO_ROOT, 'main.js'), 'utf8').includes("process.env.KAMAI_E2E_TRIAL !== '1' && !app.isPackaged"),
+    'Trial: starts by itself before signup (no button), comes back after a reinstall, never in test runs; an ended trial asks for a key');
   assert(readSource('components/admin/AdminMessageBanner.tsx').includes('<TrialNotice daysLeft={trial.daysLeft!}'), 'Trial: a strip shows the days left and "Enter licence key"');
   const upd = fs.readFileSync(path.join(REPO_ROOT, 'updater.js'), 'utf8');
   const prep = fs.readFileSync(path.join(__dirname, 'prepare_release.js'), 'utf8');
@@ -5284,6 +5289,18 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
   assert(held.update_hold === true && held.min_version === undefined && al.cleanControl({ update_hold: 'yes' }).update_hold === undefined,
     'Version lock: the Admin\'s hold is kept, and a held PC is never told to "update first"');
   assert(fs.readFileSync(path.join(REPO_ROOT, 'main.js'), 'utf8').includes("isHeld: () => adminLink.readControl(app.getPath('userData')).update_hold === true"), 'Version lock: the updater reads the hold from the Admin\'s control');
+}
+
+// v4.149.0 — Home Pulse the same on PC and phone (Rahul 2026-10-11): a restaurant has no buying prices, so
+// card 2 is the Staff card (count, online now, opens Settings → Staff) — as the Android Home does.
+{
+  const pulse = readSource('components/dashboard/TodayBusinessPulse.tsx');
+  const staffCard = readSource('components/dashboard/StaffPulseCard.tsx');
+  assert(/\{restaurant \? \(\s*<StaffPulseCard \/>\s*\) : showProfit \? \(/.test(pulse) && pulse.includes('const restaurant = useRestaurantMode();'),
+    'Home Pulse: a restaurant shows the Staff card in place of the Profit or Average Bill card; other shops keep them');
+  assert(staffCard.includes('href="/settings?tab=staff"') && staffCard.includes("staffStatus(m, now) === 'online'") && staffCard.includes('m.active')
+    && staffCard.includes('const [signedIn, setSignedIn] = useState(false);') && staffCard.includes('stop?.()'),
+    'Home Pulse Staff card: counts active staff and those online, opens Settings → Staff, reads the account after mount and stops listening on leave');
 }
 
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.

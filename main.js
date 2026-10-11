@@ -842,11 +842,17 @@ ipcMain.handle('kp:licence-activate', async (_event, key) =>
 );
 
 // v4.148.0: the free trial of a computer without a key (licence.js trialInfo / startTrial).
+// Test runs (the E2E data folder, unpackaged) never start a real trial on the server — only when asked to.
+const trialOffInTests = () => Boolean(process.env.KAMAI_E2E_DIR) && process.env.KAMAI_E2E_TRIAL !== '1' && !app.isPackaged;
 ipcMain.handle('kp:licence-trial-info', async () =>
-  licence.trialInfo({ appVersion: app.getVersion(), fetchImpl: (url, opts) => net.fetch(url, opts) })
+  trialOffInTests()
+    ? { available: false, days: 0, used: false, endsAt: null }
+    : licence.trialInfo({ appVersion: app.getVersion(), fetchImpl: (url, opts) => net.fetch(url, opts) })
 );
 ipcMain.handle('kp:licence-trial-start', async () =>
-  licence.startTrial({ userDataDir: app.getPath('userData'), appVersion: app.getVersion(), fetchImpl: (url, opts) => net.fetch(url, opts) })
+  trialOffInTests()
+    ? { ok: false, error: 'The free trial is off in test runs.' }
+    : licence.startTrial({ userDataDir: app.getPath('userData'), appVersion: app.getVersion(), fetchImpl: (url, opts) => net.fetch(url, opts) })
 );
 
 // Google sign-in (googleSignIn.js): the shop's browser, answer on 127.0.0.1, PKCE.
