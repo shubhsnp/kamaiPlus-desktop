@@ -76,7 +76,9 @@ export const ProductFilterToolbar: React.FC<ProductFilterToolbarProps> = ({
                 ? tr('Search medicine name, barcode, batch, HSN...')
                 : switches.bill_serial_warranty
                 ? tr('Search item name, barcode, serial no, HSN...')
-                : tr('Search by product name, barcode, HSN, size, color...')
+                : switches.product_size_colour
+                ? tr('Search by product name, barcode, HSN, size, color...')
+                : tr('Search product name, barcode, HSN...')
             }
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}

@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.156.0',
+    items: [
+      msg('General Retail: Product search mentions product name, barcode and HSN instead of apparel size and color.'),
+    ],
+  },
+  {
     version: '4.155.0',
     items: [
       msg('Electronics & Hardware: Product search mentions item name, serial number, barcode and HSN instead of apparel size and color.'),
@@ -338,24 +344,7 @@ export const CHANGELOG: Release[] = [
       msg('The app now carries its own Mukta font, so text looks the same on every computer.'),
     ],
   },
-  {
-    version: '4.102.0',
-    items: [
-      msg('Billing: "Save as Estimate" saves the bill as a quotation (EST-001) without touching stock, udhar or cash. Turn it into a bill later from Transactions → "Convert to Bill".'),
-      msg('Customers: set an udhar limit. The counter warns before a bill takes the customer past it.'),
-      msg('Purchases: "Return to Supplier" makes a debit note (stock and what you owe go down) and "Purchase Order" sends your order on WhatsApp; mark it received when the goods come.'),
-      msg('Cash Register: past shifts are listed with what was counted and any shortage. Starred items come first on the billing screen.'),
-    ],
-  },
-  {
-    version: '4.101.0',
-    items: [
-      msg('GST: goods returned are now a credit note in the month they came back. Returns by GSTIN buyers go in GSTR-1 table 9B; the bill itself stays as issued.'),
-      msg('New GSTR-3B tab on the GST screen: tax on your sales for the month, the same figures as GSTR-1.'),
-      msg('Tally file: returns come as Credit Note vouchers, and udhar is tracked bill by bill.'),
-    ],
-  },
-  // 4.100.0 and older: changelogOlder.ts (split in v4.128.0 — a file stays ≤ 400 lines).
+  // 4.102.0 and older: changelogOlder.ts (split in v4.128.0 — a file stays ≤ 400 lines).
   ...OLDER_RELEASES,
 ];
 

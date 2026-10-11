@@ -5412,6 +5412,11 @@ assert(readSource('components/products/ProductFilterToolbar.tsx').includes('swit
   && readSource('components/products/ProductFilterToolbar.tsx').includes("tr('Search item name, barcode, serial no, HSN...')"),
   'Hardware & Electronics search placeholder mentions item, barcode, serial no, HSN');
 
+// v4.156.0 — general retail tour, PC = phone: retail product search placeholder when no size/colour switch.
+assert(readSource('components/products/ProductFilterToolbar.tsx').includes('switches.product_size_colour')
+  && readSource('components/products/ProductFilterToolbar.tsx').includes("tr('Search product name, barcode, HSN...')"),
+  'General Retail search placeholder mentions product name, barcode, HSN without size/color');
+
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.
 Promise.allSettled(pendingAsyncChecks).then((results) => {
   for (const r of results) if (r.status === 'rejected') assert(false, 'An async check threw', String(r.reason));
