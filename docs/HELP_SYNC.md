@@ -115,3 +115,4 @@ commit if you like; deploy it with the release.
 | 4.154.0 | Medical & Pharmacy: Products search placeholder mentions medicine name, batch, barcode and HSN instead of apparel size and color. | add-products | pending |
 | 4.155.0 | Electronics & Hardware: Products search placeholder mentions item name, serial number, barcode and HSN instead of apparel size and color. | add-products | pending |
 | 4.156.0 | General Retail: Products search placeholder mentions product name, barcode and HSN instead of apparel size and color. | add-products | pending |
+| 4.157.0 | Products and Inventory: the number tiles lose their small grey corner labels (Master, Reorder, Valuation, Groups, Catalog, Cost, Low); low stock reads "Time to reorder". Billing counter: a category with no items has no chip. | add-products, inventory-stock, billing-counter | pending |

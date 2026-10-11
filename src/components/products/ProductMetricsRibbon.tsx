@@ -38,7 +38,6 @@ export const ProductMetricsRibbon: React.FC<ProductMetricsRibbonProps> = ({
               <Package className="w-3.5 h-3.5 text-sky-600" />
               <span>{tr('Catalog Items')}</span>
             </span>
-            <span className="text-[10px] text-slate-400 font-mono">{tr('Master')}</span>
           </div>
           <div className="text-base sm:text-lg font-black font-mono text-slate-900 dark:text-slate-100 mt-0.5 leading-tight">
             {totalProducts}
@@ -56,13 +55,12 @@ export const ProductMetricsRibbon: React.FC<ProductMetricsRibbonProps> = ({
               <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
               <span>{tr('Low Stock Alerts')}</span>
             </span>
-            <span className="text-[10px] text-slate-400 font-mono">{tr('Reorder')}</span>
           </div>
           <div className="text-base sm:text-lg font-black font-mono text-rose-600 dark:text-rose-400 mt-0.5 leading-tight">
             {lowStockCount}
           </div>
           <div className="text-[10px] text-slate-400 truncate mt-0.5">
-            {tr('Below safety threshold')}
+            {tr('Time to reorder')}
           </div>
         </div>
 
@@ -73,7 +71,6 @@ export const ProductMetricsRibbon: React.FC<ProductMetricsRibbonProps> = ({
               <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
               <span>{tr('Inventory Asset')}</span>
             </span>
-            <span className="text-[10px] text-slate-400 font-mono">{tr('Valuation')}</span>
           </div>
           <div className="text-base sm:text-lg font-black font-mono text-emerald-600 dark:text-emerald-400 mt-0.5 leading-tight">
             <ProfitMask value={formatINR(totalStockValuePaise)} />
@@ -92,7 +89,6 @@ export const ProductMetricsRibbon: React.FC<ProductMetricsRibbonProps> = ({
               <Layers className="w-3.5 h-3.5 text-purple-600" />
               <span>{tr('Categories')}</span>
             </span>
-            <span className="text-[10px] text-slate-400 font-mono">{tr('Groups')}</span>
           </div>
           <div className="text-base sm:text-lg font-black font-mono text-purple-600 dark:text-purple-400 mt-0.5 leading-tight">
             {totalCategories}

@@ -5417,6 +5417,20 @@ assert(readSource('components/products/ProductFilterToolbar.tsx').includes('swit
   && readSource('components/products/ProductFilterToolbar.tsx').includes("tr('Search product name, barcode, HSN...')"),
   'General Retail search placeholder mentions product name, barcode, HSN without size/color');
 
+// v4.157.0 — Claude review of the Antigravity tour (TF-03 / TF-04), PC = phone: the Products and
+// Inventory number tiles carry no grey corner tags; the phone had "Inventory AssetTap to hide" run together.
+{
+  const pm = readSource('components/products/ProductMetricsRibbon.tsx');
+  const im = readSource('components/inventory/InventoryMetricsRibbon.tsx');
+  const tabs = readSource('components/billing/PosCategoryTabs.tsx');
+  assert(tabs.includes('(categoryCounts[c.id] || 0) > 0 || c.id === selectedCategory') && tabs.includes("{ count: shown.length }"),
+    'Counter category chips: no chip for a category with 0 items (the picked one stays), like the phone (P-06)');
+  assert(!['Master', 'Reorder', 'Valuation', 'Groups'].some((w) => pm.includes(`tr('${w}')`))
+    && !['Catalog', 'Cost', 'Low'].some((w) => im.includes(`tr('${w}')`))
+    && pm.includes("tr('Time to reorder')") && !pm.includes('Below safety threshold'),
+    'Products / Inventory tiles: no corner tags, low stock says "Time to reorder" (same as the phone)');
+}
+
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.
 Promise.allSettled(pendingAsyncChecks).then((results) => {
   for (const r of results) if (r.status === 'rejected') assert(false, 'An async check threw', String(r.reason));

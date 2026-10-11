@@ -16,6 +16,13 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.157.0',
+    items: [
+      msg('Products and Inventory tiles are cleaner: no small corner labels, and low stock reads "Time to reorder".'),
+      msg('Billing counter: a category with no items is not shown as a chip.'),
+    ],
+  },
+  {
     version: '4.156.0',
     items: [
       msg('General Retail: Product search mentions product name, barcode and HSN instead of apparel size and color.'),

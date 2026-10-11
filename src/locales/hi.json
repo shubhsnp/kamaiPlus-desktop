@@ -3346,5 +3346,8 @@
   "1 product with prices & stock": "1 प्रोडक्ट, दाम व स्टॉक के साथ",
   "{totalProducts} products with prices & stock": "{totalProducts} प्रोडक्ट, दाम व स्टॉक के साथ",
   "1 dish on your menu": "मेन्यू में 1 व्यंजन",
-  "Inventory and Products read in plain words: \"Items\" instead of \"Tracked SKUs\", and \"25 products with prices & stock\" in the Products header.": "इन्वेंटरी और प्रोडक्ट में सरल शब्द: \"Tracked SKUs\" की जगह \"आइटम\", और प्रोडक्ट हेडर में \"25 प्रोडक्ट, दाम व स्टॉक के साथ\"।"
+  "Inventory and Products read in plain words: \"Items\" instead of \"Tracked SKUs\", and \"25 products with prices & stock\" in the Products header.": "इन्वेंटरी और प्रोडक्ट में सरल शब्द: \"Tracked SKUs\" की जगह \"आइटम\", और प्रोडक्ट हेडर में \"25 प्रोडक्ट, दाम व स्टॉक के साथ\"।",
+  "Time to reorder": "फिर मंगाने का समय",
+  "Products and Inventory tiles are cleaner: no small corner labels, and low stock reads \"Time to reorder\".": "प्रोडक्ट और इन्वेंटरी के डिब्बे साफ़: कोने के छोटे लेबल हटे, कम स्टॉक पर \"फिर मंगाने का समय\" लिखा आता है।",
+  "Billing counter: a category with no items is not shown as a chip.": "बिलिंग काउंटर: जिस कैटेगरी में कोई सामान नहीं, उसका बटन नहीं दिखता।"
 }

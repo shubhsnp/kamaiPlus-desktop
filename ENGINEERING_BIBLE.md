@@ -1366,7 +1366,8 @@ normally the product search box (it has focus when Billing opens and after every
   UPI / Split / Credit scroll their details into view. ✕ and Clear keep the bill 8 s for Undo
   (`DiscardedBill` / `tabsAfterUndo` in `lib/billing/billTabs.ts`). Product cards are
   `w-full min-w-0` (a `<button>` sizes to its content — the 5th column pushed the grid 8 px
-  sideways); POS category chips wrap with "All categories (N)" like Products. Status bar: one
+  sideways); POS category chips wrap with "All categories (N)" like Products (v4.157.0: a
+  category with 0 items has no chip unless picked — same as the phone, P-06). Status bar: one
   line (`whitespace-nowrap`), `/` and `Esc` only on 2xl, "All keys" popover; the duplicate
   "Offline DB / Online" moved out (the top bar says "Online • Saved Locally"). Suite 9 §9j(ab),
   Electron E2E "counter polish".

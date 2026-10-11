@@ -26,6 +26,10 @@ export function PosCategoryTabs({
   onSelect: (id: string) => void;
   totalProductCount: number;
 }) {
+  // v4.157.0 (PC = phone, Android P-06): a category with no items is not a chip ("Atta, Rice & Dal 0" in a
+  // retail shop); the picked one always stays. Until the counts arrive every category shows.
+  const countsLoaded = Object.keys(categoryCounts).length > 0;
+  const shown = countsLoaded ? categories.filter((c) => (categoryCounts[c.id] || 0) > 0 || c.id === selectedCategory) : categories;
   const [showAll, setShowAll] = useState(false);
   const [overflow, setOverflow] = useState(false);
   const rowRef = useRef<HTMLDivElement>(null);
@@ -38,10 +42,10 @@ export function PosCategoryTabs({
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [categories.length, showAll]);
+  }, [shown.length, showAll]);
 
-  const picked = categories.find((c) => c.id === selectedCategory);
-  const ordered = picked ? [picked, ...categories.filter((c) => c.id !== picked.id)] : categories;
+  const picked = shown.find((c) => c.id === selectedCategory);
+  const ordered = picked ? [picked, ...shown.filter((c) => c.id !== picked.id)] : shown;
 
   const chip = (active: boolean) =>
     cn(
@@ -83,7 +87,7 @@ export function PosCategoryTabs({
             </>
           ) : (
             <>
-              <span>{tr('All categories ({count})', { count: categories.length })}</span>
+              <span>{tr('All categories ({count})', { count: shown.length })}</span>
               <ChevronDown className="w-3.5 h-3.5" />
             </>
           )}

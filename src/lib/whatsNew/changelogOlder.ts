@@ -1,7 +1,7 @@
 import { msg } from '@/lib/i18n/core';
 import type { Release } from '@/lib/whatsNew/changelog';
 
-/** "What's new" for 4.100.0 and older (moved out of changelog.ts in v4.128.0, newest first). */
+/** "What's new" for 4.102.0 and older (moved out of changelog.ts in v4.128.0, newest first). */
 export const OLDER_RELEASES: Release[] = [
   {
     version: '4.102.0',
