@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.151.0',
+    items: [
+      msg('Home and Khata read better: "1 Debtor" / "1 Account" instead of "1 Debtors", the products tile says "25 items" (a restaurant: "11 dishes"), and the restaurant Staff card says "Add your waiters".'),
+    ],
+  },
+  {
     version: '4.150.0',
     items: [
       msg('Every contact box now checks itself: a mobile number takes only 10 digits, email has no spaces, GSTIN 15 capitals, pincode 6 digits, bank IFSC and account number are checked. Customer birthday and anniversary are picked as Day + Month (+ Year if you know it).'),

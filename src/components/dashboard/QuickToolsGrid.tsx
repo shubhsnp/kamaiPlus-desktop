@@ -65,7 +65,7 @@ export const QuickToolsGrid: React.FC<QuickToolsGridProps> = ({
       tools: [
         {
           title: tr('Products'),
-          subtitle: tr('{productsCount} SKUs', { productsCount: productsCount }),
+          subtitle: productsCount === 1 ? tr('{productsCount} item', { productsCount }) : tr('{productsCount} items', { productsCount }),
           href: '/products',
           icon: Package,
           color: 'text-blue-600 dark:text-blue-400',

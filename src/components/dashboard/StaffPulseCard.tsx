@@ -58,7 +58,7 @@ export function StaffPulseCard() {
 
         <div className="pt-1.5 mt-1.5 border-t border-indigo-100/80 dark:border-indigo-900/40 flex items-center justify-between gap-1 text-[10px] sm:text-[11px]">
           <span className="text-slate-500 dark:text-slate-400 font-semibold truncate">
-            {active.length === 0 ? tr('Add waiters — no Google on their phone') : active.length === 1 ? tr('Staff member') : tr('Staff members')}
+            {active.length === 0 ? tr('Add your waiters') : active.length === 1 ? tr('Staff member') : tr('Staff members')}
           </span>
           <span className="text-indigo-700 dark:text-indigo-400 font-bold inline-flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform text-[10px]">
             <span>{active.length === 0 ? tr('Add') : tr('Manage')}</span>

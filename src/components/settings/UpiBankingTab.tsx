@@ -76,7 +76,7 @@ export const UpiBankingTab: React.FC<UpiBankingTabProps> = ({
               </h3>
             </div>
             <span className="text-[11px] font-bold text-slate-400">
-              {upiList.length} {tr('Accounts')}
+              {upiList.length} {upiList.length === 1 ? tr('Account') : tr('Accounts')}
             </span>
           </div>
 

@@ -20,7 +20,8 @@ export const RESTAURANT_WORDS: Record<string, string> = {
   '+ New Bill (POS)': '+ New Order',
   'Fast Barcode Checkout': 'Tables, takeaway & KOT',
   'F1 opens a new bill from any screen': 'F1 opens Tables & Orders from any screen',
-  '{productsCount} SKUs': '{productsCount} dishes',
+  '{productsCount} item': '{productsCount} dish',
+  '{productsCount} items': '{productsCount} dishes',
 
   // Menu page (Products)
   '{totalProducts} registered products with barcodes, pricing & instant stock tracking': '{totalProducts} dishes on your menu',

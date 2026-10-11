@@ -78,7 +78,9 @@ export function SetupDialog({ open, settings, onClose }: { open: boolean; settin
           <div>
             <span className={label}>{tr('GST on the bill')}</span>
             {!gstOk && <p className="text-[11px] text-amber-700 mb-1.5" data-rest-gst-needs-gstin>{tr('No GST without a GSTIN. Add your GSTIN in Settings → Store & GST Profile to charge GST.')}</p>}
-            <div className={cn('flex flex-wrap items-center gap-1.5', !gstOk && 'opacity-50 pointer-events-none')}>
+            {/* v4.151.0: without a GSTIN the rate and "prices include GST" do nothing — hidden, as on the phone. */}
+            {gstOk && (<>
+            <div className="flex flex-wrap items-center gap-1.5">
               {GST_CHOICES.map((g) => (
                 <button key={g} type="button" onClick={() => setGst(String(g))} aria-pressed={parseFloat(gst) === g}
                   className={cn('h-10 px-3 rounded-xl border text-sm font-black cursor-pointer', parseFloat(gst) === g ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-slate-300 text-slate-700 hover:border-emerald-500')}>{g}%</button>
@@ -91,6 +93,7 @@ export function SetupDialog({ open, settings, onClose }: { open: boolean; settin
                   className={cn('h-9 px-3 text-xs font-bold cursor-pointer', inclusive === v ? 'bg-slate-900 text-white' : 'bg-white text-slate-600')}>{v ? tr('Prices include GST') : tr('Add GST on top')}</button>
               ))}
             </div>
+            </>)}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

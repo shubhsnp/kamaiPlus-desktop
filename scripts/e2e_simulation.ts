@@ -4362,7 +4362,7 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
     `Restaurant words: Products → Menu, Customers → Guests, Transactions → Bills… every key exists in the app (${deadKeys.join(' | ') || 'all'}), every word has Hindi + Marathi, placeholders kept`);
   setActiveLanguage('en', null);
   setActiveWords(RESTAURANT_WORDS);
-  const inRestaurant = [tr('Products'), tr('{productsCount} SKUs', { productsCount: 42 }), tr('Khata Ledger')];
+  const inRestaurant = [tr('Products'), tr('{productsCount} items', { productsCount: 42 }), tr('Khata Ledger')];
   setActiveLanguage('hi', { Menu: 'मेन्यू' });
   const inHindi = tr('Products');
   setActiveWords(null);
@@ -5353,6 +5353,21 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
   assert(readSource('components/settings/settingsSave.ts').includes('validateIfsc(bankIfsc, false)') && readSource('components/invoices/editInvoiceSave.ts').includes("validateIndianPhone(customerPhone, false, msg('Phone Number'))")
     && readSource('components/onboarding/onboardingSubmit.ts').includes("validateIndianPhone(cleanPhone, true, msg('Store Mobile Phone'))"),
     'Save-time checks: bank details in Settings, the mobile on an edited bill, the shop mobile at sign-up (6–9 first)');
+}
+
+// v4.151.0 — UI tour, PC = phone (Rahul 2026-10-11: "dono platform par same chahiye"): "1 Debtor",
+// "1 Account", "25 items" instead of SKU jargon (restaurant "dishes"), Staff card "Add your waiters".
+{
+  assert(readSource('components/dashboard/TodayBusinessPulse.tsx').includes("customersWithCreditCount === 1 ? tr('Debtor') : tr('Debtors')")
+    && readSource('components/settings/UpiBankingTab.tsx').includes("upiList.length === 1 ? tr('Account') : tr('Accounts')"),
+    'Counts read "1 Debtor" / "1 Account" (not "1 Debtors")');
+  const tools = readSource('components/dashboard/QuickToolsGrid.tsx');
+  assert(!tools.includes('SKUs') && tools.includes("tr('{productsCount} items', { productsCount })") && RESTAURANT_WORDS['{productsCount} items'] === '{productsCount} dishes',
+    'Home tools say "25 items" (restaurant "11 dishes"), no SKU jargon — same as the phone');
+  assert(readSource('components/dashboard/StaffPulseCard.tsx').includes("tr('Add your waiters')"), 'Staff card: "Add your waiters" fits (phone the same)');
+  const setup = readSource('components/restaurant/SetupDialog.tsx');
+  assert(setup.includes('{gstOk && (<>') && !setup.includes("!gstOk && 'opacity-50 pointer-events-none'"),
+    'Restaurant set-up: without a GSTIN the GST rate / "prices include GST" are hidden (only the note) — phone the same');
 }
 
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.

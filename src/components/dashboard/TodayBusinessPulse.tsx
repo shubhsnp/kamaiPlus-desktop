@@ -230,7 +230,7 @@ export const TodayBusinessPulse: React.FC<TodayBusinessPulseProps> = ({
                   <span className="truncate">{tr('Market Udhar')}</span>
                 </div>
                 <span className="px-1.5 py-0.2 rounded-full bg-rose-100 dark:bg-rose-900/60 text-rose-900 dark:text-rose-200 text-[10px] font-black">
-                  {customersWithCreditCount} {tr('Debtors')}
+                  {customersWithCreditCount} {customersWithCreditCount === 1 ? tr('Debtor') : tr('Debtors')}
                 </span>
               </div>
 
