@@ -24,7 +24,7 @@ import { getDesktopApi } from '@/lib/desktop/desktopBridge';
 import { OwnerPinPrompt } from '@/components/privacy/OwnerPinPrompt';
 import { useProfitHidden } from '@/components/privacy/ProfitMask';
 import { setProfitHidden } from '@/lib/auth/cashierPrivacy';
-import { useFeatureSwitches } from '@/lib/features/featureSwitches';
+import { useFeatureSwitches, useRestaurantMode } from '@/lib/features/featureSwitches';
 import { CategoryList, DeadStockList, ItemList, PartyList, ProfitView, profitText } from '@/components/reports/analytics/AnalyticsLists';
 import { PartyDetailModal } from '@/components/reports/analytics/PartyDetailModal';
 import { CategoryDetailModal } from '@/components/reports/analytics/CategoryDetailModal';
@@ -55,7 +55,9 @@ export default function SalesAnalyticsPage() {
   const privacyOn = featureSwitches.profit_privacy;
   const unlocked = pinUnlocked || !privacyOn;
   // No buying prices kept (Restaurant mode): no profit figures — the average bill instead (v4.152.0).
-  const noProfit = !featureSwitches.product_cost_price;
+  // v4.160.0: restaurants only — an older shop with the cost switch off still sees Est. Profit.
+  const restaurantMode = useRestaurantMode();
+  const noProfit = restaurantMode && !featureSwitches.product_cost_price;
   const [pinOpen, setPinOpen] = useState(false);
   const [openParty, setOpenParty] = useState<PartySalesSummary | null>(null);
   const [openCategory, setOpenCategory] = useState<CategorySalesSummary | null>(null);

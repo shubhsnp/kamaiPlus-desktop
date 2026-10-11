@@ -137,7 +137,7 @@ async function run() {
     await page.getByPlaceholder('e.g. Sharma Kirana & General Store').fill('Audit Mega Retail Store');
     await page.getByPlaceholder('e.g. Ramesh Sharma').fill('Rahul Test Owner');
     await page.getByPlaceholder('98765 43210').fill('9876543210');
-    await page.getByPlaceholder('e.g. 9876543210@paytm or store@okaxis').fill('auditstore@okaxis');
+    // v4.158.0: no UPI box at sign-up any more (UPI is added in Settings → UPI & Banking).
     const seedBox = page.locator('input[type="checkbox"]').first();
     if (!(await seedBox.isChecked())) await seedBox.check();
     await page.getByRole('button', { name: /Complete Setup/i }).click();

@@ -80,7 +80,7 @@ try {
   await page.getByPlaceholder('e.g. Ramesh Sharma').fill('Smoke Owner');
   await page.getByPlaceholder('98765 43210').fill('9876543210');
   // v4.91.0 — UPI is optional at sign-up: this shop does not take UPI and leaves it blank.
-  await page.getByPlaceholder('e.g. 9876543210@paytm or store@okaxis').fill('');
+  // v4.158.0: no UPI box at sign-up any more (UPI is added in Settings → UPI & Banking).
   const seed = page.locator('input[type="checkbox"]').first();
   if (!(await seed.isChecked())) await seed.check();
   await page.getByRole('button', { name: /Complete Setup/i }).click();

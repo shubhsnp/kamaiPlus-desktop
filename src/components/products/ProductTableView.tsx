@@ -33,8 +33,12 @@ export const ProductTableView: React.FC<ProductTableViewProps> = ({
   onOpenVariants,
   showStock = true,
 }) => {
-  const showCost = useFeatureSwitches().product_cost_price;
-  const showBarcode = !useRestaurantMode();
+  const costSwitchOn = useFeatureSwitches().product_cost_price;
+  const restaurantMode = useRestaurantMode();
+  // v4.160.0: only a restaurant without buying prices drops the Cost column — v4.152.0 dropped it for
+  // every shop whose cost switch was off (older shops, the live customer).
+  const showCost = !restaurantMode || costSwitchOn;
+  const showBarcode = !restaurantMode;
   // Inline Price Editing State: productId -> editing string
   const [editingPriceId, setEditingPriceId] = useState<string | null>(null);
   const [priceInputValue, setPriceInputValue] = useState<string>('');

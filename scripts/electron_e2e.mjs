@@ -255,7 +255,7 @@ async function run() {
       await page.getByPlaceholder('e.g. Sharma Kirana & General Store').fill('E2E Kirana Store');
       await page.getByPlaceholder('e.g. Ramesh Sharma').fill('Test Owner');
       await page.getByPlaceholder('98765 43210').fill('9876543210');
-      await page.getByPlaceholder('e.g. 9876543210@paytm or store@okaxis').fill('e2eshop@okaxis');
+      // v4.158.0: no UPI box at sign-up any more (UPI is added in Settings → UPI & Banking).
       const seed = page.locator('input[type="checkbox"]').first();
       const seedDefault = await seed.isChecked();
       if (!(await seed.isChecked())) await seed.check();
@@ -263,6 +263,19 @@ async function run() {
       await page.waitForURL((u) => !u.pathname.startsWith('/onboarding'), { timeout: 20000 });
       check(!seedDefault, 'Store setup: the fireworks sample catalog is not ticked by default (this test ticks it)');
       check(true, 'Store setup completes and opens the app');
+      // v4.158.0: UPI is added after sign-up (Settings → UPI & Banking) — the pay-by-UPI checks below need one.
+      await page.evaluate(() => new Promise((resolve, reject) => {
+        const req = indexedDB.open('VyaparSetuDB');
+        req.onerror = () => reject(req.error);
+        req.onsuccess = () => {
+          const d = req.result;
+          const tx = d.transaction(['businesses'], 'readwrite');
+          const bs = tx.objectStore('businesses');
+          bs.getAll().onsuccess = (e) => { for (const b of e.target.result) { b.upi_id = 'e2eshop@okaxis'; bs.put(b); } };
+          tx.oncomplete = () => { d.close(); resolve(true); };
+          tx.onerror = () => reject(tx.error);
+        };
+      }));
       // v4.118.0: store setup saves the business category (Grocery is the default card). This E2E shop
       // plays an EXISTING customer (set up before v4.118.0): the profile goes, so every check below
       // proves that old shops behave exactly as before. New categories: the "vertical" section.

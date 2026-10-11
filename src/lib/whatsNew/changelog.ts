@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.160.0',
+    items: [
+      msg('Sales Analytics shows Est. Profit (with the owner PIN lock) and Products shows the Cost column again for every shop — only a restaurant without buying prices sees the average bill instead.'),
+    ],
+  },
+  {
     version: '4.159.0',
     items: [
       msg('Billing: new "Custom Item" button (same as the phone) — add a carry bag, delivery charge or any item that is not in your list, with its price. Tick "Save to my items" to keep it for next time.'),

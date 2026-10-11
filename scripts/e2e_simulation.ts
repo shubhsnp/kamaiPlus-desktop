@@ -5377,12 +5377,13 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
   const tools = readSource('components/dashboard/QuickToolsGrid.tsx');
   assert(tools.includes('if (sec.tools.length === 1 && out.length > 0)'), 'Home: a section left with one tile joins the one before it (no lonely row)');
   const table = readSource('components/products/ProductTableView.tsx');
-  assert(table.includes("{showCost && <th") && table.includes(': showBarcode && <span') && table.includes('useFeatureSwitches().product_cost_price'),
-    'Menu / product list: no Cost column without buying prices, no "No barcode" for a dish');
+  // v4.160.0 (bug, Electron E2E): restaurant only — an older shop with the cost switch off kept losing the Cost column / Est. Profit.
+  assert(table.includes("{showCost && <th") && table.includes(': showBarcode && <span') && table.includes('const showCost = !restaurantMode || costSwitchOn;'),
+    'Menu / product list: no Cost column for a restaurant without buying prices (other shops keep it), no "No barcode" for a dish');
   const reports = readSource('app/reports/page.tsx');
-  assert(reports.includes('const noProfit = !featureSwitches.product_cost_price;') && reports.includes("title={tr('Avg. Bill')}") && reports.includes('privacyOn && !noProfit')
+  assert(reports.includes('const noProfit = restaurantMode && !featureSwitches.product_cost_price;') && reports.includes("title={tr('Avg. Bill')}") && reports.includes('privacyOn && !noProfit')
     && readSource('components/reports/analytics/AnalyticsLists.tsx').includes('if (view.hidden) return null;'),
-    'Sales Analytics without buying prices: Avg. Bill instead of profit, no Hide Profit, no profit on rows');
+    'Sales Analytics in a restaurant without buying prices: Avg. Bill instead of profit, no Hide Profit, no profit on rows (other shops keep Est. Profit + the PIN lock)');
   assert(RESTAURANT_WORDS['Parties ({v1})'] === 'Guests ({v1})' && RESTAURANT_WORDS['Items ({v1})'] === 'Dishes ({v1})' && RESTAURANT_WORDS['Transactions ('] === 'Bills ('
     && RESTAURANT_WORDS['Cash Customer'] === 'Guest' && RESTAURANT_WORDS['Variants (Size / Colour)'] === 'Variants (Half / Full)',
     'Restaurant words: Guests / Dishes tabs, Bills, Guest, Half / Full variants');
