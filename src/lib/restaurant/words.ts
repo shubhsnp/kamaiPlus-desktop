@@ -64,6 +64,20 @@ export const RESTAURANT_WORDS: Record<string, string> = {
   // Bill window after paying
   '+ New Bill': 'Back to Tables',
   'Sale Completed': 'Bill paid',
+  // v4.152.0: a bill without a name is the guest's (the phone says the same).
+  'Cash Customer': 'Guest',
+  'registered customer •': 'guest •',
+  'customer with dues': 'guest with dues',
+  'customers with dues': 'guests with dues',
+  'Registered customers': 'Guests on your list',
+  'Search by customer name or mobile number...': 'Search guest name or mobile...',
+  'Transactions (': 'Bills (',
+  'Product groups': 'Menu groups',
+  'Variants (Size / Colour)': 'Variants (Half / Full)',
+  'Sell one item in many sizes or colours, each with its own price and stock.': 'One dish in Half / Full or other portions, each with its own price.',
+  'Parties ({v1})': 'Guests ({v1})',
+  'Items ({v1})': 'Dishes ({v1})',
+  'Filter by customer, category or product…': 'Filter by guest, category or dish…',
 
   // Store set-up
   'e.g. Sharma Kirana & General Store': 'e.g. Sharma Family Restaurant',

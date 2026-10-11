@@ -38,7 +38,7 @@ export const CustomerHeaderActions: React.FC<CustomerHeaderActionsProps> = ({
               {tr('Customer Directory & CRM')}
             </h1>
             <p className="text-[10.5px] sm:text-xs text-slate-500 dark:text-slate-400">
-              {totalCustomers} {tr('registered customers •')} {vipCount} {tr('VIP members •')} {formatINR(totalCreditDuePaise)} {tr('market dues')}
+              {totalCustomers} {totalCustomers === 1 ? tr('registered customer •') : tr('registered customers •')} {vipCount} {tr('VIP members •')} {formatINR(totalCreditDuePaise)} {tr('market dues')}
             </p>
           </div>
         </div>

@@ -16,6 +16,8 @@ import { tr } from '@/lib/i18n/core';
 export interface ProfitView {
   unlocked: boolean;
   onRequestUnlock: () => void;
+  /** The shop keeps no buying prices (Restaurant mode): no profit anywhere. */
+  hidden?: boolean;
 }
 
 export function profitText(paise: number, view: ProfitView): string {
@@ -28,6 +30,7 @@ function Margin({ p, view }: { p: ProfitCoverage; view: ProfitView }) {
 }
 
 function ProfitCell({ p, view }: { p: ProfitCoverage; view: ProfitView }) {
+  if (view.hidden) return null;
   return (
     <button
       type="button"

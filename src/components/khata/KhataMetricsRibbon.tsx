@@ -37,7 +37,7 @@ export const KhataMetricsRibbon: React.FC<KhataMetricsRibbonProps> = ({
             {formatINR(totalUdharReceivable)}
           </div>
           <div className="text-[10px] text-slate-400 truncate mt-0.5 hidden sm:block">
-            {totalUdharAccounts} {tr('customer(s) with dues')}
+            {totalUdharAccounts} {totalUdharAccounts === 1 ? tr('customer with dues') : tr('customers with dues')}
           </div>
         </div>
 

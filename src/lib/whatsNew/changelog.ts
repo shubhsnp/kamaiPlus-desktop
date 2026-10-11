@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.152.0',
+    items: [
+      msg('Restaurant: shorter table cards, the menu list shows no cost or barcode column, Sales Analytics shows the average bill instead of profit (no buying prices in a restaurant), and bills, guests and dishes are counted in the right words. Home has no lonely one-tile rows.'),
+    ],
+  },
+  {
     version: '4.151.0',
     items: [
       msg('Home and Khata read better: "1 Debtor" / "1 Account" instead of "1 Debtors", the products tile says "25 items" (a restaurant: "11 dishes"), and the restaurant Staff card says "Add your waiters".'),

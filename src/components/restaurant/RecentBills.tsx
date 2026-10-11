@@ -34,7 +34,7 @@ export function RecentBills({ onOpen }: { onOpen: (sale: Sale) => void }) {
     <section aria-label={tr("Today's bills")} data-recent-bills>
       <div className="flex items-center justify-between mb-2.5">
         <h2 className="text-[11px] font-black uppercase tracking-wider text-slate-500">{tr("Today's bills")}</h2>
-        <span className="text-[11px] font-bold text-slate-500">{tr('{count} bills', { count: bills.length })} · <span className="font-mono text-slate-800">{formatINR(total)}</span></span>
+        <span className="text-[11px] font-bold text-slate-500">{bills.length === 1 ? tr('1 bill') : tr('{count} bills', { count: bills.length })} · <span className="font-mono text-slate-800">{formatINR(total)}</span></span>
       </div>
       <div className="flex gap-2.5 overflow-x-auto pb-1 -mx-1 px-1">
         {bills.slice(0, 12).map((s) => (

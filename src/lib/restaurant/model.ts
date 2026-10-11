@@ -93,7 +93,7 @@ export const liveLines = (order: Pick<RestOrder, 'lines'>): RestLine[] => order.
 export const pieceCount = (order: Pick<RestOrder, 'lines'>): number => liveLines(order).reduce((n, l) => n + l.qty, 0);
 
 /** "1 piece" / "3 pieces" — in the shop's language (v4.108.0). */
-export const piecesText = (n: number): string => (n === 1 ? tr('1 piece') : tr('{count} pieces', { count: n }));
+export const piecesText = (n: number): string => (n === 1 ? tr('1 dish') : tr('{count} dishes', { count: n }));
 
 export function newOrder(kind: OrderKind, label: string, id: string, now: string): RestOrder {
   return { id, kind, label, lines: [], openedAt: now, updatedAt: now, kotRounds: 0 };

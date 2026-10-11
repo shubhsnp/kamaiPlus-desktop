@@ -102,11 +102,10 @@ export function TablesHome({ orders, settings, onOpenTable, onOpenOrder, onNewTa
                 <OrderCard key={label} order={order} settings={settings} now={now} onOpen={() => onOpenOrder(order.id)} table />
               ) : (
                 <button key={label} type="button" onClick={() => onOpenTable(label)} data-table={label} data-table-state="free"
-                  className="group text-left rounded-2xl border-2 border-slate-200 bg-white hover:border-emerald-500 hover:shadow-md hover:-translate-y-0.5 p-3.5 min-h-[116px] flex flex-col justify-between cursor-pointer transition-all active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600">
+                  className="group text-left rounded-2xl border-2 border-slate-200 bg-white hover:border-emerald-500 hover:shadow-md hover:-translate-y-0.5 p-3.5 min-h-[96px] flex flex-col justify-between cursor-pointer transition-all active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600">
                   <span className="text-xl font-black text-slate-900 leading-none">{label}</span>
                   <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700">
                     <span className="w-2 h-2 rounded-full bg-emerald-500" />{tr('Free')}
-                    <span className="text-slate-400 font-semibold group-hover:text-emerald-700">· {tr('tap to start')}</span>
                   </span>
                 </button>
               );
@@ -142,7 +141,7 @@ function OrderCard({ order, settings, now, onOpen, table }: { order: RestOrder; 
   const dataAttrs = table ? { 'data-table': order.label, 'data-table-state': 'running' } : order.kind === 'delivery' ? { 'data-delivery': order.label } : { 'data-takeaway': order.label };
   return (
     <button type="button" onClick={onOpen} {...dataAttrs}
-      className="text-left rounded-2xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 to-white hover:border-amber-400 hover:shadow-md hover:-translate-y-0.5 p-3.5 min-h-[116px] flex flex-col justify-between cursor-pointer transition-all active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500">
+      className="text-left rounded-2xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 to-white hover:border-amber-400 hover:shadow-md hover:-translate-y-0.5 p-3.5 min-h-[96px] flex flex-col justify-between cursor-pointer transition-all active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500">
       <div className="flex items-start justify-between gap-2">
         <span className={cn('font-black text-slate-900 leading-none', table ? 'text-xl' : 'text-lg')}>
           {order.kind === 'delivery' && <Bike className="w-4 h-4 inline -mt-1 mr-1 text-sky-700" />}{order.label}

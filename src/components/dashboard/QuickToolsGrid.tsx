@@ -28,7 +28,7 @@ export const QuickToolsGrid: React.FC<QuickToolsGridProps> = ({
   // Screens switched off in Settings → Features get no shortcut tile. Billing and Khata are in
   // the quick actions right above (v4.93.0: they were on Home twice, with two names).
   const switches = useFeatureSwitches();
-  const toolSections = [
+  const toolSectionsBase = [
     {
       title: tr('Daily Counter & Ops'),
       dotColor: 'bg-emerald-500',
@@ -136,8 +136,16 @@ export const QuickToolsGrid: React.FC<QuickToolsGridProps> = ({
         }]),
       ],
     },
-  ].map((sec) => ({ ...sec, tools: sec.tools.filter((tool) => isPathEnabled(tool.href, switches)) }))
-    .filter((sec) => sec.tools.length > 0);
+  ];
+  const toolSections = toolSectionsBase.map((sec) => ({ ...sec, tools: sec.tools.filter((tool) => isPathEnabled(tool.href, switches)) }))
+    .filter((sec) => sec.tools.length > 0)
+    // v4.152.0: a section left with one tile (e.g. a restaurant's "Bills" or "Menu") joins the one before
+    // it — a heading over a single lonely tile left most of the row empty (Rahul: no empty space).
+    .reduce<typeof toolSectionsBase>((out, sec) => {
+      if (sec.tools.length === 1 && out.length > 0) out[out.length - 1] = { ...out[out.length - 1], tools: [...out[out.length - 1].tools, ...sec.tools] };
+      else out.push(sec);
+      return out;
+    }, []);
 
   return (
     <div className="space-y-4">

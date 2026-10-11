@@ -5370,6 +5370,32 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
     'Restaurant set-up: without a GSTIN the GST rate / "prices include GST" are hidden (only the note) — phone the same');
 }
 
+// v4.152.0 — restaurant Desktop tour (D-01…D-10, Rahul 2026-10-11: same as the phone, no clutter, no empty space).
+{
+  const tools = readSource('components/dashboard/QuickToolsGrid.tsx');
+  assert(tools.includes('if (sec.tools.length === 1 && out.length > 0)'), 'Home: a section left with one tile joins the one before it (no lonely row)');
+  const table = readSource('components/products/ProductTableView.tsx');
+  assert(table.includes("{showCost && <th") && table.includes(': showBarcode && <span') && table.includes('useFeatureSwitches().product_cost_price'),
+    'Menu / product list: no Cost column without buying prices, no "No barcode" for a dish');
+  const reports = readSource('app/reports/page.tsx');
+  assert(reports.includes('const noProfit = !featureSwitches.product_cost_price;') && reports.includes("title={tr('Avg. Bill')}") && reports.includes('privacyOn && !noProfit')
+    && readSource('components/reports/analytics/AnalyticsLists.tsx').includes('if (view.hidden) return null;'),
+    'Sales Analytics without buying prices: Avg. Bill instead of profit, no Hide Profit, no profit on rows');
+  assert(RESTAURANT_WORDS['Parties ({v1})'] === 'Guests ({v1})' && RESTAURANT_WORDS['Items ({v1})'] === 'Dishes ({v1})' && RESTAURANT_WORDS['Transactions ('] === 'Bills ('
+    && RESTAURANT_WORDS['Cash Customer'] === 'Guest' && RESTAURANT_WORDS['Variants (Size / Colour)'] === 'Variants (Half / Full)',
+    'Restaurant words: Guests / Dishes tabs, Bills, Guest, Half / Full variants');
+  assert(readSource('lib/restaurant/model.ts').includes("tr('1 dish') : tr('{count} dishes'")
+    && readSource('components/restaurant/RecentBills.tsx').includes("bills.length === 1 ? tr('1 bill')")
+    && readSource('components/customers/CustomerCard.tsx').includes("tr('1 visit')")
+    && readSource('components/khata/KhataMetricsRibbon.tsx').includes("tr('customer with dues')")
+    && !readSource('app/transactions/page.tsx').includes('print tax invoice'),
+    'Counts: "1 dish", "1 bill", "1 visit", "1 customer with dues"; Bills does not promise a tax invoice');
+  const form = readSource('components/products/ProductFormDetails.tsx');
+  assert(form.includes('{priceFieldCount > 1 && ('), 'Add Dish: one price box, no "Price" heading over "Price (₹)"');
+  const tables = readSource('components/restaurant/TablesHome.tsx');
+  assert(!tables.includes("tr('tap to start')") && tables.includes('min-h-[96px]'), 'Tables: shorter cards, "Free" only (as the phone)');
+}
+
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.
 Promise.allSettled(pendingAsyncChecks).then((results) => {
   for (const r of results) if (r.status === 'rejected') assert(false, 'An async check threw', String(r.reason));

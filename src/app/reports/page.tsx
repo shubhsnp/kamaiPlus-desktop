@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { BookOpen, Eye, EyeOff, FileDown, LineChart, PieChart, Search, TrendingUp, Wallet, X } from 'lucide-react';
+import { BookOpen, Eye, EyeOff, FileDown, LineChart, PieChart, Search, TrendingUp, Wallet, X, Receipt } from 'lucide-react';
 import { db } from '@/lib/db';
 import { Sale } from '@/types';
 import { formatINR, cn } from '@/lib/utils';
@@ -54,6 +54,8 @@ export default function SalesAnalyticsPage() {
   const featureSwitches = useFeatureSwitches();
   const privacyOn = featureSwitches.profit_privacy;
   const unlocked = pinUnlocked || !privacyOn;
+  // No buying prices kept (Restaurant mode): no profit figures — the average bill instead (v4.152.0).
+  const noProfit = !featureSwitches.product_cost_price;
   const [pinOpen, setPinOpen] = useState(false);
   const [openParty, setOpenParty] = useState<PartySalesSummary | null>(null);
   const [openCategory, setOpenCategory] = useState<CategorySalesSummary | null>(null);
@@ -75,7 +77,7 @@ export default function SalesAnalyticsPage() {
     return sortReport(buildAdvancedReport({ sales, returns, products, categories }), sort);
   }, [sales, returns, products, categories, sort]);
 
-  const view: ProfitView = { unlocked, onRequestUnlock: () => setPinOpen(true) };
+  const view: ProfitView = { unlocked, onRequestUnlock: () => setPinOpen(true), hidden: noProfit };
   const dateSpan = periodSpanText(period.start, period.end);
   const q = search.trim().toLowerCase();
 
@@ -133,7 +135,7 @@ export default function SalesAnalyticsPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {privacyOn && (
+          {privacyOn && !noProfit && (
             <button
               type="button"
               onClick={() => (unlocked ? setProfitHidden(true) : setPinOpen(true))}
@@ -197,6 +199,10 @@ export default function SalesAnalyticsPage() {
       {data && ps && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
           <Metric icon={TrendingUp} tone="text-emerald-600" title={tr('Total Revenue')} tag={tr('Turnover')} value={formatINR(ps.totalPaise)} valueTone="text-emerald-700" sub={tr('{invoiceCount} bills • net of returns', { invoiceCount: data.invoiceCount })} />
+          {noProfit ? (
+            <Metric icon={Receipt} tone="text-indigo-600" title={tr('Avg. Bill')} tag={data.invoiceCount === 1 ? tr('1 bill') : tr('{count} bills', { count: data.invoiceCount })}
+              value={formatINR(data.invoiceCount > 0 ? Math.round(ps.totalPaise / data.invoiceCount) : 0)} sub={tr('Per bill, this period')} />
+          ) : (
           <button type="button" className="text-left" onClick={unlocked ? undefined : () => setPinOpen(true)}>
             <Metric
               icon={PieChart}
@@ -207,6 +213,7 @@ export default function SalesAnalyticsPage() {
               sub={!unlocked ? tr('Tap to unlock with owner PIN') : isProfitPartial(data) ? tr('{uncostedLineCount} line(s) lack buying price', { uncostedLineCount: data.uncostedLineCount }) : tr('Sales − buying cost')}
             />
           </button>
+          )}
           <Metric icon={Wallet} tone="text-sky-600" title={tr('Cash & UPI')} tag={tr('Liquid')} value={formatINR(ps.totalCashPaise + ps.totalUpiPaise + ps.totalCardPaise)} valueTone="text-sky-700" sub={tr('Cash: {v1}', { v1: formatINR(ps.totalCashPaise) })} />
           <Metric icon={BookOpen} tone="text-orange-600" title={tr('Udhar Given')} tag={tr('Credit')} value={formatINR(ps.totalCreditPaise)} valueTone={ps.totalCreditPaise > 0 ? 'text-orange-600' : 'text-slate-900'} sub={tr('Credit sales in period')} />
         </div>

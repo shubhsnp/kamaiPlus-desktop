@@ -143,7 +143,7 @@ export default function CloudBackupPage() {
               </div>
               <div className="min-w-0">
                 <h3 className="text-xs font-bold text-slate-900 leading-tight">{tr('Export Full Backup')}</h3>
-                <p className="text-[11px] text-slate-500 truncate mt-0.5">{tr('Everything, incl. feature and label settings — keep it on a pen drive')}</p>
+                <p className="text-[11px] text-slate-500 truncate mt-0.5">{tr('Everything — keep it on a pen drive')}</p>
               </div>
             </div>
             <Button size="sm" onClick={handleDownloadBackup} disabled={isBackingUp} className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-lg flex-shrink-0 cursor-pointer h-8">

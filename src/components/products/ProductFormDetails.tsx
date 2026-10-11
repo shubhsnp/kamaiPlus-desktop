@@ -79,9 +79,12 @@ export function ProductFormDetails(props: ProductFormDetailsProps) {
       {/* Pricing: Selling Price, MRP, Purchase Price. With "Separate Selling Price"
           off (Settings → Features) only MRP shows and the item sells at MRP. */}
       <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2.5">
-        <div className="text-xs font-black text-slate-800 dark:text-slate-200">
-          {switches.product_cost_price ? tr('Pricing & Profit Margins') : tr('Price')}
-        </div>
+        {/* One price box only (e.g. a restaurant dish): its label says Price — no heading saying it again (v4.152.0). */}
+        {priceFieldCount > 1 && (
+          <div className="text-xs font-black text-slate-800 dark:text-slate-200">
+            {switches.product_cost_price ? tr('Pricing & Profit Margins') : tr('Price')}
+          </div>
+        )}
         <div className={`grid grid-cols-1 ${SM_COLS[priceFieldCount]} gap-3`}>
           {showSellingPrice && (
             <Input

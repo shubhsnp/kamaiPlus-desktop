@@ -225,7 +225,7 @@ export default function TransactionsPage() {
             {tr('Transactions (')}{historyLoading ? '…' : filteredSales.length})
           </span>
           <span className="text-[11px] text-slate-400 font-medium">
-            {tr('Tap any row to view & print tax invoice')}
+            {tr('Tap any row to view & print the bill')}
           </span>
         </div>
 

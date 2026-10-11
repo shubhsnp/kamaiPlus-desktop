@@ -204,7 +204,7 @@ function KhataContent() {
             </h1>
           </div>
           <p className="text-[10.5px] sm:text-xs text-slate-500 truncate">
-            {allCustomers.length} {tr('registered accounts •')} {totalUdharAccounts} {tr('pending udhar')}
+            {allCustomers.length} {allCustomers.length === 1 ? tr('registered account •') : tr('registered accounts •')} {totalUdharAccounts} {tr('pending udhar')}
           </p>
         </div>
 
