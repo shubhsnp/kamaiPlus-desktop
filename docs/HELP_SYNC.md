@@ -113,3 +113,4 @@ commit if you like; deploy it with the release.
 | 4.152.0 | Restaurant on the PC: shorter table cards ("Free"), menu list without Cost / barcode, Sales Analytics shows Avg. Bill (no profit), tabs Guests / Dishes, Bills heading, "Guest" for a bill without a name, Half / Full variants, order counts dishes. Home: a one-tile section joins the one above. Counts read "1 bill", "1 visit". | getting-started, billing-counter, bills-returns, add-products, khata-udhar | pending |
 | 4.153.0 | Inventory tile "Items" (was "Tracked SKUs"); Products header "25 products with prices & stock". | add-products, inventory-stock | pending |
 | 4.154.0 | Medical & Pharmacy: Products search placeholder mentions medicine name, batch, barcode and HSN instead of apparel size and color. | add-products | pending |
+| 4.155.0 | Electronics & Hardware: Products search placeholder mentions item name, serial number, barcode and HSN instead of apparel size and color. | add-products | pending |

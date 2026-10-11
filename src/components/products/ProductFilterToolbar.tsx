@@ -74,6 +74,8 @@ export const ProductFilterToolbar: React.FC<ProductFilterToolbarProps> = ({
             placeholder={
               switches.product_batch_expiry
                 ? tr('Search medicine name, barcode, batch, HSN...')
+                : switches.bill_serial_warranty
+                ? tr('Search item name, barcode, serial no, HSN...')
                 : tr('Search by product name, barcode, HSN, size, color...')
             }
             value={searchQuery}

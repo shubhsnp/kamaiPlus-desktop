@@ -5407,6 +5407,11 @@ assert(readSource('components/products/ProductFilterToolbar.tsx').includes('swit
   && readSource('components/products/ProductFilterToolbar.tsx').includes("tr('Search medicine name, barcode, batch, HSN...')"),
   'Pharmacy / batch-expiry search placeholder mentions medicine, batch, barcode, HSN');
 
+// v4.155.0 — hardware tour, PC = phone: hardware item search placeholder when serial/warranty enabled.
+assert(readSource('components/products/ProductFilterToolbar.tsx').includes('switches.bill_serial_warranty')
+  && readSource('components/products/ProductFilterToolbar.tsx').includes("tr('Search item name, barcode, serial no, HSN...')"),
+  'Hardware & Electronics search placeholder mentions item, barcode, serial no, HSN');
+
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.
 Promise.allSettled(pendingAsyncChecks).then((results) => {
   for (const r of results) if (r.status === 'rejected') assert(false, 'An async check threw', String(r.reason));

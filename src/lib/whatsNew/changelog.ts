@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.155.0',
+    items: [
+      msg('Electronics & Hardware: Product search mentions item name, serial number, barcode and HSN instead of apparel size and color.'),
+    ],
+  },
+  {
     version: '4.154.0',
     items: [
       msg('Medical & Pharmacy: Product search mentions medicine name, batch, barcode and HSN instead of apparel size and color.'),
