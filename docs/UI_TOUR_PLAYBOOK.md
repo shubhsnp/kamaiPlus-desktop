@@ -135,9 +135,9 @@ the POS search hint and product cards, the Products header text, the bottom tab 
 | 1 | Clothing | ✅ T-01…T-24 | ✅ | Android 4.32 / Desktop 4.150 |
 | 2 | Restaurant | ✅ R-01…R-38 | ✅ D-01…D-10 | Android 482ff24 (4.36) / Desktop b1e53b9 (4.152) |
 | 3 | Kirana / Grocery | ✅ K-01…K-10 | ✅ | Android 2301f6a (4.37) / Desktop 96609ca (4.153) |
-| 4 | **Pharmacy** | ⏳ next | ⏳ | — |
-| 5 | Hardware & Electronics | ⏳ | ⏳ | — |
-| 6 | General Retail | ⏳ | ⏳ | — |
+| 4 | Pharmacy | ✅ P-01…P-07 | ✅ | Android 8fc08c4 (4.38) / Desktop aea4430 (4.154) |
+| 5 | Hardware & Electronics | ✅ H-01…H-05 | ✅ | Android 08101b5 (4.39) / Desktop 7863ace (4.155) |
+| 6 | General Retail | ✅ GR-01…GR-05 | ✅ | Android d77f69e (4.40) / Desktop 5f875a3 (4.156) |
 | 7 | Final | rebuild APK once + install + quick phone check of all fixes | Desktop E2E with shots | — |
 
 Everything above is **local** (not pushed), except Android 4.32/4.33 and the Admin Console.
