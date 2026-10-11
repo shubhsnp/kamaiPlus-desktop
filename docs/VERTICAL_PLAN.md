@@ -323,3 +323,8 @@ Aaj: items, grahak, bills, categories dono taraf; baaki tables sirf Desktop → 
 - Invoice options: GST breakup / HSN sirf GSTIN, MRP savings restaurant mein nahi; Android same + Pharmacy Rx sirf pharmacy.
 - Android: restaurant se Rapid Barcode Inward hata; Home GST card sirf GSTIN; Home par Add Staff (restaurant).
 - Baaki: Android Menu ka kram Desktop sidebar jaisa (agla), vertical-by-vertical Rahul batayega.
+
+### Free trial + version lock (Rahul 2026-10-10/11) — Desktop v4.148.0 + functions + Admin
+- Trial: Admin days (platform_settings/desktop_trial), ek computer ek trial (desktop_trials/{machineId}), signed licence {trial:true}; key wale PC par kabhi nahi.
+- Version lock: naye apps stable.yml / early.yml padhte hain; purane (Shanishwar 4.98) latest.yml / beta.yml — release unhe sirf `prepare_release.js --legacy` se chhuega. Admin "Hold updates" (update_hold) ek PC par check + install band; hold hone par min_version nahi.
+- Pehli release jo naye channel par jaaye: `npm run release:desktop` (stable.yml likhega) — purane installs ko naya version tabhi milega jab `--legacy` diya.

@@ -16,6 +16,11 @@
  * the SAME installer (`npm run release:promote`). The choice is per computer, in
  * <userData>/update-settings.json.
  *
+ * v4.148.0 — version lock: (1) builds from this version on read stable.yml / early.yml (STABLE_CHANNEL /
+ * BETA_CHANNEL), so a shop still on an older build (which reads latest.yml / beta.yml) stays where it is
+ * until a release is deliberately written there too (prepare_release.js --legacy); (2) the Admin's
+ * "Hold updates" (remote control `update_hold`, adminLink.js) stops checks and installs on that PC.
+ *
  * It NEVER restarts on its own — a cashier may be in the middle of a bill. If the
  * shop ignores the banner, the update installs silently the next time the app is
  * closed. Shop data (IndexedDB) and licence.json live in the user-data folder,
@@ -29,6 +34,8 @@ const path = require('path');
 const FIRST_CHECK_DELAY_MS = 30 * 1000;
 const CHECK_INTERVAL_MS = 60 * 60 * 1000;
 const SETTINGS_FILE = 'update-settings.json';
+const STABLE_CHANNEL = 'stable';
+const BETA_CHANNEL = 'early';
 
 let readyVersion = null;
 let lastCheck = null; // { at, result: 'up-to-date' | 'downloading' | 'error', version?, error? }
@@ -48,9 +55,9 @@ function writeBeta(userDataDir, beta) {
   } catch {}
 }
 
-function initAutoUpdate({ ipcMain, getWindow, enabled, userDataDir, currentVersion }) {
+function initAutoUpdate({ ipcMain, getWindow, enabled, userDataDir, currentVersion, isHeld = () => false }) {
   let beta = readBeta(userDataDir);
-  const status = () => ({ enabled, readyVersion, beta, currentVersion, lastCheck });
+  const status = () => ({ enabled, readyVersion, beta, currentVersion, lastCheck, ...(isHeld() ? { held: true } : {}) });
 
   ipcMain.handle('kp:update-status', async () => status());
 
@@ -77,7 +84,7 @@ function initAutoUpdate({ ipcMain, getWindow, enabled, userDataDir, currentVersi
   autoUpdater.disableDifferentialDownload = true;
 
   const applyChannel = () => {
-    autoUpdater.channel = beta ? 'beta' : 'latest';
+    autoUpdater.channel = beta ? BETA_CHANNEL : STABLE_CHANNEL;
     // Setting a channel turns downgrades ON in electron-updater. Leaving beta must
     // never roll a shop back to an older build, so switch it off again.
     autoUpdater.allowDowngrade = false;
@@ -94,6 +101,13 @@ function initAutoUpdate({ ipcMain, getWindow, enabled, userDataDir, currentVersi
   });
 
   const check = async () => {
+    // v4.148.0: held by the Admin — no check, and nothing already downloaded installs on quit.
+    if (isHeld()) {
+      autoUpdater.autoInstallOnAppQuit = false;
+      lastCheck = { at: new Date().toISOString(), result: 'held' };
+      return status();
+    }
+    autoUpdater.autoInstallOnAppQuit = true;
     try {
       const res = await autoUpdater.checkForUpdates();
       const available = res && res.isUpdateAvailable !== undefined ? res.isUpdateAvailable : Boolean(res && res.updateInfo && res.updateInfo.version !== currentVersion);
@@ -123,13 +137,14 @@ function initAutoUpdate({ ipcMain, getWindow, enabled, userDataDir, currentVersi
   // Silent install, then start the app again. Only on "Restart & Update", or (v4.105.0) the
   // Admin's install command once the counter is idle (main.js runAdminCommand).
   const install = () => {
-    if (!readyVersion) return false;
+    if (!readyVersion || isHeld()) return false;
     setImmediate(() => autoUpdater.quitAndInstall(true, true));
     return true;
   };
 
-  ipcMain.handle('kp:update-install', async () => (install() ? { ok: true } : { ok: false, error: 'No update is ready yet.' }));
+  ipcMain.handle('kp:update-install', async () =>
+    install() ? { ok: true } : { ok: false, error: isHeld() ? 'Updates are on hold for this computer. Contact KamaiPlus support.' : 'No update is ready yet.' });
   return { status, check, install };
 }
 
-module.exports = { initAutoUpdate, readBeta, writeBeta };
+module.exports = { initAutoUpdate, readBeta, writeBeta, STABLE_CHANNEL, BETA_CHANNEL };

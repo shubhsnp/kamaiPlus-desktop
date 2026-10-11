@@ -3249,5 +3249,22 @@
   "Restaurant: the PC and the phone now match — a restaurant without a GSTIN charges no GST on the staff phones either (Bill of Supply), and Home / Khata say \"Guest\" like the phone.": "रेस्टोरेंट: PC और फ़ोन अब एक जैसे — बिना GSTIN वाला रेस्टोरेंट स्टाफ फ़ोन पर भी GST नहीं लगाता (बिल ऑफ़ सप्लाई), और होम / खाता फ़ोन की तरह \"मेहमान\" कहते हैं।",
   "Deep sales reports • Top dishes • Guest udhar": "गहरी बिक्री रिपोर्ट • टॉप डिश • मेहमान उधार",
   "Guests • Dishes • Bills": "मेहमान • डिश • बिल",
-  "Home: the quick-action buttons line up with the four cards above, the shortcut tiles stay compact on a wide screen, and a restaurant shows Average Bill instead of Profit. Invoice Themes shows only the options your shop uses (GST breakup / HSN with a GSTIN; no MRP savings for a restaurant).": "होम: क्विक-एक्शन बटन ऊपर के चार कार्ड के साथ एक लाइन में, शॉर्टकट टाइल चौड़ी स्क्रीन पर छोटे रहते हैं, और रेस्टोरेंट में मुनाफ़े की जगह औसत बिल दिखता है। इनवॉइस थीम में सिर्फ़ आपकी दुकान के काम के विकल्प (GSTIN हो तो GST ब्रेकअप / HSN; रेस्टोरेंट में MRP बचत नहीं)।"
+  "Home: the quick-action buttons line up with the four cards above, the shortcut tiles stay compact on a wide screen, and a restaurant shows Average Bill instead of Profit. Invoice Themes shows only the options your shop uses (GST breakup / HSN with a GSTIN; no MRP savings for a restaurant).": "होम: क्विक-एक्शन बटन ऊपर के चार कार्ड के साथ एक लाइन में, शॉर्टकट टाइल चौड़ी स्क्रीन पर छोटे रहते हैं, और रेस्टोरेंट में मुनाफ़े की जगह औसत बिल दिखता है। इनवॉइस थीम में सिर्फ़ आपकी दुकान के काम के विकल्प (GSTIN हो तो GST ब्रेकअप / HSN; रेस्टोरेंट में MRP बचत नहीं)।",
+  "The free trial could not start. Please try again.": "फ़्री ट्रायल शुरू नहीं हो सका। फिर से कोशिश करें।",
+  "Your free trial has ended": "आपका फ़्री ट्रायल खत्म हो गया",
+  "Enter your licence key to continue. Your bills, items and khata are safe on this computer.": "आगे चलाने के लिए लाइसेंस की डालें। आपके बिल, आइटम और खाता इस कंप्यूटर पर सुरक्षित हैं।",
+  "Try KamaiPlus free for {days} days": "KamaiPlus {days} दिन फ़्री आज़माएँ",
+  "No key needed now. When the trial ends, enter a licence key to continue — your data stays.": "अभी की की ज़रूरत नहीं। ट्रायल खत्म होने पर लाइसेंस की डालें — आपका डेटा रहेगा।",
+  "Starting…": "शुरू हो रहा है…",
+  "Start free trial": "फ़्री ट्रायल शुरू करें",
+  "or activate with your licence key": "या अपनी लाइसेंस की से चालू करें",
+  "Free trial ends today": "फ़्री ट्रायल आज खत्म",
+  "Free trial: 1 day left": "फ़्री ट्रायल: 1 दिन बाकी",
+  "Free trial: {days} days left": "फ़्री ट्रायल: {days} दिन बाकी",
+  "Enter a licence key any time — your data stays.": "कभी भी लाइसेंस की डालें — आपका डेटा रहेगा।",
+  "Enter licence key": "लाइसेंस की डालें",
+  "The key replaces the free trial on this computer. Nothing is deleted.": "की इस कंप्यूटर पर फ़्री ट्रायल की जगह ले लेती है। कुछ नहीं मिटता।",
+  "Need a key? Contact KamaiPlus support:": "की चाहिए? KamaiPlus सपोर्ट से संपर्क करें:",
+  "Updates are on hold for this computer (set by KamaiPlus support). This version keeps working.": "इस कंप्यूटर के अपडेट रोके गए हैं (KamaiPlus सपोर्ट द्वारा)। यह वर्ज़न चलता रहेगा।",
+  "A new computer without a licence key can start the free trial (the number of days is set by KamaiPlus). A strip shows the days left, and a key can be entered any time — nothing is deleted. Computers with a key are not affected.": "बिना लाइसेंस की वाला नया कंप्यूटर फ़्री ट्रायल शुरू कर सकता है (दिन KamaiPlus तय करता है)। ऊपर पट्टी बाकी दिन दिखाती है, और की कभी भी डाली जा सकती है — कुछ नहीं मिटता। की वाले कंप्यूटर पर कोई असर नहीं।"
 }

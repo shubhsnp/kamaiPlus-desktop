@@ -62,6 +62,8 @@ function UpdatesCard() {
   const lc = status.lastCheck;
   const line = !status.enabled
     ? tr('Updates are off in development mode.')
+    : status.held
+    ? tr('Updates are on hold for this computer (set by KamaiPlus support). This version keeps working.')
     : status.readyVersion
     ? tr('Version {readyVersion} is downloaded — restart the app to install it.', { readyVersion: status.readyVersion })
     : !lc

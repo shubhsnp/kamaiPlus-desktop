@@ -30,6 +30,14 @@
  *     No internet, or any other answer: nothing changes.
  */
 
+/*
+ * v4.148.0 — free trial (Rahul 2026-10-10): a computer WITHOUT a licence can start the free trial the
+ * Admin offers (desktopLicence "trial_info" / "trial_start", functions/trial_core.js). The trial is a
+ * signed licence like a key's ({ trial: true, key: "", valid_until }) saved as licence.json — checked
+ * offline the same way, refreshed at check-in ("trial_refresh"), and replaced the moment a key is
+ * activated. A computer that has a key never asks for or gets a trial.
+ */
+
 const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');
@@ -145,7 +153,7 @@ function licenceNow(userDataDir, payload, nowMs = Date.now()) {
 
 /** Active, or ended when the licence has an end date that is past. */
 function statusFor(payload, now) {
-  const base = { key: maskKey(payload.key), shopName: payload.shop_name || '', machineName: getMachineName() };
+  const base = { key: maskKey(payload.key), shopName: payload.shop_name || '', machineName: getMachineName(), ...(payload.trial === true ? { trial: true } : {}) };
   const end = timeOf(payload.valid_until);
   if (!end) return { state: 'active', ...base, validUntil: null, daysLeft: null };
   if (now > end) return { state: 'expired', ...base, validUntil: payload.valid_until };
@@ -207,6 +215,7 @@ async function verifyOwnKey({ userDataDir, key }) {
   }
   const payload = verifyLicence(record);
   if (!payload) return { ok: false, error: 'The licence on this computer is not valid.' };
+  if (payload.trial === true) return { ok: false, error: 'This computer is on the free trial and has no licence key yet.' };
   const typed = normalizeKey(key);
   if (!typed || typed !== normalizeKey(payload.key)) {
     return { ok: false, error: 'This is not the licence key of this computer. Check the key you received when you bought KamaiPlus.' };
@@ -312,7 +321,8 @@ async function refresh({ userDataDir, appVersion, fetchImpl, timeoutMs, health =
     wasBlocked = true;
   }
 
-  const call = await callServer({ action: 'refresh', key: current.key, appVersion, fetchImpl, timeoutMs, health, report });
+  const isTrial = current.trial === true;
+  const call = await callServer({ action: isTrial ? 'trial_refresh' : 'refresh', key: current.key, appVersion, fetchImpl, timeoutMs, health, report });
   if (call.offline) return { ok: false, offline: true };
   const { res, body } = call;
 
@@ -320,7 +330,9 @@ async function refresh({ userDataDir, appVersion, fetchImpl, timeoutMs, health =
     // Only the answers that mean "this computer may no longer use the key" stop the app.
     // v4.117.0: "not-found" too — the Admin deleted the key (before, the PC kept running on it).
     if (body.code === 'revoked' || body.code === 'moved' || body.code === 'not-found') {
-      const reason = body.code === 'not-found'
+      const reason = isTrial
+        ? 'The free trial on this computer has been stopped. Please enter a licence key or contact KamaiPlus support.'
+        : body.code === 'not-found'
         ? 'This licence key has been deleted. Please contact KamaiPlus support.'
         : body.error || (body.code === 'revoked'
           ? 'This licence key has been blocked. Please contact KamaiPlus support.'
@@ -340,7 +352,7 @@ async function refresh({ userDataDir, appVersion, fetchImpl, timeoutMs, health =
 
   const fresh = { licence: body.licence, signature: body.signature };
   const payload = verifyLicence(fresh);
-  if (!payload || payload.key !== current.key) return { ok: false, error: 'invalid-licence' };
+  if (!payload || payload.key !== current.key || (payload.trial === true) !== isTrial) return { ok: false, error: 'invalid-licence' };
   try {
     saveRecord(userDataDir, fresh);
     // Unblocked by the Admin: the licence works again and the "blocked" note goes (v4.125.0).
@@ -357,4 +369,33 @@ async function refresh({ userDataDir, appVersion, fetchImpl, timeoutMs, health =
   };
 }
 
-module.exports = { getMachineId, getMachineName, maskKey, verifyLicence, getStatus, activate, refresh, verifyOwnKey, statusFor, licenceNow, LICENCE_PUBLIC_KEY };
+/** Is a free trial offered to this computer? { available, days, used, endsAt } | { offline: true } | { error }. */
+async function trialInfo({ appVersion, fetchImpl }) {
+  const call = await callServer({ action: 'trial_info', key: '', appVersion, fetchImpl, timeoutMs: 12000 });
+  if (call.offline) return { offline: true };
+  if (!call.res.ok) return { error: call.body.error || `error ${call.res.status}` };
+  const b = call.body;
+  return { available: b.available === true, days: Number(b.days) || 0, used: b.used === true, endsAt: b.ends_at || null };
+}
+
+/** Starts (or, after a reinstall, takes back) this computer's free trial. Never throws. */
+async function startTrial({ userDataDir, appVersion, fetchImpl }) {
+  const existing = readJson(licencePath(userDataDir));
+  const own = existing && verifyLicence(existing);
+  if (own && own.trial !== true) return { ok: false, error: 'This computer already has a licence key.' };
+  const call = await callServer({ action: 'trial_start', key: '', appVersion, fetchImpl });
+  if (call.offline) return { ok: false, error: 'Could not reach the KamaiPlus licence server. Please check the internet connection and try again.' };
+  const { res, body } = call;
+  if (!res.ok) return { ok: false, error: body.error || `The free trial could not start (error ${res.status}).` };
+  const record = { licence: body.licence, signature: body.signature };
+  const payload = verifyLicence(record);
+  if (!payload || payload.trial !== true) return { ok: false, error: 'The licence server sent an invalid trial. Please contact KamaiPlus support.' };
+  try {
+    saveRecord(userDataDir, record);
+  } catch (err) {
+    return { ok: false, error: `The trial could not be saved on this computer: ${err.message}` };
+  }
+  return { ok: true, status: statusFor(payload, licenceNow(userDataDir, payload)) };
+}
+
+module.exports = { trialInfo, startTrial, getMachineId, getMachineName, maskKey, verifyLicence, getStatus, activate, refresh, verifyOwnKey, statusFor, licenceNow, LICENCE_PUBLIC_KEY };

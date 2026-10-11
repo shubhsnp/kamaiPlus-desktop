@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { KeyRound, Monitor, ShieldCheck, Loader2, AlertCircle, Wifi } from 'lucide-react';
-import { getDesktopApi, LicenceStatus } from '@/lib/desktop/desktopBridge';
+import { KeyRound, Monitor, ShieldCheck, Loader2, AlertCircle, Wifi, Gift, Hourglass } from 'lucide-react';
+import { getDesktopApi, LicenceStatus, TrialInfo } from '@/lib/desktop/desktopBridge';
 import { tr } from '@/lib/i18n/core';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
 import { SupportContactLine } from '@/components/support/SupportContact';
@@ -13,7 +13,9 @@ import { LicenceEndedScreen } from './LicenceEndedScreen';
  * Nothing in the app opens until this computer holds a valid licence.
  *
  * KamaiPlus Desktop is sold for a fixed, one-time price: one key works on one
- * computer and there is no trial. The check itself runs in the Electron main
+ * computer. v4.148.0: a NEW computer without a key can start the free trial the Admin
+ * offers (days set in the Admin Console); when it ends, a key is asked for — the shop's
+ * data stays. A computer with a key never sees the trial. The check itself runs in the Electron main
  * process (licence.js) — it verifies the signed licence file offline, so after
  * the one-time activation the shop never needs the internet for this.
  *
@@ -41,7 +43,11 @@ export const LicenceGate: React.FC<{ children: React.ReactNode }> = ({ children 
   if (status === 'no-desktop') return <>{children}</>;
   // The "licence ends within a week" note is a strip under the top bar (AdminMessageBanner, v4.98.0).
   if (status.state === 'active') return <>{children}</>;
-  if (status.state === 'expired') return <LicenceEndedScreen status={status} onChecked={setStatus} />;
+  if (status.state === 'expired') {
+    // v4.148.0: an ended free trial asks for a key; an ended key asks for a renewal (as before).
+    if (status.trial) return <ActivationScreen status={{ state: 'required', machineName: status.machineName }} trialEnded onActivated={setStatus} />;
+    return <LicenceEndedScreen status={status} onChecked={setStatus} />;
+  }
   return <ActivationScreen status={status} onActivated={setStatus} />;
 };
 
@@ -59,10 +65,39 @@ function formatKeyBody(raw: string): string {
 const ActivationScreen: React.FC<{
   status: Extract<LicenceStatus, { state: 'required' }>;
   onActivated: (s: LicenceStatus) => void;
-}> = ({ status, onActivated }) => {
+  /** v4.148.0: the free trial ended — a key continues it. */
+  trialEnded?: boolean;
+}> = ({ status, onActivated, trialEnded = false }) => {
   const [keyBody, setKeyBody] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(status.reason || null);
+  const [trial, setTrial] = useState<TrialInfo | null>(null);
+  const [startingTrial, setStartingTrial] = useState(false);
+
+  // v4.148.0: is a free trial offered to this computer? (Never asked once a trial has ended.)
+  useEffect(() => {
+    const api = getDesktopApi();
+    if (trialEnded || !api?.getTrialInfo) return;
+    let alive = true;
+    api.getTrialInfo().then((t) => alive && setTrial(t)).catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [trialEnded]);
+  const trialOffer = trial && 'available' in trial && trial.available ? trial : null;
+
+  const handleStartTrial = async () => {
+    const api = getDesktopApi();
+    if (!api?.startTrial || startingTrial) return;
+    setStartingTrial(true);
+    setError(null);
+    const result = await api.startTrial().catch(() => ({ ok: false as const, error: tr('The free trial could not start. Please try again.') }));
+    if (result.ok) onActivated(result.status);
+    else {
+      setError(result.error);
+      setStartingTrial(false);
+    }
+  };
 
   const complete = keyBody.replace(/-/g, '').length === 16;
   const key = `KPD-${keyBody}`;
@@ -95,9 +130,33 @@ const ActivationScreen: React.FC<{
           <div className="mx-auto w-16 h-16 bg-slate-800 rounded-2xl flex items-center justify-center mb-4 border border-slate-700">
             <ShieldCheck className="w-8 h-8 text-amber-500" />
           </div>
-          <h1 className="text-xl font-black text-white tracking-tight">{tr('Activate KamaiPlus Desktop')}</h1>
-          <p className="text-sm text-slate-400 mt-1">{tr('Enter the licence key you received with your purchase.')}</p>
+          <h1 className="text-xl font-black text-white tracking-tight">{trialEnded ? tr('Your free trial has ended') : tr('Activate KamaiPlus Desktop')}</h1>
+          <p className="text-sm text-slate-400 mt-1">
+            {trialEnded
+              ? tr('Enter your licence key to continue. Your bills, items and khata are safe on this computer.')
+              : tr('Enter the licence key you received with your purchase.')}
+          </p>
         </div>
+
+        {trialOffer && (
+          <div className="rounded-2xl border border-emerald-700/60 bg-emerald-950/40 p-4 space-y-3" data-trial-offer>
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-300 flex items-center justify-center shrink-0"><Gift className="w-5 h-5" /></div>
+              <div>
+                <div className="text-sm font-black text-white">{tr('Try KamaiPlus free for {days} days', { days: trialOffer.days })}</div>
+                <div className="text-xs text-emerald-100/70 leading-relaxed mt-0.5">{tr('No key needed now. When the trial ends, enter a licence key to continue — your data stays.')}</div>
+              </div>
+            </div>
+            <button type="button" onClick={handleStartTrial} disabled={startingTrial}
+              className="w-full h-11 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-60 text-slate-950 font-black text-sm flex items-center justify-center gap-2 cursor-pointer transition-colors" data-trial-start>
+              {startingTrial ? <Loader2 className="w-4 h-4 animate-spin" /> : <Hourglass className="w-4 h-4" />}
+              {startingTrial ? tr('Starting…') : tr('Start free trial')}
+            </button>
+            <div className="flex items-center gap-3 text-[11px] text-slate-500 font-semibold">
+              <span className="h-px flex-1 bg-slate-800" />{tr('or activate with your licence key')}<span className="h-px flex-1 bg-slate-800" />
+            </div>
+          </div>
+        )}
 
         <div className="space-y-1.5">
           <label htmlFor="licence-key" className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
@@ -108,7 +167,7 @@ const ActivationScreen: React.FC<{
             <span className="pl-4 pr-1 text-lg font-mono tracking-wider text-slate-500 select-none">KPD-</span>
             <input
               id="licence-key"
-              autoFocus
+              autoFocus={!trialOffer}
               spellCheck={false}
               autoComplete="off"
               value={keyBody}

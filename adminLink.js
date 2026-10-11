@@ -181,6 +181,10 @@ function cleanControl(raw) {
     if (Object.keys(f).length) out.features = f;
   }
   if (VERSION.test(String(raw.min_version || ''))) out.min_version = String(raw.min_version);
+  // v4.148.0: the Admin holds this PC on the version it has (version lock) — updater.js skips updates.
+  if (raw.update_hold === true) out.update_hold = true;
+  // Held = never "update first" (that screen could never be passed while updates are held).
+  if (out.update_hold) delete out.min_version;
   const minutes = Number(raw.checkin_minutes);
   if (Number.isFinite(minutes) && minutes > 0) out.checkin_minutes = Math.min(360, Math.max(15, Math.round(minutes)));
   if (Array.isArray(raw.commands)) {

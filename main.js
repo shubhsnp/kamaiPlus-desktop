@@ -841,6 +841,14 @@ ipcMain.handle('kp:licence-activate', async (_event, key) =>
   })
 );
 
+// v4.148.0: the free trial of a computer without a key (licence.js trialInfo / startTrial).
+ipcMain.handle('kp:licence-trial-info', async () =>
+  licence.trialInfo({ appVersion: app.getVersion(), fetchImpl: (url, opts) => net.fetch(url, opts) })
+);
+ipcMain.handle('kp:licence-trial-start', async () =>
+  licence.startTrial({ userDataDir: app.getPath('userData'), appVersion: app.getVersion(), fetchImpl: (url, opts) => net.fetch(url, opts) })
+);
+
 // Google sign-in (googleSignIn.js): the shop's browser, answer on 127.0.0.1, PKCE.
 // The Electron E2E cannot sign in to Google; only an unpackaged test run gets a stand-in
 // (an installed app is always packaged, whatever its environment says).
@@ -885,6 +893,8 @@ if (!app.requestSingleInstanceLock()) {
       enabled: app.isPackaged && !isDevServer,
       userDataDir: app.getPath('userData'),
       currentVersion: app.getVersion(),
+      // v4.148.0: the Admin's "Hold updates" for this PC (version lock).
+      isHeld: () => adminLink.readControl(app.getPath('userData')).update_hold === true,
     });
     startLicenceWatch();
     app.on('activate', () => {

@@ -538,8 +538,8 @@
   const inr = (paise) => '₹' + (paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   $('#year').textContent = new Date().getFullYear();
 
-  /* ── Latest version straight from the updater's own file (release/latest.yml) ── */
-  fetch('latest.yml', { cache: 'no-store' }).then((r) => (r.ok ? r.text() : Promise.reject())).then((yml) => {
+  /* ── Latest version straight from the updater's own file (release/stable.yml; latest.yml before v4.148.0) ── */
+  fetch('stable.yml', { cache: 'no-store' }).then((r) => (r.ok ? r : fetch('latest.yml', { cache: 'no-store' }))).then((r) => (r.ok ? r.text() : Promise.reject())).then((yml) => {
     const get = (k) => ((yml.match(new RegExp('^' + k + ':\\s*(.+)$', 'm')) || [])[1] || '').replace(/^'|'$/g, '').trim();
     const version = get('version'), file = get('path');
     const size = Number((yml.match(/^\s+size:\s*(\d+)/m) || [])[1] || 0);

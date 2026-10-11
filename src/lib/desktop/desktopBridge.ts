@@ -30,10 +30,13 @@ export interface DesktopResult {
 /** Offline licence check result from `licence.js` in the Electron main process. */
 export type LicenceStatus =
   /** validUntil: the key's end date (ISO) or null = lifetime; daysLeft: whole days to go (v4.85.0). */
-  | { state: 'active'; key: string; shopName: string; machineName: string; dev?: boolean; validUntil?: string | null; daysLeft?: number | null }
+  | { state: 'active'; key: string; shopName: string; machineName: string; dev?: boolean; validUntil?: string | null; daysLeft?: number | null; trial?: boolean }
   | { state: 'required'; machineName: string; reason?: string }
   /** The key's end date has passed (v4.85.0) — renewed in the Admin Console, then "Check again". */
-  | { state: 'expired'; key: string; shopName: string; machineName: string; validUntil: string };
+  | { state: 'expired'; key: string; shopName: string; machineName: string; validUntil: string; trial?: boolean };
+
+/** v4.148.0: is a free trial offered to this computer (desktopLicence "trial_info")? */
+export type TrialInfo = { available: boolean; days: number; used: boolean; endsAt: string | null } | { offline: true } | { error: string };
 
 /** Online check-in result (licence.js refresh). */
 export type LicenceRefreshResult = { ok: boolean; offline?: boolean; stopped?: boolean; error?: string; status: LicenceStatus };
@@ -93,7 +96,9 @@ export interface UpdateStatus {
   readyVersion: string | null;
   beta?: boolean;
   currentVersion?: string;
-  lastCheck?: { at: string; result: 'up-to-date' | 'downloading' | 'error'; version?: string; error?: string } | null;
+  lastCheck?: { at: string; result: 'up-to-date' | 'downloading' | 'error' | 'held'; version?: string; error?: string } | null;
+  /** v4.148.0: the Admin holds this computer on its version (no checks, no installs). */
+  held?: boolean;
 }
 
 export type GoogleSignInResult =
@@ -138,6 +143,9 @@ export interface KamaiDesktopApi {
   getAppInfo(): Promise<{ version: string; documentsDir: string }>;
   getLicenceStatus(): Promise<LicenceStatus>;
   activateLicence(key: string): Promise<LicenceActivationResult>;
+  /** v4.148.0 — free trial for a computer without a key (optional for older builds). */
+  getTrialInfo?(): Promise<TrialInfo>;
+  startTrial?(): Promise<LicenceActivationResult>;
   /** Check in with the licence server now (a renewed end date comes back). v4.85.0 — optional for older builds. */
   refreshLicence?(): Promise<LicenceRefreshResult>;
   /** The licence changed while the app is open (ended, blocked, renewed). */

@@ -106,3 +106,4 @@ commit if you like; deploy it with the release.
 | 4.145.0 | Browser tab after Google sign-in redesigned (shows the connected Gmail). | — | none |
 | 4.146.0 | Restaurant: Home / Khata say "Guest" (not Customer); no GST on staff phones for a shop without GSTIN. | billing-counter | pending |
 | 4.147.0 | Home: quick actions aligned with the 4 Pulse cards, compact tiles, restaurant Average Bill (no Profit); Invoice Themes options by shop type (GST/HSN only with GSTIN, no MRP savings in restaurant). | getting-started, billing-counter, invoice-themes | pending |
+| 4.148.0 | New computers: "Start free trial" on the activation screen, "Free trial: N days left" strip with "Enter licence key"; Help tab says when updates are on hold. | getting-started, store-settings | pending |

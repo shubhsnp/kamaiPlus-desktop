@@ -16,6 +16,8 @@ contextBridge.exposeInMainWorld('kamaiDesktop', {
   getAppInfo: () => ipcRenderer.invoke('kp:app-info'),
   getLicenceStatus: () => ipcRenderer.invoke('kp:licence-status'),
   activateLicence: (key) => ipcRenderer.invoke('kp:licence-activate', key),
+  getTrialInfo: () => ipcRenderer.invoke('kp:licence-trial-info'),
+  startTrial: () => ipcRenderer.invoke('kp:licence-trial-start'),
   refreshLicence: () => ipcRenderer.invoke('kp:licence-refresh'),
   onLicenceChanged: (callback) => {
     const listener = (_event, status) => callback(status);

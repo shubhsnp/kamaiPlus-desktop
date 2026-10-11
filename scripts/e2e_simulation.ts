@@ -718,7 +718,7 @@ assert((pkgJson.build?.files || []).includes('updater.js'), 'updater.js is packa
 assert(Boolean(pkgJson.dependencies?.['electron-updater']), 'electron-updater is a runtime dependency (packaged)');
 assert(pkgJson.build?.publish?.[0]?.url === 'https://kamaiplus-desktop.web.app/', 'Updates come from kamaiplus-desktop.web.app');
 assert(!/\s/.test(pkgJson.build?.nsis?.artifactName || ' '), 'Installer file name has no spaces (latest.yml URLs must resolve)');
-assert(/quitAndInstall/.test(updaterJs) && /ipcMain\.handle\('kp:update-install', async \(\) => \(install\(\)/.test(updaterJs) && (updaterJs.match(/quitAndInstall\(/g) || []).length === 1,
+assert(/quitAndInstall/.test(updaterJs) && /ipcMain\.handle\('kp:update-install', async \(\) =>\s*install\(\) \?/.test(updaterJs) && (updaterJs.match(/quitAndInstall\(/g) || []).length === 1,
   'The app restarts for an update only when the user clicks Restart & Update (or, v4.105.0, the Admin\'s install command on an idle counter) — one install path');
 assert(/enabled: app\.isPackaged && !isDevServer/.test(fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8')), 'Auto-update is off in development');
 assert(pkgJson.build?.win?.icon === 'build/icon.ico' && fs.existsSync(path.join(__dirname, '..', 'build', 'icon.ico')), 'Windows icon is a ready .ico (electron-builder\'s PNG→ICO step fails with EINVAL on this PC)');
@@ -795,7 +795,7 @@ assert(/addEventListener\('keydown', onKey, true\)/.test(readSource('components/
 
 // 8p. Staged rollout: beta channel, never a downgrade, promote without rebuilding.
 const updaterSrc = fs.readFileSync(path.join(__dirname, '..', 'updater.js'), 'utf8');
-assert(/autoUpdater\.channel = beta \? 'beta' : 'latest';\s*[\s\S]{0,200}autoUpdater\.allowDowngrade = false;/.test(updaterSrc), 'Switching update channel never allows a downgrade');
+assert(/autoUpdater\.channel = beta \? BETA_CHANNEL : STABLE_CHANNEL;\s*[\s\S]{0,200}autoUpdater\.allowDowngrade = false;/.test(updaterSrc), 'Switching update channel never allows a downgrade');
 const prepSrc = fs.readFileSync(path.join(__dirname, 'prepare_release.js'), 'utf8');
 assert(Boolean(pkgJson.scripts?.['release:beta']?.includes('--beta')) && Boolean(pkgJson.scripts?.['release:promote']?.includes('--promote')), 'release:beta and release:promote scripts exist');
 assert(!/rmSync\(release,/.test(prepSrc) && /keep\.has\(f\)/.test(prepSrc), 'Preparing a release never wipes release/; only unreferenced installers are removed');
@@ -2515,7 +2515,7 @@ assert(readSource('app/billing/page.tsx').split('\n').length <= 401, `POS page s
   const mainSrc2 = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
   const preloadSrc = fs.readFileSync(path.join(__dirname, '..', 'preload.js'), 'utf8');
   assert(/if \(body\.code === 'revoked' \|\| body\.code === 'moved' \|\| body\.code === 'not-found'\)/.test(licSrc) && /if \(call\.offline\) return \{ ok: false, offline: true \};/.test(licSrc)
-    && /payload\.key !== current\.key/.test(licSrc) && licSrc.includes("callServer({ action: 'refresh', key: current.key"),
+    && /payload\.key !== current\.key/.test(licSrc) && licSrc.includes("callServer({ action: isTrial ? 'trial_refresh' : 'refresh', key: current.key"),
     'Check-in: only "revoked" / "moved" / "not-found" (key deleted, v4.117.0) stop the app; offline or any other answer changes nothing; a licence for another key is refused');
   assert(licSrc.includes("control: body.code === 'revoked' ? body.control : undefined"),
     "Check-in refused: only a blocked key's control (its wipe command) is used — a \"moved\" answer's commands are for the key's new PC and never run here");
@@ -2524,9 +2524,9 @@ assert(readSource('app/billing/page.tsx').split('\n').length <= 401, `POS page s
     && /refreshLicence: \(\) => ipcRenderer\.invoke\('kp:licence-refresh'\)/.test(preloadSrc) && /ipcRenderer\.on\('kp:licence-changed', listener\)/.test(preloadSrc),
     'Check-in runs in the installed app only (every hour while online since v4.98.0; the Admin can set 15 min – 6 h since v4.105.0); every 5 min the licence is re-checked and the page told of a change');
   const gateSrc2 = readSource('components/licence/LicenceGate.tsx');
-  assert(/return api\.onLicenceChanged\?\.\(setStatus\);/.test(gateSrc2) && /if \(status\.state === 'expired'\) return <LicenceEndedScreen/.test(gateSrc2)
+  assert(/return api\.onLicenceChanged\?\.\(setStatus\);/.test(gateSrc2) && /if \(status\.state === 'expired'\) \{[\s\S]{0,300}return <LicenceEndedScreen/.test(gateSrc2)
     && /licence\.daysLeft <= 7/.test(readSource('components/admin/AdminMessageBanner.tsx')) && /data-licence-check-again/.test(readSource('components/licence/LicenceEndedScreen.tsx')),
-    'Licence gate: an ended licence shows only the "licence has ended" screen with "Check again"; a week before the end a closable note shows (a strip under the top bar since v4.98.0)');
+    'Licence gate: an ended KEY licence shows only the "licence has ended" screen with "Check again" (an ended trial asks for a key, v4.148.0); a week before the end a closable note shows (a strip under the top bar since v4.98.0)');
 }
 
 // (u) Step 3 + 4 — cloud sync both ways (v4.85.0 one way, v4.86.0 both ways). Off by default (a "beta"
@@ -5247,6 +5247,43 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
   assert(RESTAURANT_WORDS['Deep sales reports • Customer udhar & margins • Dead stock'] === 'Deep sales reports • Top dishes • Guest udhar'
     && RESTAURANT_WORDS['Parties • Items • Profit'] === 'Guests • Dishes • Bills', 'Restaurant Home: no margins / dead stock / profit words');
   assert(readSource('components/dashboard/DashboardHome.tsx').includes('restaurant: isRestaurantMode(),'), 'Home passes Restaurant mode to the profit card choice');
+}
+
+// v4.148.0 — Free trial (days from the Admin) for a computer WITHOUT a key, and the version lock: new apps read
+// stable.yml / early.yml (older installs keep reading latest.yml / beta.yml, written only with --legacy), and the
+// Admin's "Hold updates" stops checks and installs on one PC. A computer with a key never sees a trial.
+{
+  const lic = require(path.join(REPO_ROOT, 'licence.js'));
+  const trialSt = lic.statusFor({ v: 1, key: '', trial: true, machine_id: 'x', valid_until: '2026-12-01T00:00:00.000Z' }, Date.parse('2026-11-21T00:00:00.000Z'));
+  const keySt = lic.statusFor({ v: 1, key: 'KPD-2345-6789-ABCD-EFGH', valid_until: '2027-09-30T00:00:00.000Z' }, Date.parse('2026-11-21T00:00:00.000Z'));
+  const endedTrial = lic.statusFor({ v: 1, key: '', trial: true, machine_id: 'x', valid_until: '2026-11-01T00:00:00.000Z' }, Date.parse('2026-11-21T00:00:00.000Z'));
+  assert(trialSt.state === 'active' && trialSt.trial === true && trialSt.daysLeft === 10 && keySt.trial === undefined && endedTrial.state === 'expired' && endedTrial.trial === true,
+    'Trial: a signed trial is "active" with days left and marked trial; a key\'s licence never is; an ended trial is "expired" (asks for a key)');
+  const ls = fs.readFileSync(path.join(REPO_ROOT, 'licence.js'), 'utf8');
+  assert(ls.includes("action: isTrial ? 'trial_refresh' : 'refresh'") && ls.includes("if (own && own.trial !== true) return { ok: false, error: 'This computer already has a licence key.' };")
+    && ls.includes('(payload.trial === true) !== isTrial'), 'Trial: check-in uses the trial\'s own action; a computer with a key can never start one; a refresh never swaps key ↔ trial');
+  pendingAsyncChecks.push((async () => {
+    const offline = await lic.trialInfo({ appVersion: 't', fetchImpl: async () => { throw new Error('net'); } });
+    const info = await lic.trialInfo({ appVersion: 't', fetchImpl: async () => new Response(JSON.stringify({ available: true, days: 60, used: false, ends_at: null }), { status: 200 }) });
+    const bad = await lic.startTrial({ userDataDir: path.join(os.tmpdir(), `kp_trial_${Date.now()}`), appVersion: 't', fetchImpl: async () => new Response(JSON.stringify({ licence: 'x', signature: 'y' }), { status: 200 }) });
+    assert((offline as any).offline === true && (info as any).available === true && (info as any).days === 60 && !bad.ok,
+      'Trial: offer read from the server; offline = no offer; an unsigned answer never becomes a trial');
+  })());
+  const gate = readSource('components/licence/LicenceGate.tsx');
+  assert(gate.includes('if (status.trial) return <ActivationScreen') && gate.includes('data-trial-start') && gate.includes("if (trialEnded || !api?.getTrialInfo) return;"),
+    'Trial: the activation screen offers it (never after it ended); an ended trial asks for a key');
+  assert(readSource('components/admin/AdminMessageBanner.tsx').includes('<TrialNotice daysLeft={trial.daysLeft!}'), 'Trial: a strip shows the days left and "Enter licence key"');
+  const upd = fs.readFileSync(path.join(REPO_ROOT, 'updater.js'), 'utf8');
+  const prep = fs.readFileSync(path.join(__dirname, 'prepare_release.js'), 'utf8');
+  assert(upd.includes("const STABLE_CHANNEL = 'stable';") && upd.includes("const BETA_CHANNEL = 'early';") && /if \(isHeld\(\)\) \{\s*autoUpdater\.autoInstallOnAppQuit = false;/.test(upd) && upd.includes('if (!readyVersion || isHeld()) return false;'),
+    'Version lock: new apps read stable / early; a held PC neither checks nor installs');
+  assert(/if \(legacy\) \{\s*fs\.writeFileSync\(path\.join\(release, OLD_BETA\), yml\);/.test(prep) && prep.includes('if (mode === \'stable\') fs.writeFileSync(path.join(release, STABLE), yml);')
+    && !/fs\.writeFileSync\(path\.join\(release, 'latest\.yml'\)/.test(prep), 'Version lock: a release writes latest.yml / beta.yml (older installs) only with --legacy');
+  const al = require(path.join(REPO_ROOT, 'adminLink.js'));
+  const held = al.cleanControl({ update_hold: true, min_version: '4.200.0' });
+  assert(held.update_hold === true && held.min_version === undefined && al.cleanControl({ update_hold: 'yes' }).update_hold === undefined,
+    'Version lock: the Admin\'s hold is kept, and a held PC is never told to "update first"');
+  assert(fs.readFileSync(path.join(REPO_ROOT, 'main.js'), 'utf8').includes("isHeld: () => adminLink.readControl(app.getPath('userData')).update_hold === true"), 'Version lock: the updater reads the hold from the Admin\'s control');
 }
 
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.

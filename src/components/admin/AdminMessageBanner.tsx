@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { AlertTriangle, ExternalLink, Megaphone, X } from 'lucide-react';
 import { AdminMessage, getDesktopApi, LicenceStatus } from '@/lib/desktop/desktopBridge';
 import { LicenceEndingNotice } from '@/components/licence/LicenceEndedScreen';
+import { TrialNotice } from '@/components/licence/TrialNotice';
 import { readDismissedMessages, saveDismissedMessage, visibleAdminMessages } from '@/lib/admin/adminMessages';
 import { tr } from '@/lib/i18n/core';
 import { cn } from '@/lib/utils';
@@ -46,8 +47,10 @@ export const AdminMessageBanner: React.FC = () => {
   // v4.105.0: a pop-up message opens as a window over the screen (one at a time); the rest are strips.
   const popup = visible.find((m) => m.style === 'popup');
   const shown = visible.filter((m) => m.style !== 'popup').slice(0, 2);
-  const ending = licence?.state === 'active' && licence.validUntil && licence.daysLeft != null && licence.daysLeft <= 7 ? licence : null;
-  if (shown.length === 0 && !ending && !popup) return null;
+  // v4.148.0: a free trial shows its own strip (days left + "Enter licence key") all through the trial.
+  const trial = licence?.state === 'active' && licence.trial && licence.daysLeft != null ? licence : null;
+  const ending = !trial && licence?.state === 'active' && licence.validUntil && licence.daysLeft != null && licence.daysLeft <= 7 ? licence : null;
+  if (shown.length === 0 && !ending && !trial && !popup) return null;
 
   const close = (m: AdminMessage) => {
     setSessionClosed((prev) => [...prev, m.id]);
@@ -59,6 +62,7 @@ export const AdminMessageBanner: React.FC = () => {
 
   return (
     <div className="shrink-0 px-3 sm:px-5 pt-2 space-y-1.5" data-admin-messages>
+      {trial && <TrialNotice daysLeft={trial.daysLeft!} machineName={trial.machineName} />}
       {ending && (
         <LicenceEndingNotice validUntil={ending.validUntil!} daysLeft={ending.daysLeft!} licenceKey={ending.key} shopName={ending.shopName || ending.machineName} />
       )}
