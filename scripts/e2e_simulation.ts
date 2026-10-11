@@ -45,7 +45,9 @@ import {
   validateEmail, 
   validateProductData, 
   validateCustomerData, 
-  validateExpenseData 
+  validateExpenseData,
+  validatePersonName, validateDayMonth, parseDayMonth, validateIfsc, validateBankAccount, validateAmount,
+  typeMobile, typeAmount, typeCode, typeDigits, mobileDigits,
 } from '../src/lib/validation/validators';
 import { formatInvoiceNumber, parseInvoiceSequenceNumber } from '../src/lib/invoices/invoiceNumberService';
 import crypto from 'crypto';
@@ -5301,6 +5303,56 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
   assert(staffCard.includes('href="/settings?tab=staff"') && staffCard.includes("staffStatus(m, now) === 'online'") && staffCard.includes('m.active')
     && staffCard.includes('const [signedIn, setSignedIn] = useState(false);') && staffCard.includes('stop?.()'),
     'Home Pulse Staff card: counts active staff and those online, opens Settings → Staff, reads the account after mount and stops listening on leave');
+}
+
+// v4.150.0 — strong validation on every contact field (Rahul 2026-10-11: "Add New Customer me contact
+// number unlimited digit dal sakta hu"). Boxes stop extra digits while typing; save checks the exact shape.
+{
+  assert(!validateIndianPhone('123456789012345').isValid && !validateIndianPhone('98765432101').isValid
+    && validateIndianPhone('+91 98765 43210').cleanedValue === '9876543210' && validateIndianPhone('09876543210').cleanedValue === '9876543210'
+    && mobileDigits('919876543210') === '9876543210',
+    'Phone: 15 / 11 typed digits are refused (not cut to the last 10); only +91 / 0 in front is dropped');
+  assert(typeMobile('98765432109999') === '9876543210' && typeMobile('+91 98765 43210') === '9876543210' && typeMobile('+91') === ''
+    && typeMobile('0987') === '987' && typeMobile('abc98-76') === '9876',
+    'Phone box: digits only, never more than 10, +91 / 0 typed in front is dropped');
+  assert(!validatePersonName('12345').isValid && !validatePersonName('A').isValid && validatePersonName('रमेश पाटील').isValid
+    && validatePersonName('Anand   Sharma').cleanedValue === 'Anand Sharma' && !validatePersonName('x'.repeat(81)).isValid,
+    'Names: 2–80 characters with letters (Hindi / Marathi too); not only digits');
+  assert(!validateEmail('a..b@x.com').isValid && !validateEmail('.a@x.com').isValid && !validateEmail('a@-x.com').isValid
+    && !validateEmail('a b@x.com').isValid && validateEmail('Ram.K@Gmail.com').cleanedValue === 'ram.k@gmail.com',
+    'Email: no "..", no dot at the ends, no space; saved in small letters');
+  assert(!validateDayMonth({ day: '31', month: '2' }).isValid && validateDayMonth({ day: '29', month: '2' }).cleanedValue === '02-29'
+    && !validateDayMonth({ day: '29', month: '2', year: '2023' }).isValid && validateDayMonth({ day: '16', month: '8', year: '1992' }).cleanedValue === '1992-08-16'
+    && !validateDayMonth({ day: '1', month: '1', year: String(new Date().getFullYear() + 1) }).isValid && !validateDayMonth({ day: '5', month: '' }).isValid
+    && validateDayMonth({ day: '', month: '' }).cleanedValue === '',
+    'Birthday / anniversary: real dates only, not in the future; YYYY-MM-DD or MM-DD (the phone keeps no year)');
+  assert(JSON.stringify(parseDayMonth('16-08-1992')) === '{"day":16,"month":8,"year":1992}' && JSON.stringify(parseDayMonth('08-14')) === '{"day":14,"month":8}'
+    && parseDayMonth('1990-08-15')?.year === 1990 && parseDayMonth('soon') === null,
+    'Birthday: old free-text DD-MM-YYYY, the phone MM-DD and the PC YYYY-MM-DD all open in the day / month boxes');
+  assert(validateIfsc('sbin0001234').cleanedValue === 'SBIN0001234' && !validateIfsc('SBIN1001234').isValid
+    && !validateBankAccount('12345678').isValid && validateBankAccount('50200012345678').isValid && typeCode('27aapf-u0939f1zv99', 15) === '27AAPFU0939F1ZV',
+    'Bank: IFSC is 4 letters + 0 + 6, account 9–18 digits; GSTIN box takes 15 capitals / digits');
+  assert(typeAmount('12a3.456') === '123.45' && typeAmount('-50', true) === '-50' && typeAmount('-50') === '50' && typeDigits('4110 01x9', 6) === '411001'
+    && !validateAmount('9999999999').isValid && !validateAmount('1.234').isValid && validateAmount('150.5').cleanedValue === 15050
+    && !validateAmount('-5').isValid && validateAmount('-5', { allowNegative: true }).cleanedValue === -500,
+    'Amounts: 2 paise digits at most, ₹10 crore cap, minus only where allowed');
+  const cust = readSource('components/customers/AddEditCustomerModal.tsx');
+  assert(cust.includes('setPhone(typeMobile(e.target.value))') && cust.includes('setGstin(typeCode(e.target.value, FIELD_MAX.gstin))')
+    && cust.includes("<DayMonthField label={tr('Birthday')}") && cust.includes("validateDayMonth(dateOfBirth, tr('Birthday'))") && !cust.includes('Birthday (DD-MM-YYYY)')
+    && cust.includes('validateAmount(creditLimit'),
+    'Add / Edit Customer: mobile max 10 digits, GSTIN 15, birthday from day / month boxes, balances checked');
+  const boxes: Array<[string, string]> = [
+    ['components/settings/StoreProfileTab.tsx', 'setPhone(typeMobile(e.target.value))'], ['components/settings/StoreProfileTab.tsx', 'setPhone2(typeMobile(e.target.value))'],
+    ['components/settings/StoreProfileTab.tsx', 'setPincode(typeDigits(e.target.value, FIELD_MAX.pincode))'], ['components/settings/UpiBankingTab.tsx', 'setBankIfsc(typeCode(e.target.value, FIELD_MAX.ifsc))'],
+    ['components/settings/UpiBankingTab.tsx', 'setBankAccountNo(typeDigits(e.target.value, FIELD_MAX.bankAccount))'], ['components/khata/QuickAddKhataCustomerModal.tsx', 'setNewCustPhone(typeMobile(e.target.value))'],
+    ['components/invoices/EditInvoiceModal.tsx', 'setCustomerPhone(typeMobile(e.target.value))'], ['components/suppliers/SupplierFormModal.tsx', 'setPhone(typeMobile(e.target.value))'],
+    ['app/onboarding/page.tsx', 'setPhone(typeMobile(e.target.value))'],
+  ];
+  const missing = boxes.filter(([f, s]) => !readSource(f).includes(s));
+  assert(missing.length === 0, 'Every mobile / pincode / IFSC / account box filters while typing', missing.map(([f, s]) => `${f}: ${s}`).join('; '));
+  assert(readSource('components/settings/settingsSave.ts').includes('validateIfsc(bankIfsc, false)') && readSource('components/invoices/editInvoiceSave.ts').includes("validateIndianPhone(customerPhone, false, msg('Phone Number'))")
+    && readSource('components/onboarding/onboardingSubmit.ts').includes("validateIndianPhone(cleanPhone, true, msg('Store Mobile Phone'))"),
+    'Save-time checks: bank details in Settings, the mobile on an edited bill, the shop mobile at sign-up (6–9 first)');
 }
 
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.

@@ -57,7 +57,8 @@ export function RecipientField(props: {
         <span className="font-bold text-slate-700">{tr('To')}{name ? `: ${name}` : ''}</span>
         <input
           value={phone}
-          onChange={(e) => onPhone(e.target.value)}
+          onChange={(e) => onPhone(e.target.value.replace(/[^\d+ ]/g, ''))}
+          maxLength={16}
           placeholder={tr('WhatsApp number, e.g. 98765 43210')}
           inputMode="tel"
           className={cn('w-full mt-1 h-9 px-2.5 rounded-lg border bg-white font-mono font-bold focus:outline-none focus:ring-2', bad ? 'border-rose-400 focus:ring-rose-300' : 'border-slate-300 focus:ring-emerald-300')}

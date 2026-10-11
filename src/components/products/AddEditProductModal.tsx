@@ -223,6 +223,7 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
           label={tr('Product / Item Full Name *')}
           placeholder={tr(NAME_EXAMPLE[readVerticalProfile()?.vertical || ''] || 'e.g. Fortune Sunflower Oil 1L')}
           value={formName}
+          maxLength={150}
           onChange={(e) => setFormName(e.target.value)}
           required
           autoFocus

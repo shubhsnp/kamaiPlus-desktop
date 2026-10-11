@@ -61,11 +61,11 @@ export function WhatsAppSettingsCard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <label className="block">
             <span className="font-bold text-slate-700">{tr("Owner's WhatsApp (day summary, cash count)")}</span>
-            <input value={s.ownerPhone} onChange={(e) => update({ ownerPhone: e.target.value })} placeholder={tr('Empty = the shop number')} inputMode="tel" className={cn(field, 'font-mono', bad(s.ownerPhone) && 'border-rose-400')} />
+            <input value={s.ownerPhone} onChange={(e) => update({ ownerPhone: e.target.value.replace(/[^\d+ ]/g, '') })} maxLength={16} placeholder={tr('Empty = the shop number')} inputMode="tel" className={cn(field, 'font-mono', bad(s.ownerPhone) && 'border-rose-400')} />
           </label>
           <label className="block">
             <span className="font-bold text-slate-700">{tr("CA's WhatsApp (GST figures)")}</span>
-            <input value={s.caPhone} onChange={(e) => update({ caPhone: e.target.value })} placeholder="98765 43210" inputMode="tel" className={cn(field, 'font-mono', bad(s.caPhone) && 'border-rose-400')} />
+            <input value={s.caPhone} onChange={(e) => update({ caPhone: e.target.value.replace(/[^\d+ ]/g, '') })} maxLength={16} placeholder="98765 43210" inputMode="tel" className={cn(field, 'font-mono', bad(s.caPhone) && 'border-rose-400')} />
           </label>
         </div>
       </div>

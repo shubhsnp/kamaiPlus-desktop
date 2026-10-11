@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { UserPlus } from 'lucide-react';
 import { tr } from '@/lib/i18n/core';
+import { FIELD_MAX, typeMobile, typeName } from '@/lib/validation/validators';
 
 interface QuickAddKhataCustomerModalProps {
   isOpen: boolean;
@@ -56,7 +57,8 @@ export const QuickAddKhataCustomerModal: React.FC<QuickAddKhataCustomerModalProp
           </label>
           <Input
             value={newCustName}
-            onChange={(e) => setNewCustName(e.target.value)}
+            maxLength={FIELD_MAX.name}
+            onChange={(e) => setNewCustName(typeName(e.target.value))}
             placeholder={tr('e.g. Ramesh Kumar')}
             required
             autoFocus
@@ -69,9 +71,10 @@ export const QuickAddKhataCustomerModal: React.FC<QuickAddKhataCustomerModalProp
           </label>
           <Input
             value={newCustPhone}
-            onChange={(e) => setNewCustPhone(e.target.value)}
+            onChange={(e) => setNewCustPhone(typeMobile(e.target.value))}
             placeholder="9876543210"
             type="tel"
+            inputMode="numeric"
           />
         </div>
 
@@ -81,6 +84,7 @@ export const QuickAddKhataCustomerModal: React.FC<QuickAddKhataCustomerModalProp
           </label>
           <Input
             value={newCustAddress}
+            maxLength={FIELD_MAX.address}
             onChange={(e) => setNewCustAddress(e.target.value)}
             placeholder={tr('e.g. Shop 4, Main Bazaar')}
           />

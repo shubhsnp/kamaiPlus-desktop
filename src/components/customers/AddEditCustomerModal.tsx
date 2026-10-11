@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/Input';
 import { Customer, CustomerType } from '@/types';
 import { Plus, Edit3, Trash2 } from 'lucide-react';
 
-import { validateCustomerData } from '@/lib/validation/validators';
+import { validateCustomerData, validateDayMonth, parseDayMonth, typeMobile, typeCode, typeName, typeNoSpace, typeAmount, validateAmount, FIELD_MAX } from '@/lib/validation/validators';
+import { DayMonthField, DayMonthValue, EMPTY_DAY_MONTH } from '@/components/customers/DayMonthField';
 import { tr } from '@/lib/i18n/core';
 import { useFeatureSwitches } from '@/lib/features/featureSwitches';
 
@@ -51,8 +52,8 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
   const [customerType, setCustomerType] = useState<CustomerType>('regular');
   const [isWholesale, setIsWholesale] = useState(false);
   const wholesaleOn = useFeatureSwitches().wholesale_price;
-  const [dateOfBirth, setDateOfBirth] = useState('');
-  const [anniversaryDate, setAnniversaryDate] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState<DayMonthValue>(EMPTY_DAY_MONTH);
+  const [anniversaryDate, setAnniversaryDate] = useState<DayMonthValue>(EMPTY_DAY_MONTH);
   const [loyaltyPoints, setLoyaltyPoints] = useState<string>('0');
   const [openingBalance, setOpeningBalance] = useState('');
   const [currentBalance, setCurrentBalance] = useState('');
@@ -71,8 +72,8 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
       setGstin(editingCustomer.gstin || '');
       setCustomerType(editingCustomer.customer_type || 'regular');
       setIsWholesale(Boolean(editingCustomer.is_wholesale));
-      setDateOfBirth(editingCustomer.date_of_birth || '');
-      setAnniversaryDate(editingCustomer.anniversary_date || '');
+      setDateOfBirth(toDayMonth(editingCustomer.date_of_birth));
+      setAnniversaryDate(toDayMonth(editingCustomer.anniversary_date));
       setLoyaltyPoints(editingCustomer.loyalty_points ? String(editingCustomer.loyalty_points) : '0');
       setOpeningBalance(editingCustomer.opening_balance ? (editingCustomer.opening_balance / 100).toFixed(2) : '0.00');
       setCurrentBalance(editingCustomer.current_balance ? (editingCustomer.current_balance / 100).toFixed(2) : '0.00');
@@ -86,8 +87,8 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
       setGstin('');
       setCustomerType('regular');
       setIsWholesale(false);
-      setDateOfBirth('');
-      setAnniversaryDate('');
+      setDateOfBirth(EMPTY_DAY_MONTH);
+      setAnniversaryDate(EMPTY_DAY_MONTH);
       setLoyaltyPoints('0');
       setOpeningBalance('');
       setCurrentBalance('');
@@ -111,9 +112,23 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
       setFormError(validation.error || tr('Please fill in valid customer details.'));
       return;
     }
+    const dob = validateDayMonth(dateOfBirth, tr('Birthday'));
+    const anniversary = validateDayMonth(anniversaryDate, tr('Anniversary'));
+    if (!dob.isValid || !anniversary.isValid) {
+      setFormError((dob.error || anniversary.error) as string);
+      return;
+    }
 
-    const opBalPaise = openingBalance ? Math.round(parseFloat(openingBalance) * 100) : 0;
-    const curBalPaise = currentBalance ? Math.round(parseFloat(currentBalance) * 100) : opBalPaise;
+    const opBal = validateAmount(openingBalance, { label: tr('Opening Balance'), allowNegative: true });
+    const curBal = validateAmount(currentBalance, { label: tr('Current Balance Due'), allowNegative: true });
+    const limit = validateAmount(creditLimit, { label: tr('Udhar limit') });
+    const badMoney = [opBal, curBal, limit].find((r) => !r.isValid);
+    if (badMoney) {
+      setFormError(badMoney.error as string);
+      return;
+    }
+    const opBalPaise = openingBalance ? Number(opBal.cleanedValue) : 0;
+    const curBalPaise = currentBalance ? Number(curBal.cleanedValue) : opBalPaise;
     const pts = parseInt(loyaltyPoints) || 0;
 
     setIsSubmitting(true);
@@ -121,14 +136,15 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
       await onSaveCustomer({
         name: validation.cleanedValue?.name || name.trim(),
         phone: validation.cleanedValue?.phone || phone.trim(),
-        email: email.trim() || undefined,
+        email: email.trim().toLowerCase() || undefined,
         address: address.trim() || undefined,
         gstin: gstin.trim().toUpperCase() || undefined,
         customer_type: customerType,
         // Switch off: the saved choice stays as it was.
         is_wholesale: wholesaleOn ? isWholesale : Boolean(editingCustomer?.is_wholesale),
-        date_of_birth: dateOfBirth || undefined,
-        anniversary_date: anniversaryDate || undefined,
+        // An old free-text date this screen cannot read stays as it was until a new one is chosen.
+        date_of_birth: dob.cleanedValue || keepUnreadable(editingCustomer?.date_of_birth),
+        anniversary_date: anniversary.cleanedValue || keepUnreadable(editingCustomer?.anniversary_date),
         loyalty_points: pts,
         opening_balance: opBalPaise,
         current_balance: curBalPaise,
@@ -162,7 +178,8 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
           label={tr('Customer Full Name *')} 
           placeholder={tr('e.g. Anand Sharma')} 
           value={name} 
-          onChange={(e) => setName(e.target.value)} 
+          onChange={(e) => setName(typeName(e.target.value))} 
+          maxLength={FIELD_MAX.name}
           required 
           autoFocus 
         />
@@ -172,15 +189,17 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
             label={tr('Mobile Phone Number')} 
             placeholder={tr('e.g. 9876543210')} 
             type="tel" 
+            inputMode="numeric"
             value={phone} 
-            onChange={(e) => setPhone(e.target.value)} 
+            onChange={(e) => setPhone(typeMobile(e.target.value))} 
           />
           <Input 
             label={tr('Email Address (Optional)')} 
             placeholder={tr('e.g. anand@gmail.com')} 
             type="email" 
+            maxLength={FIELD_MAX.email}
             value={email} 
-            onChange={(e) => setEmail(e.target.value)} 
+            onChange={(e) => setEmail(typeNoSpace(e.target.value))} 
           />
         </div>
 
@@ -211,7 +230,7 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
             label={tr('Customer GSTIN (For B2B Tax Invoicing)')} 
             placeholder={tr('e.g. 27AAAAA0000A1Z5')} 
             value={gstin} 
-            onChange={(e) => setGstin(e.target.value.toUpperCase())} 
+            onChange={(e) => setGstin(typeCode(e.target.value, FIELD_MAX.gstin))} 
           />
         </div>
 
@@ -219,22 +238,13 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
           label={tr('Delivery / Billing Address')} 
           placeholder={tr('e.g. Shop 4, MG Road, Mumbai')} 
           value={address} 
+          maxLength={FIELD_MAX.address}
           onChange={(e) => setAddress(e.target.value)} 
         />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Input 
-            label={tr('Birthday (DD-MM-YYYY)')} 
-            placeholder={tr('e.g. 16-08-1992')} 
-            value={dateOfBirth} 
-            onChange={(e) => setDateOfBirth(e.target.value)} 
-          />
-          <Input 
-            label={tr('Anniversary (DD-MM-YYYY)')} 
-            placeholder={tr('e.g. 25-12-2018')} 
-            value={anniversaryDate} 
-            onChange={(e) => setAnniversaryDate(e.target.value)} 
-          />
+          <DayMonthField label={tr('Birthday')} value={dateOfBirth} onChange={setDateOfBirth} testId="birthday" />
+          <DayMonthField label={tr('Anniversary')} value={anniversaryDate} onChange={setAnniversaryDate} testId="anniversary" />
         </div>
 
         <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2.5">
@@ -246,27 +256,26 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
             <Input 
               label={tr('Opening Balance (₹)')} 
               placeholder="0.00" 
-              type="number" 
-              step="0.01" 
+              type="text" 
+              inputMode="decimal" 
               value={openingBalance} 
-              onChange={(e) => setOpeningBalance(e.target.value)} 
+              onChange={(e) => setOpeningBalance(typeAmount(e.target.value, true))} 
             />
             <Input 
               label={tr('Current Balance Due (₹)')} 
               placeholder="0.00" 
-              type="number" 
-              step="0.01" 
+              type="text" 
+              inputMode="decimal" 
               value={currentBalance} 
-              onChange={(e) => setCurrentBalance(e.target.value)} 
+              onChange={(e) => setCurrentBalance(typeAmount(e.target.value, true))} 
             />
             <Input
               label={tr('Udhar limit (₹)')}
               placeholder={tr('No limit')}
-              type="number"
-              step="1"
-              min="0"
+              type="text"
+              inputMode="decimal"
               value={creditLimit}
-              onChange={(e) => setCreditLimit(e.target.value)}
+              onChange={(e) => setCreditLimit(typeAmount(e.target.value))}
               data-customer-credit-limit
             />
           </div>
@@ -281,6 +290,7 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
             rows={2}
             placeholder={tr('e.g. Prefers home delivery in evening, special discount 5%...')}
             value={notes}
+            maxLength={500}
             onChange={(e) => setNotes(e.target.value)}
             className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500"
           />
@@ -319,3 +329,12 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
     </Modal>
   );
 };
+
+function toDayMonth(raw?: string): DayMonthValue {
+  const p = parseDayMonth(raw);
+  return p ? { day: String(p.day), month: String(p.month), year: p.year ? String(p.year) : '' } : EMPTY_DAY_MONTH;
+}
+
+function keepUnreadable(raw?: string): string | undefined {
+  return raw && !parseDayMonth(raw) ? raw : undefined;
+}

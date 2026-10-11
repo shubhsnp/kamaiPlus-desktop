@@ -16,6 +16,7 @@ import {
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { tr } from '@/lib/i18n/core';
+import { FIELD_MAX, typeCode, typeDigits, typeMobile, typeName, typeNoSpace } from '@/lib/validation/validators';
 
 interface StoreProfileTabProps {
   name: string;
@@ -122,13 +123,15 @@ export const StoreProfileTab: React.FC<StoreProfileTabProps> = ({
             label={tr('Business / Store Name *')}
             placeholder={tr('e.g. Mahavir Kirana & General Store')}
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            maxLength={FIELD_MAX.shopName}
+            onChange={(e) => setName(typeName(e.target.value, FIELD_MAX.shopName))}
             required
           />
           <Input
             label={tr('Store Tagline / Slogan')}
             placeholder={tr('e.g. Always Fresh, Best Wholesale Rates')}
             value={tagline}
+            maxLength={FIELD_MAX.shopName}
             onChange={(e) => setTagline(e.target.value)}
           />
         </div>
@@ -150,31 +153,35 @@ export const StoreProfileTab: React.FC<StoreProfileTabProps> = ({
             label={tr('Owner / Contact Person *')}
             placeholder={tr('e.g. Ramesh Patel')}
             value={ownerName}
-            onChange={(e) => setOwnerName(e.target.value)}
+            maxLength={FIELD_MAX.name}
+            onChange={(e) => setOwnerName(typeName(e.target.value))}
             required
           />
           <Input
             label={tr('Store Mobile Number *')}
             placeholder={tr('e.g. 9876543210')}
             type="tel"
+            inputMode="numeric"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            onChange={(e) => setPhone(typeMobile(e.target.value))}
             required
           />
           <Input
             label={tr('Second Contact Number (Optional)')}
             placeholder={tr('e.g. 9123456780')}
             type="tel"
+            inputMode="numeric"
             value={phone2}
-            onChange={(e) => setPhone2(e.target.value)}
+            onChange={(e) => setPhone2(typeMobile(e.target.value))}
             data-settings-phone2
           />
           <Input
             label={tr('Email Address (Optional)')}
             placeholder={tr('e.g. store@gmail.com')}
             type="email"
+            maxLength={FIELD_MAX.email}
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => setEmail(typeNoSpace(e.target.value))}
           />
         </div>
 
@@ -184,6 +191,7 @@ export const StoreProfileTab: React.FC<StoreProfileTabProps> = ({
               label={tr('Full Store Address (Printed on Bill Header)')}
               placeholder={tr('e.g. Shop No. 12, Gandhi Market, Station Road')}
               value={address}
+              maxLength={FIELD_MAX.address}
               onChange={(e) => setAddress(e.target.value)}
             />
           </div>
@@ -191,8 +199,9 @@ export const StoreProfileTab: React.FC<StoreProfileTabProps> = ({
             <Input
               label={tr('Pincode')}
               placeholder={tr('e.g. 400001')}
+              inputMode="numeric"
               value={pincode}
-              onChange={(e) => setPincode(e.target.value)}
+              onChange={(e) => setPincode(typeDigits(e.target.value, FIELD_MAX.pincode))}
             />
           </div>
         </div>
@@ -212,7 +221,7 @@ export const StoreProfileTab: React.FC<StoreProfileTabProps> = ({
             label={tr('GSTIN Number (For GST Tax Invoices)')}
             placeholder={tr('e.g. 27AAAAA0000A1Z5')}
             value={gstin}
-            onChange={(e) => setGstin(e.target.value.toUpperCase())}
+            onChange={(e) => setGstin(typeCode(e.target.value, FIELD_MAX.gstin))}
           />
         </div>
       </Card>

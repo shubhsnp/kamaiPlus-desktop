@@ -1,7 +1,7 @@
 import React from 'react';
 import { db } from '@/lib/db';
 import { resolveInvoiceConfig } from '@/lib/invoices/themeDefaults';
-import { validateIndianPhone, validateEmail, validateGstin, validatePincode } from '@/lib/validation/validators';
+import { validateIndianPhone, validateEmail, validateGstin, validatePincode, validatePersonName, validateIfsc, validateBankAccount, FIELD_MAX } from '@/lib/validation/validators';
 import { msg, tr } from '@/lib/i18n/core';
 import type { Business, UpiAccount } from '@/types';
 import type { SettingsTabType } from '@/components/settings/SettingsNavTabs';
@@ -60,6 +60,18 @@ export function createSettingsSave(deps: CreateSettingsSaveDeps) {
       setIsReviewModalOpen(false);
       return;
     }
+    // v4.150.0: shop and owner names need letters and a sane length (they print on every bill).
+    const nameChecks = [
+      validatePersonName(name, true, msg('Store Name'), FIELD_MAX.shopName),
+      validatePersonName(ownerName, false, msg('Owner / Contact Person')),
+    ];
+    const badName = nameChecks.find((r) => !r.isValid);
+    if (badName) {
+      setSettingsError(badName.error as string);
+      setActiveTab('profile');
+      setIsReviewModalOpen(false);
+      return;
+    }
 
     // 2. Validate Phone
     const phoneRes = validateIndianPhone(phone, true, msg('Store Mobile Phone'));
@@ -110,6 +122,16 @@ export function createSettingsSave(deps: CreateSettingsSaveDeps) {
         setIsReviewModalOpen(false);
         return;
       }
+    }
+
+    // 6. Bank details printed on invoices (v4.150.0): a wrong IFSC / account number sends money nowhere.
+    const bankChecks = [validateBankAccount(bankAccountNo, false), validateIfsc(bankIfsc, false), validatePersonName(bankAccountName, false, msg('Account Holder Name'), FIELD_MAX.shopName)];
+    const badBank = bankChecks.find((r) => !r.isValid);
+    if (badBank) {
+      setSettingsError(badBank.error as string);
+      setActiveTab('profile');
+      setIsReviewModalOpen(false);
+      return;
     }
 
 

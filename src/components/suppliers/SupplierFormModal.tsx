@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Supplier } from '@/types';
 import { parseRupeesToPaise } from '@/lib/utils';
-import { validateGstin, validateIndianPhone } from '@/lib/validation/validators';
+import { validateGstin, validateIndianPhone, validatePersonName, validateAmount, typeAmount, typeCode, typeMobile, typeName, FIELD_MAX } from '@/lib/validation/validators';
 import { createSupplier, updateSupplier } from '@/lib/suppliers/supplierLedger';
 import { msg, tr } from '@/lib/i18n/core';
 
@@ -46,6 +46,10 @@ export function SupplierFormModal({ isOpen, onClose, businessId, existing, onSav
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return setError(tr('Supplier name is required.'));
+    const nameCheck = validatePersonName(name, true, msg('Supplier / firm name'), FIELD_MAX.shopName);
+    if (!nameCheck.isValid) return setError(nameCheck.error as string);
+    const openingCheck = validateAmount(opening, { label: msg('Opening balance') });
+    if (!openingCheck.isValid) return setError(openingCheck.error as string);
     const phoneCheck = validateIndianPhone(phone, false, msg('Phone number'));
     if (!phoneCheck.isValid) return setError(phoneCheck.error || tr('Invalid phone number.'));
     const gstCheck = validateGstin(gstin, false);
@@ -84,24 +88,23 @@ export function SupplierFormModal({ isOpen, onClose, businessId, existing, onSav
       description={tr('Wholesalers and distributors you buy stock from.')}
     >
       <form onSubmit={handleSubmit} className="space-y-3">
-        <Input label={tr('Supplier / firm name *')} placeholder={tr('e.g. Metro Wholesale')} value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+        <Input label={tr('Supplier / firm name *')} placeholder={tr('e.g. Metro Wholesale')} value={name} maxLength={FIELD_MAX.shopName} onChange={(e) => setName(typeName(e.target.value, FIELD_MAX.shopName))} autoFocus />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Input label={tr('Phone')} placeholder={tr('10-digit mobile')} value={phone} onChange={(e) => setPhone(e.target.value)} />
-          <Input label={tr('GSTIN (optional)')} placeholder={tr('27ABCDE1234F1Z5')} value={gstin} onChange={(e) => setGstin(e.target.value.toUpperCase())} />
+          <Input label={tr('Phone')} placeholder={tr('10-digit mobile')} value={phone} inputMode="numeric" onChange={(e) => setPhone(typeMobile(e.target.value))} />
+          <Input label={tr('GSTIN (optional)')} placeholder={tr('27ABCDE1234F1Z5')} value={gstin} onChange={(e) => setGstin(typeCode(e.target.value, FIELD_MAX.gstin))} />
         </div>
-        <Input label={tr('Address (optional)')} value={address} onChange={(e) => setAddress(e.target.value)} />
-        <Input label={tr('Notes (optional)')} placeholder={tr('e.g. Delivers every Monday')} value={notes} onChange={(e) => setNotes(e.target.value)} />
+        <Input label={tr('Address (optional)')} value={address} maxLength={FIELD_MAX.address} onChange={(e) => setAddress(e.target.value)} />
+        <Input label={tr('Notes (optional)')} placeholder={tr('e.g. Delivers every Monday')} value={notes} maxLength={500} onChange={(e) => setNotes(e.target.value)} />
 
         {!existing && (
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
             <Input
               label={tr('Opening balance (₹, optional)')}
               placeholder="0.00"
-              type="number"
-              step="0.01"
-              min="0"
+              type="text"
+              inputMode="decimal"
               value={opening}
-              onChange={(e) => setOpening(e.target.value)}
+              onChange={(e) => setOpening(typeAmount(e.target.value))}
             />
             <div className="flex gap-2 text-xs font-bold">
               <button

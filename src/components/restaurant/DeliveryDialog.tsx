@@ -73,7 +73,7 @@ export function DeliveryDialog({ open, settings, onClose, onStart }: { open: boo
           <label className={label} htmlFor="dl-phone">{tr('Mobile (for the WhatsApp bill)')}</label>
           <div className="relative">
             <Phone className={icon} />
-            <input id="dl-phone" value={phone} onChange={(e) => setPhone(e.target.value.replace(/[^\d+ ]/g, ''))} inputMode="tel" placeholder="98765 43210" className={`${field} font-mono`} autoFocus data-delivery-phone />
+            <input id="dl-phone" value={phone} onChange={(e) => setPhone(e.target.value.replace(/[^\d+ ]/g, ''))} inputMode="tel" maxLength={16} placeholder="98765 43210" className={`${field} font-mono`} autoFocus data-delivery-phone />
           </div>
           {phoneBad && <p className="text-[11px] text-rose-600 mt-1">{tr('Enter a 10-digit mobile number, or leave it empty.')}</p>}
           {known && (

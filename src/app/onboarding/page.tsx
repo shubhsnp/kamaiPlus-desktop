@@ -8,6 +8,7 @@ import { getStoredUser, AuthUser } from '@/lib/auth';
 import { Store, Sparkles, ArrowRight, User, AlertCircle, QrCode, Receipt } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { tr } from '@/lib/i18n/core';
+import { FIELD_MAX, typeMobile, typeName, typeNoSpace } from '@/lib/validation/validators';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
 import { createOnboardingSubmit } from '@/components/onboarding/onboardingSubmit';
 import { CategorySelector } from '@/components/onboarding/CategorySelector';
@@ -190,7 +191,8 @@ export default function OnboardingPage() {
                 <input
                   type="text"
                   value={businessName}
-                  onChange={(e) => setBusinessName(e.target.value)}
+                  maxLength={FIELD_MAX.shopName}
+                  onChange={(e) => setBusinessName(typeName(e.target.value, FIELD_MAX.shopName))}
                   placeholder={tr('e.g. Sharma Kirana & General Store')}
                   required
                   autoFocus
@@ -217,7 +219,8 @@ export default function OnboardingPage() {
                 <input
                   type="text"
                   value={ownerName}
-                  onChange={(e) => setOwnerName(e.target.value)}
+                  maxLength={FIELD_MAX.name}
+                  onChange={(e) => setOwnerName(typeName(e.target.value))}
                   placeholder={tr('e.g. Ramesh Sharma')}
                   className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl focus:ring-2 focus:ring-amber-400 focus:outline-none text-white text-sm placeholder:text-slate-600 transition"
                 />
@@ -237,9 +240,9 @@ export default function OnboardingPage() {
                 <input
                   type="tel"
                   inputMode="numeric"
-                  maxLength={10}
+                  maxLength={16}
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
+                  onChange={(e) => setPhone(typeMobile(e.target.value))}
                   placeholder="98765 43210"
                   required
                   className="flex-1 px-4 py-3 bg-transparent text-white text-sm font-mono tracking-wide placeholder:text-slate-600 placeholder:font-sans focus:outline-none"
@@ -263,7 +266,8 @@ export default function OnboardingPage() {
                 <input
                   type="text"
                   value={upiId}
-                  onChange={(e) => setUpiId(e.target.value.trim())}
+                  maxLength={FIELD_MAX.upi}
+                  onChange={(e) => setUpiId(typeNoSpace(e.target.value, FIELD_MAX.upi))}
                   placeholder={tr('e.g. 9876543210@paytm or store@okaxis')}
                   data-onboarding-upi
                   className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl focus:ring-2 focus:ring-amber-400 focus:outline-none text-white text-sm font-mono placeholder:font-sans placeholder:text-slate-600 transition"

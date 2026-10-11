@@ -63,8 +63,8 @@ export function RestockOrderModal({ products, preselect, onClose }: { products: 
               {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           )}
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder={tr('Supplier name')} className={field} data-restock-name />
-          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={tr('Supplier WhatsApp number')} className={`${field} font-mono`} inputMode="tel" data-restock-phone />
+          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={100} placeholder={tr('Supplier name')} className={field} data-restock-name />
+          <input value={phone} onChange={(e) => setPhone(e.target.value.replace(/[^\d+ ]/g, ''))} maxLength={16} placeholder={tr('Supplier WhatsApp number')} className={`${field} font-mono`} inputMode="tel" data-restock-phone />
         </div>
         <div className="max-h-[50vh] overflow-y-auto rounded-xl border border-slate-200 divide-y divide-slate-100">
           {products.map((p) => (

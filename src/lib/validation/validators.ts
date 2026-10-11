@@ -1,4 +1,9 @@
 import { msg, tr } from '@/lib/i18n/core';
+import { FIELD_MAX, mobileDigits, validatePersonName } from './fieldRules';
+
+// v4.150.0: the typing filters and the newer field rules live in fieldRules.ts; every import of
+// '@/lib/validation/validators' still finds them here.
+export * from './fieldRules';
 /**
  * Enterprise Validation Engine for KamaiPlus
  * Standardized, strict, and user-friendly validation across all platform forms.
@@ -27,7 +32,8 @@ export function validateIndianPhone(
     return { isValid: false, error: tr('{fieldLabel} is required.', { fieldLabel: tr(fieldLabel) }) };
   }
 
-  const cleanDigits = phone.replace(/\D/g, '').slice(-10);
+  // v4.150.0: only +91 / 0 in front may be dropped — "123456789012345" used to pass as its last 10 digits.
+  const cleanDigits = mobileDigits(phone);
 
   if (cleanDigits.length !== 10) {
     return {
@@ -62,8 +68,12 @@ export function validateEmail(
 
   const cleanEmail = email.trim().toLowerCase();
   const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  // v4.150.0: no "..", no dot at either end of the name or the domain, no domain part starting with "-".
+  const [local = '', domain = ''] = cleanEmail.split('@');
+  const shapeOk = cleanEmail.length <= FIELD_MAX.email && !cleanEmail.includes('..')
+    && !/^\.|\.$/.test(local) && !/^[.-]|[.-]$/.test(domain) && !domain.split('.').some((p) => !p || p.startsWith('-') || p.endsWith('-'));
 
-  if (!emailRegex.test(cleanEmail)) {
+  if (!emailRegex.test(cleanEmail) || !shapeOk) {
     return {
       isValid: false,
       error: tr('Please enter a valid {v1} (e.g. name@example.com).', { v1: tr(fieldLabel) }),
@@ -297,10 +307,12 @@ export interface CustomerValidationInput {
 }
 
 export function validateCustomerData(input: CustomerValidationInput): ValidationResult {
-  const cleanName = (input.name || '').trim();
+  const cleanName = (input.name || '').trim().replace(/\s+/g, ' ');
   if (!cleanName || cleanName.length < 2) {
     return { isValid: false, error: tr('Customer Name must be at least 2 characters long.') };
   }
+  const nameRes = validatePersonName(cleanName, true, msg('Customer Name'));
+  if (!nameRes.isValid) return nameRes;
 
   const phoneRes = validateIndianPhone(input.phone, true, msg('Customer Mobile Phone'));
   if (!phoneRes.isValid) return phoneRes;

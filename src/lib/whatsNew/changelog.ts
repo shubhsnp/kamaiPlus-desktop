@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.150.0',
+    items: [
+      msg('Every contact box now checks itself: a mobile number takes only 10 digits, email has no spaces, GSTIN 15 capitals, pincode 6 digits, bank IFSC and account number are checked. Customer birthday and anniversary are picked as Day + Month (+ Year if you know it).'),
+    ],
+  },
+  {
     version: '4.149.0',
     items: [
       msg('A new computer starts its free trial by itself when you sign up — no button to press. Restaurant Home: the second card now shows your staff (how many, who is online) with Add / Manage.'),

@@ -144,7 +144,7 @@ export function ProductFormDetails(props: ProductFormDetailsProps) {
               inputMode="numeric"
               maxLength={8}
               value={formHsn}
-              onChange={(e) => setFormHsn(e.target.value.replace(/\D/g, ''))}
+              onChange={(e) => setFormHsn(e.target.value.replace(/\D/g, '').slice(0, 8))}
             />
           </div>
         )}

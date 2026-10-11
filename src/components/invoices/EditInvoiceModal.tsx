@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/Input';
 import { Edit3, Save, Banknote, QrCode, BookOpen } from 'lucide-react';
 import { tr } from '@/lib/i18n/core';
+import { FIELD_MAX, typeMobile, typeName } from '@/lib/validation/validators';
 import { createEditInvoiceSave } from '@/components/invoices/editInvoiceSave';
 import { EditInvoiceItems } from '@/components/invoices/EditInvoiceItems';
 import { makeProductQuery, productSearchScore } from '@/lib/search/productSearch';
@@ -243,7 +244,8 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
               <label className="text-[11px] font-bold text-slate-600 block mb-1">{tr('Customer Name')}</label>
               <Input
                 value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
+                maxLength={FIELD_MAX.name}
+                onChange={(e) => setCustomerName(typeName(e.target.value))}
                 placeholder={tr('Cash Customer')}
               />
             </div>
@@ -251,9 +253,10 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
               <label className="text-[11px] font-bold text-slate-600 block mb-1">{tr('Phone Number')}</label>
               <Input
                 value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
+                onChange={(e) => setCustomerPhone(typeMobile(e.target.value))}
                 placeholder="9876543210"
                 type="tel"
+                inputMode="numeric"
               />
             </div>
             <div>

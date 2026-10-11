@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { UpiAccount } from '@/types';
 import { tr } from '@/lib/i18n/core';
+import { FIELD_MAX, typeCode, typeDigits, typeName, typeNoSpace } from '@/lib/validation/validators';
 
 interface UpiBankingTabProps {
   upiList: UpiAccount[];
@@ -89,6 +90,7 @@ export const UpiBankingTab: React.FC<UpiBankingTabProps> = ({
                 type="text"
                 placeholder={tr('Account Label (e.g. Counter QR)')}
                 value={newUpiLabel}
+                maxLength={40}
                 onChange={(e) => setNewUpiLabel(e.target.value)}
                 className="px-3 py-2 text-xs bg-white dark:bg-slate-900 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
@@ -96,7 +98,8 @@ export const UpiBankingTab: React.FC<UpiBankingTabProps> = ({
                 type="text"
                 placeholder={tr('UPI VPA (e.g. store@okaxis)')}
                 value={newUpiId}
-                onChange={(e) => setNewUpiId(e.target.value)}
+                maxLength={FIELD_MAX.upi}
+                onChange={(e) => setNewUpiId(typeNoSpace(e.target.value, FIELD_MAX.upi))}
                 className="px-3 py-2 text-xs bg-white dark:bg-slate-900 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
               />
               <Button
@@ -221,13 +224,15 @@ export const UpiBankingTab: React.FC<UpiBankingTabProps> = ({
             label={tr('Bank Name')}
             placeholder={tr('e.g. State Bank of India / HDFC Bank')}
             value={bankName}
-            onChange={(e) => setBankName(e.target.value)}
+            maxLength={FIELD_MAX.shopName}
+            onChange={(e) => setBankName(typeName(e.target.value, FIELD_MAX.shopName))}
           />
           <Input
             label={tr('Account Holder Name')}
             placeholder={tr('e.g. Mahavir Enterprises')}
             value={bankAccountName}
-            onChange={(e) => setBankAccountName(e.target.value)}
+            maxLength={FIELD_MAX.shopName}
+            onChange={(e) => setBankAccountName(typeName(e.target.value, FIELD_MAX.shopName))}
           />
         </div>
 
@@ -235,14 +240,15 @@ export const UpiBankingTab: React.FC<UpiBankingTabProps> = ({
           <Input
             label={tr('Bank Account Number')}
             placeholder={tr('e.g. 50200012345678')}
+            inputMode="numeric"
             value={bankAccountNo}
-            onChange={(e) => setBankAccountNo(e.target.value)}
+            onChange={(e) => setBankAccountNo(typeDigits(e.target.value, FIELD_MAX.bankAccount))}
           />
           <Input
             label={tr('Bank IFSC Code')}
             placeholder={tr('e.g. HDFC0000123')}
             value={bankIfsc}
-            onChange={(e) => setBankIfsc(e.target.value.toUpperCase())}
+            onChange={(e) => setBankIfsc(typeCode(e.target.value, FIELD_MAX.ifsc))}
           />
         </div>
       </Card>

@@ -2,7 +2,8 @@ import React from 'react';
 import { showAlert } from '@/lib/ui/dialogs';
 import { db } from '@/lib/db';
 import { Sale } from '@/types';
-import { tr } from '@/lib/i18n/core';
+import { msg, tr } from '@/lib/i18n/core';
+import { validateIndianPhone } from '@/lib/validation/validators';
 import { newId } from '@/lib/ids';
 import type { CartItem, PaymentMethod } from '@/types';
 
@@ -44,6 +45,12 @@ export function createEditInvoiceSave(deps: CreateEditInvoiceSaveDeps) {
     e.preventDefault();
     if (items.length === 0) {
       showAlert(tr('Invoice must have at least 1 item.'));
+      return;
+    }
+    // v4.150.0: a typed mobile must be a real one (the bill is sent to it on WhatsApp).
+    const phoneCheck = validateIndianPhone(customerPhone, false, msg('Phone Number'));
+    if (!phoneCheck.isValid) {
+      showAlert(phoneCheck.error as string);
       return;
     }
     if (sale.status === 'returned' || sale.status === 'partial_return') {
@@ -151,7 +158,7 @@ export function createEditInvoiceSave(deps: CreateEditInvoiceSaveDeps) {
         ...sale,
         invoice_number: finalInvoiceNumber,
         customer_name: customerName.trim() || 'Cash Customer',
-        customer_phone: customerPhone.trim() || undefined,
+        customer_phone: phoneCheck.cleanedValue || undefined,
         customer_address: customerAddress.trim() || undefined,
         items: [...items],
         subtotal: subtotalPaise,

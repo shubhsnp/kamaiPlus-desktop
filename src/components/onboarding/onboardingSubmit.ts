@@ -3,12 +3,12 @@ import { db as localDb, seedBusinessStarterData } from '@/lib/db';
 import { Business } from '@/types';
 import { getStoredUser, setStoredUser, AuthUser } from '@/lib/auth';
 import { CLOUD_SYNC_ENABLED } from '@/lib/firebase/cloudAvailability';
-import { getLanguage, tr } from '@/lib/i18n/core';
+import { getLanguage, msg, tr } from '@/lib/i18n/core';
 import { markWhatsNewSeen } from '@/lib/whatsNew/changelog';
 import { APP_VERSION } from '@/lib/constants/version';
 import { FEATURE_SWITCHES_KEY, FEATURE_SWITCHES_EVENT } from '@/lib/features/featureSwitches';
 import { isVerticalId, restaurantGstFor, saveVerticalProfile } from '@/lib/business/verticalProfile';
-import { validateGstin } from '@/lib/validation/validators';
+import { validateGstin, validateIndianPhone, validatePersonName, mobileDigits, FIELD_MAX } from '@/lib/validation/validators';
 import { loadRestaurantSettings, saveRestaurantSettings } from '@/lib/restaurant/settings';
 import type { useRouter } from 'next/navigation';
 
@@ -45,7 +45,7 @@ export function createOnboardingSubmit(deps: CreateOnboardingSubmitDeps) {
     e.preventDefault();
     setError('');
 
-    const cleanPhone = phone.replace(/\D/g, '').slice(-10);
+    const cleanPhone = mobileDigits(phone);
     const cleanStoreName = businessName.trim();
     const cleanOwnerName = ownerName.trim() || 'Store Owner';
     const cleanUpiId = upiId.trim();
@@ -57,6 +57,17 @@ export function createOnboardingSubmit(deps: CreateOnboardingSubmitDeps) {
 
     if (!cleanPhone || cleanPhone.length !== 10) {
       setError(tr('Please enter a valid 10-digit Store Contact Number.'));
+      return;
+    }
+    // v4.150.0: same rules as Settings — a real Indian mobile (6–9 first), names with letters.
+    const shapeChecks = [
+      validateIndianPhone(cleanPhone, true, msg('Store Mobile Phone')),
+      validatePersonName(cleanStoreName, true, msg('Store Name'), FIELD_MAX.shopName),
+      validatePersonName(ownerName, false, msg('Owner / Contact Person')),
+    ];
+    const badShape = shapeChecks.find((r) => !r.isValid);
+    if (badShape) {
+      setError(badShape.error as string);
       return;
     }
 
