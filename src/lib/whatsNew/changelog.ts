@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.153.0',
+    items: [
+      msg('Inventory and Products read in plain words: "Items" instead of "Tracked SKUs", and "25 products with prices & stock" in the Products header.'),
+    ],
+  },
+  {
     version: '4.152.0',
     items: [
       msg('Restaurant: shorter table cards, the menu list shows no cost or barcode column, Sales Analytics shows the average bill instead of profit (no buying prices in a restaurant), and bills, guests and dishes are counted in the right words. Home has no lonely one-tile rows.'),

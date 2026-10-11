@@ -47,7 +47,7 @@ export const ProductHeaderActions: React.FC<ProductHeaderActionsProps> = ({
             <CashierPrivacyToggleButton />
           </div>
           <p className="text-[10.5px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">
-            {tr('{totalProducts} registered products with barcodes, pricing & instant stock tracking', { totalProducts: totalProducts })}
+            {totalProducts === 1 ? tr('1 product with prices & stock') : tr('{totalProducts} products with prices & stock', { totalProducts: totalProducts })}
           </p>
         </div>
       </div>

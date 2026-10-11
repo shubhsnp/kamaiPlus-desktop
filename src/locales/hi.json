@@ -3336,5 +3336,9 @@
   "Everything — keep it on a pen drive": "सब कुछ — पेन ड्राइव में रखें",
   "Variants (Half / Full)": "वेरिएंट (हाफ / फुल)",
   "One dish in Half / Full or other portions, each with its own price.": "एक व्यंजन हाफ / फुल या दूसरी मात्रा में, हर एक की अपनी कीमत।",
-  "Restaurant: shorter table cards, the menu list shows no cost or barcode column, Sales Analytics shows the average bill instead of profit (no buying prices in a restaurant), and bills, guests and dishes are counted in the right words. Home has no lonely one-tile rows.": "रेस्टोरेंट: टेबल कार्ड छोटे, मेन्यू सूची में लागत या बारकोड कॉलम नहीं, सेल्स एनालिटिक्स में मुनाफ़े की जगह औसत बिल (रेस्टोरेंट में खरीद दाम नहीं), और बिल, मेहमान व व्यंजन सही शब्दों में गिने जाते हैं। होम पर अकेली टाइल वाली लाइन नहीं।"
+  "Restaurant: shorter table cards, the menu list shows no cost or barcode column, Sales Analytics shows the average bill instead of profit (no buying prices in a restaurant), and bills, guests and dishes are counted in the right words. Home has no lonely one-tile rows.": "रेस्टोरेंट: टेबल कार्ड छोटे, मेन्यू सूची में लागत या बारकोड कॉलम नहीं, सेल्स एनालिटिक्स में मुनाफ़े की जगह औसत बिल (रेस्टोरेंट में खरीद दाम नहीं), और बिल, मेहमान व व्यंजन सही शब्दों में गिने जाते हैं। होम पर अकेली टाइल वाली लाइन नहीं।",
+  "1 product with prices & stock": "1 प्रोडक्ट, दाम व स्टॉक के साथ",
+  "{totalProducts} products with prices & stock": "{totalProducts} प्रोडक्ट, दाम व स्टॉक के साथ",
+  "1 dish on your menu": "मेन्यू में 1 व्यंजन",
+  "Inventory and Products read in plain words: \"Items\" instead of \"Tracked SKUs\", and \"25 products with prices & stock\" in the Products header.": "इन्वेंटरी और प्रोडक्ट में सरल शब्द: \"Tracked SKUs\" की जगह \"आइटम\", और प्रोडक्ट हेडर में \"25 प्रोडक्ट, दाम व स्टॉक के साथ\"।"
 }

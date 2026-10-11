@@ -33,7 +33,7 @@ export const InventoryMetricsRibbon: React.FC<InventoryMetricsRibbonProps> = ({
           <div className="flex items-center justify-between text-slate-500 text-[11px] font-bold">
             <span className="flex items-center gap-1 text-sky-700 dark:text-sky-400">
               <Boxes className="w-3.5 h-3.5 text-sky-600" />
-              <span>{tr('Tracked SKUs')}</span>
+              <span>{tr('Items')}</span>
             </span>
             <span className="text-[10px] text-slate-400 font-mono">{tr('Catalog')}</span>
           </div>

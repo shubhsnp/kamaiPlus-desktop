@@ -5396,6 +5396,12 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
   assert(!tables.includes("tr('tap to start')") && tables.includes('min-h-[96px]'), 'Tables: shorter cards, "Free" only (as the phone)');
 }
 
+// v4.153.0 — kirana tour, PC = phone: no SKU jargon, plain product count.
+assert(readSource('components/inventory/InventoryMetricsRibbon.tsx').includes("{tr('Items')}") && !readSource('components/inventory/InventoryMetricsRibbon.tsx').includes('Tracked SKUs')
+  && readSource('components/products/ProductHeaderActions.tsx').includes("tr('{totalProducts} products with prices & stock'")
+  && RESTAURANT_WORDS['{totalProducts} products with prices & stock'] === '{totalProducts} dishes on your menu',
+  'Inventory says "Items" (not "Tracked SKUs"); Products header "{n} products with prices & stock" (restaurant: dishes on your menu)');
+
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.
 Promise.allSettled(pendingAsyncChecks).then((results) => {
   for (const r of results) if (r.status === 'rejected') assert(false, 'An async check threw', String(r.reason));

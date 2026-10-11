@@ -24,7 +24,8 @@ export const RESTAURANT_WORDS: Record<string, string> = {
   '{productsCount} items': '{productsCount} dishes',
 
   // Menu page (Products)
-  '{totalProducts} registered products with barcodes, pricing & instant stock tracking': '{totalProducts} dishes on your menu',
+  '{totalProducts} products with prices & stock': '{totalProducts} dishes on your menu',
+  '1 product with prices & stock': '1 dish on your menu',
   'Add Product': 'Add Dish',
   'Import Excel': 'Import menu (Excel)',
   'Add or update many items from an Excel / CSV price list': 'Add or update many dishes from an Excel menu',
