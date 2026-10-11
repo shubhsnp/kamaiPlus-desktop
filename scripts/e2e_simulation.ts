@@ -5402,6 +5402,11 @@ assert(readSource('components/inventory/InventoryMetricsRibbon.tsx').includes("{
   && RESTAURANT_WORDS['{totalProducts} products with prices & stock'] === '{totalProducts} dishes on your menu',
   'Inventory says "Items" (not "Tracked SKUs"); Products header "{n} products with prices & stock" (restaurant: dishes on your menu)');
 
+// v4.154.0 — pharmacy tour, PC = phone: medicine search placeholder when batch/expiry enabled.
+assert(readSource('components/products/ProductFilterToolbar.tsx').includes('switches.product_batch_expiry')
+  && readSource('components/products/ProductFilterToolbar.tsx').includes("tr('Search medicine name, barcode, batch, HSN...')"),
+  'Pharmacy / batch-expiry search placeholder mentions medicine, batch, barcode, HSN');
+
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.
 Promise.allSettled(pendingAsyncChecks).then((results) => {
   for (const r of results) if (r.status === 'rejected') assert(false, 'An async check threw', String(r.reason));

@@ -14,6 +14,7 @@ import { Category } from '@/types';
 import { cn } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
 import { categoryLabel } from '@/lib/products/defaultCategory';
+import { useFeatureSwitches } from '@/lib/features/featureSwitches';
 
 interface ProductFilterToolbarProps {
   searchQuery: string;
@@ -41,6 +42,7 @@ export const ProductFilterToolbar: React.FC<ProductFilterToolbarProps> = ({
   viewMode = 'table',
   onViewModeChange,
 }) => {
+  const switches = useFeatureSwitches();
   // Category chips (v4.81.0): one row that wraps instead of a side-scroll strip — a mouse
   // wheel cannot scroll sideways, so a shop with 50 sections never reached most of them.
   // "All categories (N)" opens every row; the picked category always sits right after "All Items".
@@ -69,7 +71,11 @@ export const ProductFilterToolbar: React.FC<ProductFilterToolbarProps> = ({
           <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
-            placeholder={tr('Search by product name, barcode, HSN, size, color...')}
+            placeholder={
+              switches.product_batch_expiry
+                ? tr('Search medicine name, barcode, batch, HSN...')
+                : tr('Search by product name, barcode, HSN, size, color...')
+            }
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 font-medium"
