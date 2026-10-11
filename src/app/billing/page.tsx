@@ -22,6 +22,7 @@ import { PosCatalogPanel } from '@/components/billing/PosCatalogPanel';
 import { usePosScanning } from '@/components/billing/usePosScanning';
 import { PosMobileCart } from '@/components/billing/PosMobileCart';
 import { PosCounterDialogs } from '@/components/billing/PosCounterDialogs';
+import { CustomItemModal } from '@/components/billing/CustomItemModal';
 import { usePosCatalogData } from '@/components/billing/usePosCatalogData';
 import { usePosBillTabs } from '@/components/billing/usePosBillTabs';
 import { usePosUpiQr } from '@/components/billing/usePosUpiQr';
@@ -95,6 +96,7 @@ export default function BillingPage() {
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [activeSaleForInvoice, setActiveSaleForInvoice] = useState<Sale | null>(null);
   const [isQuickAddModalOpen, setIsQuickAddModalOpen] = useState(false);
+  const [isCustomItemOpen, setIsCustomItemOpen] = useState(false); // v4.159.0 Custom Item (= phone)
   const [scannedUnknownBarcode, setScannedUnknownBarcode] = useState<string | null>(null);
   const [quickAddPrice, setQuickAddPrice] = useState('');
   const [quickAddName, setQuickAddName] = useState('');
@@ -310,9 +312,9 @@ export default function BillingPage() {
   // A window on top of the counter (sale completed, item edit, bill printer, big QR,
   // unknown barcode) owns the keyboard: Enter / F10 pressed
   // there must never complete the bill waiting underneath.
-  const counterCovered = isInvoiceModalOpen || Boolean(editingCartItem) || isQuickAddModalOpen || isEnlargeQrModalOpen || isBillPrinterOpen;
+  const counterCovered = isInvoiceModalOpen || Boolean(editingCartItem) || isQuickAddModalOpen || isCustomItemOpen || isEnlargeQrModalOpen || isBillPrinterOpen;
   // Only "Sale completed" is open: a scan typed into the search box behind it still counts.
-  const onlySaleWindowOpen = isInvoiceModalOpen && !(Boolean(editingCartItem) || isQuickAddModalOpen || isEnlargeQrModalOpen || isBillPrinterOpen);
+  const onlySaleWindowOpen = isInvoiceModalOpen && !(Boolean(editingCartItem) || isQuickAddModalOpen || isCustomItemOpen || isEnlargeQrModalOpen || isBillPrinterOpen);
 
   usePosKeyboard({
     searchQuery, setSearchQuery, searchInputRef, setHighlightedIndex, highlightedIndex, showBillingToast,
@@ -351,6 +353,7 @@ export default function BillingPage() {
               searchInputRef, highlightedIndex, showBillingToast, cart, isSeedingProducts, handleLoadSampleProducts,
               categories, totalProductCount, categoryCounts, variantInfo, products, getAvailableStockForProduct,
               addToCart, focusProductSearch, totalItemCount, grandTotalPaise, listVisible,
+              onCustomItem: () => setIsCustomItemOpen(true),
             }}
           />
         }
@@ -380,6 +383,14 @@ export default function BillingPage() {
           isEnlargeQrModalOpen, setIsEnlargeQrModalOpen, business, variantPick, setVariantPick, selectedCustomer,
           getTotalCartQuantityForProduct, addToCart, handleSaveEditItem, focusProductSearch, handleSaveQuickAddItem, grandTotalPaise,
         }}
+      />
+
+      <CustomItemModal
+        isOpen={isCustomItemOpen}
+        onClose={() => { setIsCustomItemOpen(false); focusProductSearch(); }}
+        businessId={business?.id || 'biz_default'}
+        categories={categories}
+        onAdd={(product, qty) => addToCart(product, qty)}
       />
 
       {/* Floating In-App Toast Notification */}

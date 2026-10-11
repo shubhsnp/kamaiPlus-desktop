@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.159.0',
+    items: [
+      msg('Billing: new "Custom Item" button (same as the phone) — add a carry bag, delivery charge or any item that is not in your list, with its price. Tick "Save to my items" to keep it for next time.'),
+    ],
+  },
+  {
     version: '4.158.0',
     items: [
       msg('Sign-up is shorter: no UPI box. Add your UPI ID later in Settings → UPI & Banking (same as the phone app).'),
@@ -343,21 +349,7 @@ export const CHANGELOG: Release[] = [
       msg('A feature set by KamaiPlus support shows a lock in Settings → Features. Urgent messages also come as a Windows notification.'),
     ],
   },
-  {
-    version: '4.104.0',
-    items: [
-      msg('Behind the scenes: the Billing, Khata, Products and Settings screens were split into smaller parts so future fixes are safer. Nothing changes in how they work.'),
-    ],
-  },
-  {
-    version: '4.103.0',
-    items: [
-      msg('Products: if the same item is saved twice (same barcode, or same name and unit), a "Review" bar lets you merge them into one — bills and stock history move to the item you keep.'),
-      msg('GSTIN: a mistyped letter or digit is now caught when you save (the last character is a check digit).'),
-      msg('The app now carries its own Mukta font, so text looks the same on every computer.'),
-    ],
-  },
-  // 4.102.0 and older: changelogOlder.ts (split in v4.128.0 — a file stays ≤ 400 lines).
+  // 4.104.0 and older: changelogOlder.ts (split in v4.128.0 — a file stays ≤ 400 lines).
   ...OLDER_RELEASES,
 ];
 

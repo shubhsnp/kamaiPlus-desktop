@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { Sale, Product } from '@/types';
 import { getNextUniqueInvoiceNumber, commitNextInvoiceNumber } from '@/lib/invoices/invoiceNumberService';
 import { tr } from '@/lib/i18n/core';
+import { isUnsavedCustomItem } from '@/lib/billing/customItem';
 import type { Business } from '@/types';
 
 export interface CreateConvertEstimateDeps {
@@ -35,7 +36,7 @@ export function createConvertEstimate(deps: CreateConvertEstimateDeps) {
         if (!prod && item.barcode) {
           prod = await db.products.where('barcode').equals(item.barcode).first();
         }
-        if (!prod && item.product_name) {
+        if (!prod && item.product_name && !isUnsavedCustomItem(item.product_id)) { // v4.159.0: never a Custom Item's namesake
           prod = await db.products.where('name').equalsIgnoreCase(item.product_name).first();
         }
         if (prod && !prod.is_unlimited_stock) {

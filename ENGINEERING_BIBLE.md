@@ -649,7 +649,7 @@ them readable — assume they touch everything:
 
 | Page / component | Its code now also lives in |
 | :--- | :--- |
-| `app/billing/page.tsx` | `components/billing/` — `posSaleActions.ts` (Complete Sale, §6.1), `posEstimateAction.ts`, `posCartActions.ts` (bill lines, quick restock), `usePosScanning.ts` (scan, quick-add item), `usePosBillTabs.ts`, `usePosKeyboard.ts`, `usePosCatalogData.ts`, `usePosUpiQr.ts`, `PosCheckoutPanel.tsx` + `PosCheckoutFooter.tsx`, `PosCatalogPanel.tsx`, `PosMobileCart.tsx`, `PosCounterDialogs.tsx` |
+| `app/billing/page.tsx` | `components/billing/` — `posSaleActions.ts` (Complete Sale, §6.1), `posEstimateAction.ts`, `posCartActions.ts` (bill lines, quick restock), `usePosScanning.ts` (scan, quick-add item), `CustomItemModal.tsx` + `lib/billing/customItem.ts` (v4.159.0 Custom Item = phone; unsaved id `prod_misc_*`, unlimited, Complete Sale / Convert to Bill skip the name fallback for it), `usePosBillTabs.ts`, `usePosKeyboard.ts`, `usePosCatalogData.ts`, `usePosUpiQr.ts`, `PosCheckoutPanel.tsx` + `PosCheckoutFooter.tsx`, `PosCatalogPanel.tsx`, `PosMobileCart.tsx`, `PosCounterDialogs.tsx` |
 | `app/khata/page.tsx` | `components/khata/` — `khataActions.ts` (entries, new customer, edit / delete, clear), `KhataCustomerList.tsx`, `KhataCustomerDetail.tsx`, `KhataDialogs.tsx` |
 | `app/products/page.tsx` | `components/products/productActions.ts` (save / delete / star / quick stock & price, categories), `ProductPageDialogs.tsx`; the form's middle in `ProductFormDetails.tsx` |
 | `app/settings/page.tsx` | `components/settings/settingsSave.ts`, `useSettingsChanges.ts`, `SettingsReviewDialogs.tsx`; `SettingsReviewModal.tsx` (re-exported by `SettingsChangeDialogue.tsx`) |

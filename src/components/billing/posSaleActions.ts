@@ -18,6 +18,7 @@ import type { useBackgroundBillPrint } from '@/components/billing/BillPrintQueue
 import type { CustomerDraft } from '@/lib/billing/billCustomer';
 import type { BillTab } from '@/lib/billing/billTabs';
 import type { PriceMode } from '@/lib/billing/priceMode';
+import { isUnsavedCustomItem } from '@/lib/billing/customItem';
 import type { Business, CartItem, Customer, LedgerTransaction, PaymentMethod, Product, Sale } from '@/types';
 
 export interface CreateSaleActionsDeps {
@@ -275,7 +276,7 @@ export function createSaleActions(deps: CreateSaleActionsDeps) {
         if (!prod && item.barcode) {
           prod = await db.products.where('barcode').equals(item.barcode).first();
         }
-        if (!prod && item.product_name) {
+        if (!prod && item.product_name && !isUnsavedCustomItem(item.product_id)) { // v4.159.0: never a Custom Item's namesake
           prod = await db.products.where('name').equalsIgnoreCase(item.product_name).first();
         }
 

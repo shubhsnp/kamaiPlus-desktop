@@ -39,6 +39,7 @@ export interface PosCatalogPanelProps {
   totalItemCount: number;
   grandTotalPaise: number;
   listVisible: boolean;
+  onCustomItem?: () => void;
 }
 
 /**
@@ -50,7 +51,7 @@ export function PosCatalogPanel(props: PosCatalogPanelProps) {
     searchQuery, setSearchQuery, selectedCategory, setSelectedCategory, posLayout, setPosLayout,
     searchInputRef, highlightedIndex, showBillingToast, cart, isSeedingProducts, handleLoadSampleProducts,
     categories, totalProductCount, categoryCounts, variantInfo, products, getAvailableStockForProduct,
-    addToCart, focusProductSearch, totalItemCount, grandTotalPaise, listVisible,
+    addToCart, focusProductSearch, totalItemCount, grandTotalPaise, listVisible, onCustomItem,
   } = props;
   // Stock counting off (e.g. a restaurant): no stock badge, never "Out of stock" (v4.119.0, AU-30).
   const stockOn = useFeatureSwitches().stock_counting;
@@ -81,7 +82,7 @@ export function PosCatalogPanel(props: PosCatalogPanelProps) {
       </div>
 
       {!posLayout.scanMode && (
-        <PosCategoryTabs categories={categories} categoryCounts={categoryCounts} selectedCategory={selectedCategory} onSelect={setSelectedCategory} totalProductCount={totalProductCount} />
+        <PosCategoryTabs categories={categories} categoryCounts={categoryCounts} selectedCategory={selectedCategory} onSelect={setSelectedCategory} totalProductCount={totalProductCount} onCustomItem={onCustomItem} />
       )}
       {!listVisible && (
         <PosScanPanel cart={cart} itemCount={totalItemCount} grandTotalPaise={grandTotalPaise} />

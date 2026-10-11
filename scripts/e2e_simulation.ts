@@ -78,6 +78,7 @@ import { computeDrawerSummary, dayOpeningFloat, localDateKey, summarizeDay } fro
 import { splitIntraStateTax } from '../src/lib/gst/taxSplit';
 import { cartBeyond, makeEmptyTab, nextBillTabId, tabsAfterClosing, tabsAfterSale, tabsAfterUndo, tabsForNewBill } from '../src/lib/billing/billTabs';
 import { scrollDeltaToShow } from '../src/lib/billing/cartFocus';
+import { buildCustomItem, customItemPricePaise, isUnsavedCustomItem } from '../src/lib/billing/customItem';
 import { counterPace, hourRangeLabel, topDebtors, topItemsToday } from '../src/lib/dashboard/todayInsights';
 import { categoryLabel } from '../src/lib/products/defaultCategory';
 import { setActiveLanguage, setActiveWords, tr } from '../src/lib/i18n/core';
@@ -1095,8 +1096,8 @@ assert(readSource('app/billing/page.tsx').split('\n').length <= 401, `POS page s
   assert(/isCreditMode && !hasCustomer/.test(saleFn) && /focusPosCustomerName\(typed\.field\)/.test(saleFn) && /focusPosCustomerName\(\);/.test(saleFn), 'Udhar with no customer (or a wrong mobile) puts the cursor in the name box instead of opening a pop-up');
 
   // (d) Shortcuts: every key on the status bar works, and none fires under a window.
-  assert(/const counterCovered = isInvoiceModalOpen \|\| Boolean\(editingCartItem\) \|\| isQuickAddModalOpen \|\| isEnlargeQrModalOpen \|\| isBillPrinterOpen;/.test(pos),
-    'Enter / F10 never complete the waiting bill while "Sale completed", item edit, unknown-barcode, bill printer or QR window is open');
+  assert(/const counterCovered = isInvoiceModalOpen \|\| Boolean\(editingCartItem\) \|\| isQuickAddModalOpen \|\| isCustomItemOpen \|\| isEnlargeQrModalOpen \|\| isBillPrinterOpen;/.test(pos),
+    'Enter / F10 never complete the waiting bill while "Sale completed", item edit, unknown-barcode, Custom Item, bill printer or QR window is open');
   assert(billingSrc.includes("e.key === 'Escape'") && billingSrc.includes("e.key === '/'") && /\{ id: 'credit', label: tr\('Credit'\), icon: BookOpen, shortcut: 'F9' \}/.test(pos), 'Esc and / work on the counter; the Credit button shows its F9 key like Cash (F4) and UPI (F8)');
 
   // (e) New products are "Unlimited stock" by default; switching it off gives 10 / 10.
@@ -5430,6 +5431,23 @@ assert(readSource('components/products/ProductFilterToolbar.tsx').includes('swit
     && !['Catalog', 'Cost', 'Low'].some((w) => im.includes(`tr('${w}')`))
     && pm.includes("tr('Time to reorder')") && !pm.includes('Below safety threshold'),
     'Products / Inventory tiles: no corner tags, low stock says "Time to reorder" (same as the phone)');
+}
+
+// v4.159.0 — Custom Item on the counter (PC = phone): a one-off line; unsaved it never touches stock.
+{
+  const cats = [{ id: 'cat_gen', business_id: 'b', name: 'General', created_at: '', updated_at: '' }] as any;
+  const once = buildCustomItem({ name: '  Carry Bag ', pricePaise: 500, businessId: 'b', categories: cats, save: false });
+  const kept = buildCustomItem({ name: 'Delivery Charge', pricePaise: 5000, businessId: 'b', categories: cats, save: true });
+  assert(isUnsavedCustomItem(once.id) && !isUnsavedCustomItem(kept.id) && once.name === 'Carry Bag' && once.is_unlimited_stock === true
+    && once.selling_price === 500 && once.purchase_price === 0 && once.tax_rate === 0
+    && customItemPricePaise('12.50') === 1250 && customItemPricePaise('20') === 2000 && customItemPricePaise('0') === 0 && customItemPricePaise('1.234') === 0 && customItemPricePaise('abc') === 0,
+    'Custom Item: unsaved = prod_misc_ id + unlimited stock, saved = a normal item; price box takes rupees with up to 2 decimals');
+  const sale = readSource('components/billing/posSaleActions.ts');
+  const conv = readSource('components/transactions/convertEstimate.ts');
+  const guard = 'if (!prod && item.product_name && !isUnsavedCustomItem(item.product_id)) {';
+  assert(sale.includes(guard) && conv.includes(guard)
+    && readSource('components/billing/PosCategoryTabs.tsx').includes('data-pos-custom-item') && readSource('app/billing/page.tsx').includes('isCustomItemOpen ||'),
+    'Custom Item: Complete Sale / Convert to Bill never take stock off a saved item with the same name; the button sits before "All Items"; the counter keys wait while it is open');
 }
 
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.

@@ -3350,5 +3350,17 @@
   "Time to reorder": "फिर मंगाने का समय",
   "Products and Inventory tiles are cleaner: no small corner labels, and low stock reads \"Time to reorder\".": "प्रोडक्ट और इन्वेंटरी के डिब्बे साफ़: कोने के छोटे लेबल हटे, कम स्टॉक पर \"फिर मंगाने का समय\" लिखा आता है।",
   "Billing counter: a category with no items is not shown as a chip.": "बिलिंग काउंटर: जिस कैटेगरी में कोई सामान नहीं, उसका बटन नहीं दिखता।",
-  "Sign-up is shorter: no UPI box. Add your UPI ID later in Settings → UPI & Banking (same as the phone app).": "साइन-अप छोटा हुआ: UPI का बॉक्स नहीं। अपना UPI ID बाद में Settings → UPI & Banking में जोड़ें (फ़ोन ऐप जैसा)।"
+  "Sign-up is shorter: no UPI box. Add your UPI ID later in Settings → UPI & Banking (same as the phone app).": "साइन-अप छोटा हुआ: UPI का बॉक्स नहीं। अपना UPI ID बाद में Settings → UPI & Banking में जोड़ें (फ़ोन ऐप जैसा)।",
+  "Carry Bag": "कैरी बैग",
+  "Packaging Box": "पैकिंग डिब्बा",
+  "Delivery Charge": "डिलीवरी चार्ज",
+  "Loose Item": "खुला सामान",
+  "Enter the item name.": "सामान का नाम लिखें।",
+  "Enter a price in rupees, e.g. 20 or 12.50.": "दाम रुपये में लिखें, जैसे 20 या 12.50।",
+  "Enter a quantity, e.g. 1 or 2.": "मात्रा लिखें, जैसे 1 या 2।",
+  "e.g. Carry Bag": "जैसे कैरी बैग",
+  "e.g. 20": "जैसे 20",
+  "Save to my items for next time": "अगली बार के लिए मेरे सामान में सेव करें",
+  "Add to Bill": "बिल में जोड़ें",
+  "Billing: new \"Custom Item\" button (same as the phone) — add a carry bag, delivery charge or any item that is not in your list, with its price. Tick \"Save to my items\" to keep it for next time.": "बिलिंग: नया \"Custom Item\" बटन (फ़ोन जैसा) — कैरी बैग, डिलीवरी चार्ज या कोई भी सामान जो आपकी सूची में नहीं है, उसके दाम के साथ जोड़ें। अगली बार के लिए रखना हो तो \"मेरे सामान में सेव करें\" चुनें।"
 }

@@ -1,8 +1,22 @@
 import { msg } from '@/lib/i18n/core';
 import type { Release } from '@/lib/whatsNew/changelog';
 
-/** "What's new" for 4.102.0 and older (moved out of changelog.ts in v4.128.0, newest first). */
+/** "What's new" for 4.104.0 and older (moved out of changelog.ts in v4.128.0, newest first). */
 export const OLDER_RELEASES: Release[] = [
+  {
+    version: '4.104.0',
+    items: [
+      msg('Behind the scenes: the Billing, Khata, Products and Settings screens were split into smaller parts so future fixes are safer. Nothing changes in how they work.'),
+    ],
+  },
+  {
+    version: '4.103.0',
+    items: [
+      msg('Products: if the same item is saved twice (same barcode, or same name and unit), a "Review" bar lets you merge them into one — bills and stock history move to the item you keep.'),
+      msg('GSTIN: a mistyped letter or digit is now caught when you save (the last character is a check digit).'),
+      msg('The app now carries its own Mukta font, so text looks the same on every computer.'),
+    ],
+  },
   {
     version: '4.102.0',
     items: [

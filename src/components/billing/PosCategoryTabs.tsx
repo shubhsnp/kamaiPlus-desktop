@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronUp, Tag } from 'lucide-react';
+import { ChevronDown, ChevronUp, PlusCircle, Tag } from 'lucide-react';
 import type { Category } from '@/types';
 import { cn } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
@@ -19,12 +19,15 @@ export function PosCategoryTabs({
   selectedCategory,
   onSelect,
   totalProductCount,
+  onCustomItem,
 }: {
   categories: Category[];
   categoryCounts: Record<string, number>;
   selectedCategory: string;
   onSelect: (id: string) => void;
   totalProductCount: number;
+  /** v4.159.0: opens the Custom Item window (a line that is not in the item list) — same as the phone. */
+  onCustomItem?: () => void;
 }) {
   // v4.157.0 (PC = phone, Android P-06): a category with no items is not a chip ("Atta, Rice & Dal 0" in a
   // retail shop); the picked one always stays. Until the counts arrive every category shows.
@@ -58,6 +61,12 @@ export function PosCategoryTabs({
   return (
     <div className="flex items-start gap-1.5 flex-shrink-0" data-pos-category-tabs>
       <div ref={rowRef} className={cn('flex flex-1 min-w-0 flex-wrap items-center gap-1.5 select-none', !showAll && 'max-h-[30px] overflow-hidden')}>
+        {onCustomItem && (
+          <button type="button" onClick={onCustomItem} data-pos-custom-item className="px-3 py-1.5 rounded-lg text-xs whitespace-nowrap flex items-center gap-1.5 cursor-pointer font-bold border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100">
+            <PlusCircle className="w-3.5 h-3.5" />
+            <span>{tr('Custom Item')}</span>
+          </button>
+        )}
         <button onClick={() => onSelect('all')} className={cn(chip(selectedCategory === 'all'), 'font-bold')}>
           <span>{tr('All Items')}</span>
           <span className={count(selectedCategory === 'all')}>{totalProductCount}</span>
