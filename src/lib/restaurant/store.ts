@@ -47,6 +47,8 @@ export function parseRestState(raw: unknown): RestState {
       ...(g ? { guest: { name: str(g.name, 40), phone: str(g.phone, 15), address: str(g.address, 160) } } : {}),
       ...(o.kotRequestedAt ? { kotRequestedAt: str(o.kotRequestedAt, 40) } : {}),
       ...(o.takenBy ? { takenBy: str(o.takenBy, 40) } : {}),
+      // v4.161.0: the Fast POS cart (kamai_fast_cart) goes through this parser too.
+      ...(o.fast && typeof o.fast === 'object' ? { fast: { dineIn: o.fast.dineIn === true } } : {}),
     });
   }
   const t = r.token;

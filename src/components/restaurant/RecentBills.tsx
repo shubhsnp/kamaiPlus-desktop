@@ -8,9 +8,12 @@ import { formatINR } from '@/lib/utils';
 import { paymentMethodLabel, tr } from '@/lib/i18n/core';
 import type { Sale } from '@/types';
 
-/** A restaurant bill is one whose note is its table / token ("Table T4", "Takeaway TA-07" — settle.ts). */
+/**
+ * A restaurant bill is one whose note is its table / token ("Table T4", "Takeaway TA-07", "Delivery DL-02",
+ * v4.161.0 "Token TK-04 · Dine-in" — settle.ts). Delivery bills were left out of Today's bills before v4.161.0.
+ */
 export const isRestaurantBill = (s: Pick<Sale, 'notes' | 'status'>): boolean =>
-  s.status !== 'draft' && /^(Table|Takeaway) /.test(s.notes || '');
+  s.status !== 'draft' && /^(Table|Takeaway|Delivery|Token) /.test(s.notes || '');
 
 const startOfToday = (): string => {
   const d = new Date();

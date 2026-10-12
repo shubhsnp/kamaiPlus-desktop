@@ -43,8 +43,9 @@ export const GlobalDrawers: React.FC = () => {
     return await db.sales.orderBy('created_at').reverse().limit(50).toArray();
   }, [isHistoryOpen]) || [];
 
-  // Don't show these drawers on the Billing POS page itself
-  if (pagePath(pathname) === '/billing') {
+  // Don't show these drawers on the Billing POS page itself, nor on Tables & Orders / Fast POS (v4.161.0:
+  // the pull tab covered the order's amounts; that screen has its own Today's bills strip).
+  if (pagePath(pathname) === '/billing' || pagePath(pathname) === '/restaurant') {
     return null;
   }
 

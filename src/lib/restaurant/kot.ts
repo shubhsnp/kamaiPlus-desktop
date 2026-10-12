@@ -45,7 +45,7 @@ export function buildKotBody({ order, shopName, round, now = new Date(), kind = 
   return `<div class="kot">
 <div class="shop">${esc(shopName || 'Kitchen')} · KOT</div>
 <div class="big">${esc(order.label)}</div>
-${order.kind !== 'table' ? `<div class="sec">${order.kind === 'delivery' ? 'DELIVERY' : 'TAKEAWAY'}${order.guest?.name ? ` · ${esc(order.guest.name)}` : ''}</div>` : ''}
+${order.fast ? `<div class="sec">TOKEN · ${order.fast.dineIn ? 'DINE-IN' : 'TAKEAWAY'}${order.guest?.name ? ` · ${esc(order.guest.name)}` : ''}</div>` : order.kind !== 'table' ? `<div class="sec">${order.kind === 'delivery' ? 'DELIVERY' : 'TAKEAWAY'}${order.guest?.name ? ` · ${esc(order.guest.name)}` : ''}</div>` : ''}
 <div class="meta"><span>${esc(time)}</span><span>${kind === 'cancel' ? 'ORDER CANCELLED' : kind === 'reprint' ? 'REPRINT' : round > 1 ? `Round ${round}` : 'New order'}</span></div>
 ${kind === 'cancel' && reason ? `<div class="sec">REASON: ${esc(reason)}</div>` : ''}
 ${adds.length ? `<div class="sec">${kind === 'reprint' ? 'IN KITCHEN' : 'ADD'}</div>${adds.map((l) => row(l, false)).join('')}` : ''}

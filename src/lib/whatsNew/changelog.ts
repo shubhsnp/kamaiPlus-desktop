@@ -16,6 +16,13 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.161.0',
+    items: [
+      msg('Restaurant: new "Fast POS" on Tables & Orders for a counter without tables — tap dishes, Pay (F10), and the bill prints with a token number (TK-01…), Takeaway or Dine-in. With a kitchen printer the KOT prints with it.'),
+      msg("Restaurant: delivery bills now show in Today's bills too."),
+    ],
+  },
+  {
     version: '4.160.0',
     items: [
       msg('Sales Analytics shows Est. Profit (with the owner PIN lock) and Products shows the Cost column again for every shop — only a restaurant without buying prices sees the average bill instead.'),
@@ -348,14 +355,6 @@ export const CHANGELOG: Release[] = [
       msg("For restaurants and cafés: KamaiPlus support can switch on Restaurant mode — a Tables & Orders screen with running tables, takeaway tokens, add-ons, a kitchen slip (KOT) and a 5% GST bill. Shops that are not restaurants see no change."),
     ],
   },
-  {
-    version: '4.105.0',
-    items: [
-      msg('KamaiPlus support can now help faster: they can switch features on or off for you, send a pop-up message with a button, and run an update, a backup or a restart on this computer (a restart waits until no bill is open).'),
-      msg('A feature set by KamaiPlus support shows a lock in Settings → Features. Urgent messages also come as a Windows notification.'),
-    ],
-  },
-  // 4.104.0 and older: changelogOlder.ts (split in v4.128.0 — a file stays ≤ 400 lines).
   ...OLDER_RELEASES,
 ];
 

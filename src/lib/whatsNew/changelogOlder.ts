@@ -1,8 +1,16 @@
 import { msg } from '@/lib/i18n/core';
 import type { Release } from '@/lib/whatsNew/changelog';
 
-/** "What's new" for 4.104.0 and older (moved out of changelog.ts in v4.128.0, newest first). */
+/** "What's new" for 4.105.0 and older (moved out of changelog.ts in v4.128.0 and v4.161.0, newest first). */
 export const OLDER_RELEASES: Release[] = [
+  {
+    version: '4.105.0',
+    items: [
+      msg('KamaiPlus support can now help faster: they can switch features on or off for you, send a pop-up message with a button, and run an update, a backup or a restart on this computer (a restart waits until no bill is open).'),
+      msg('A feature set by KamaiPlus support shows a lock in Settings → Features. Urgent messages also come as a Windows notification.'),
+    ],
+  },
+  // 4.104.0 and older: changelogOlder.ts (split in v4.128.0 — a file stays ≤ 400 lines).
   {
     version: '4.104.0',
     items: [

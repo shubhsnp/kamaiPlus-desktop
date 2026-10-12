@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { cn, formatINR } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
 import { readSilentPrint, saveSilentPrint } from '@/lib/hardware/printerWatch';
-import { DiscountInput, RestOrder, orderTotals, piecesText } from '@/lib/restaurant/model';
+import { DiscountInput, RestOrder, orderRef, orderTotals, piecesText } from '@/lib/restaurant/model';
 import type { RestaurantSettings } from '@/lib/restaurant/settings';
 import { RestPayMethod, cleanGuestPhone } from '@/lib/restaurant/settle';
 import type { Business } from '@/types';
@@ -82,7 +82,9 @@ export function PayDialog({ order, settings, business, open, busy, onClose, onSe
   }, [totals.grandTotal]);
   const foodPaise = totals.items.reduce((n, i) => n + (i.product_id.startsWith('restaurant_') ? 0 : i.total_amount + i.discount_amount), 0);
   // v4.143.0: a delivery said "Takeaway DL-01" here.
-  const who = order.kind === 'table' ? `${tr('Table')} ${order.label}` : order.kind === 'delivery' ? `${tr('Delivery')} ${order.label}` : `${tr('Takeaway')} ${order.label}`;
+  // v4.161.0: a Fast POS token reads "Token TK-05 · Dine-in".
+  const who = order.fast ? `${tr('Token')} ${order.label} · ${order.fast.dineIn ? tr('Dine-in') : tr('Takeaway')}`
+    : order.kind === 'table' ? `${tr('Table')} ${order.label}` : order.kind === 'delivery' ? `${tr('Delivery')} ${order.label}` : `${tr('Takeaway')} ${order.label}`;
 
   const choosePrint = (on: boolean) => {
     setPrintNow(on);
@@ -165,7 +167,7 @@ export function PayDialog({ order, settings, business, open, busy, onClose, onSe
               {change > 0 && <p className="text-sm font-black text-emerald-700 pl-[88px]" data-pay-change>{tr('Give back {amount}', { amount: formatINR(change) })}</p>}
             </div>
           )}
-          {method === 'upi' && <RestUpiQr business={business} amountPaise={totals.grandTotal} reference={`${order.kind === 'table' ? 'Table' : 'Takeaway'} ${order.label}`} />}
+          {method === 'upi' && <RestUpiQr business={business} amountPaise={totals.grandTotal} reference={orderRef(order)} />}
           {method === 'split' && (
             <div className="space-y-2" data-pay-split>
               <div className="flex items-center gap-2">
@@ -178,7 +180,7 @@ export function PayDialog({ order, settings, business, open, busy, onClose, onSe
                 <span className="font-mono font-black text-slate-900" data-pay-split-upi>{formatINR(splitUpiPaise)}</span>
               </div>
               {splitBad && splitCash !== '' && <p className="text-xs font-bold text-rose-600">{tr('The cash part must be more than ₹0 and less than the total.')}</p>}
-              {!splitBad && <RestUpiQr business={business} amountPaise={splitUpiPaise} reference={`${order.kind === 'table' ? 'Table' : 'Takeaway'} ${order.label}`} />}
+              {!splitBad && <RestUpiQr business={business} amountPaise={splitUpiPaise} reference={orderRef(order)} />}
             </div>
           )}
           {method === 'card' && <p className="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2.5 text-xs font-semibold text-slate-600">{tr('Swipe the card on your machine for {amount}, then settle here.', { amount: formatINR(totals.grandTotal) })}</p>}

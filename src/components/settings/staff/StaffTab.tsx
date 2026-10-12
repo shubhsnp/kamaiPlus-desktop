@@ -9,7 +9,7 @@ import { showConfirm } from '@/lib/ui/dialogs';
 import { tr } from '@/lib/i18n/core';
 import { cn } from '@/lib/utils';
 import { getCloudAccount } from '@/lib/cloud/cloudAccount';
-import { isCloudSendOn } from '@/lib/cloud/cloudPush';
+import { isCloudSendOn, sendToCloudNow, setCloudSendOn } from '@/lib/cloud/cloudPush';
 import { readVerticalProfile } from '@/lib/business/verticalProfile';
 import { StaffMember, setStaffActive, staffRolesFor, staffStatus, watchStaff } from '@/lib/cloud/staff';
 import { AddStaffDialog } from './AddStaffDialog';
@@ -29,6 +29,23 @@ export function StaffTab() {
   const [adding, setAdding] = useState(false);
   const [codeFor, setCodeFor] = useState<StaffMember | null>(null);
   const [now, setNow] = useState(Date.now());
+  // v4.161.0 (Rahul: "staff ke mobile me dish dikh nahi rahi"): a waiter's phone gets the menu, the tables and
+  // the running orders only through the cloud. A shop with staff but cloud sync off sent nothing — the
+  // phone showed no dishes. Turning sync on is now one click here, and Add staff asks for it first.
+  const [syncOn, setSyncOn] = useState(() => isCloudSendOn());
+  const turnOnSync = () => {
+    setCloudSendOn(true);
+    setSyncOn(true);
+    void sendToCloudNow();
+  };
+  const startAdding = async () => {
+    if (!syncOn) {
+      const ok = await showConfirm(tr('Staff phones get your menu, tables and orders through the cloud. Turn on cloud sync on this computer now?'), { title: tr('Turn on cloud sync'), confirmLabel: tr('Turn on and continue') });
+      if (!ok) return;
+      turnOnSync();
+    }
+    setAdding(true);
+  };
 
   useEffect(() => {
     if (!account || account.stub) return;
@@ -75,12 +92,15 @@ export function StaffTab() {
               <p className="text-xs text-slate-500 leading-relaxed max-w-xl">{tr('Your staff sign in on their own phones with a one-time code. No Google account on their phone, and each role sees only its work — never your bills, khata or reports.')}</p>
             </div>
           </div>
-          <Button type="button" variant="success" onClick={() => setAdding(true)} disabled={!anyRole} data-staff-add>
+          <Button type="button" variant="success" onClick={() => void startAdding()} disabled={!anyRole} data-staff-add>
             <UserPlus className="w-4 h-4" /> {tr('Add staff')}
           </Button>
         </div>
-        {!isCloudSendOn() && (
-          <p className="mt-3 text-xs font-semibold text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">{tr('Cloud sync is off on this computer — staff phones will not see the orders taken here. Turn it on in Backup & Restore.')}</p>
+        {!syncOn && (
+          <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-2 text-xs font-semibold text-rose-900 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2.5" data-staff-sync-off>
+            <span className="flex-1">{tr('Cloud sync is off on this computer, so staff phones cannot see your menu, tables or orders. Turn it on to send them.')}</span>
+            <Button type="button" size="sm" onClick={turnOnSync} className="shrink-0" data-staff-sync-on>{tr('Turn on cloud sync')}</Button>
+          </div>
         )}
         {!anyRole && (
           <p className="mt-3 text-xs font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">{tr('Staff sign-in for this kind of shop is coming next. Today it works for restaurant waiters.')}</p>

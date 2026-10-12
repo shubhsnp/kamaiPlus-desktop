@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Plus, Printer, Trash2 } from 'lucide-react';
+import { Plus, Printer, Trash2, Zap } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { cn, parseRupeesToPaise } from '@/lib/utils';
@@ -26,6 +26,7 @@ export function SetupDialog({ open, settings, onClose }: { open: boolean; settin
   const [packing, setPacking] = useState('0');
   const [delivery, setDelivery] = useState('0');
   const [remoteKots, setRemoteKots] = useState(false);
+  const [fastKot, setFastKot] = useState(true);
   const [addOns, setAddOns] = useState<{ name: string; price: string }[]>([]);
   const [count, setCount] = useState('10');
 
@@ -39,6 +40,7 @@ export function SetupDialog({ open, settings, onClose }: { open: boolean; settin
     setPacking(String(settings.packingChargePaise / 100));
     setDelivery(String(settings.deliveryChargePaise / 100));
     setRemoteKots(settings.printRemoteKots);
+    setFastKot(settings.fastKot);
     setAddOns(settings.addOns.map((a) => ({ name: a.name, price: String(a.pricePaise / 100) })));
   }, [open, settings]);
 
@@ -51,6 +53,7 @@ export function SetupDialog({ open, settings, onClose }: { open: boolean; settin
       packingChargePaise: packing ? parseRupeesToPaise(packing) : 0,
       deliveryChargePaise: delivery ? parseRupeesToPaise(delivery) : 0,
       printRemoteKots: remoteKots,
+      fastKot,
       addOns: addOns.map((a) => ({ name: a.name, pricePaise: a.price ? parseRupeesToPaise(a.price) : 0 })),
     }));
     onClose();
@@ -130,6 +133,29 @@ export function SetupDialog({ open, settings, onClose }: { open: boolean; settin
               </span>
               <span className={cn('relative w-10 h-6 rounded-full shrink-0 transition-colors', remoteKots ? 'bg-emerald-600' : 'bg-slate-300')}>
                 <span className={cn('absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all', remoteKots ? 'left-[18px]' : 'left-0.5')} />
+              </span>
+            </button>
+            {/* v4.161.0 Fast POS: a KOT with every token bill (needs the kitchen printer chosen in Printer setup). */}
+            <button
+              type="button"
+              role="switch"
+              aria-checked={fastKot}
+              onClick={() => setFastKot((v) => !v)}
+              data-rest-fast-kot={fastKot ? 'on' : 'off'}
+              className={cn(
+                'col-span-2 flex items-center gap-3 p-3 rounded-xl border text-left cursor-pointer transition-colors',
+                fastKot ? 'border-emerald-500 bg-emerald-50/70' : 'border-slate-200 bg-white hover:border-slate-400'
+              )}
+            >
+              <span className={cn('w-9 h-9 rounded-xl flex items-center justify-center shrink-0', fastKot ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-500')}>
+                <Zap className="w-4 h-4" />
+              </span>
+              <span className="flex-1 min-w-0">
+                <span className="block text-xs font-black text-slate-900">{tr('Fast POS: print a KOT with every token bill')}</span>
+                <span className="block text-[11px] font-semibold text-slate-500 leading-snug">{tr('Only when a kitchen (KOT) printer is chosen. Without one, Fast POS just prints the bill.')}</span>
+              </span>
+              <span className={cn('relative w-10 h-6 rounded-full shrink-0 transition-colors', fastKot ? 'bg-emerald-600' : 'bg-slate-300')}>
+                <span className={cn('absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all', fastKot ? 'left-[18px]' : 'left-0.5')} />
               </span>
             </button>
           </div>

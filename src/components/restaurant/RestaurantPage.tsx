@@ -17,6 +17,8 @@ import { tableOrderId } from '@/lib/restaurant/cloudOrders';
 import { OrderScreen } from '@/components/restaurant/OrderScreen';
 import { SetupDialog } from '@/components/restaurant/SetupDialog';
 import { TablesHome } from '@/components/restaurant/TablesHome';
+import { FastPosScreen } from '@/components/restaurant/FastPosScreen';
+import { RestaurantMode, readRestaurantMode, saveRestaurantMode } from '@/lib/restaurant/fastPos';
 
 // The bill window (Print, PDF, WhatsApp — the counter's own): loaded the first time it opens.
 const InvoiceModal = dynamic(() => import('@/components/invoices/InvoiceModal').then((m) => m.InvoiceModal), { ssr: false });
@@ -32,6 +34,13 @@ export function RestaurantPage() {
   const business = useBusiness();
   const { state, settings, update } = useRestaurant();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // v4.161.0: Tables or Fast POS (token counter) — the screen this computer used last.
+  const [mode, setModeState] = useState<RestaurantMode>('tables');
+  useEffect(() => setModeState(readRestaurantMode()), []);
+  const setMode = (m: RestaurantMode) => {
+    saveRestaurantMode(m);
+    setModeState(m);
+  };
   const [setupOpen, setSetupOpen] = useState(false);
   // v4.139.0: "New delivery" asks for the guest first; "New takeaway" may take a name / mobile too.
   const [guestFor, setGuestFor] = useState<'takeaway' | 'delivery' | null>(null);
@@ -117,9 +126,11 @@ export function RestaurantPage() {
       <div className="flex-1 min-h-0">
         {order ? (
           <OrderScreen order={order} settings={settings} update={update} business={business} freeTables={freeTables} onBack={back} onSettled={onSettled} notify={notify} />
+        ) : mode === 'fast' ? (
+          <FastPosScreen state={state} settings={settings} update={update} business={business} onTables={() => setMode('tables')} onSetup={() => setSetupOpen(true)} onSettled={onSettled} onOpenBill={(sale) => setSaleToShow({ sale, justPaid: false })} notify={notify} />
         ) : (
           <div className="h-full overflow-y-auto pr-1">
-            <TablesHome orders={state.orders} settings={settings} onOpenTable={openTable} onOpenOrder={setSelectedId} onNewTakeaway={newTakeaway} onNewDelivery={() => setGuestFor('delivery')} onSetup={() => setSetupOpen(true)} onOpenBill={(sale) => setSaleToShow({ sale, justPaid: false })} />
+            <TablesHome orders={state.orders} settings={settings} onOpenTable={openTable} onOpenOrder={setSelectedId} onNewTakeaway={newTakeaway} onNewDelivery={() => setGuestFor('delivery')} onSetup={() => setSetupOpen(true)} onOpenBill={(sale) => setSaleToShow({ sale, justPaid: false })} onFastPos={() => setMode('fast')} />
           </div>
         )}
       </div>

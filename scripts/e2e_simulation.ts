@@ -5451,6 +5451,77 @@ assert(readSource('components/products/ProductFilterToolbar.tsx').includes('swit
     'Custom Item: Complete Sale / Convert to Bill never take stock off a saved item with the same name; the button sits before "All Items"; the counter keys wait while it is open');
 }
 
+// v4.161.0 — Fast POS (Rahul: "jinke pas tables nhi hai, jo sirf tokens denge"): a token counter for a
+// restaurant with no tables. Same bill / GST / KOT code as the Tables screen; the cart is never a running order.
+pendingAsyncChecks.push((async () => {
+  const fp = await import('../src/lib/restaurant/fastPos');
+  const { orderRef } = await import('../src/lib/restaurant/model');
+  const { settingsForCloud } = await import('../src/lib/restaurant/cloudOrders');
+  const { DEFAULT_RESTAURANT_SETTINGS } = await import('../src/lib/restaurant/settings');
+  const day = new Date(2026, 9, 12, 13, 0);
+  // One daily count for TA / DL / TK: a takeaway TA-03 opened before means the next token is TK-04.
+  const s0 = { orders: [], token: { day: localDay(day), last: 3 } } as any;
+  const r1 = fp.reserveFastToken(s0, day);
+  const r2 = fp.reserveFastToken(r1.state, day);
+  const nextDay = fp.reserveFastToken(r2.state, new Date(2026, 9, 13, 9, 0));
+  assert(r1.label === 'TK-04' && r2.label === 'TK-05' && fp.previewFastToken(r2.state, day) === 'TK-06' && nextDay.label === 'TK-01' && s0.token.last === 3,
+    'Fast POS token: TK-04, TK-05… from the same daily count as TA / DL (never a shared number), 01 again the next day, nothing changed in place');
+  const settings = sanitizeRestaurantSettings({ ...DEFAULT_RESTAURANT_SETTINGS, packingChargePaise: 1000 });
+  const NOW = '2026-10-12T07:30:00.000Z';
+  const pick: MenuPick = { productId: 'p_tea', name: 'Masala Chai', unit: 'piece', basePaise: 2000 };
+  const take = { ...addPiece(fp.newFastCart(false, NOW, 'f1'), pick, NOW), label: 'TK-04' };
+  const dine = { ...take, fast: { dineIn: true } };
+  assert(orderTotals(take, settings).packingPaise === 1000 && orderTotals(dine, settings).packingPaise === 0 && orderTotals(dine, settings).grandTotal === 2000,
+    'Fast POS: a takeaway token pays the packing charge, a dine-in token does not');
+  assert(orderRef(take) === 'Token TK-04 · Takeaway' && orderRef(dine) === 'Token TK-04 · Dine-in' && billCustomerName(dine, 'Rahul') === 'Rahul · Token TK-04 · Dine-in'
+    && orderRef({ kind: 'takeaway', label: 'TA-01' }) === 'Takeaway TA-01',
+    'Fast POS bill / Transactions name: "Token TK-04 · Dine-in" (with the guest name in front); a takeaway order keeps "Takeaway TA-01"');
+  const kot = buildKotBody({ order: dine, shopName: 'Chai Point', round: 1, now: day });
+  assert(kot.includes('<div class="big">TK-04</div>') && kot.includes('TOKEN · DINE-IN') && buildKotBody({ order: take, round: 1, now: day }).includes('TOKEN · TAKEAWAY'),
+    'Fast POS KOT: the token big, "TOKEN · DINE-IN / TAKEAWAY"');
+  const back = parseRestState({ orders: [{ ...dine, kind: 'takeaway' }] }).orders[0];
+  assert(back.fast?.dineIn === true && parseRestState({ orders: [take] }).orders[0].fast?.dineIn === false,
+    'Fast POS cart survives a restart with its order type (store parser keeps `fast`)');
+  const off = sanitizeRestaurantSettings({ fastKot: false });
+  const pub = settingsForCloud({ ...DEFAULT_RESTAURANT_SETTINGS, fastKot: false });
+  assert(sanitizeRestaurantSettings(null).fastKot === true && off.fastKot === false && !('fastKot' in pub),
+    'Fast POS KOT switch: on by default, this PC\'s own choice (never sent to the waiters\' phones)');
+  const screen = readSource('components/restaurant/FastPosScreen.tsx');
+  const page = readSource('components/restaurant/RestaurantPage.tsx');
+  assert(screen.includes('reserveFastToken(s)') && screen.includes("if (!cart.label) {") && screen.includes('settleOrder({ order, settings, business, method')
+    && screen.includes('if (settings.fastKot)') && screen.includes('!res.noPrinter') && screen.includes("e.key === 'F10'")
+    && !/update\(\(s\) => \(\{ \.\.\.s, orders: \[/.test(screen),
+    'Fast POS screen: token taken once at Pay (kept if the window closes), bill through settleOrder, KOT only with a printer and the switch on, F10 = Pay, the cart never joins the running orders');
+  assert(page.includes("mode === 'fast' ? (") && page.includes('readRestaurantMode()') && readSource('components/restaurant/TablesHome.tsx').includes('data-fast-pos-open'),
+    'Tables & Orders ⇄ Fast POS: a button on the Tables screen, and this computer opens the screen it used last');
+  assert(readSource('components/restaurant/PayDialog.tsx').includes('reference={orderRef(order)}') && readSource('components/restaurant/PayDialog.tsx').includes("order.fast ? `${tr('Token')}"),
+    'Pay window: "Token TK-04 · Dine-in" as the title and the UPI reference (a delivery no longer says "Takeaway DL-01")');
+  const { isRestaurantBill } = await import('../src/components/restaurant/RecentBills');
+  assert(isRestaurantBill({ notes: 'Token TK-04 · Dine-in', status: 'completed' } as any) && isRestaurantBill({ notes: 'Delivery DL-02 · Plot 7', status: 'completed' } as any)
+    && isRestaurantBill({ notes: 'Table T4', status: 'completed' } as any) && !isRestaurantBill({ notes: 'Token TK-04', status: 'draft' } as any) && !isRestaurantBill({ notes: 'Tea party order', status: 'completed' } as any)
+    && readSource('components/restaurant/FastPosScreen.tsx').includes('<RecentBills onOpen={onOpenBill} />'),
+    "Today's bills: token and delivery bills too (delivery was missing before v4.161.0); the strip is on Fast POS as well");
+})());
+
+// v4.161.0 (Rahul: "staff ke mobile me dish dikh nahi rahi"): a shop with staff but cloud sync off sent no menu —
+// the waiters' phones showed no dishes. The Staff tab now turns sync on in one click, and Add staff asks first.
+{
+  const tab = readSource('components/settings/staff/StaffTab.tsx');
+  assert(tab.includes('setCloudSendOn(true)') && tab.includes('void sendToCloudNow()') && tab.includes('data-staff-sync-on') && tab.includes('onClick={() => void startAdding()}')
+    && tab.includes("tr('Staff phones get your menu, tables and orders through the cloud. Turn on cloud sync on this computer now?')"),
+    'Staff tab: sync off = a red card with "Turn on cloud sync" (one click, sends at once); Add staff turns it on first');
+  assert(readSource('components/layout/GlobalDrawers.tsx').includes("pagePath(pathname) === '/restaurant'"), 'No Transactions pull tab over Tables & Orders / Fast POS (it covered the order amounts)');
+}
+
+// v4.161.0 (Rahul: "staff ke mobile me dish dikh nahi rahi"): a shop with staff but cloud sync off sent no menu —
+// the waiters' phones showed no dishes. The Staff tab now turns sync on in one click, and Add staff asks first.
+{
+  const tab = readSource('components/settings/staff/StaffTab.tsx');
+  assert(tab.includes('setCloudSendOn(true)') && tab.includes('void sendToCloudNow()') && tab.includes('data-staff-sync-on') && tab.includes('onClick={() => void startAdding()}')
+    && tab.includes("tr('Staff phones get your menu, tables and orders through the cloud. Turn on cloud sync on this computer now?')"),
+    'Staff tab: sync off = a red card with "Turn on cloud sync" (one click, sends at once); Add staff turns it on first');
+}
+
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.
 Promise.allSettled(pendingAsyncChecks).then((results) => {
   for (const r of results) if (r.status === 'rejected') assert(false, 'An async check threw', String(r.reason));

@@ -122,7 +122,8 @@ function writeSent(sent: Map<string, string>) {
  */
 export const RESTAURANT_META = 'restaurant_meta';
 export function settingsForCloud(s: RestaurantSettings, gstAllowed = true): Record<string, unknown> {
-  const { printRemoteKots: _ignored, ...shared } = s; // eslint-disable-line @typescript-eslint/no-unused-vars
+  // printRemoteKots and fastKot (v4.161.0) are this PC's own printer choices — never sent to the phones.
+  const { printRemoteKots: _ignored, fastKot: _fastKot, ...shared } = s; // eslint-disable-line @typescript-eslint/no-unused-vars
   // v4.146.0: a shop without a GSTIN charges no GST (Bill of Supply) — the staff phones must not add it.
   return JSON.parse(JSON.stringify({ ...shared, gstRate: gstAllowed ? shared.gstRate : 0 }));
 }

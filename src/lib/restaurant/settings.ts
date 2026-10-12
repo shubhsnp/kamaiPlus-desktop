@@ -31,6 +31,11 @@ export interface RestaurantSettings {
    * One PC per shop — the one with the kitchen printer.
    */
   printRemoteKots: boolean;
+  /**
+   * v4.161.0 Fast POS: print a KOT for the kitchen with every token bill (only when a kitchen printer is
+   * chosen; with none, Fast POS just bills). This computer's choice, like printRemoteKots.
+   */
+  fastKot: boolean;
 }
 
 export const RESTAURANT_SETTINGS_KEY = 'kamai_restaurant_settings';
@@ -50,6 +55,7 @@ export const DEFAULT_RESTAURANT_SETTINGS: RestaurantSettings = {
   packingChargePaise: 0,
   deliveryChargePaise: 0,
   printRemoteKots: false,
+  fastKot: true,
   addOns: [
     { name: 'Extra cheese', pricePaise: 2000 },
     { name: 'Extra butter', pricePaise: 1000 },
@@ -94,6 +100,7 @@ export function sanitizeRestaurantSettings(raw: unknown): RestaurantSettings {
     packingChargePaise: Math.round(num(r.packingChargePaise, d.packingChargePaise, 0, 1_000_000)),
     deliveryChargePaise: Math.round(num(r.deliveryChargePaise, d.deliveryChargePaise, 0, 1_000_000)),
     printRemoteKots: r.printRemoteKots === true,
+    fastKot: r.fastKot !== false,
     // A missing list = the starter add-ons; an empty list saved on purpose stays empty.
     addOns: Array.isArray(r.addOns) ? addOns : d.addOns,
   };

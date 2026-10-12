@@ -57,11 +57,17 @@ export interface RestOrder {
   kotRequestedAt?: string;
   /** v4.144.0: the staff member (a waiter's phone, staff sign-in) who took the order. */
   takenBy?: string;
+  /**
+   * v4.161.0 Fast POS (a token counter with no tables): the order is billed at once and never kept as a
+   * running order. `dineIn` = eaten at the shop (no packing charge); otherwise a takeaway parcel.
+   */
+  fast?: { dineIn: boolean };
 }
 
-/** "Table T4" / "Takeaway TA-03" / "Delivery DL-02" — on the bill, the QR reference and Transactions. */
-export const orderRef = (order: Pick<RestOrder, 'kind' | 'label'>): string =>
-  order.kind === 'table' ? `Table ${order.label}` : order.kind === 'delivery' ? `Delivery ${order.label}` : `Takeaway ${order.label}`;
+/** "Table T4" / "Takeaway TA-03" / "Delivery DL-02" / "Token TK-05 · Dine-in" (Fast POS) — on the bill, the QR reference and Transactions. */
+export const orderRef = (order: Pick<RestOrder, 'kind' | 'label'> & { fast?: RestOrder['fast'] }): string =>
+  order.fast ? `Token ${order.label} · ${order.fast.dineIn ? 'Dine-in' : 'Takeaway'}`
+  : order.kind === 'table' ? `Table ${order.label}` : order.kind === 'delivery' ? `Delivery ${order.label}` : `Takeaway ${order.label}`;
 
 export interface MenuPick {
   productId: string;
@@ -272,7 +278,8 @@ export function orderTotals(order: RestOrder, settings: RestaurantSettings, disc
   const foodTotals = computeBillTotals(discounted);
   const serviceChargePaise = settings.serviceChargePercent > 0 ? Math.round((foodTotals.subtotal * settings.serviceChargePercent) / 100) : 0;
   // Packing on every parcel (takeaway and delivery); the delivery charge on a delivery (v4.139.0).
-  const packingPaise = order.kind !== 'table' ? settings.packingChargePaise : 0;
+  // v4.161.0: a Fast POS token eaten at the shop is not a parcel — no packing charge.
+  const packingPaise = order.kind !== 'table' && !order.fast?.dineIn ? settings.packingChargePaise : 0;
   const deliveryPaise = order.kind === 'delivery' ? settings.deliveryChargePaise : 0;
   const items = [...discounted];
   if (serviceChargePaise > 0 && discounted.length) items.push(chargeLine(SERVICE_CHARGE_ID, `Service charge ${settings.serviceChargePercent}%`, serviceChargePaise, rate));
@@ -297,8 +304,8 @@ export interface TokenCounter {
 export const localDay = (d: Date = new Date()): string =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-/** TA-01, TA-02… (a delivery: DL-03…, the same day's count) — starts again at 01 every day. */
-export function nextToken(counter: TokenCounter | null | undefined, now: Date = new Date(), prefix: 'TA' | 'DL' = 'TA'): { label: string; counter: TokenCounter } {
+/** TA-01, TA-02… (a delivery: DL-03…, a Fast POS token: TK-04…, the same day's count) — starts again at 01 every day. */
+export function nextToken(counter: TokenCounter | null | undefined, now: Date = new Date(), prefix: 'TA' | 'DL' | 'TK' = 'TA'): { label: string; counter: TokenCounter } {
   const day = localDay(now);
   const last = counter && counter.day === day ? Math.max(0, Math.floor(counter.last) || 0) : 0;
   const n = last + 1;

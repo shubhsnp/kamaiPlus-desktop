@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Bike, ChefHat, Clock, Plus, Settings2, ShoppingBag, UtensilsCrossed } from 'lucide-react';
+import { Bike, ChefHat, Clock, Plus, Settings2, ShoppingBag, UtensilsCrossed, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { cn, formatINR } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
@@ -21,7 +21,7 @@ const LONG_MINUTES = 60;
  * the kitchen yet. Takeaway orders get their own row with a token (TA-01…), and today's paid bills
  * can be opened again (print, PDF, WhatsApp).
  */
-export function TablesHome({ orders, settings, onOpenTable, onOpenOrder, onNewTakeaway, onNewDelivery, onSetup, onOpenBill }: {
+export function TablesHome({ orders, settings, onOpenTable, onOpenOrder, onNewTakeaway, onNewDelivery, onSetup, onOpenBill, onFastPos }: {
   orders: RestOrder[];
   settings: RestaurantSettings;
   onOpenTable: (label: string) => void;
@@ -31,6 +31,8 @@ export function TablesHome({ orders, settings, onOpenTable, onOpenOrder, onNewTa
   onNewDelivery: () => void;
   onSetup: () => void;
   onOpenBill: (sale: Sale) => void;
+  /** v4.161.0: switch this computer to Fast POS (token billing, no tables). */
+  onFastPos?: () => void;
 }) {
   // Minutes on a card move on their own.
   const [now, setNow] = useState(() => Date.now());
@@ -67,6 +69,11 @@ export function TablesHome({ orders, settings, onOpenTable, onOpenOrder, onNewTa
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <Button type="button" variant="success" onClick={onNewTakeaway} data-new-takeaway className="flex-1 sm:flex-none"><Plus className="w-4 h-4" /> {tr('New takeaway')}</Button>
           <Button type="button" variant="outline" onClick={onNewDelivery} data-new-delivery className="flex-1 sm:flex-none"><Bike className="w-4 h-4" /> {tr('New delivery')}</Button>
+          {onFastPos && (
+            <Button type="button" variant="outline" onClick={onFastPos} data-fast-pos-open className="flex-1 sm:flex-none border-amber-300 bg-amber-50 hover:bg-amber-100 text-slate-900" title={tr('Token billing for a counter without tables')}>
+              <Zap className="w-4 h-4 text-amber-600" /> {tr('Fast POS')}
+            </Button>
+          )}
           <Button type="button" variant="outline" onClick={onSetup} data-restaurant-setup aria-label={tr('Set-up')}><Settings2 className="w-4 h-4" /> <span className="hidden sm:inline">{tr('Set-up')}</span></Button>
         </div>
       </div>
