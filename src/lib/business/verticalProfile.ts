@@ -96,7 +96,7 @@ export const VERTICAL_BASE: Record<VerticalId, Base> = {
   // Tables & KOT; dishes are never counted; one GST % from Restaurant Set-up.
   restaurant: {
     ...SHOP,
-    inventory: false,
+    inventory: true,
     barcode_studio: false,
     purchases: false,
     suppliers: false,

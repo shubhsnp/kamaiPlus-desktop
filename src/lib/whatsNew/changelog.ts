@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.165.0',
+    items: [
+      msg('Restaurant: Inventory & Stock page enabled under Menu & Kitchen for kitchen stock tracking and valuation.'),
+    ],
+  },
+  {
     version: '4.164.0',
     items: [
       msg('Settings → Staff: QR and join code modal automatically closes with confirmation when staff phone joins.'),

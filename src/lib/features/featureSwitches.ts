@@ -196,7 +196,7 @@ export function restaurantModeFromRaw(rawAdmin: string | null | undefined): bool
  * switches still win over this.
  */
 export const RESTAURANT_PRESET: Partial<FeatureSwitches> = {
-  inventory: false,
+  inventory: true,
   barcode_studio: false,
   purchases: false,
   suppliers: false,

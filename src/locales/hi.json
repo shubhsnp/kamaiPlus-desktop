@@ -3470,5 +3470,6 @@
   "Device: {device}": "डिवाइस: {device}",
   "Staff signed in successfully!": "स्टाफ सफलतापूर्वक साइन इन हो गया!",
   "Closing automatically…": "अपने आप बंद हो रहा है...",
-  "Settings → Staff: QR and join code modal automatically closes with confirmation when staff phone joins.": "सेटिंग्स → स्टाफ: स्टाफ फोन जुड़ते ही QR और जॉइन कोड मोडल पुष्टि के साथ अपने आप बंद हो जाता है।"
+  "Settings → Staff: QR and join code modal automatically closes with confirmation when staff phone joins.": "सेटिंग्स → स्टाफ: स्टाफ फोन जुड़ते ही QR और जॉइन कोड मोडल पुष्टि के साथ अपने आप बंद हो जाता है।",
+  "Restaurant: Inventory & Stock page enabled under Menu & Kitchen for kitchen stock tracking and valuation.": "रेस्तरां: किचन स्टॉक ट्रैकिंग और वैल्यूएशन के लिए मेन्यू और किचन के तहत इन्वेंटरी और स्टॉक पेज सक्षम किया गया।"
 }
