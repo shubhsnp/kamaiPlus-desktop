@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.164.0',
+    items: [
+      msg('Settings → Staff: QR and join code modal automatically closes with confirmation when staff phone joins.'),
+    ],
+  },
+  {
     version: '4.163.0',
     items: [
       msg('Sidebar: quick access Staff link under Ledger & Customers, all retail verticals staff roles unlocked, and inventory tracking added to restaurant menu.'),

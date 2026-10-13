@@ -348,7 +348,10 @@ export function StaffTab() {
           setCodeFor({ id, name, role: '', active: true, createdAt: '' });
         }}
       />
-      <StaffJoinCodeDialog member={codeFor} onClose={() => setCodeFor(null)} />
+      <StaffJoinCodeDialog
+        member={codeFor ? (list?.find((m) => m.id === codeFor.id) || codeFor) : null}
+        onClose={() => setCodeFor(null)}
+      />
       <StaffPerformanceDialog open={Boolean(perfFor)} member={perfFor} onClose={() => setPerfFor(null)} />
       <StaffPermissionsDialog
         open={Boolean(permsFor)}

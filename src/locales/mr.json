@@ -3465,5 +3465,10 @@
   "Permissions": "परवानग्या",
   "Temporarily remove": "तात्पुरते हटवा",
   "Settings → Staff: permanent delete option, live staff order counts & sales performance, role permissions & security limits, and salary & advance payment management.": "सेटिंग्ज → स्टाफ: कायमचे हटवण्याचा पर्याय, थेट कर्मचारी ऑर्डर संख्या आणि विक्री कामगिरी, भूमिका परवानग्या आणि सुरक्षा मर्यादा, आणि पगार व उचल व्यवस्थापन.",
-  "Sidebar: quick access Staff link under Ledger & Customers, all retail verticals staff roles unlocked, and inventory tracking added to restaurant menu.": "साइडबार: खाते आणि ग्राहक अंतर्गत जलद कर्मचारी लिंक, सर्व व्यावसायिक श्रेणींमध्ये कर्मचारी भूमिका अनलॉक, आणि रेस्टॉरंट मेनूमध्ये इन्व्हेंटरी ट्रॅकिंग जोडले."
+  "Sidebar: quick access Staff link under Ledger & Customers, all retail verticals staff roles unlocked, and inventory tracking added to restaurant menu.": "साइडबार: खाते आणि ग्राहक अंतर्गत जलद कर्मचारी लिंक, सर्व व्यावसायिक श्रेणींमध्ये कर्मचारी भूमिका अनलॉक, आणि रेस्टॉरंट मेनूमध्ये इन्व्हेंटरी ट्रॅकिंग जोडले.",
+  "{name}’s phone connected!": "{name} चा फोन जोडला गेला!",
+  "Device: {device}": "डिव्हाइस: {device}",
+  "Staff signed in successfully!": "स्टाफ यशस्वीरित्या साइन इन झाला!",
+  "Closing automatically…": "आपोआप बंद होत आहे...",
+  "Settings → Staff: QR and join code modal automatically closes with confirmation when staff phone joins.": "सेटिंग्ज → स्टाफ: स्टाफ फोन जोडताच QR आणि जॉइन कोड मोडल पुष्टीसह आपोआप बंद होते."
 }

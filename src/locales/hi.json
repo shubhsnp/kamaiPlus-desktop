@@ -3465,5 +3465,10 @@
   "Permissions": "अनुमतियाँ",
   "Temporarily remove": "अस्थायी रूप से हटाएं",
   "Settings → Staff: permanent delete option, live staff order counts & sales performance, role permissions & security limits, and salary & advance payment management.": "सेटिंग्स → स्टाफ: हमेशा के लिए हटाने का विकल्प, लाइव स्टाफ ऑर्डर संख्या और बिक्री प्रदर्शन, भूमिका अनुमतियाँ और सुरक्षा सीमाएं, और वेतन व अग्रिम भुगतान प्रबंधन।",
-  "Sidebar: quick access Staff link under Ledger & Customers, all retail verticals staff roles unlocked, and inventory tracking added to restaurant menu.": "साइडबार: खाता और ग्राहक के तहत त्वरित स्टाफ लिंक, सभी व्यावसायिक श्रेणियों में स्टाफ भूमिकाएं अनलॉक, और रेस्टोरेंट मेनू में इन्वेंट्री ट्रैकिंग जोड़ी गई।"
+  "Sidebar: quick access Staff link under Ledger & Customers, all retail verticals staff roles unlocked, and inventory tracking added to restaurant menu.": "साइडबार: खाता और ग्राहक के तहत त्वरित स्टाफ लिंक, सभी व्यावसायिक श्रेणियों में स्टाफ भूमिकाएं अनलॉक, और रेस्टोरेंट मेनू में इन्वेंट्री ट्रैकिंग जोड़ी गई।",
+  "{name}’s phone connected!": "{name} का फ़ोन जुड़ गया!",
+  "Device: {device}": "डिवाइस: {device}",
+  "Staff signed in successfully!": "स्टाफ सफलतापूर्वक साइन इन हो गया!",
+  "Closing automatically…": "अपने आप बंद हो रहा है...",
+  "Settings → Staff: QR and join code modal automatically closes with confirmation when staff phone joins.": "सेटिंग्स → स्टाफ: स्टाफ फोन जुड़ते ही QR और जॉइन कोड मोडल पुष्टि के साथ अपने आप बंद हो जाता है।"
 }
