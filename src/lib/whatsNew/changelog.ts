@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.167.0',
+    items: [
+      msg('Products & Staff: dynamic vertical variant presets and custom staff roles with granular security permissions.'),
+    ],
+  },
+  {
     version: '4.166.0',
     items: [
       msg('Inventory: unlimited items excluded from stock asset totals to prevent large digits, restaurant purchases enabled, and toasts moved to top navbar.'),

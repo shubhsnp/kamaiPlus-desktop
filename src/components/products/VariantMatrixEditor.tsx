@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react';
 import { Layers, X } from 'lucide-react';
-import { VARIANT_PRESETS } from '@/lib/products/variants';
+import { getVariantPresets, getVariantInfo } from '@/lib/products/variants';
+import { readVerticalProfile, type VerticalId } from '@/lib/business/verticalProfile';
 import { tr } from '@/lib/i18n/core';
 
 /** One row of the matrix, kept as typed strings until the product is saved. */
@@ -23,15 +24,29 @@ interface VariantMatrixEditorProps {
   defaults: { price: string; mrp: string; stock: string };
   /** The product is "Unlimited stock": variants are not counted, so no stock box. */
   unlimitedStock?: boolean;
+  /** Business vertical (defaults to active store profile). */
+  vertical?: VerticalId | null;
 }
 
 /**
- * "Variants Matrix (Size / Color)" — same flow as the Android add-product form:
- * switch on, tap presets or type a custom label, then set price / MRP / stock
- * (and an optional barcode) for each variant.
+ * "Variants Matrix" — matches the Android add-product form across all verticals:
+ * switch on, tap vertical presets (e.g. Half / Full for restaurant, 500g / 1kg for grocery)
+ * or type a custom label, then set price / MRP / stock (and an optional barcode).
  */
-export function VariantMatrixEditor({ enabled, onToggle, rows, onChange, defaults, unlimitedStock = false }: VariantMatrixEditorProps) {
+export function VariantMatrixEditor({
+  enabled,
+  onToggle,
+  rows,
+  onChange,
+  defaults,
+  unlimitedStock = false,
+  vertical,
+}: VariantMatrixEditorProps) {
   const [custom, setCustom] = useState('');
+  const activeVertical = vertical ?? readVerticalProfile()?.vertical;
+  const presets = getVariantPresets(activeVertical);
+  const info = getVariantInfo(activeVertical);
+
   const has = (label: string) => rows.some((r) => r.label.toLowerCase() === label.toLowerCase());
 
   const add = (label: string) => {
@@ -50,8 +65,8 @@ export function VariantMatrixEditor({ enabled, onToggle, rows, onChange, default
           <Layers className="w-4 h-4" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-black text-slate-900">{tr('Variants (Size / Colour)')}</p>
-          <p className="text-[10.5px] text-slate-500">{tr('Sell one item in many sizes or colours, each with its own price and stock.')}</p>
+          <p className="text-xs font-black text-slate-900">{info.title}</p>
+          <p className="text-[10.5px] text-slate-500">{info.subtitle}</p>
         </div>
         <label className="relative inline-flex items-center cursor-pointer shrink-0">
           <input type="checkbox" className="sr-only peer" checked={enabled} onChange={(e) => onToggle(e.target.checked)} />
@@ -65,7 +80,7 @@ export function VariantMatrixEditor({ enabled, onToggle, rows, onChange, default
           <div>
             <p className="text-[11px] font-bold text-slate-600 mb-1.5 mt-2">{tr('Quick presets (tap to add / remove)')}</p>
             <div className="flex flex-wrap gap-1.5">
-              {VARIANT_PRESETS.map((label) => {
+              {presets.map((label) => {
                 const on = has(label);
                 return (
                   <button
@@ -92,7 +107,7 @@ export function VariantMatrixEditor({ enabled, onToggle, rows, onChange, default
                   setCustom('');
                 }
               }}
-              placeholder={tr('Custom variant (e.g. 36, Red-XL, 500 g)')}
+              placeholder={info.placeholder}
               className="flex-1 h-9 px-3 rounded-lg border border-slate-300 text-xs focus:outline-none focus:border-purple-500"
             />
             <button

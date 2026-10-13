@@ -103,7 +103,7 @@ export function parseStaff(id: string, d: Record<string, unknown> | undefined | 
   return {
     id,
     name,
-    role: text(d.role, 20),
+    role: text(d.role, 40) || 'staff',
     active: d.active === true,
     createdAt: text(d.created_at, 40),
     ...(text(d.joined_at, 40) ? { joinedAt: text(d.joined_at, 40) } : {}),
@@ -135,15 +135,58 @@ export function newStaffId(rand: () => number = Math.random): string {
   return `st_${s}`;
 }
 
-/** The new member's document, or why not. */
-export function staffDraft(name: string, role: string, vertical: VerticalId | null | undefined, nowIso: string):
-  { ok: true; doc: Record<string, unknown> } | { ok: false; error: string } {
-  const clean = name.replace(/\s+/g, ' ').trim();
-  if (clean.length < 2) return { ok: false, error: tr('Type the staff member’s name.') };
-  if (clean.length > 40) return { ok: false, error: tr('Keep the name under 40 letters.') };
-  const r = staffRolesFor(vertical).find((x) => x.id === role);
-  if (!r || !r.available) return { ok: false, error: tr('Pick a role.') };
-  return { ok: true, doc: { name: clean, role: r.id, active: true, created_at: nowIso } };
+/** The new member's document with custom role and initial permissions, or why not. */
+export function staffDraft(
+  name: string,
+  role: string,
+  vertical: VerticalId | null | undefined,
+  nowIso: string,
+  options?: StaffPermissions | { permissions?: StaffPermissions; isCustom?: boolean },
+): { ok: true; doc: Record<string, unknown> } | { ok: false; error: string } {
+  const cleanName = name.replace(/\s+/g, ' ').trim();
+  if (cleanName.length < 2) return { ok: false, error: tr('Type the staff member’s name.') };
+  if (cleanName.length > 40) return { ok: false, error: tr('Keep the name under 40 letters.') };
+
+  const cleanRole = role.replace(/\s+/g, ' ').trim();
+  if (cleanRole.length < 2) return { ok: false, error: tr('Type or pick a role (e.g. Waiter, Helper, Chef).') };
+  if (cleanRole.length > 40) return { ok: false, error: tr('Keep the role under 40 letters.') };
+
+  const isCustom = typeof options === 'object' && options !== null && 'isCustom' in options && (options as { isCustom?: boolean }).isCustom === true;
+  const permissions: StaffPermissions | undefined =
+    typeof options === 'object' && options !== null && 'permissions' in options
+      ? (options as { permissions?: StaffPermissions }).permissions
+      : (options as StaffPermissions | undefined);
+
+  const preset = staffRolesFor(vertical).find(
+    (x) => x.id.toLowerCase() === cleanRole.toLowerCase() || x.label.toLowerCase() === cleanRole.toLowerCase(),
+  );
+
+  if (!preset && !isCustom) {
+    return { ok: false, error: tr('Pick a role.') };
+  }
+
+  const finalRole = preset ? preset.id : cleanRole;
+
+  const permDoc: Record<string, unknown> = {};
+  if (permissions) {
+    if (permissions.canDiscount !== undefined) permDoc.can_discount = permissions.canDiscount;
+    if (permissions.maxDiscountPct !== undefined) permDoc.max_discount_pct = permissions.maxDiscountPct;
+    if (permissions.canCancelItem !== undefined) permDoc.can_cancel_item = permissions.canCancelItem;
+    if (permissions.canChangeTable !== undefined) permDoc.can_change_table = permissions.canChangeTable;
+    if (permissions.canViewReports !== undefined) permDoc.can_view_reports = permissions.canViewReports;
+    if (permissions.canAccessCashDrawer !== undefined) permDoc.can_access_cash_drawer = permissions.canAccessCashDrawer;
+  }
+
+  return {
+    ok: true,
+    doc: {
+      name: cleanName,
+      role: finalRole,
+      active: true,
+      created_at: nowIso,
+      ...(Object.keys(permDoc).length > 0 ? { permissions: permDoc } : {}),
+    },
+  };
 }
 
 function bizOrThrow(): string {

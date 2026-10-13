@@ -15,12 +15,76 @@ import { tr } from '@/lib/i18n/core';
  * the POS opens a picker when a parent is tapped.
  */
 
-/** Same quick presets the Android "Variants Matrix (Size / Color)" offers. */
+import type { VerticalId } from '@/lib/business/verticalProfile';
+
+/** Quick presets matching the Android "Variants Matrix" across all verticals. */
 export const VARIANT_PRESETS = [
   'S', 'M', 'L', 'XL', 'XXL', '3XL',
   '28', '30', '32', '34', '36', '38', '40', '42',
   'Red', 'Blue', 'Black', 'White', 'Green', 'Yellow', 'Grey', 'Navy',
 ];
+
+/** Business vertical-specific quick variant presets */
+export function getVariantPresets(vertical?: VerticalId | null): string[] {
+  switch (vertical) {
+    case 'restaurant':
+      return ['Half', 'Full', 'Regular', 'Medium', 'Large', 'Single', 'Double', 'Jain', 'Spicy', 'Combo'];
+    case 'grocery':
+      return ['100g', '250g', '500g', '1kg', '2kg', '5kg', '10kg', '500ml', '1 Litre', 'Pack of 2', 'Pack of 4', 'Combo'];
+    case 'pharmacy':
+      return ['Strip (10 Tab)', 'Strip (15 Tab)', 'Bottle (60ml)', 'Bottle (100ml)', '100mg', '250mg', '500mg', '650mg', 'Sachet', 'Box of 10'];
+    case 'hardware':
+      return ['1/2 Inch', '3/4 Inch', '1 Inch', '1.5 Inch', '2 Inch', '50mm', '100mm', '500ml', '1 Ltr', '4 Ltr', '10 Ltr', '20 Ltr'];
+    case 'retail':
+      return ['Small', 'Medium', 'Large', 'Pack of 1', 'Pack of 2', 'Pack of 5', '100g', '250g', '500g', '1kg'];
+    case 'clothing':
+    default:
+      return VARIANT_PRESETS;
+  }
+}
+
+export function getVariantInfo(vertical?: VerticalId | null): { title: string; subtitle: string; placeholder: string } {
+  switch (vertical) {
+    case 'restaurant':
+      return {
+        title: tr('Variants (Half / Full)'),
+        subtitle: tr('One dish in Half / Full or other portions, each with its own price.'),
+        placeholder: tr('Custom variant (e.g. Half, Spicy, Jain, Large)'),
+      };
+    case 'grocery':
+      return {
+        title: tr('Variants (Weight / Pack)'),
+        subtitle: tr('Sell one item in different weights or packs (e.g. 500g, 1kg), each with its own price.'),
+        placeholder: tr('Custom variant (e.g. 250g, 2kg, Combo)'),
+      };
+    case 'pharmacy':
+      return {
+        title: tr('Variants (Dosage / Pack)'),
+        subtitle: tr('Sell medicine in different dosages or strips (e.g. 500mg, Strip of 10), each with its own price.'),
+        placeholder: tr('Custom variant (e.g. Strip 15, 650mg, 100ml)'),
+      };
+    case 'hardware':
+      return {
+        title: tr('Variants (Size / Dimension)'),
+        subtitle: tr('Sell one item in different sizes or volumes (e.g. 1/2 Inch, 1 Litre), each with its own price.'),
+        placeholder: tr('Custom variant (e.g. 1.5 Inch, 10 Litre)'),
+      };
+    case 'retail':
+      return {
+        title: tr('Variants (Size / Pack)'),
+        subtitle: tr('Sell one item in different sizes or packs, each with its own price.'),
+        placeholder: tr('Custom variant (e.g. Medium, 500g, Pack of 2)'),
+      };
+    case 'clothing':
+    default:
+      return {
+        title: tr('Variants (Size / Colour)'),
+        subtitle: tr('Sell one item in many sizes or colours, each with its own price and stock.'),
+        placeholder: tr('Custom variant (e.g. 36, Red-XL, 500 g)'),
+      };
+  }
+}
+
 
 export interface VariantDraft {
   label: string;
