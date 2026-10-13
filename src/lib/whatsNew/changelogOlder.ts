@@ -1,8 +1,20 @@
 import { msg } from '@/lib/i18n/core';
 import type { Release } from '@/lib/whatsNew/changelog';
 
-/** "What's new" for 4.110.0 and older (moved out of changelog.ts to stay <= 400 lines, newest first). */
+/** "What's new" for 4.112.0 and older (moved out of changelog.ts to stay <= 400 lines, newest first). */
 export const OLDER_RELEASES: Release[] = [
+  {
+    version: '4.112.0',
+    items: [
+      msg('Brand consistency across the app: Kamai in black with Plus in red, single unified tagline "Aapki Dukaan Ka Digital Sathi", and website link www.kamaiplus.com.'),
+    ],
+  },
+  {
+    version: '4.111.0',
+    items: [
+      msg('Settings → Data Maintenance: safe 3-tier reset with cloud sync wiping (Clean Products, Reset Sales Bills with fresh INV-001 restart, and Factory Reset with Store Profile protection).'),
+    ],
+  },
   {
     version: '4.110.0',
     items: [

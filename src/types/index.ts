@@ -302,6 +302,8 @@ export interface Sale {
   notes?: string;
   /** 'wholesale' when the bill was made at wholesale prices (v4.87.0); missing = retail. */
   price_mode?: 'wholesale';
+  staff_id?: string;
+  staff_name?: string;
   created_by: string;
   created_at: string;
   updated_at: string;

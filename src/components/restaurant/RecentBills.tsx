@@ -48,7 +48,14 @@ export function RecentBills({ onOpen }: { onOpen: (sale: Sale) => void }) {
               <span className="inline-flex items-center gap-1 text-[11px] font-black text-slate-500"><ReceiptText className="w-3.5 h-3.5" />#{s.invoice_number}</span>
               <span className="text-[10.5px] font-bold text-slate-400">{new Date(s.created_at).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}</span>
             </div>
-            <div className="mt-1.5 text-xs font-bold text-slate-800 truncate">{s.customer_name}</div>
+            <div className="mt-1.5 flex items-center justify-between gap-1">
+              <span className="text-xs font-bold text-slate-800 truncate">{s.customer_name}</span>
+              {(s.staff_name || (s.created_by && s.created_by !== 'owner' && s.created_by !== 'system')) && (
+                <span className="shrink-0 text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded px-1 py-0.5">
+                  👤 {s.staff_name || s.created_by}
+                </span>
+              )}
+            </div>
             <div className="mt-1 flex items-end justify-between gap-2">
               <span className="text-base font-black font-mono text-slate-900">{formatINR(s.grand_total)}</span>
               <span className="text-[10px] font-black uppercase text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-1.5 py-0.5">{paymentMethodLabel(s.payment_method)}</span>

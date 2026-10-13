@@ -93,6 +93,12 @@ export const TransactionBillCard: React.FC<TransactionBillCardProps> = ({
                 {tr('↩ Returned')}
               </span>
             )}
+            {Boolean(sale.staff_name || (sale.created_by && sale.created_by !== 'owner' && sale.created_by !== 'system')) && (
+              <span className="px-1.5 py-0.2 rounded text-[10px] font-black uppercase bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 shrink-0 flex items-center gap-0.5" title={`Billed by ${sale.staff_name || sale.created_by}`}>
+                <span>👤</span>
+                <span>{sale.staff_name || sale.created_by}</span>
+              </span>
+            )}
             <span className="text-slate-700 dark:text-slate-300 font-semibold text-xs truncate">
               • {sale.customer_name || tr('Cash Customer')}
             </span>

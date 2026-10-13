@@ -5210,6 +5210,8 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
   assert(tab.includes("if (!account || account.stub)") && tab.includes('setStaffActive(m.id, false)') && readSource('components/settings/SettingsNavTabs.tsx').includes("id: 'staff' as SettingsTabType")
     && readSource('app/settings/page.tsx').includes("{activeTab === 'staff' && <StaffTab />}"), 'Settings → Staff: needs the Google account; remove = active false (the phone is signed out)');
   assert(readSource('components/restaurant/TablesHome.tsx').includes('data-order-taken-by'), 'Tables: the order card shows who took it');
+  assert(readSource('components/transactions/TransactionBillCard.tsx').includes('sale.staff_name || sale.created_by'), 'TransactionBillCard shows staff attribution label');
+  assert(readSource('components/restaurant/RecentBills.tsx').includes('s.staff_name || s.created_by'), 'RecentBills strip shows staff attribution label');
 }
 
 // v4.145.0 — The browser tab after Google sign-in: KamaiPlus wordmark, animated mark, the signed-in account.

@@ -43,6 +43,8 @@ export async function getStaffTodayPerformance(staffName: string): Promise<Staff
   const staffSales = sales.filter((s) => {
     const creator = (s.created_by || '').trim().toLowerCase();
     if (creator === clean) return true;
+    const staff = (s.staff_name || '').trim().toLowerCase();
+    if (staff === clean) return true;
     const notes = (s.notes || '').toLowerCase();
     return notes.includes(clean);
   });
