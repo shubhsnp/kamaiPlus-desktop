@@ -38,6 +38,7 @@ import { tr } from '@/lib/i18n/core';
 import { lockApp } from '@/lib/auth/masterPassword';
 import { getIdleLockMinutes, IDLE_LOCK_OPTIONS, setIdleLockMinutes } from '@/lib/auth/idleLock';
 import { SoundToggleButton } from './SoundToggleButton';
+import { getDesktopApi, LicenceStatus } from '@/lib/desktop/desktopBridge';
 
 
 export const Navbar: React.FC = () => {
@@ -48,14 +49,19 @@ export const Navbar: React.FC = () => {
   const [showStoreMenu, setShowStoreMenu] = useState<boolean>(false);
   const [isQrModalOpen, setIsQrModalOpen] = useState<boolean>(false);
   const [idleMinutes, setIdleMinutes] = useState<number>(getIdleLockMinutes);
-
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [licence, setLicence] = useState<LicenceStatus | null>(null);
 
   const menuRef = useRef<HTMLDivElement>(null);
 
   const business = useBusiness();
 
   useEffect(() => {
+    const api = getDesktopApi();
+    if (api) {
+      void api.getLicenceStatus().then(setLicence).catch(() => {});
+    }
+    const offLicence = api?.onLicenceChanged?.(setLicence);
     setCurrentUser(getStoredUser());
 
     setIsOnline(navigator.onLine);
@@ -85,6 +91,7 @@ export const Navbar: React.FC = () => {
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('auth_changed', handleAuthChange);
       document.removeEventListener('mousedown', handleClickOutside);
+      offLicence?.();
     };
   }, []);
 
@@ -194,17 +201,31 @@ export const Navbar: React.FC = () => {
                     <span>{tr('Verified')}</span>
                   </span>
                 </div>
-                <div className="text-[11px] text-slate-500 mt-0.5">
+                <div className="text-[11px] text-slate-500 mt-0.5 truncate">
                   {displayOwnerName}
                   {(currentUser?.phone || business?.phone) ? ` • ${currentUser?.phone || business?.phone}` : ''}
                 </div>
-                <div className="flex items-center gap-2 mt-1.5">
-                  {business?.gstin && (
-                    <span className="text-[10px] font-mono text-slate-500">
-                      GST: {business.gstin}
+                {business?.gstin && (
+                  <div className="text-[10px] font-mono text-slate-500 mt-1">
+                    GST: {business.gstin}
+                  </div>
+                )}
+                {licence?.state === 'active' && (
+                  <div className="mt-2 pt-2 border-t border-slate-200/70 flex items-center justify-between text-[11px]" data-navbar-licence>
+                    <span className="text-slate-600 font-semibold">
+                      {licence.trial ? tr('Free Trial') : tr('Licence')}
                     </span>
-                  )}
-                </div>
+                    {licence.trial && licence.daysLeft != null ? (
+                      <span className="px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800 font-black text-[10.5px]">
+                        {licence.daysLeft <= 0 ? tr('Ends today') : tr('{days} days left', { days: licence.daysLeft })}
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-[10px]">
+                        {tr('Lifetime Active')}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Language Switcher */}

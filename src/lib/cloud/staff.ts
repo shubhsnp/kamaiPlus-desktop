@@ -23,28 +23,46 @@ export interface StaffRole {
 
 /** The roles of each kind of shop. Only `available` ones can be given today (the server knows them). */
 export function staffRolesFor(vertical: VerticalId | null | undefined): StaffRole[] {
-  const r = (id: StaffRoleId, label: string, does: string, available = false): StaffRole => ({ id, label, does, available });
+  const r = (id: StaffRoleId, label: string, does: string, available = true): StaffRole => ({ id, label, does, available });
   switch (vertical) {
     case 'restaurant':
       return [
         r('waiter', tr('Waiter'), tr('Tables, taking orders, sending KOTs. No bills or money.'), true),
-        r('captain', tr('Captain'), tr('A waiter who can also move tables and cancel items.')),
-        r('cashier', tr('Cashier'), tr('Bill & pay, today’s cash.')),
-        r('kitchen', tr('Kitchen'), tr('Incoming KOTs on a kitchen screen, mark ready.')),
+        r('captain', tr('Captain'), tr('A waiter who can also move tables and cancel items.'), true),
+        r('cashier', tr('Cashier'), tr('Bill & pay, today’s cash.'), true),
+        r('kitchen', tr('Kitchen'), tr('Incoming KOTs on a kitchen screen, mark ready.'), true),
       ];
     case 'pharmacy':
-      return [r('billing', tr('Billing staff'), tr('Counter bills with batch / expiry.')), r('stock', tr('Stock staff'), tr('Goods in, expiry list, low stock.'))];
+      return [
+        r('billing', tr('Billing staff'), tr('Counter bills with batch / expiry.'), true),
+        r('stock', tr('Stock staff'), tr('Goods in, expiry list, low stock.'), true),
+      ];
     case 'clothing':
-      return [r('salesperson', tr('Salesperson'), tr('Customer’s cart on the floor; the counter bills it. Sales counted per person.')), r('cashier', tr('Cashier'), tr('Bills, returns and exchanges.'))];
+      return [
+        r('salesperson', tr('Salesperson'), tr('Customer’s cart on the floor; the counter bills it. Sales counted per person.'), true),
+        r('cashier', tr('Cashier'), tr('Bills, returns and exchanges.'), true),
+      ];
     case 'hardware':
-      return [r('salesperson', tr('Salesman'), tr('Quotations with the customer; the counter bills them.')), r('godown', tr('Godown staff'), tr('Goods in and out, stock.'))];
+      return [
+        r('salesperson', tr('Salesman'), tr('Quotations with the customer; the counter bills them.'), true),
+        r('godown', tr('Godown staff'), tr('Goods in and out, stock.'), true),
+      ];
     default:
       return [
-        r('billing', tr('Billing staff'), tr('Counter bills, scanning, UPI QR. Discount up to a limit.')),
-        r('stock', tr('Stock staff'), tr('Goods in, labels, stock count.')),
-        r('delivery', tr('Delivery staff'), tr('Home-delivery orders, cash collected.')),
+        r('billing', tr('Billing staff'), tr('Counter bills, scanning, UPI QR. Discount up to a limit.'), true),
+        r('stock', tr('Stock staff'), tr('Goods in, labels, stock count.'), true),
+        r('delivery', tr('Delivery staff'), tr('Home-delivery orders, cash collected.'), true),
       ];
   }
+}
+
+export interface StaffPermissions {
+  canDiscount?: boolean;
+  maxDiscountPct?: number;
+  canCancelItem?: boolean;
+  canChangeTable?: boolean;
+  canViewReports?: boolean;
+  canAccessCashDrawer?: boolean;
 }
 
 export interface StaffMember {
@@ -56,6 +74,8 @@ export interface StaffMember {
   joinedAt?: string;
   deviceName?: string;
   lastSeenAt?: string;
+  monthlySalaryPaise?: number;
+  permissions?: StaffPermissions;
 }
 
 export const STAFF_FUNCTION_URL = 'https://us-central1-kamaiplus.cloudfunctions.net/staff';
@@ -68,6 +88,18 @@ export function parseStaff(id: string, d: Record<string, unknown> | undefined | 
   if (!d || !/^[A-Za-z0-9_-]{4,40}$/.test(id)) return null;
   const name = text(d.name, 40);
   if (!name) return null;
+  const monthlySalaryPaise = typeof d.monthly_salary_paise === 'number' && Number.isFinite(d.monthly_salary_paise)
+    ? Math.max(0, Math.round(d.monthly_salary_paise))
+    : undefined;
+  const perm = d.permissions && typeof d.permissions === 'object' ? (d.permissions as Record<string, unknown>) : null;
+  const permissions: StaffPermissions | undefined = perm ? {
+    canDiscount: perm.can_discount === true,
+    maxDiscountPct: typeof perm.max_discount_pct === 'number' ? Math.max(0, Math.min(100, perm.max_discount_pct)) : undefined,
+    canCancelItem: perm.can_cancel_item === true,
+    canChangeTable: perm.can_change_table === true,
+    canViewReports: perm.can_view_reports === true,
+    canAccessCashDrawer: perm.can_access_cash_drawer === true,
+  } : undefined;
   return {
     id,
     name,
@@ -77,6 +109,8 @@ export function parseStaff(id: string, d: Record<string, unknown> | undefined | 
     ...(text(d.joined_at, 40) ? { joinedAt: text(d.joined_at, 40) } : {}),
     ...(text(d.device_name, 60) ? { deviceName: text(d.device_name, 60) } : {}),
     ...(text(d.last_seen_at, 40) ? { lastSeenAt: text(d.last_seen_at, 40) } : {}),
+    ...(monthlySalaryPaise !== undefined ? { monthlySalaryPaise } : {}),
+    ...(permissions ? { permissions } : {}),
   };
 }
 
@@ -148,6 +182,44 @@ export async function setStaffActive(staffId: string, active: boolean): Promise<
   const db = getFirestoreDb();
   if (!db) throw new Error('not_configured');
   await fs.updateDoc(fs.doc(db, `businesses/${bizId}/staff/${staffId}`), active ? { active: true } : { active: false, removed_at: new Date().toISOString() });
+}
+
+/** Permanently erase a staff member from Firestore. */
+export async function deleteStaff(staffId: string): Promise<void> {
+  const bizId = bizOrThrow();
+  const [{ getFirestoreDb }, fs] = await Promise.all([import('@/lib/firebase/config'), import('firebase/firestore')]);
+  const db = getFirestoreDb();
+  if (!db) throw new Error('not_configured');
+  await fs.deleteDoc(fs.doc(db, `businesses/${bizId}/staff/${staffId}`));
+}
+
+/** Update permissions and role limits for a staff member. */
+export async function updateStaffPermissions(staffId: string, permissions: StaffPermissions): Promise<void> {
+  const bizId = bizOrThrow();
+  const [{ getFirestoreDb }, fs] = await Promise.all([import('@/lib/firebase/config'), import('firebase/firestore')]);
+  const db = getFirestoreDb();
+  if (!db) throw new Error('not_configured');
+  await fs.updateDoc(fs.doc(db, `businesses/${bizId}/staff/${staffId}`), {
+    permissions: {
+      can_discount: permissions.canDiscount ?? false,
+      max_discount_pct: permissions.maxDiscountPct ?? 10,
+      can_cancel_item: permissions.canCancelItem ?? false,
+      can_change_table: permissions.canChangeTable ?? false,
+      can_view_reports: permissions.canViewReports ?? false,
+      can_access_cash_drawer: permissions.canAccessCashDrawer ?? false,
+    },
+  });
+}
+
+/** Update base monthly salary in paise for a staff member. */
+export async function updateStaffSalary(staffId: string, monthlySalaryPaise: number): Promise<void> {
+  const bizId = bizOrThrow();
+  const [{ getFirestoreDb }, fs] = await Promise.all([import('@/lib/firebase/config'), import('firebase/firestore')]);
+  const db = getFirestoreDb();
+  if (!db) throw new Error('not_configured');
+  await fs.updateDoc(fs.doc(db, `businesses/${bizId}/staff/${staffId}`), {
+    monthly_salary_paise: Math.max(0, Math.round(monthlySalaryPaise)),
+  });
 }
 
 export interface JoinCode {

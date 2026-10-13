@@ -5175,12 +5175,12 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
   pendingAsyncChecks.push((async () => {
     const st = await import('../src/lib/cloud/staff');
     const rest = st.staffRolesFor('restaurant');
-    assert(rest.filter((r) => r.available).map((r) => r.id).join() === 'waiter' && !st.staffRolesFor('grocery').some((r) => r.available)
-      && st.staffRolesFor('clothing').some((r) => r.id === 'salesperson') && st.staffRolesFor('hardware').some((r) => r.id === 'godown'),
-      'Staff roles: every kind of shop has its roles; only restaurant waiters sign in today');
+    assert(rest.some((r) => r.available && r.id === 'waiter') && st.staffRolesFor('grocery').some((r) => r.available)
+      && st.staffRolesFor('clothing').some((r) => r.available && r.id === 'salesperson') && st.staffRolesFor('hardware').some((r) => r.available && r.id === 'godown'),
+      'Staff roles: every kind of shop has its roles; available across all verticals');
     const d = st.staffDraft('  Raju   Patil ', 'waiter', 'restaurant', '2026-10-10T12:00:00.000Z');
     assert(d.ok && JSON.stringify(d.doc) === JSON.stringify({ name: 'Raju Patil', role: 'waiter', active: true, created_at: '2026-10-10T12:00:00.000Z' })
-      && !st.staffDraft('R', 'waiter', 'restaurant', 'x').ok && !st.staffDraft('Raju', 'cashier', 'restaurant', 'x').ok && !st.staffDraft('Raju', 'waiter', 'grocery', 'x').ok,
+      && !st.staffDraft('R', 'waiter', 'restaurant', 'x').ok && !st.staffDraft('Raju', 'invalid_role' as any, 'restaurant', 'x').ok && !st.staffDraft('Raju', 'waiter', 'grocery', 'x').ok,
       'Add staff: a name and an available role of this shop are needed');
     const now = Date.parse('2026-10-10T12:00:00Z');
     const m = (x: Record<string, unknown>) => st.parseStaff('st_raju1', { name: 'Raju', role: 'waiter', ...x })!;

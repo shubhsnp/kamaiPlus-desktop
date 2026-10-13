@@ -95,7 +95,7 @@ export async function settleOrder(input: SettleInput): Promise<Sale> {
     payment_status: 'paid',
     status: 'completed',
     notes: address ? `${billLabel(order)} · ${address}` : billLabel(order),
-    created_by: 'owner',
+    created_by: order.takenBy || 'owner',
     created_at: now,
     updated_at: now,
     sync_status: 'synced',

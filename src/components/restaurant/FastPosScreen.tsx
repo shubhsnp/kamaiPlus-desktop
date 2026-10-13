@@ -185,8 +185,6 @@ export function FastPosScreen({ state, settings, update, business, onTables, onS
         </div>
       </div>
 
-      <RecentBills onOpen={onOpenBill} />
-
       <div className="flex-1 min-h-0 grid gap-4 min-h-[520px] lg:grid-cols-[minmax(0,1fr)_400px]">
         <div className="min-h-[420px] lg:min-h-0 lg:h-full rounded-2xl bg-slate-50/60 border border-slate-200 p-3 sm:p-4 flex flex-col">
           <MenuPanel onPick={pick} inOrder={inOrder} searchRef={searchRef} />
@@ -195,6 +193,8 @@ export function FastPosScreen({ state, settings, update, business, onTables, onS
           <FastCartPanel cart={cart} settings={settings} token={token} busy={busy} onDineIn={setDineIn} onQty={qty} onDelete={remove} onAddOns={setAddOnsFor} onClear={clear} onPay={pay} />
         </div>
       </div>
+
+      <RecentBills onOpen={onOpenBill} />
 
       <AddOnsDialog title={addOnsFor ? lineTitle(addOnsFor) : null} library={settings.addOns} onClose={() => setAddOnsFor(null)} onApply={applyAddOns} />
       {cart.label && <PayDialog order={cart} settings={settings} business={business} open={payOpen} busy={busy} onClose={() => !busy && setPayOpen(false)} onSettle={settle} />}

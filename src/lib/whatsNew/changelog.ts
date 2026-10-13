@@ -16,6 +16,18 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.163.0',
+    items: [
+      msg('Sidebar: quick access Staff link under Ledger & Customers, all retail verticals staff roles unlocked, and inventory tracking added to restaurant menu.'),
+    ],
+  },
+  {
+    version: '4.162.0',
+    items: [
+      msg('Settings → Staff: permanent delete option, live staff order counts & sales performance, role permissions & security limits, and salary & advance payment management.'),
+    ],
+  },
+  {
     version: '4.161.0',
     items: [
       msg('Restaurant: new "Fast POS" on Tables & Orders for a counter without tables — tap dishes, Pay (F10), and the bill prints with a token number (TK-01…), Takeaway or Dine-in. With a kitchen printer the KOT prints with it.'),
@@ -321,38 +333,6 @@ export const CHANGELOG: Release[] = [
     version: '4.111.0',
     items: [
       msg('Settings → Data Maintenance: safe 3-tier reset with cloud sync wiping (Clean Products, Reset Sales Bills with fresh INV-001 restart, and Factory Reset with Store Profile protection).'),
-    ],
-  },
-  {
-    version: '4.110.0',
-    items: [
-      msg('Restaurant: dish count badges on the menu tiles are aligned inside each card so numbers never get cropped or cut off when adding items.'),
-    ],
-  },
-  {
-    version: '4.109.0',
-    items: [
-      msg('Cash Register: Denomination Tally Counter shows real currency notes and coins (₹500 down to ₹1) next to each count.'),
-    ],
-  },
-  {
-    version: '4.108.0',
-    items: [
-      msg("Restaurant: a dish can be deleted from the order (🗑), the whole order can be cancelled with a reason (the kitchen gets a cancel slip, and today's cancelled orders are listed on the Tables screen), the bill can be printed for the table before paying (with your UPI QR), a lost KOT can be printed again, and a guest can pay part cash, part UPI."),
-      msg("Restaurant mode now hides stock and barcodes everywhere (Menu page, Add Dish, Home, Reports). KamaiPlus support can switch them back on if you need them."),
-    ],
-  },
-  {
-    version: '4.107.0',
-    items: [
-      msg("Settings → Features now only shows what is on for your shop. To switch a feature on or off, contact KamaiPlus support — they change it for you."),
-      msg("Restaurant mode speaks your language: Products is now Menu, Customers are Guests, Transactions are Bills. After paying you can print the bill straight away or open it to print, save a PDF or send it on WhatsApp; UPI shows your QR for the exact amount; today's bills sit on the Tables screen; and an order can move to another table."),
-    ],
-  },
-  {
-    version: '4.106.0',
-    items: [
-      msg("For restaurants and cafés: KamaiPlus support can switch on Restaurant mode — a Tables & Orders screen with running tables, takeaway tokens, add-ons, a kitchen slip (KOT) and a 5% GST bill. Shops that are not restaurants see no change."),
     ],
   },
   ...OLDER_RELEASES,

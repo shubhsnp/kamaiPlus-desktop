@@ -27,8 +27,8 @@ export function TablesHome({ orders, settings, onOpenTable, onOpenOrder, onNewTa
   onOpenTable: (label: string) => void;
   onOpenOrder: (id: string) => void;
   onNewTakeaway: () => void;
-  /** v4.139.0: asks for the guest (name, mobile, address), then opens the order. */
-  onNewDelivery: () => void;
+  /** Optional legacy handler */
+  onNewDelivery?: () => void;
   onSetup: () => void;
   onOpenBill: (sale: Sale) => void;
   /** v4.161.0: switch this computer to Fast POS (token billing, no tables). */
@@ -68,7 +68,6 @@ export function TablesHome({ orders, settings, onOpenTable, onOpenOrder, onNewTa
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <Button type="button" variant="success" onClick={onNewTakeaway} data-new-takeaway className="flex-1 sm:flex-none"><Plus className="w-4 h-4" /> {tr('New takeaway')}</Button>
-          <Button type="button" variant="outline" onClick={onNewDelivery} data-new-delivery className="flex-1 sm:flex-none"><Bike className="w-4 h-4" /> {tr('New delivery')}</Button>
           {onFastPos && (
             <Button type="button" variant="outline" onClick={onFastPos} data-fast-pos-open className="flex-1 sm:flex-none border-amber-300 bg-amber-50 hover:bg-amber-100 text-slate-900" title={tr('Token billing for a counter without tables')}>
               <Zap className="w-4 h-4 text-amber-600" /> {tr('Fast POS')}

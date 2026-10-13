@@ -24,6 +24,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   UtensilsCrossed,
+  UserCheck,
 } from 'lucide-react';
 import { APP_VERSION } from '@/lib/constants/version';
 import { cn } from '@/lib/utils';
@@ -117,6 +118,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { href: '/khata', label: tr('Khata Ledger'), icon: BookOpen, iconBg: 'bg-amber-100 text-amber-800', activeIcon: 'text-amber-300' },
         { href: '/customers', label: tr('Customers'), icon: Users, iconBg: 'bg-sky-100 text-sky-800', activeIcon: 'text-sky-300' },
+        { href: '/settings?tab=staff', label: tr('Staff'), icon: UserCheck, iconBg: 'bg-indigo-100 text-indigo-800', activeIcon: 'text-indigo-300' },
       ],
     },
     {
@@ -183,7 +185,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )}>
               {sec.items.map((item) => {
                 const Icon = item.icon;
-                const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
+                const isStaffLink = item.href === '/settings?tab=staff';
+                const onSettings = pathname.startsWith('/settings');
+                const isStaffTab = onSettings && typeof window !== 'undefined' && window.location.search.includes('tab=staff');
+                const isActive = isStaffLink
+                  ? isStaffTab
+                  : item.href === '/settings'
+                  ? onSettings && !isStaffTab
+                  : pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
 
                 return (
                   <Link
