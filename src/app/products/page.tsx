@@ -159,12 +159,12 @@ export default function ProductsPage() {
 
   // Financial & Inventory Metrics
   const lowStockCount = useMemo(() => {
-    return allProducts.filter((p) => tracksOwnStock(p) && p.current_stock <= (p.min_stock_level || 5)).length;
+    return allProducts.filter((p) => tracksOwnStock(p) && !p.is_unlimited_stock && Number(p.current_stock ?? 0) < 99990 && p.current_stock <= (p.min_stock_level || 5)).length;
   }, [allProducts]);
 
   const totalStockValuePaise = useMemo(() => {
     return allProducts.reduce((acc, p) => {
-      if (!tracksOwnStock(p)) return acc;
+      if (!tracksOwnStock(p) || p.is_unlimited_stock || Number(p.current_stock ?? 0) >= 99990) return acc;
       const cost = p.purchase_price || p.selling_price || 0;
       return acc + (cost * Math.max(0, p.current_stock));
     }, 0);

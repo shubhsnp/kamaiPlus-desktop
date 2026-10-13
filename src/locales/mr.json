@@ -1,4 +1,5 @@
 {
+  "Inventory: unlimited items excluded from stock asset totals to prevent large digits, restaurant purchases enabled, and toasts moved to top navbar.": "इन्व्हेंटरी: मोठ्या अंकांचा त्रास टाळण्यासाठी अमर्यादित वस्तू स्टॉक असेटमधून वगळल्या, रेस्टॉरंट खरेदी सुरू केली आणि टोस्ट सूचना वरच्या नेव्हबारमध्ये हलवल्या.",
   " (default)": " (डीफॉल्ट)",
   " • {v1} added to {name}'s account": " • {name} यांच्या खात्यात {v1} जोडले",
   " • Could not update {name}'s account: {error}": " • {name} यांचे खाते अपडेट झाले नाही: {error}",

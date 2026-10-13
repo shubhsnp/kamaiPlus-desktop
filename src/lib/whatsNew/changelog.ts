@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.166.0',
+    items: [
+      msg('Inventory: unlimited items excluded from stock asset totals to prevent large digits, restaurant purchases enabled, and toasts moved to top navbar.'),
+    ],
+  },
+  {
     version: '4.165.0',
     items: [
       msg('Restaurant: Inventory & Stock page enabled under Menu & Kitchen for kitchen stock tracking and valuation.'),

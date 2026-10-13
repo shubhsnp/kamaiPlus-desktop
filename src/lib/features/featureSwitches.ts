@@ -198,8 +198,8 @@ export function restaurantModeFromRaw(rawAdmin: string | null | undefined): bool
 export const RESTAURANT_PRESET: Partial<FeatureSwitches> = {
   inventory: true,
   barcode_studio: false,
-  purchases: false,
-  suppliers: false,
+  purchases: true,
+  suppliers: true,
   wholesale_price: false,
   product_size_colour: false,
   product_selling_price: false,

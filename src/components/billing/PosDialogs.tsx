@@ -157,12 +157,12 @@ export interface BillingToastData {
 export function BillingToast({ toast }: { toast: BillingToastData | null }) {
   if (!toast) return null;
   return (
-    <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-2xl shadow-2xl border text-xs font-bold flex items-center gap-2.5 animate-in slide-in-from-bottom-3 duration-200 ${
+    <div className={`fixed top-3 sm:top-3.5 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-xl shadow-lg border text-xs font-bold flex items-center gap-2 animate-in slide-in-from-top-2 duration-200 ${
       toast.type === 'success'
-        ? 'bg-emerald-950/95 border-emerald-500/50 text-emerald-100 shadow-emerald-950/40'
+        ? 'bg-emerald-950/95 border-emerald-500/50 text-emerald-100 shadow-emerald-950/40 backdrop-blur-md'
         : toast.type === 'info'
-        ? 'bg-slate-900/95 border-slate-700 text-slate-100 shadow-slate-950/40'
-        : 'bg-rose-950/95 border-rose-500/50 text-rose-100 shadow-rose-950/40'
+        ? 'bg-slate-900/95 border-slate-700 text-slate-100 shadow-slate-950/40 backdrop-blur-md'
+        : 'bg-rose-950/95 border-rose-500/50 text-rose-100 shadow-rose-950/40 backdrop-blur-md'
     }`}>
       {toast.type === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
       {toast.type === 'info' && <Sparkles className="w-4 h-4 text-sky-400 shrink-0 animate-pulse" />}

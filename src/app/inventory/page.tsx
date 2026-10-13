@@ -45,21 +45,23 @@ export default function InventoryPage() {
   // so a sale made a minute ago or a fresh "+10 Stock" could sit anywhere in the list.
   const movements = useLiveQuery(async () => db.inventory_movements.orderBy('created_at').reverse().limit(100).toArray()) || [];
 
-  // Low stock products
-  const lowStockProducts = useMemo(() => {
-    return products.filter((p) => tracksOwnStock(p) && p.current_stock <= (p.min_stock_level || 5));
+  // Tracked products (excludes unlimited items so digits do not blow up)
+  const trackedProducts = useMemo(() => {
+    return products.filter((p) => tracksOwnStock(p));
   }, [products]);
 
-
+  // Low stock products
+  const lowStockProducts = useMemo(() => {
+    return trackedProducts.filter((p) => p.current_stock <= (p.min_stock_level || 5));
+  }, [trackedProducts]);
 
   // Inventory asset valuation
   const totalAssetValuePaise = useMemo(() => {
-    return products.reduce((acc, p) => {
-      if (p.is_unlimited_stock) return acc;
+    return trackedProducts.reduce((acc, p) => {
       const cost = p.purchase_price || p.selling_price || 0;
       return acc + (cost * Math.max(0, p.current_stock));
     }, 0);
-  }, [products]);
+  }, [trackedProducts]);
 
   // Quick Restock Handler
   const handleQuickRestock = async (product: Product, quantity: number) => {
@@ -91,13 +93,13 @@ export default function InventoryPage() {
     <div className="space-y-3.5 pb-20 sm:pb-8 animate-in fade-in duration-150">
       {/* 1. Header Actions */}
       <InventoryHeaderActions
-        totalItems={products.length}
+        totalItems={trackedProducts.length}
         onOpenExcelImporter={() => setIsExcelImporterOpen(true)}
       />
 
       {/* 2. Metrics Ribbon */}
       <InventoryMetricsRibbon
-        totalItems={products.length}
+        totalItems={trackedProducts.length}
         totalAssetValuePaise={totalAssetValuePaise}
         lowStockCount={lowStockProducts.length}
       />
@@ -138,7 +140,7 @@ export default function InventoryPage() {
 
       {/* Floating Toast */}
       {invToast && (
-        <div className="fixed bottom-6 right-6 z-50 px-4 py-2.5 rounded-2xl bg-slate-900/95 border border-slate-700 text-white text-xs font-bold shadow-2xl animate-in slide-in-from-bottom-3 flex items-center gap-2">
+        <div className="fixed top-3 sm:top-3.5 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-xl bg-slate-900/95 border border-slate-700 text-white text-xs font-bold shadow-lg animate-in slide-in-from-top-2 flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>{invToast.message}</span>
         </div>

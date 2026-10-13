@@ -37,8 +37,8 @@ export const isVariantChild = (p: Pick<Product, 'parent_id'>): boolean => Boolea
  * Whether a product's own stock means anything. A variant parent's stock lives in
  * its children, so stock alerts, "out of stock" badges and valuation skip it.
  */
-export const tracksOwnStock = (p: Pick<Product, 'has_variants' | 'is_unlimited_stock'>): boolean =>
-  !p.is_unlimited_stock && !isVariantParent(p);
+export const tracksOwnStock = (p: Pick<Product, 'has_variants' | 'is_unlimited_stock'> & { current_stock?: number }): boolean =>
+  !p.is_unlimited_stock && !isVariantParent(p) && !(Number(p.current_stock ?? 0) >= 99990);
 
 /**
  * New products are "Unlimited stock" (not counted) by default, like the Android app.

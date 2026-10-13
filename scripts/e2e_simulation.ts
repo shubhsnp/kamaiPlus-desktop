@@ -4294,10 +4294,10 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
     && !FEATURES.some((f) => (f.id as string) === 'restaurant_mode') && !('restaurant_mode' in DEFAULT_FEATURE_SWITCHES),
     'Restaurant mode: on only when the Admin forces it; it has no switch in Settings → Features');
   const preset = applyRestaurantPreset({ ...DEFAULT_FEATURE_SWITCHES, inventory: true, barcode_studio: true, purchases: true, suppliers: true, khata: true }, true);
-  assert(preset.inventory && !preset.barcode_studio && !preset.purchases && !preset.suppliers && preset.khata && preset.whatsapp
+  assert(preset.inventory && !preset.barcode_studio && preset.purchases && preset.suppliers && preset.khata && preset.whatsapp
     && !preset.wholesale_price && !preset.product_size_colour && !preset.product_gst_rate && !preset.product_hsn && !preset.payment_keys && !preset.product_selling_price && preset.product_variants
-    && applyRestaurantPreset(DEFAULT_FEATURE_SWITCHES, false) === DEFAULT_FEATURE_SWITCHES && RESTAURANT_PRESET_OFF.length === 11 && !RESTAURANT_PRESET_OFF.includes('product_variants') && !preset.stock_counting && !preset.product_barcode,
-    'Restaurant mode: labels, purchases, suppliers, wholesale, size / colour, per-dish GST / HSN and counter keys go off; inventory and Half / Full variants on; khata and WhatsApp stay');
+    && applyRestaurantPreset(DEFAULT_FEATURE_SWITCHES, false) === DEFAULT_FEATURE_SWITCHES && RESTAURANT_PRESET_OFF.length === 9 && !RESTAURANT_PRESET_OFF.includes('product_variants') && !preset.stock_counting && !preset.product_barcode,
+    'Restaurant mode: labels, wholesale, size / colour, per-dish GST / HSN and counter keys go off; inventory, purchases, suppliers and Half / Full variants on; khata and WhatsApp stay');
   const fsSrc2 = readSource('lib/features/featureSwitches.ts');
   assert(/\.\.\.applyRestaurantPreset\(parseFeatureSwitches\(localStorage\.getItem\(FEATURE_SWITCHES_KEY\)\), isRestaurantMode\(\)\), \.\.\.readAdminFeatureOverrides\(\)/.test(fsSrc2),
     'Restaurant mode: shop switches → restaurant preset → the Admin\'s forced switches on top (the Admin can still force one back on)');
@@ -4560,8 +4560,8 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
   assert(!ph.barcode_studio && ph.purchases && ph.product_cost_price && !ph.wholesale_price && !ph.product_variants
     && c.barcode_studio && c.product_size_colour && c.product_variants && hw.product_variants && hw.barcode_studio && !hw.product_size_colour && rt.barcode_studio && !rt.product_variants,
     'Pharmacy without labels; clothing with price tags + sizes / colours; electronics with variants; retail with labels');
-  assert(r.inventory && !r.stock_counting && !r.product_barcode && !r.barcode_studio && !r.purchases && !r.suppliers && r.cash_register && r.product_variants && r.khata,
-    'Restaurant: kitchen inventory on; no barcode, labels, purchases; cash register, khata and Half / Full on');
+  assert(r.inventory && !r.stock_counting && !r.product_barcode && !r.barcode_studio && r.purchases && r.suppliers && r.cash_register && r.product_variants && r.khata,
+    'Restaurant: kitchen inventory and purchases on; no barcode, labels; cash register, khata and Half / Full on');
   assert(VERTICAL_IDS.every((v) => !sw(v).gst_reports && !sw(v).product_gst_rate && !sw(v).product_hsn && sw(v, true).gst_reports)
     && VERTICAL_IDS.filter((v) => v !== 'restaurant').every((v) => sw(v, true).product_gst_rate && sw(v, true).product_hsn) && !sw('restaurant', true).product_gst_rate,
     'GST follows the GSTIN, not the category: without one no GST reports / GST % / HSN; with one all on (restaurant: GST % from Set-up)');
