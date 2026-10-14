@@ -1,8 +1,32 @@
 import { msg } from '@/lib/i18n/core';
 import type { Release } from '@/lib/whatsNew/changelog';
 
-/** "What's new" for 4.112.0 and older (moved out of changelog.ts to stay <= 400 lines, newest first). */
+/** "What's new" for 4.116.0 and older (moved out of changelog.ts to stay <= 400 lines, newest first). */
 export const OLDER_RELEASES: Release[] = [
+  {
+    version: '4.116.0',
+    items: [
+      msg('Realtime Live Sync: 1-second instant live reaction for Admin remote commands, lock mode, factory wipe, and messages via Firestore signals.'),
+    ],
+  },
+  {
+    version: '4.115.0',
+    items: [
+      msg('Remote management: support for remote factory reset and licence wipe from the Admin Console.'),
+    ],
+  },
+  {
+    version: '4.114.0',
+    items: [
+      msg('Billing counter: fractional quantity presets (¼, ½, ¾) for packets, pieces, kg, litres, and pharmacy strips.'),
+    ],
+  },
+  {
+    version: '4.113.0',
+    items: [
+      msg('Performance & lightweight update: removed unused mobile packages and web banners for faster loading.'),
+    ],
+  },
   {
     version: '4.112.0',
     items: [

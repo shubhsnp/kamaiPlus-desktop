@@ -73,6 +73,8 @@ export async function getStaffTodayPerformance(staffName: string): Promise<Staff
 export interface StaffSalaryLedger {
   monthlySalaryPaise: number;
   totalAdvanceThisMonthPaise: number;
+  totalSalaryPaidThisMonthPaise: number;
+  totalPaidThisMonthPaise: number;
   netPayablePaise: number;
   expenses: CashExpense[];
 }
@@ -80,26 +82,62 @@ export interface StaffSalaryLedger {
 /** Get advance payments & salary expenses for a staff member. */
 export async function getStaffSalaryLedger(staffName: string, monthlySalaryPaise = 0): Promise<StaffSalaryLedger> {
   const clean = staffName.trim().toLowerCase();
-  if (!clean) return { monthlySalaryPaise, totalAdvanceThisMonthPaise: 0, netPayablePaise: monthlySalaryPaise, expenses: [] };
+  if (!clean) {
+    return {
+      monthlySalaryPaise,
+      totalAdvanceThisMonthPaise: 0,
+      totalSalaryPaidThisMonthPaise: 0,
+      totalPaidThisMonthPaise: 0,
+      netPayablePaise: monthlySalaryPaise,
+      expenses: [],
+    };
+  }
 
   let allExpenses: CashExpense[] = [];
   try {
-    allExpenses = await db.cash_expenses.where('category').equals('staff_salary').toArray();
+    allExpenses = await db.cash_expenses.toArray();
   } catch {
     allExpenses = [];
   }
 
-  const staffExpenses = allExpenses.filter((e) => (e.paid_to || '').trim().toLowerCase() === clean);
+  // Match expenses categorized under staff_salary, salary, or whose notes/title match this staff
+  const staffExpenses = allExpenses.filter((e) => {
+    const cat = (e.category || '').toLowerCase().trim();
+    const isSalaryCat = cat === 'staff_salary' || cat === 'salary' || cat.includes('staff') || cat.includes('advance');
+    const paidTo = (e.paid_to || '').trim().toLowerCase();
+    const title = (e.title || '').trim().toLowerCase();
+    const notes = (e.notes || '').toLowerCase();
+
+    const matchesPerson = paidTo === clean || title.includes(clean) || notes.includes(clean);
+    return (isSalaryCat && matchesPerson) || (matchesPerson && (title.includes('salary') || title.includes('advance')));
+  });
+
   staffExpenses.sort((a, b) => b.created_at.localeCompare(a.created_at));
 
   const monthStartIso = getLocalMonthStart();
   const currentMonthExpenses = staffExpenses.filter((e) => e.created_at >= monthStartIso);
-  const totalAdvanceThisMonthPaise = currentMonthExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-  const netPayablePaise = Math.max(0, monthlySalaryPaise - totalAdvanceThisMonthPaise);
+
+  let totalAdvanceThisMonthPaise = 0;
+  let totalSalaryPaidThisMonthPaise = 0;
+
+  for (const e of currentMonthExpenses) {
+    const titleLower = (e.title || '').toLowerCase();
+    const isAdvance = titleLower.includes('advance') || (e.notes || '').toLowerCase().includes('advance');
+    if (isAdvance) {
+      totalAdvanceThisMonthPaise += (e.amount || 0);
+    } else {
+      totalSalaryPaidThisMonthPaise += (e.amount || 0);
+    }
+  }
+
+  const totalPaidThisMonthPaise = totalAdvanceThisMonthPaise + totalSalaryPaidThisMonthPaise;
+  const netPayablePaise = Math.max(0, monthlySalaryPaise - totalPaidThisMonthPaise);
 
   return {
     monthlySalaryPaise,
     totalAdvanceThisMonthPaise,
+    totalSalaryPaidThisMonthPaise,
+    totalPaidThisMonthPaise,
     netPayablePaise,
     expenses: staffExpenses,
   };

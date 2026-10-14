@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { UserPlus, Shield, ChevronDown, ChevronUp, Percent, Trash2, ArrowLeftRight, BarChart3, Wallet } from 'lucide-react';
+import { UserPlus } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { tr } from '@/lib/i18n/core';
 import { cn } from '@/lib/utils';
 import type { VerticalId } from '@/lib/business/verticalProfile';
-import { addStaff, staffDraft, staffRolesFor, type StaffPermissions } from '@/lib/cloud/staff';
+import { addStaff, staffDraft, staffRolesFor } from '@/lib/cloud/staff';
 
 interface AddStaffDialogProps {
   open: boolean;
@@ -33,8 +33,7 @@ function getRoleSuggestions(vertical: VerticalId | null | undefined): string[] {
 }
 
 /**
- * Add staff dialog — owner can specify ANY custom role (or tap convenient vertical presets),
- * and configure permissions right away.
+ * Add staff dialog — owner can specify ANY custom role (or tap convenient vertical presets).
  */
 export function AddStaffDialog({ open, vertical, onClose, onAdded }: AddStaffDialogProps) {
   const roles = staffRolesFor(vertical);
@@ -43,15 +42,6 @@ export function AddStaffDialog({ open, vertical, onClose, onAdded }: AddStaffDia
 
   const [name, setName] = useState('');
   const [role, setRole] = useState(defaultRole);
-  const [showPermissions, setShowPermissions] = useState(false);
-
-  // Permission settings
-  const [canDiscount, setCanDiscount] = useState(false);
-  const [maxDiscountPct, setMaxDiscountPct] = useState(10);
-  const [canCancelItem, setCanCancelItem] = useState(false);
-  const [canChangeTable, setCanChangeTable] = useState(true);
-  const [canViewReports, setCanViewReports] = useState(false);
-  const [canAccessCashDrawer, setCanAccessCashDrawer] = useState(false);
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,35 +50,12 @@ export function AddStaffDialog({ open, vertical, onClose, onAdded }: AddStaffDia
     if (open) {
       setName('');
       setRole(defaultRole);
-      setShowPermissions(false);
-      setCanDiscount(false);
-      setMaxDiscountPct(10);
-      setCanCancelItem(false);
-      setCanChangeTable(true);
-      setCanViewReports(false);
-      setCanAccessCashDrawer(false);
       setError(null);
     }
   }, [open, defaultRole]);
 
-  // Intelligent preset adjustments when role changes
   const applyRoleSuggestion = (suggested: string) => {
     setRole(suggested);
-    const lower = suggested.toLowerCase();
-    if (lower.includes('cashier') || lower.includes('manager')) {
-      setCanDiscount(true);
-      setCanViewReports(true);
-      setCanAccessCashDrawer(true);
-      setCanCancelItem(true);
-    } else if (lower.includes('captain')) {
-      setCanCancelItem(true);
-      setCanChangeTable(true);
-    } else if (lower.includes('waiter') || lower.includes('helper')) {
-      setCanDiscount(false);
-      setCanViewReports(false);
-      setCanAccessCashDrawer(false);
-      setCanCancelItem(false);
-    }
   };
 
   const save = async (e: React.FormEvent) => {
@@ -96,18 +63,8 @@ export function AddStaffDialog({ open, vertical, onClose, onAdded }: AddStaffDia
     const cleanRole = role.trim();
     const isPreset = roles.some((r) => r.id.toLowerCase() === cleanRole.toLowerCase() || r.label.toLowerCase() === cleanRole.toLowerCase());
 
-    const permissions: StaffPermissions = {
-      canDiscount,
-      maxDiscountPct: Math.max(1, Math.min(100, Number(maxDiscountPct) || 10)),
-      canCancelItem,
-      canChangeTable,
-      canViewReports,
-      canAccessCashDrawer,
-    };
-
     const d = staffDraft(name, cleanRole, vertical, new Date().toISOString(), {
       isCustom: !isPreset,
-      permissions,
     });
 
     if (!d.ok) {
@@ -191,113 +148,7 @@ export function AddStaffDialog({ open, vertical, onClose, onAdded }: AddStaffDia
           </div>
         </div>
 
-        {/* Permissions Accordion */}
-        <div className="border border-slate-200 rounded-2xl overflow-hidden bg-slate-50/50">
-          <button
-            type="button"
-            onClick={() => setShowPermissions(!showPermissions)}
-            className="w-full px-3.5 py-2.5 flex items-center justify-between text-left hover:bg-slate-100/60 transition-colors cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <Shield className="w-4 h-4 text-emerald-600" />
-              <div>
-                <p className="text-xs font-black text-slate-800">{tr('Permissions & Security Limits')}</p>
-                <p className="text-[10.5px] text-slate-500">
-                  {showPermissions ? tr('Tap to collapse') : tr('Configure discounts, cancels, drawer & reports access')}
-                </p>
-              </div>
-            </div>
-            {showPermissions ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
-          </button>
 
-          {showPermissions && (
-            <div className="p-3.5 pt-1 space-y-2.5 border-t border-slate-200 bg-white">
-              {/* Allow giving discounts */}
-              <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100">
-                <div className="flex items-center gap-2">
-                  <Percent className="w-3.5 h-3.5 text-indigo-600" />
-                  <span className="text-xs font-bold text-slate-700">{tr('Allow Giving Discounts')}</span>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={canDiscount}
-                  onChange={(e) => setCanDiscount(e.target.checked)}
-                  className="w-4 h-4 accent-emerald-600 rounded cursor-pointer"
-                />
-              </div>
-              {canDiscount && (
-                <div className="pl-6 flex items-center gap-2 text-xs">
-                  <span className="text-slate-500 font-medium">{tr('Max discount limit:')}</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={100}
-                    value={maxDiscountPct}
-                    onChange={(e) => setMaxDiscountPct(Number(e.target.value) || 10)}
-                    className="w-16 h-7 px-2 border border-slate-300 rounded text-center text-xs font-bold"
-                  />
-                  <span className="text-slate-500 font-bold">%</span>
-                </div>
-              )}
-
-              {/* Allow cancelling items */}
-              <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100">
-                <div className="flex items-center gap-2">
-                  <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-                  <span className="text-xs font-bold text-slate-700">{tr('Allow Canceling Sent Items (KOT)')}</span>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={canCancelItem}
-                  onChange={(e) => setCanCancelItem(e.target.checked)}
-                  className="w-4 h-4 accent-emerald-600 rounded cursor-pointer"
-                />
-              </div>
-
-              {/* Allow changing table */}
-              <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100">
-                <div className="flex items-center gap-2">
-                  <ArrowLeftRight className="w-3.5 h-3.5 text-amber-600" />
-                  <span className="text-xs font-bold text-slate-700">{tr('Allow Shifting / Changing Tables')}</span>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={canChangeTable}
-                  onChange={(e) => setCanChangeTable(e.target.checked)}
-                  className="w-4 h-4 accent-emerald-600 rounded cursor-pointer"
-                />
-              </div>
-
-              {/* Allow viewing reports */}
-              <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100">
-                <div className="flex items-center gap-2">
-                  <BarChart3 className="w-3.5 h-3.5 text-purple-600" />
-                  <span className="text-xs font-bold text-slate-700">{tr('Allow Viewing Sales Reports')}</span>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={canViewReports}
-                  onChange={(e) => setCanViewReports(e.target.checked)}
-                  className="w-4 h-4 accent-emerald-600 rounded cursor-pointer"
-                />
-              </div>
-
-              {/* Allow cash drawer / settle bill */}
-              <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100">
-                <div className="flex items-center gap-2">
-                  <Wallet className="w-3.5 h-3.5 text-emerald-600" />
-                  <span className="text-xs font-bold text-slate-700">{tr('Allow Cash Drawer & Settle Bill')}</span>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={canAccessCashDrawer}
-                  onChange={(e) => setCanAccessCashDrawer(e.target.checked)}
-                  className="w-4 h-4 accent-emerald-600 rounded cursor-pointer"
-                />
-              </div>
-            </div>
-          )}
-        </div>
 
         {error && (
           <p className="text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">

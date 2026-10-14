@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { Product } from '@/types';
 import { useHardwareBarcodeScanner } from '@/lib/hardware/barcodeScannerListener';
 import { parseWeighedBarcode, weighedQuantity } from '@/lib/barcode/weighedBarcode';
+import { parseScaleEan13 } from '@/lib/billing/scanInput';
 import { generalCategoryId } from '@/lib/products/defaultCategory';
 import type { Business, Category, Sale } from '@/types';
 
@@ -64,6 +65,24 @@ export function usePosScanning(deps: UsePosScanningDeps) {
         addToCart(packItem, packQty);
         focusProductSearch();
         return;
+      }
+      // Standard retail price/weight-embedded EAN-13 barcode (prefix 20 / 21)
+      const scaleBar = parseScaleEan13(clean);
+      if (scaleBar) {
+        let scaleProduct: Product | undefined;
+        for (const candidate of scaleBar.pluCandidates) {
+          scaleProduct = await db.products.where('barcode').equals(candidate).first();
+          if (scaleProduct) break;
+        }
+        if (!scaleProduct) {
+          const prods = await db.products.toArray();
+          scaleProduct = prods.find((p) => scaleBar.pluCandidates.includes((p.barcode || '').trim()) || p.id === scaleBar.plu);
+        }
+        if (scaleProduct) {
+          addToCart(scaleProduct, scaleBar.quantityKg);
+          focusProductSearch();
+          return;
+        }
       }
     } catch (err) {
       console.warn('Barcode scan check error:', err);

@@ -64,4 +64,9 @@ contextBridge.exposeInMainWorld('kamaiDesktop', {
     ipcRenderer.on('kp:update-ready', listener);
     return () => ipcRenderer.removeListener('kp:update-ready', listener);
   },
+  onFlushOutbox: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on('kp:flush-outbox', listener);
+    return () => ipcRenderer.removeListener('kp:flush-outbox', listener);
+  },
 });

@@ -38,12 +38,11 @@ import { getLocalDayStart } from '@/lib/staff/staffMetrics';
 import { AddStaffDialog } from './AddStaffDialog';
 import { StaffJoinCodeDialog } from './StaffJoinCodeDialog';
 import { StaffPerformanceDialog } from './StaffPerformanceDialog';
-import { StaffPermissionsDialog } from './StaffPermissionsDialog';
 import { StaffSalaryDialog } from './StaffSalaryDialog';
 
 /**
  * Settings → Staff: staff sign in with one-time codes on their phones.
- * Now enhanced with permanent delete, live performance & order count, role permissions, and salary & advances.
+ * Now enhanced with permanent delete, live performance & order count, and salary & advances.
  */
 export function StaffTab() {
   const account = getCloudAccount();
@@ -55,7 +54,6 @@ export function StaffTab() {
   const [adding, setAdding] = useState(false);
   const [codeFor, setCodeFor] = useState<StaffMember | null>(null);
   const [perfFor, setPerfFor] = useState<StaffMember | null>(null);
-  const [permsFor, setPermsFor] = useState<StaffMember | null>(null);
   const [salaryFor, setSalaryFor] = useState<StaffMember | null>(null);
   const [now, setNow] = useState(Date.now());
   const [syncOn, setSyncOn] = useState(() => isCloudSendOn());
@@ -170,10 +168,6 @@ export function StaffTab() {
     await setStaffActive(m.id, true)
       .then(() => setCodeFor({ ...m, active: true }))
       .catch(() => setError(tr('Could not save. Check the internet and try again.')));
-  };
-
-  const handlePermsUpdated = (memberId: string, perms: StaffPermissions) => {
-    setList((prev) => (prev ? prev.map((x) => (x.id === memberId ? { ...x, permissions: perms } : x)) : null));
   };
 
   const handleSalaryUpdated = (memberId: string, salaryPaise: number) => {
@@ -291,11 +285,6 @@ export function StaffTab() {
                             <span className="hidden sm:inline">{st === 'not_joined' ? tr('Sign in phone') : tr('New phone')}</span>
                           </Button>
 
-                          <Button type="button" variant="outline" size="sm" onClick={() => setPermsFor(m)} title={tr('Role Permissions & Limits')} data-staff-perms-btn={m.id}>
-                            <Shield className="w-3.5 h-3.5 text-indigo-600" />
-                            <span className="hidden md:inline">{tr('Permissions')}</span>
-                          </Button>
-
                           <Button type="button" variant="outline" size="sm" onClick={() => setSalaryFor(m)} title={tr('Salary & Advances')} data-staff-salary-btn={m.id}>
                             <Banknote className="w-3.5 h-3.5 text-emerald-600" />
                             <span className="hidden md:inline">{tr('Salary & Advance')}</span>
@@ -353,12 +342,6 @@ export function StaffTab() {
         onClose={() => setCodeFor(null)}
       />
       <StaffPerformanceDialog open={Boolean(perfFor)} member={perfFor} onClose={() => setPerfFor(null)} />
-      <StaffPermissionsDialog
-        open={Boolean(permsFor)}
-        member={permsFor}
-        onClose={() => setPermsFor(null)}
-        onUpdated={handlePermsUpdated}
-      />
       <StaffSalaryDialog
         open={Boolean(salaryFor)}
         member={salaryFor}

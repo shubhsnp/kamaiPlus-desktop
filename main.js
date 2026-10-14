@@ -180,6 +180,12 @@ function createWindow() {
     }, 15000);
   });
 
+  mainWindow.on('close', () => {
+    try {
+      mainWindow?.webContents?.send('kp:flush-outbox');
+    } catch {}
+  });
+
   // Links to the web (help pages, UPI apps, etc.) open in the system browser.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//i.test(url)) shell.openExternal(url);

@@ -123,6 +123,21 @@ export function CloudSyncScheduler() {
       soon = window.setTimeout(tick, SOON_MS);
     };
 
+    // Flush outbox immediately when closing or hiding window (beforeunload / visibilitychange)
+    const onFlushNow = () => {
+      if (cloudSendActive() && (outboxSize() > 0 || needsFullPush())) {
+        void sendToCloudNow().catch(() => {});
+      }
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        onFlushNow();
+      }
+    };
+    window.addEventListener('beforeunload', onFlushNow);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    const unhookIpc = (window as any).kamaiDesktop?.onFlushOutbox?.(() => onFlushNow());
+
     setOutboxRecording(cloudSendActive());
     const first = window.setTimeout(tick, FIRST_RUN_MS);
     const every = window.setInterval(tick, CHECK_EVERY_MS);
@@ -139,6 +154,9 @@ export function CloudSyncScheduler() {
       window.removeEventListener(CLOUD_ACCOUNT_EVENT, tick);
       window.removeEventListener(CLOUD_STATUS_EVENT, applyRecording);
       window.removeEventListener(OUTBOX_EVENT, onLocalChange);
+      window.removeEventListener('beforeunload', onFlushNow);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      unhookIpc?.();
       stopListening?.();
     };
   }, []);

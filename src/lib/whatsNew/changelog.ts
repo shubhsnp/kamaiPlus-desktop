@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.170.0',
+    items: [
+      msg('Staff & Billing: full billing authority for staff and enhanced salary & advance ledger.'),
+    ],
+  },
+  {
     version: '4.169.0',
     items: [
       msg('Security & Reliability: tamper-evident backup verification, outbox poison-pill protection, and production console shielding.'),
@@ -333,30 +339,6 @@ export const CHANGELOG: Release[] = [
     version: '4.117.0',
     items: [
       msg('Upgraded Store Onboarding: visual Category Selection Cards (Kirana, Pharmacy, Clothing, Hardware, Restaurant, Retail), vertical-tailored starter catalogs, and 1-click Cross-Device Cloud Store Restore.'),
-    ],
-  },
-  {
-    version: '4.116.0',
-    items: [
-      msg('Realtime Live Sync: 1-second instant live reaction for Admin remote commands, lock mode, factory wipe, and messages via Firestore signals.'),
-    ],
-  },
-  {
-    version: '4.115.0',
-    items: [
-      msg('Remote management: support for remote factory reset and licence wipe from the Admin Console.'),
-    ],
-  },
-  {
-    version: '4.114.0',
-    items: [
-      msg('Billing counter: fractional quantity presets (¼, ½, ¾) for packets, pieces, kg, litres, and pharmacy strips.'),
-    ],
-  },
-  {
-    version: '4.113.0',
-    items: [
-      msg('Performance & lightweight update: removed unused mobile packages and web banners for faster loading.'),
     ],
   },
   ...OLDER_RELEASES,

@@ -28,3 +28,40 @@ export function searchEnterAction(text: string, cartLength: number, exactMatch: 
   if (looksLikeBarcode(t)) return 'unknown-code';
   return resultCount > 0 ? 'add-highlighted' : 'none';
 }
+
+export interface ScaleEan13Result {
+  plu: string;
+  grams: number;
+  quantityKg: number;
+  pluCandidates: string[];
+}
+
+/**
+ * Standard retail price/weight-embedded EAN-13 barcodes starting with prefix 20 or 21:
+ * 13 digits total:
+ *   [0..2]: prefix (20 or 21)
+ *   [2..7]: 5-digit PLU / item code
+ *   [7..12]: 5-digit weight in grams (e.g. 00250 = 250g = 0.25 kg)
+ *   [12]: checksum digit
+ */
+export function parseScaleEan13(code: string): ScaleEan13Result | null {
+  const c = code.trim();
+  if (c.length !== 13 || !/^(20|21)\d{11}$/.test(c)) return null;
+  const plu = c.slice(2, 7);
+  const grams = parseInt(c.slice(7, 12), 10);
+  if (isNaN(grams) || grams <= 0) return null;
+  const numPlu = parseInt(plu, 10);
+  const pluCandidates = [
+    plu,
+    isNaN(numPlu) ? plu : String(numPlu),
+    `20${plu}`,
+    `21${plu}`,
+  ];
+  return {
+    plu,
+    grams,
+    quantityKg: Math.round((grams / 1000) * 1000) / 1000,
+    pluCandidates,
+  };
+}
+

@@ -257,15 +257,15 @@ export function StaffSalaryDialog({
                         {exp.payment_mode.toUpperCase()}
                       </span>
                     </div>
-                    <div className="text-[11px] text-slate-400 mt-0.5">
-                      {new Date(exp.created_at).toLocaleDateString([], {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                      })}
-                      {exp.notes && <span> · {exp.notes}</span>}
+                      <div className="text-[11px] text-slate-400 mt-0.5">
+                        {new Date(exp.created_at).toLocaleDateString([], {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                        })}
+                        {exp.notes && <span> · {exp.notes}</span>}
+                      </div>
                     </div>
-                  </div>
                   <div className="flex items-center gap-2.5 shrink-0">
                     <span className="font-black text-rose-700">
                       -{formatINR(exp.amount)}
@@ -273,7 +273,7 @@ export function StaffSalaryDialog({
                     <button
                       type="button"
                       onClick={() => handleDeleteExpense(exp.id)}
-                      className="p-1 rounded text-slate-400 hover:text-rose-600 transition-colors"
+                      className="p-1 rounded text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
                       title={tr('Delete entry')}
                       data-delete-expense={exp.id}
                     >
