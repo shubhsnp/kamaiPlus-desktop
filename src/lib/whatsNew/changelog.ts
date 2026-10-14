@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.169.0',
+    items: [
+      msg('Security & Reliability: tamper-evident backup verification, outbox poison-pill protection, and production console shielding.'),
+    ],
+  },
+  {
     version: '4.168.0',
     items: [
       msg('Transactions & Bills: Staff attribution labels (👤 name) on bills, staff performance metrics, and seamless staff billing sync.'),

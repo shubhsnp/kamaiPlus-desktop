@@ -3,7 +3,7 @@ import { readVerticalProfile } from '@/lib/business/verticalProfile';
 import { getFirestoreDb } from '@/lib/firebase/config';
 import { sanitizeForFirestore } from '@/lib/firebase/firestoreSync';
 import { CloudTable, CLOUD_TABLES, toCloud } from './cloudContract';
-import { COUNTER_FIELDS, CounterTable, Outbox } from './cloudOutbox';
+import { COUNTER_FIELDS, CounterTable, Outbox, recordRetry } from './cloudOutbox';
 
 /**
  * What the Desktop writes to the shop's cloud (Step 3 / 4, v4.86.0). Loaded only when
@@ -58,23 +58,79 @@ export async function writeShopDoc(bizId: string, row: Row, isNewShop: boolean):
 /** Rows of one table (merge writes). `absolute`: counters as values (first full send only). */
 export async function writeRows(bizId: string, table: CloudTable, rows: Row[], absolute: boolean): Promise<number> {
   const fs = firestore();
+  let written = 0;
   for (let i = 0; i < rows.length; i += BATCH) {
+    const chunk = rows.slice(i, i + BATCH);
     const batch = writeBatch(fs);
-    for (const row of rows.slice(i, i + BATCH)) {
+    for (const row of chunk) {
       if (!row?.id) continue;
       batch.set(doc(fs, `businesses/${bizId}/${table}/${row.id}`), { ...cloudDocFor(table, row, bizId, absolute), synced_at: serverTimestamp() }, { merge: true });
     }
-    await batch.commit();
+    try {
+      await batch.commit();
+      written += chunk.length;
+    } catch (batchErr) {
+      // Poison-pill recovery: batch commit failed, attempt row-by-row to isolate bad documents
+      console.warn(`[cloudWrite] Batch commit failed for ${table}, attempting individual row writes:`, batchErr);
+      for (const row of chunk) {
+        if (!row?.id) continue;
+        try {
+          await setDoc(
+            doc(fs, `businesses/${bizId}/${table}/${row.id}`),
+            { ...cloudDocFor(table, row, bizId, absolute), synced_at: serverTimestamp() },
+            { merge: true },
+          );
+          written++;
+        } catch (singleErr: any) {
+          console.error(`[cloudWrite] Poison-pill document write failed for ${table}/${row.id}:`, singleErr);
+          recordRetry(table, row.id);
+        }
+      }
+    }
   }
-  return rows.length;
+  return written;
 }
 
 export async function deleteRows(bizId: string, table: CloudTable, ids: string[]): Promise<void> {
   const fs = firestore();
+  const now = new Date().toISOString();
   for (let i = 0; i < ids.length; i += BATCH) {
+    const chunk = ids.slice(i, i + BATCH);
     const batch = writeBatch(fs);
-    for (const id of ids.slice(i, i + BATCH)) batch.delete(doc(fs, `businesses/${bizId}/${table}/${id}`));
-    await batch.commit();
+    for (const id of chunk) {
+      batch.set(
+        doc(fs, `businesses/${bizId}/${table}/${id}`),
+        {
+          deleted: true,
+          is_deleted: true,
+          updated_at: now,
+          synced_at: serverTimestamp(),
+        },
+        { merge: true },
+      );
+    }
+    try {
+      await batch.commit();
+    } catch (batchErr) {
+      console.warn(`[cloudWrite] Batch delete failed for ${table}, attempting individual deletes:`, batchErr);
+      for (const id of chunk) {
+        try {
+          await setDoc(
+            doc(fs, `businesses/${bizId}/${table}/${id}`),
+            {
+              deleted: true,
+              is_deleted: true,
+              updated_at: now,
+              synced_at: serverTimestamp(),
+            },
+            { merge: true },
+          );
+        } catch (singleErr: any) {
+          console.error(`[cloudWrite] Poison-pill delete failed for ${table}/${id}:`, singleErr);
+          recordRetry(table, id);
+        }
+      }
+    }
   }
 }
 
@@ -140,7 +196,11 @@ export async function applyCounterDeltas(bizId: string, roundId: string, deltas:
       let count = 0;
       snaps.forEach((s, k) => {
         if (!s.exists()) return;
-        tx.update(refs[k], { [COUNTER_FIELDS[part[k].table].cloud]: increment(part[k].d), synced_at: serverTimestamp() });
+        tx.update(refs[k], {
+          [COUNTER_FIELDS[part[k].table].cloud]: increment(part[k].d),
+          updated_at: new Date().toISOString(),
+          synced_at: serverTimestamp(),
+        });
         count++;
       });
       tx.set(opRef, { at: serverTimestamp(), device, changes: part.length });

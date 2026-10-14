@@ -2355,6 +2355,19 @@ assert(readSource('app/billing/page.tsx').split('\n').length <= 401, `POS page s
     'Cloud contract: the per-bill mirror (cloudMerge) and onboarding write contract documents too; onboarding sends no plan field');
   const contractSrc = readSource('lib/cloud/cloudContract.ts') + readSource('lib/cloud/cloudFormat.ts');
   assert(!/from '(firebase|@\/lib\/db|@\/lib\/firebase)/.test(contractSrc), 'Cloud contract: the mapping is pure (no Firebase, no Dexie) — tested here, safe to load anywhere');
+  assert(tableForCloudPath('businesses/biz_UID1/restaurant_orders/order_1') === 'restaurant_orders'
+    && tableForCloudPath('businesses/biz_UID1/restaurant_meta/settings') === 'restaurant_meta',
+    'Cloud contract: restaurant_orders and restaurant_meta paths map correctly for waiter app parity (Fix 5)');
+
+  const writeSrc = readSource('lib/cloud/cloudWrite.ts');
+  assert(writeSrc.includes('deleted: true') && writeSrc.includes('is_deleted: true'), 'Cloud delete: soft-delete tombstones written instead of hard delete for offline devices (Fix 2)');
+  assert(/updated_at:\s*new Date\(\)\.toISOString\(\)/.test(writeSrc) && writeSrc.includes('synced_at: serverTimestamp()'), 'Cloud counters: counter increments include updated_at and synced_at (Fix 3)');
+
+  const pullSrc = readSource('lib/cloud/cloudPull.ts');
+  assert(pullSrc.includes('data.deleted === true || data.is_deleted === true'),
+    'Cloud pull: tombstone soft-deletes are handled by deleting locally (Fix 2)');
+  assert(pullSrc.includes('restaurant_orders') && pullSrc.includes('restaurant_meta'),
+    'Cloud pull: restaurant_orders and restaurant_meta collections are synced live for waiter app parity (Fix 5)');
 }
 
 // (t) Google sign-in (v4.84.0, Step 2 — Rahul: Google the very first time, then the master password).

@@ -36,6 +36,8 @@ export interface Outbox {
   full: CloudTable[];
   /** Counter changes not yet in the cloud: table → record id → change (stock, or paise). */
   deltas: Partial<Record<CounterTable, Record<string, number>>>;
+  /** Poison-pill protection: table → record id → failed retry count */
+  retries?: Partial<Record<CloudTable, Record<string, number>>>;
 }
 
 export const OUTBOX_KEY = 'kamai_cloud_outbox';
@@ -73,7 +75,20 @@ export function parseOutbox(raw: string | null): Outbox {
       for (const [id, d] of Object.entries(recs)) if (typeof d === 'number' && Number.isFinite(d) && d !== 0) clean[id] = d;
       deltas[t as CounterTable] = clean;
     }
-    return { items, full: (o.full as string[]).filter((t) => TABLES.has(t)) as CloudTable[], deltas };
+    const retries: Outbox['retries'] = {};
+    if (o.retries && typeof o.retries === 'object') {
+      for (const [t, recs] of Object.entries(o.retries as Record<string, Record<string, unknown>>)) {
+        if (!TABLES.has(t) || !recs || typeof recs !== 'object') continue;
+        const clean: Record<string, number> = {};
+        for (const [id, count] of Object.entries(recs)) {
+          if (typeof count === 'number' && Number.isFinite(count) && count > 0) clean[id] = count;
+        }
+        if (Object.keys(clean).length > 0) retries[t as CloudTable] = clean;
+      }
+    }
+    const result: Outbox = { items, full: (o.full as string[]).filter((t) => TABLES.has(t)) as CloudTable[], deltas };
+    if (Object.keys(retries).length > 0) result.retries = retries;
+    return result;
   } catch {
     return emptyOutbox();
   }
@@ -210,6 +225,48 @@ export function outboxSize(box: Outbox = peekOutbox()): number {
     + (inflight ? Object.values(inflight.deltas).reduce((n, recs) => n + Object.keys(recs || {}).length, 0) : 0);
 }
 
+export const MAX_OUTBOX_RETRIES = 5;
+
+/** Record a failed push attempt for poison-pill protection: retries = (retries ?? 0) + 1 */
+export function recordRetry(table: CloudTable, id: string): number {
+  load();
+  if (!outbox.retries) outbox.retries = {};
+  if (!outbox.retries[table]) outbox.retries[table] = {};
+  const current = outbox.retries[table]![id] ?? 0;
+  const next = current + 1;
+  outbox.retries[table]![id] = next;
+  if (next >= MAX_OUTBOX_RETRIES) {
+    if (outbox.items[table]?.[id]) {
+      delete outbox.items[table]![id];
+      if (Object.keys(outbox.items[table]!).length === 0) {
+        delete outbox.items[table];
+      }
+    }
+  }
+  save();
+  return next;
+}
+
+export function getRetries(table: CloudTable, id: string): number {
+  load();
+  return outbox.retries?.[table]?.[id] ?? 0;
+}
+
+export function clearRetry(table: CloudTable, id: string): void {
+  load();
+  if (!outbox.retries?.[table]?.[id]) return;
+  const tableRetries = { ...outbox.retries[table] };
+  delete tableRetries[id];
+  outbox = {
+    ...outbox,
+    retries: {
+      ...outbox.retries,
+      [table]: tableRetries,
+    },
+  };
+  save();
+}
+
 /**
  * Pure: the outbox after `sent` went out. A record written AGAIN while it was being sent
  * (a different op now, or noted after the send started) is kept for the next round; a
@@ -225,6 +282,17 @@ export function withoutSent(box: Outbox, sent: Outbox): Outbox {
   let result: Outbox = { items, full: box.full.filter((t) => !sent.full.includes(t)), deltas: box.deltas };
   for (const [t, recs] of Object.entries(sent.deltas || {}) as [CounterTable, Record<string, number>][]) {
     for (const [id, d] of Object.entries(recs)) result = noteDelta(result, t, id, -d);
+  }
+  if (box.retries) {
+    const retries: Outbox['retries'] = {};
+    for (const [t, recs] of Object.entries(box.retries) as [CloudTable, Record<string, number>][]) {
+      const remaining: Record<string, number> = {};
+      for (const [id, count] of Object.entries(recs || {})) {
+        if (items[t]?.[id]) remaining[id] = count;
+      }
+      if (Object.keys(remaining).length) retries[t] = remaining;
+    }
+    result.retries = retries;
   }
   return result;
 }

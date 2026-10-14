@@ -22,6 +22,11 @@ export const CLOUD_TABLES = [
 ] as const;
 export type CloudTable = (typeof CLOUD_TABLES)[number];
 
+/** Running restaurant orders & metadata shared between counter PC and staff phones (v4.140.0, R1). */
+export const RESTAURANT_COLLECTIONS = ['restaurant_orders', 'restaurant_meta'] as const;
+export type RestaurantCollection = (typeof RESTAURANT_COLLECTIONS)[number];
+export type AnyCloudTable = CloudTable | RestaurantCollection;
+
 type Row = Record<string, any>;
 const DATES = ['created_at', 'updated_at'];
 
@@ -92,7 +97,7 @@ interface TableSpec extends FieldSpec {
   in?: (doc: Row, row: Row, local: Row | null | undefined) => void;
 }
 
-const SPECS: Record<CloudTable, TableSpec> = {
+const SPECS: Record<CloudTable | RestaurantCollection, TableSpec> = {
   businesses: {
     rename: { upi_id: 'upi_vpa', fssai_license_no: 'fssai' },
     // business_type: Android's vertical lives in the cloud; the Desktop is one universal app and
@@ -272,11 +277,13 @@ const SPECS: Record<CloudTable, TableSpec> = {
     out: (row, doc) => { const a = mapLines(row.line_items, (l) => specToCloud(BILL_LINE, l)); if (a) doc.line_items = a; },
     in: (doc, row) => { const a = mapLines(doc.line_items, (l) => specFromCloud(BILL_LINE, l)); if (a) row.line_items = a; },
   },
+  restaurant_orders: { dates: ['openedAt', 'updatedAt'] },
+  restaurant_meta: { dates: ['updated_at'] },
 };
 
 /** Dexie row → Firestore document for `businesses/{bizId}/{table}/{id}` (or the shop doc itself). */
-export function toCloud(table: CloudTable, row: Row, ctx: CloudContext): Row {
-  const spec = SPECS[table];
+export function toCloud(table: CloudTable | RestaurantCollection, row: Row, ctx: CloudContext): Row {
+  const spec = (SPECS as Record<string, any>)[table] || {};
   const doc = specToCloud(spec, row);
   spec.out?.(row, doc);
   doc.business_id = ctx.bizId;
@@ -285,8 +292,8 @@ export function toCloud(table: CloudTable, row: Row, ctx: CloudContext): Row {
 }
 
 /** Firestore document → Dexie row, merged over the row this computer already has (R7). */
-export function fromCloud(table: CloudTable, doc: Row, local: Row | null | undefined, ctx: CloudContext): Row {
-  const spec = SPECS[table];
+export function fromCloud(table: CloudTable | RestaurantCollection, doc: Row, local: Row | null | undefined, ctx: CloudContext): Row {
+  const spec = (SPECS as Record<string, any>)[table] || {};
   const row = specFromCloud(spec, doc, local);
   spec.in?.(doc, row, local);
   if (table === 'businesses') row.id = local?.id ?? ctx.bizId;
@@ -295,9 +302,11 @@ export function fromCloud(table: CloudTable, doc: Row, local: Row | null | undef
 }
 
 /** `businesses/{biz}` → 'businesses'; `businesses/{biz}/{table}/{id}` → table; anything else → null. */
-export function tableForCloudPath(path: string): CloudTable | null {
+export function tableForCloudPath(path: string): CloudTable | RestaurantCollection | null {
   const parts = path.split('/').filter(Boolean);
   if (parts[0] !== 'businesses') return null;
   const table = parts.length === 2 ? 'businesses' : parts.length === 4 ? parts[2] : '';
-  return (CLOUD_TABLES as readonly string[]).includes(table) ? (table as CloudTable) : null;
+  if ((CLOUD_TABLES as readonly string[]).includes(table)) return table as CloudTable;
+  if ((RESTAURANT_COLLECTIONS as readonly string[]).includes(table)) return table as RestaurantCollection;
+  return null;
 }

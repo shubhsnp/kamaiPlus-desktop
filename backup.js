@@ -16,6 +16,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const KEEP_DAYS = 30;
 const PREFIX = 'KamaiPlus_AutoBackup_';
@@ -36,7 +37,10 @@ function readSettings(userDataDir) {
 
 function writeSettings(userDataDir, settings) {
   fs.mkdirSync(userDataDir, { recursive: true });
-  fs.writeFileSync(path.join(userDataDir, SETTINGS_FILE), JSON.stringify(settings, null, 2), 'utf8');
+  const target = path.join(userDataDir, SETTINGS_FILE);
+  const tmp = `${target}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(settings, null, 2), 'utf8');
+  fs.renameSync(tmp, target);
 }
 
 function localDateKey(d = new Date()) {
@@ -82,13 +86,57 @@ function safeShopName(name) {
   return String(name || 'Store').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40) || 'Store';
 }
 
+const BACKUP_TABLES = [
+  'businesses', 'categories', 'products', 'customers', 'suppliers', 'sales', 'cash_registers', 'cash_expenses',
+  'sales_returns', 'inventory_movements', 'ledger_transactions', 'purchase_bills', 'marketing_templates', 'audit_logs',
+];
+
+function computeDataHash(data) {
+  const hash = crypto.createHash('sha256');
+  for (const t of BACKUP_TABLES) {
+    if (Array.isArray(data[t])) {
+      hash.update(`${t}:${JSON.stringify(data[t])};`);
+    }
+  }
+  return hash.digest('hex');
+}
+
+function verifyBackupIntegrity(jsonOrObject) {
+  try {
+    const data = typeof jsonOrObject === 'string' ? JSON.parse(jsonOrObject) : jsonOrObject;
+    if (!data || typeof data !== 'object') return { ok: false, error: 'Invalid backup file format.' };
+    const meta = data.metadata;
+    if (!meta || typeof meta !== 'object') return { ok: false, error: 'Invalid backup metadata.' };
+    // If _integrityHash is not present (older legacy backup files), allow the restore normally
+    if (!meta._integrityHash) {
+      return { ok: true, legacy: true };
+    }
+    const expected = computeDataHash(data);
+    if (meta._integrityHash !== expected) {
+      return { ok: false, error: 'Backup integrity verification failed: the file has been modified or corrupted.' };
+    }
+    return { ok: true, verified: true };
+  } catch (err) {
+    return { ok: false, error: `Integrity check failed: ${err.message}` };
+  }
+}
+
 /** Writes today's backup (replacing an earlier one from today). Never throws. */
 function writeBackup({ documentsRoot, userDataDir, json, shopName }) {
   if (typeof json !== 'string' || json.length < 20) return { ok: false, error: 'Nothing to back up.' };
+  let payloadJson = json;
+  try {
+    const parsed = JSON.parse(json);
+    if (parsed && typeof parsed === 'object') {
+      if (!parsed.metadata || typeof parsed.metadata !== 'object') parsed.metadata = {};
+      parsed.metadata._integrityHash = computeDataHash(parsed);
+      payloadJson = JSON.stringify(parsed);
+    }
+  } catch {}
   const fileName = `${PREFIX}${safeShopName(shopName)}_${localDateKey()}.json`;
   let mainPath;
   try {
-    mainPath = writeAtomically(backupsDir(documentsRoot), fileName, json);
+    mainPath = writeAtomically(backupsDir(documentsRoot), fileName, payloadJson);
   } catch (err) {
     return { ok: false, error: `Backup could not be saved: ${err.message}` };
   }
@@ -100,7 +148,7 @@ function writeBackup({ documentsRoot, userDataDir, json, shopName }) {
       extra = { ok: false, error: 'The extra backup folder is not available (pen drive not connected?).' };
     } else {
       try {
-        writeAtomically(extraFolder, fileName, json);
+        writeAtomically(extraFolder, fileName, payloadJson);
         extra = { ok: true };
       } catch (err) {
         extra = { ok: false, error: `Could not copy to the extra folder: ${err.message}` };
@@ -130,4 +178,14 @@ function setExtraFolder(userDataDir, folder) {
   writeSettings(userDataDir, { extraFolder: folder || null });
 }
 
-module.exports = { writeBackup, getInfo, setExtraFolder, backupsDir, KEEP_DAYS, PREFIX };
+module.exports = {
+  writeBackup,
+  getInfo,
+  setExtraFolder,
+  backupsDir,
+  KEEP_DAYS,
+  PREFIX,
+  computeDataHash,
+  verifyBackupIntegrity,
+  BACKUP_TABLES,
+};

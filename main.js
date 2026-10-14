@@ -145,8 +145,22 @@ function createWindow() {
       sandbox: true,
       spellcheck: false,
       backgroundThrottling: false,
+      devTools: !app.isPackaged,
     },
   });
+
+  // In packaged production, block DevTools shortcuts to prevent tampering with local storage/licensing
+  if (app.isPackaged) {
+    mainWindow.webContents.on('before-input-event', (event, input) => {
+      const key = (input.key || '').toUpperCase();
+      const isDevToolsShortcut =
+        key === 'F12' ||
+        ((input.control || input.meta) && input.shift && (key === 'I' || key === 'J' || key === 'C'));
+      if (isDevToolsShortcut) {
+        event.preventDefault();
+      }
+    });
+  }
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.maximize();
@@ -176,6 +190,9 @@ function createWindow() {
       event.preventDefault();
       if (/^https?:\/\//i.test(url)) shell.openExternal(url);
     }
+  });
+  mainWindow.webContents.on('will-attach-webview', (event) => {
+    event.preventDefault();
   });
 
   // A crashed or frozen page must at least leave a trace (and come back if it crashed).
@@ -217,7 +234,7 @@ function getPrintWindow() {
       show: false,
       width: 900,
       height: 1200,
-      webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, backgroundThrottling: false },
+      webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, backgroundThrottling: false, devTools: false },
     });
   }
   return printWindow;

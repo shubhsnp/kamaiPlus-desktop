@@ -1,6 +1,6 @@
 import { CLOUD_TABLES, CloudTable } from '@/lib/cloud/cloudContract';
 import { getCloudAccount } from '@/lib/cloud/cloudAccount';
-import { finishInflight, markSent, Outbox, OutboxOp, outboxSize, peekOutbox, setOutboxRecording, takeDeltasForSend } from '@/lib/cloud/cloudOutbox';
+import { finishInflight, markSent, MAX_OUTBOX_RETRIES, Outbox, OutboxOp, outboxSize, peekOutbox, setOutboxRecording, takeDeltasForSend } from '@/lib/cloud/cloudOutbox';
 import { newId } from '@/lib/ids';
 import { tr } from '@/lib/i18n/core';
 
@@ -199,7 +199,19 @@ async function doSend(): Promise<SendResult> {
       if (delIds.length + gone.length) await cw.deleteRows(account.bizId, table, [...delIds, ...gone]);
       sent += delIds.length + gone.length;
     }
-    markSent({ ...box, deltas: {} });
+    const currentBox = peekOutbox();
+    const sentItems: Outbox['items'] = {};
+    for (const [t, recs] of Object.entries(box.items) as [CloudTable, Record<string, OutboxOp>][]) {
+      const tableSent: Record<string, OutboxOp> = {};
+      for (const [id, op] of Object.entries(recs || {})) {
+        const retries = currentBox.retries?.[t]?.[id] ?? 0;
+        if (retries === 0 || retries >= MAX_OUTBOX_RETRIES) {
+          tableSent[id] = op;
+        }
+      }
+      if (Object.keys(tableSent).length) sentItems[t] = tableSent;
+    }
+    markSent({ items: sentItems, full: plan.full, deltas: {} });
 
     // 4. Stock / udhar changes: one round, applied at most once, then this computer takes the
     //    cloud's new value (+ anything changed meanwhile) so it matches the phone exactly.

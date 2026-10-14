@@ -20,6 +20,7 @@ export interface BackupMetadata {
   business_name: string;
   business_gstin?: string;
   counts: Partial<Record<BackupTable, number>>;
+  _integrityHash?: string;
 }
 
 /** Shop choices kept per computer that a new computer needs too (v4.78.0). */
@@ -30,6 +31,22 @@ export interface BackupSettings {
 }
 
 export type FullBackupPayload = { metadata: BackupMetadata; settings?: BackupSettings } & { [K in BackupTable]?: any[] };
+
+export function computeBackupIntegrityHash(data: Record<string, unknown>): string {
+  try {
+    const cryptoMod = typeof require === 'function' ? require('crypto') : null;
+    if (cryptoMod && typeof cryptoMod.createHash === 'function') {
+      const hash = cryptoMod.createHash('sha256');
+      for (const t of BACKUP_TABLES) {
+        if (Array.isArray(data[t])) {
+          hash.update(`${t}:${JSON.stringify(data[t])};`);
+        }
+      }
+      return hash.digest('hex');
+    }
+  } catch {}
+  return '';
+}
 
 /** The whole database as one JSON-able object. */
 export async function createFullBackupPayload(): Promise<FullBackupPayload> {
@@ -46,6 +63,8 @@ export async function createFullBackupPayload(): Promise<FullBackupPayload> {
     const { printer: _printer, ...label } = getLabelSettings();
     payload.settings = { feature_switches: parseFeatureSwitches(localStorage.getItem(FEATURE_SWITCHES_KEY)), label_settings: label };
   } catch {}
+  const hash = computeBackupIntegrityHash(payload as unknown as Record<string, unknown>);
+  if (hash) payload.metadata._integrityHash = hash;
   return payload;
 }
 
@@ -87,6 +106,16 @@ export function checkBackupPayload(json: unknown): BackupCheck {
   const data = json as Record<string, unknown>;
   const meta = data.metadata as Record<string, unknown> | undefined;
   if (!meta || typeof meta !== 'object' || !Array.isArray(data.products) || !Array.isArray(data.sales)) return bad(tr('This is not a KamaiPlus backup file.'));
+
+  // If tamper-evident hash is present, verify file integrity. Older backups without hash are accepted normally.
+  const integrityHash = (meta as Record<string, unknown>)?._integrityHash;
+  if (typeof integrityHash === 'string' && integrityHash.length > 0) {
+    const expected = computeBackupIntegrityHash(data);
+    if (expected && integrityHash !== expected) {
+      return bad(tr('Backup integrity verification failed: the file has been modified or corrupted.'));
+    }
+  }
+
   const counts = {} as Record<BackupTable, number>;
   for (const t of BACKUP_TABLES) {
     const list = data[t];
