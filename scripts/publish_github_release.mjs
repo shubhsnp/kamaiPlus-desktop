@@ -138,15 +138,18 @@ async function main() {
     console.warn(`⚠️ Warning: Desktop installer for v${version} not found in dist/ or release/.`);
   }
 
-  // 2. Check if latest Android Universal APK exists
-  const androidPath = path.resolve(ROOT, '..', 'KamaiPlus Android');
-  const androidUniversal = path.join(androidPath, 'builds', 'KamaiPlus-Universal-v4.30.0-Release.apk');
-  const androidReleaseApk = path.join(androidPath, 'build', 'app', 'outputs', 'flutter-apk', 'app-release.apk');
-  
-  if (fs.existsSync(androidUniversal)) {
-    filesToUpload.push({ path: androidUniversal, name: path.basename(androidUniversal) });
-  } else if (fs.existsSync(androidReleaseApk)) {
-    filesToUpload.push({ path: androidReleaseApk, name: `KamaiPlus-Android-Release.apk` });
+  // 2. Check if latest Android Universal APK exists (unless --desktop-only is specified)
+  const isDesktopOnly = process.argv.includes('--desktop-only');
+  if (!isDesktopOnly) {
+    const androidPath = path.resolve(ROOT, '..', 'KamaiPlus Android');
+    const androidUniversal = path.join(androidPath, 'builds', 'KamaiPlus-Universal-v4.30.0-Release.apk');
+    const androidReleaseApk = path.join(androidPath, 'build', 'app', 'outputs', 'flutter-apk', 'app-release.apk');
+    
+    if (fs.existsSync(androidUniversal)) {
+      filesToUpload.push({ path: androidUniversal, name: path.basename(androidUniversal) });
+    } else if (fs.existsSync(androidReleaseApk)) {
+      filesToUpload.push({ path: androidReleaseApk, name: `KamaiPlus-Android-Release.apk` });
+    }
   }
 
   if (filesToUpload.length === 0) {
