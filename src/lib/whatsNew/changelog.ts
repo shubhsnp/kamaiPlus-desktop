@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.172.0',
+    items: [
+      msg('Purchases and Inventory: "1 bill" / "1 item" instead of "1 bills"; a reorder card no longer shows "Deficit: 0" or "Cost: ₹0.00". Restaurant: Inventory says "Manage Menu".'),
+    ],
+  },
+  {
     version: '4.171.0',
     items: [
       msg('Weighing-scale barcodes (starting 20 / 21) add the right weight — grams for an item sold in grams, kg for one sold in kg.'),

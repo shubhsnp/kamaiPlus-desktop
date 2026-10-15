@@ -27,6 +27,7 @@ export const RESTAURANT_WORDS: Record<string, string> = {
   '{totalProducts} products with prices & stock': '{totalProducts} dishes on your menu',
   '1 product with prices & stock': '1 dish on your menu',
   'Add Product': 'Add Dish',
+  'Manage Products': 'Manage Menu', // Inventory & Stock header (inventory is on for a restaurant since v4.165.0)
   'Import Excel': 'Import menu (Excel)',
   'Add or update many items from an Excel / CSV price list': 'Add or update many dishes from an Excel menu',
   'Catalog Items': 'Dishes',

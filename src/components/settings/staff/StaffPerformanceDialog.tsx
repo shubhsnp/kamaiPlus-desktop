@@ -103,7 +103,7 @@ export function StaffPerformanceDialog({
               {tr('Today’s Orders by {name}', { name: member.name })}
             </span>
             <span className="text-[11px] font-bold text-slate-500">
-              {perf?.recentSales.length || 0} {tr('records')}
+              {(perf?.recentSales.length || 0) === 1 ? tr('1 bill') : tr('{count} bills', { count: perf?.recentSales.length || 0 })}
             </span>
           </div>
 

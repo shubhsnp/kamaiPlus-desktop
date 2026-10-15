@@ -3512,5 +3512,9 @@
   "Settings → Staff: today's bills and sales of each staff member; remove a staff member for good. Tables & Orders: the \"New delivery\" button is gone.": "सेटिंग्स → स्टाफ: प्रत्येक स्टाफची आजची बिले आणि विक्री; स्टाफला कायमचे काढा. टेबल आणि ऑर्डर: \"नवीन डिलिव्हरी\" बटण काढले.",
   "Weighing-scale barcodes (starting 20 / 21) add the right weight — grams for an item sold in grams, kg for one sold in kg.": "वजनकाट्याचे बारकोड (20 / 21 ने सुरू) योग्य वजन जोडतात — ग्रॅमच्या सामानात ग्रॅम, किलोच्या सामानात किलो.",
   "Settings → Staff: salary, advances and today's sales count only that person's own entries (two staff with similar names are no longer mixed).": "सेटिंग्स → स्टाफ: पगार, ॲडव्हान्स आणि आजच्या विक्रीत फक्त त्याच व्यक्तीच्या नोंदी मोजल्या जातात (सारख्या नावाचे दोन स्टाफ आता मिसळत नाहीत).",
-  "Add staff with a name and a role, see their bills today, and keep their salary & advances. Staff sign in on their phone with the join code.": "नाव आणि रोल देऊन स्टाफ जोडा, त्यांची आजची बिले पहा, आणि त्यांचा पगार व ॲडव्हान्स ठेवा. स्टाफ जॉइन कोडने आपल्या फोनवर साइन इन करतो."
+  "Add staff with a name and a role, see their bills today, and keep their salary & advances. Staff sign in on their phone with the join code.": "नाव आणि रोल देऊन स्टाफ जोडा, त्यांची आजची बिले पहा, आणि त्यांचा पगार व ॲडव्हान्स ठेवा. स्टाफ जॉइन कोडने आपल्या फोनवर साइन इन करतो.",
+  "1 bill recorded": "1 बिल नोंदले",
+  "item low": "वस्तू कमी",
+  "Manage Menu": "मेन्यू सांभाळा",
+  "Purchases and Inventory: \"1 bill\" / \"1 item\" instead of \"1 bills\"; a reorder card no longer shows \"Deficit: 0\" or \"Cost: ₹0.00\". Restaurant: Inventory says \"Manage Menu\".": "खरेदी आणि इन्व्हेंटरी: \"1 बिल\" / \"1 वस्तू\"; रीऑर्डर कार्डवर आता \"तूट: 0\" किंवा \"किंमत: ₹0.00\" दिसत नाही. रेस्टॉरंट: इन्व्हेंटरीमध्ये \"मेन्यू सांभाळा\"."
 }

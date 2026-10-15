@@ -221,7 +221,7 @@ export default function PurchasesPage() {
               <span>{tr('Items Needing Restock')}</span>
             </div>
             <span className="text-[11px] font-mono text-slate-500">
-              {restockItems.length} {tr('items low')}
+              {restockItems.length} {restockItems.length === 1 ? tr('item low') : tr('items low')}
             </span>
           </h3>
 
@@ -261,7 +261,7 @@ export default function PurchasesPage() {
             </div>
             <span className="text-[11px] font-mono text-slate-500">
               {purchaseBills.length > 0 || recentMovements.length === 0
-                ? tr('{length} bills recorded', { length: purchaseBills.length })
+                ? (purchaseBills.length === 1 ? tr('1 bill recorded') : tr('{length} bills recorded', { length: purchaseBills.length }))
                 : tr('Stock inwards: {count}', { count: recentMovements.length })}
             </span>
           </h3>

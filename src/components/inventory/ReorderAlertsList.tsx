@@ -53,7 +53,9 @@ export const ReorderAlertsList: React.FC<ReorderAlertsListProps> = ({
                       {p.name}
                     </span>
                     <div className="text-xs text-slate-400 mt-0.5 font-mono">
-                      {tr('Selling:')} {formatINR(p.selling_price)} {tr('• Cost:')} {formatINR(p.purchase_price || 0)}
+                      {tr('Selling:')} {formatINR(p.selling_price)}
+                      {/* No buying price saved → no "Cost: ₹0.00" (v4.172.0) */}
+                      {p.purchase_price ? <> {tr('• Cost:')} {formatINR(p.purchase_price)}</> : null}
                     </div>
                   </div>
 
@@ -70,9 +72,12 @@ export const ReorderAlertsList: React.FC<ReorderAlertsListProps> = ({
               {/* Threshold info */}
               <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-mono text-slate-500">
                 <span>{tr('Min Threshold:')} {p.min_stock_level || 5} {p.unit}</span>
-                <span className="text-rose-600 font-bold">
-                  {tr('Deficit:')} {Math.max(0, (p.min_stock_level || 5) - p.current_stock)} {p.unit}
-                </span>
+                {/* Stock exactly at the minimum: no "Deficit: 0" (v4.172.0) */}
+                {(p.min_stock_level || 5) - p.current_stock > 0 && (
+                  <span className="text-rose-600 font-bold">
+                    {tr('Deficit:')} {(p.min_stock_level || 5) - p.current_stock} {p.unit}
+                  </span>
+                )}
               </div>
 
               {/* Actions: WhatsApp Supplier & +10 Instant Stock */}

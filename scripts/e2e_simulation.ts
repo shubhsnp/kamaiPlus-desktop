@@ -5592,6 +5592,19 @@ pendingAsyncChecks.push((async () => {
     'Add staff: no Kitchen chip / role (a kitchen phone could not sign in); a custom role like Helper still works');
 })());
 
+// v4.172.0 — small UI fixes from the vertical pass: right plurals, no "Deficit: 0" / "Cost: ₹0.00", restaurant words.
+{
+  const pur = readSource('app/purchases/page.tsx');
+  const reorder = readSource('components/inventory/ReorderAlertsList.tsx');
+  assert(pur.includes("purchaseBills.length === 1 ? tr('1 bill recorded')") && pur.includes("restockItems.length === 1 ? tr('item low')")
+    && readSource('components/settings/staff/StaffPerformanceDialog.tsx').includes("=== 1 ? tr('1 bill')"),
+    'Purchases / staff performance: "1 bill recorded", "1 item low", "1 bill" (not "1 bills")');
+  assert(reorder.includes('(p.min_stock_level || 5) - p.current_stock > 0 &&') && reorder.includes('p.purchase_price ? <>') && !reorder.includes('formatINR(p.purchase_price || 0)'),
+    'Reorder card: no "Deficit: 0" at exactly the minimum, no "Cost: ₹0.00" without a buying price');
+  assert(RESTAURANT_WORDS['Manage Products'] === 'Manage Menu' && readSource('components/inventory/InventoryHeaderActions.tsx').includes("tr('Manage Products')"),
+    'Restaurant: Inventory header says "Manage Menu" (inventory is on for a restaurant since v4.165.0)');
+}
+
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.
 Promise.allSettled(pendingAsyncChecks).then((results) => {
   for (const r of results) if (r.status === 'rejected') assert(false, 'An async check threw', String(r.reason));
