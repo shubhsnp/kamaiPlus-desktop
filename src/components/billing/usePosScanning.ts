@@ -66,7 +66,8 @@ export function usePosScanning(deps: UsePosScanningDeps) {
         focusProductSearch();
         return;
       }
-      // Standard retail price/weight-embedded EAN-13 barcode (prefix 20 / 21)
+      // A weighing scale's own EAN-13 (prefix 20 / 21: item code + grams). The grams become the
+      // item's own unit — 0.25 for a kg item, 250 for a gram item (v4.171.0; it was always kg).
       const scaleBar = parseScaleEan13(clean);
       if (scaleBar) {
         let scaleProduct: Product | undefined;
@@ -74,12 +75,9 @@ export function usePosScanning(deps: UsePosScanningDeps) {
           scaleProduct = await db.products.where('barcode').equals(candidate).first();
           if (scaleProduct) break;
         }
-        if (!scaleProduct) {
-          const prods = await db.products.toArray();
-          scaleProduct = prods.find((p) => scaleBar.pluCandidates.includes((p.barcode || '').trim()) || p.id === scaleBar.plu);
-        }
-        if (scaleProduct) {
-          addToCart(scaleProduct, scaleBar.quantityKg);
+        const scaleQty = scaleProduct ? weighedQuantity(scaleProduct.unit, scaleBar.grams) : null;
+        if (scaleProduct && scaleQty) {
+          addToCart(scaleProduct, scaleQty);
           focusProductSearch();
           return;
         }

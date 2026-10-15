@@ -44,7 +44,7 @@ export function StaffSalaryDialog({
   const loadLedger = async (staffName: string, salaryPaise = 0) => {
     setLoading(true);
     try {
-      const data = await getStaffSalaryLedger(staffName, salaryPaise);
+      const data = await getStaffSalaryLedger(staffName, salaryPaise, member?.id);
       setLedger(data);
     } catch {
     } finally {

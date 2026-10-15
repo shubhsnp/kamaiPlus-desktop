@@ -484,7 +484,15 @@ per-screen mirrors (`cloudMerge` / `cloudSyncSoon` / `backgroundSync`, `syncLoca
   (`takeDeltasForSend` → `kamai_cloud_inflight`, `cloudWrite.applyCounterDeltas`: a transaction per 150
   that skips a round id already in `businesses/{biz}/sync_ops/` and never creates a half document),
   then `realign` reads those documents back (stock = cloud + unsent change). Every write carries
-  `synced_at: serverTimestamp()`.
+  `synced_at: serverTimestamp()`. **Deletions are tombstones** (v4.169.0): `deleteRows` merges
+  `{ deleted: true, is_deleted: true, updated_at, synced_at }` instead of deleting the document (an
+  offline device / a `synced_at` reader still learns of it); every reader on both apps skips or
+  deletes a tombstone. **Poison pill** (v4.169.0, fixed v4.171.0): `cloudWrite.writeInBatches` — a batch
+  refused for a ONE-document reason (`isOneDocError`: invalid-argument / permission-denied /
+  failed-precondition / out-of-range) is re-sent row by row; a refused row is counted
+  (`recordRetry`, kept waiting; dropped after `MAX_OUTBOX_RETRIES` = 5), a row that goes through has
+  its count cleared. Any other error (offline, quota, signed out — or every row of a batch refused)
+  fails the round as before: nothing is dropped.
 - **Receiver** `lib/cloud/cloudPull.ts` (Step 4): `listenToCloud` — the shop document (onto THIS
   computer's shop row; `account_disabled` → `account_frozen` like the phone), products / customers /
   categories / suppliers whole (the phone changes stock by `increment` without `synced_at`), every other
@@ -492,7 +500,9 @@ per-screen mirrors (`cloudMerge` / `cloudSyncSoon` / `backgroundSync`, `syncLoca
   (`hasPendingWrites`) skipped. `mergedRow`: newer `updated_at` wins for products / customers / suppliers /
   sales; **counter = cloud value + `pendingDelta`**; a new row gets `business_id = localBizId`; an
   unchanged row is not rewritten; a product / customer / category / supplier deleted on the phone is
-  deleted here.
+  deleted here (removed document or tombstone). **Not here:** `restaurant_orders` / `restaurant_meta` —
+  `lib/restaurant/cloudOrders.ts` `startRestaurantCloud` alone owns them (first-read reconcile, sent
+  map, KOT printing); a second generic listener (v4.169.0) was removed in v4.171.0.
 - **Scheduler** `components/layout/CloudSyncScheduler.tsx` (AppShell): sends 20 s after opening,
   5 s after a noted change (`kamai_cloud_outbox_changed`), every minute, on `online`; listens only after
   the first sync, stops when switched off. Status `kamai_cloud_sync_status` (last sent, last from the

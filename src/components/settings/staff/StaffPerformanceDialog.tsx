@@ -28,7 +28,7 @@ export function StaffPerformanceDialog({
     }
     let alive = true;
     setLoading(true);
-    getStaffTodayPerformance(member.name)
+    getStaffTodayPerformance(member.name, member.id)
       .then((data) => {
         if (alive) setPerf(data);
       })

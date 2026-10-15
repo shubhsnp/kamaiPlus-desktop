@@ -3,7 +3,7 @@ import { readVerticalProfile } from '@/lib/business/verticalProfile';
 import { getFirestoreDb } from '@/lib/firebase/config';
 import { sanitizeForFirestore } from '@/lib/firebase/firestoreSync';
 import { CloudTable, CLOUD_TABLES, toCloud } from './cloudContract';
-import { COUNTER_FIELDS, CounterTable, Outbox, recordRetry } from './cloudOutbox';
+import { clearRetry, COUNTER_FIELDS, CounterTable, getRetries, Outbox, recordRetry } from './cloudOutbox';
 
 /**
  * What the Desktop writes to the shop's cloud (Step 3 / 4, v4.86.0). Loaded only when
@@ -55,83 +55,80 @@ export async function writeShopDoc(bizId: string, row: Row, isNewShop: boolean):
   await setDoc(doc(firestore(), 'businesses', bizId), { ...shop, synced_at: serverTimestamp() }, { merge: true });
 }
 
-/** Rows of one table (merge writes). `absolute`: counters as values (first full send only). */
-export async function writeRows(bizId: string, table: CloudTable, rows: Row[], absolute: boolean): Promise<number> {
+/**
+ * Errors that belong to ONE document (its data, or the rules refusing it): that row is skipped and
+ * counted (`recordRetry`, dropped after MAX_OUTBOX_RETRIES) so it never blocks the rest. Anything
+ * else (offline, quota, signed out) fails the whole round as before — it is retried later, nothing
+ * is dropped (v4.171.0).
+ */
+const ONE_DOC_ERRORS = new Set(['invalid-argument', 'permission-denied', 'failed-precondition', 'out-of-range']);
+export const isOneDocError = (e: unknown): boolean =>
+  ONE_DOC_ERRORS.has(String((e as { code?: unknown })?.code || '').replace(/^firestore\//, ''));
+
+/**
+ * Writes `items` in batches of BATCH. A batch the server refuses for a one-document reason is sent
+ * again row by row: bad rows are counted, good ones go. When every row of a batch of several fails,
+ * it is the account / server, not the rows: the error goes up and nothing is counted.
+ */
+async function writeInBatches<T>(table: CloudTable, items: T[], idOf: (x: T) => string, put: (b: ReturnType<typeof writeBatch> | null, x: T) => Promise<void> | void): Promise<number> {
   const fs = firestore();
   let written = 0;
-  for (let i = 0; i < rows.length; i += BATCH) {
-    const chunk = rows.slice(i, i + BATCH);
+  for (let i = 0; i < items.length; i += BATCH) {
+    const chunk = items.slice(i, i + BATCH).filter((x) => idOf(x));
+    if (!chunk.length) continue;
     const batch = writeBatch(fs);
-    for (const row of chunk) {
-      if (!row?.id) continue;
-      batch.set(doc(fs, `businesses/${bizId}/${table}/${row.id}`), { ...cloudDocFor(table, row, bizId, absolute), synced_at: serverTimestamp() }, { merge: true });
-    }
+    for (const x of chunk) await put(batch, x);
     try {
       await batch.commit();
       written += chunk.length;
+      for (const x of chunk) if (getRetries(table, idOf(x))) clearRetry(table, idOf(x));
+      continue;
     } catch (batchErr) {
-      // Poison-pill recovery: batch commit failed, attempt row-by-row to isolate bad documents
-      console.warn(`[cloudWrite] Batch commit failed for ${table}, attempting individual row writes:`, batchErr);
-      for (const row of chunk) {
-        if (!row?.id) continue;
-        try {
-          await setDoc(
-            doc(fs, `businesses/${bizId}/${table}/${row.id}`),
-            { ...cloudDocFor(table, row, bizId, absolute), synced_at: serverTimestamp() },
-            { merge: true },
-          );
-          written++;
-        } catch (singleErr: any) {
-          console.error(`[cloudWrite] Poison-pill document write failed for ${table}/${row.id}:`, singleErr);
-          recordRetry(table, row.id);
-        }
+      if (!isOneDocError(batchErr)) throw batchErr;
+      console.warn(`[cloudWrite] ${table}: batch refused, sending row by row`, batchErr);
+    }
+    const failed: string[] = [];
+    for (const x of chunk) {
+      try {
+        await put(null, x);
+        written++;
+        if (getRetries(table, idOf(x))) clearRetry(table, idOf(x));
+      } catch (err) {
+        if (!isOneDocError(err)) throw err;
+        console.error(`[cloudWrite] ${table}/${idOf(x)} refused:`, err);
+        failed.push(idOf(x));
       }
     }
+    if (chunk.length > 1 && failed.length === chunk.length) throw new Error('permission-denied');
+    for (const id of failed) recordRetry(table, id);
   }
   return written;
 }
 
+/** Rows of one table (merge writes). `absolute`: counters as values (first full send only). */
+export async function writeRows(bizId: string, table: CloudTable, rows: Row[], absolute: boolean): Promise<number> {
+  const fs = firestore();
+  return writeInBatches(table, rows, (row) => (row?.id ? String(row.id) : ''), (batch, row) => {
+    const ref = doc(fs, `businesses/${bizId}/${table}/${row.id}`);
+    const data = { ...cloudDocFor(table, row, bizId, absolute), synced_at: serverTimestamp() };
+    if (batch) batch.set(ref, data, { merge: true });
+    else return setDoc(ref, data, { merge: true });
+  });
+}
+
+/**
+ * Deleted here: a tombstone (`deleted: true`) instead of removing the document (v4.169.0), so a
+ * device that was offline — or reads by `synced_at` — still learns of the deletion.
+ */
 export async function deleteRows(bizId: string, table: CloudTable, ids: string[]): Promise<void> {
   const fs = firestore();
   const now = new Date().toISOString();
-  for (let i = 0; i < ids.length; i += BATCH) {
-    const chunk = ids.slice(i, i + BATCH);
-    const batch = writeBatch(fs);
-    for (const id of chunk) {
-      batch.set(
-        doc(fs, `businesses/${bizId}/${table}/${id}`),
-        {
-          deleted: true,
-          is_deleted: true,
-          updated_at: now,
-          synced_at: serverTimestamp(),
-        },
-        { merge: true },
-      );
-    }
-    try {
-      await batch.commit();
-    } catch (batchErr) {
-      console.warn(`[cloudWrite] Batch delete failed for ${table}, attempting individual deletes:`, batchErr);
-      for (const id of chunk) {
-        try {
-          await setDoc(
-            doc(fs, `businesses/${bizId}/${table}/${id}`),
-            {
-              deleted: true,
-              is_deleted: true,
-              updated_at: now,
-              synced_at: serverTimestamp(),
-            },
-            { merge: true },
-          );
-        } catch (singleErr: any) {
-          console.error(`[cloudWrite] Poison-pill delete failed for ${table}/${id}:`, singleErr);
-          recordRetry(table, id);
-        }
-      }
-    }
-  }
+  await writeInBatches(table, ids, (id) => id, (batch, id) => {
+    const ref = doc(fs, `businesses/${bizId}/${table}/${id}`);
+    const data = { deleted: true, is_deleted: true, updated_at: now, synced_at: serverTimestamp() };
+    if (batch) batch.set(ref, data, { merge: true });
+    else return setDoc(ref, data, { merge: true });
+  });
 }
 
 /**

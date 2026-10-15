@@ -27,8 +27,14 @@ export function getLocalMonthStart(): string {
   return d.toISOString();
 }
 
+/**
+ * A staff member's own records — by staff id, or the WHOLE name (v4.171.0: "Raj" used to take
+ * Rajesh's bills / salary too, and a bill note mentioning the name counted as the waiter's).
+ */
+const sameName = (a: string | undefined, clean: string) => (a || '').trim().toLowerCase() === clean;
+
 /** Compute today's order count & sales for a staff member. */
-export async function getStaffTodayPerformance(staffName: string): Promise<StaffTodayPerformance> {
+export async function getStaffTodayPerformance(staffName: string, staffId?: string): Promise<StaffTodayPerformance> {
   const clean = staffName.trim().toLowerCase();
   if (!clean) return { orderCount: 0, totalSalesPaise: 0, activeTablesCount: 0, recentSales: [] };
 
@@ -40,14 +46,7 @@ export async function getStaffTodayPerformance(staffName: string): Promise<Staff
     sales = [];
   }
 
-  const staffSales = sales.filter((s) => {
-    const creator = (s.created_by || '').trim().toLowerCase();
-    if (creator === clean) return true;
-    const staff = (s.staff_name || '').trim().toLowerCase();
-    if (staff === clean) return true;
-    const notes = (s.notes || '').toLowerCase();
-    return notes.includes(clean);
-  });
+  const staffSales = sales.filter((s) => (staffId && s.staff_id === staffId) || sameName(s.staff_name, clean) || sameName(s.created_by, clean));
 
   const totalSalesPaise = staffSales.reduce((sum, s) => sum + (s.grand_total || 0), 0);
 
@@ -80,7 +79,7 @@ export interface StaffSalaryLedger {
 }
 
 /** Get advance payments & salary expenses for a staff member. */
-export async function getStaffSalaryLedger(staffName: string, monthlySalaryPaise = 0): Promise<StaffSalaryLedger> {
+export async function getStaffSalaryLedger(staffName: string, monthlySalaryPaise = 0, staffId?: string): Promise<StaffSalaryLedger> {
   const clean = staffName.trim().toLowerCase();
   if (!clean) {
     return {
@@ -100,16 +99,16 @@ export async function getStaffSalaryLedger(staffName: string, monthlySalaryPaise
     allExpenses = [];
   }
 
-  // Match expenses categorized under staff_salary, salary, or whose notes/title match this staff
+  // This member's payouts: paid to them (this PC), "Advance: Name" / "Salary: Name" (both apps), or the
+  // phone's "staff_id:…" note. Salary-type only — an expense that merely mentions the name is not one.
+  const idTag = staffId ? `staff_id:${staffId.toLowerCase()}` : '';
   const staffExpenses = allExpenses.filter((e) => {
     const cat = (e.category || '').toLowerCase().trim();
-    const isSalaryCat = cat === 'staff_salary' || cat === 'salary' || cat.includes('staff') || cat.includes('advance');
-    const paidTo = (e.paid_to || '').trim().toLowerCase();
-    const title = (e.title || '').trim().toLowerCase();
-    const notes = (e.notes || '').toLowerCase();
-
-    const matchesPerson = paidTo === clean || title.includes(clean) || notes.includes(clean);
-    return (isSalaryCat && matchesPerson) || (matchesPerson && (title.includes('salary') || title.includes('advance')));
+    const title = (e.title || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    const isSalaryType = cat === 'staff_salary' || cat === 'salary' || /^(advance|salary):/.test(title);
+    const matchesPerson = sameName(e.paid_to, clean) || title === `advance: ${clean}` || title === `salary: ${clean}`
+      || Boolean(idTag && (e.notes || '').toLowerCase().includes(idTag));
+    return isSalaryType && matchesPerson;
   });
 
   staffExpenses.sort((a, b) => b.created_at.localeCompare(a.created_at));
@@ -121,8 +120,8 @@ export async function getStaffSalaryLedger(staffName: string, monthlySalaryPaise
   let totalSalaryPaidThisMonthPaise = 0;
 
   for (const e of currentMonthExpenses) {
-    const titleLower = (e.title || '').toLowerCase();
-    const isAdvance = titleLower.includes('advance') || (e.notes || '').toLowerCase().includes('advance');
+    // "Advance: Name" — a salary payout whose note says "advance cut" stays salary.
+    const isAdvance = (e.title || '').trim().toLowerCase().startsWith('advance');
     if (isAdvance) {
       totalAdvanceThisMonthPaise += (e.amount || 0);
     } else {

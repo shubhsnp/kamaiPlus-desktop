@@ -1,7 +1,7 @@
 import { collection, doc, getDoc, getDocs, onSnapshot, query, Timestamp, where } from 'firebase/firestore';
 import { db } from '@/lib/db';
 import { getFirestoreDb } from '@/lib/firebase/config';
-import { CLOUD_TABLES, CloudTable, fromCloud, RESTAURANT_COLLECTIONS, RestaurantCollection } from './cloudContract';
+import { CLOUD_TABLES, CloudTable, fromCloud } from './cloudContract';
 import { COUNTER_FIELDS, CounterTable, markFromCloud, pendingDelta } from './cloudOutbox';
 
 /**
@@ -29,7 +29,6 @@ export interface PullContext {
 }
 
 const DATA_TABLES = CLOUD_TABLES.filter((t) => t !== 'businesses') as Exclude<CloudTable, 'businesses'>[];
-const ALL_PULL_TABLES: (CloudTable | RestaurantCollection)[] = [...DATA_TABLES, ...RESTAURANT_COLLECTIONS];
 const NEWER_WINS = new Set<CloudTable>(['products', 'customers', 'suppliers', 'sales']);
 /** Changed by the phone without `synced_at` (stock increments), and small: listened to whole. */
 const WHOLE = new Set<CloudTable>(['products', 'customers', 'categories', 'suppliers']);
@@ -38,7 +37,7 @@ const WHOLE = new Set<CloudTable>(['products', 'customers', 'categories', 'suppl
  * shares both ways and can delete: a khata entry, an expense, a purchase order. Those are listened
  * by `synced_at` (it only grows), so a document leaves that listener only when it is deleted.
  */
-const FOLLOW_DELETES = new Set<string>([...Array.from(WHOLE), 'ledger_transactions', 'cash_expenses', 'purchase_bills', 'restaurant_orders', 'restaurant_meta']);
+const FOLLOW_DELETES = new Set<CloudTable>([...Array.from(WHOLE), 'ledger_transactions', 'cash_expenses', 'purchase_bills']);
 
 export const PULL_CURSOR_KEY = 'kamai_cloud_pull_cursor';
 /** Listeners re-read this much before the last change seen (clock differences, slow writes). */
@@ -46,7 +45,7 @@ const OVERLAP_MS = 10 * 60 * 1000;
 
 const round = (n: number) => Math.round(n * 1e6) / 1e6;
 
-function readCursors(): Partial<Record<CloudTable | RestaurantCollection, number>> {
+function readCursors(): Partial<Record<CloudTable, number>> {
   try {
     const v = JSON.parse(localStorage.getItem(PULL_CURSOR_KEY) || '{}');
     return v && typeof v === 'object' ? v : {};
@@ -55,7 +54,7 @@ function readCursors(): Partial<Record<CloudTable | RestaurantCollection, number
   }
 }
 
-function saveCursor(table: CloudTable | RestaurantCollection, ms: number): void {
+function saveCursor(table: CloudTable, ms: number): void {
   const all = readCursors();
   if ((all[table] || 0) >= ms) return;
   all[table] = ms;
@@ -103,62 +102,20 @@ export function mergedRow(table: CloudTable, cloudDoc: Row, local: Row | undefin
   return sameRow(local, next) ? null : next;
 }
 
-/** Cloud documents (and deletions) of one table into Dexie or state, echo-free. Returns rows written. */
-export async function mergeCloudDocs(table: CloudTable | RestaurantCollection, docs: Row[], ctx: PullContext, removedIds: string[] = [], strictly = true): Promise<number> {
-  if (table === 'restaurant_orders') {
-    const [{ loadRestState, saveRestState }, { mergeCloudOrder, removeCloudOrder, orderFromCloud }] = await Promise.all([
-      import('@/lib/restaurant/store'),
-      import('@/lib/restaurant/cloudOrders'),
-    ]);
-    let state = loadRestState();
-    const before = state;
-    for (const d of docs) {
-      if (d.deleted === true || d.is_deleted === true) {
-        state = removeCloudOrder(state, String(d.id));
-        continue;
-      }
-      const remote = orderFromCloud(d, String(d.id));
-      if (remote) state = mergeCloudOrder(state, remote);
-    }
-    for (const id of removedIds) {
-      state = removeCloudOrder(state, id);
-    }
-    if (state !== before) {
-      saveRestState(state);
-      if (typeof window !== 'undefined') {
-        const { RESTAURANT_CHANGED_EVENT } = await import('@/lib/restaurant/settings');
-        window.dispatchEvent(new Event(RESTAURANT_CHANGED_EVENT));
-      }
-    }
-    return docs.length + removedIds.length;
-  }
-
-  if (table === 'restaurant_meta') {
-    let changed = 0;
-    for (const d of docs) {
-      if (d.id === 'settings' && d) {
-        const { loadRestaurantSettings, saveRestaurantSettings, RESTAURANT_CHANGED_EVENT } = await import('@/lib/restaurant/settings');
-        const current = loadRestaurantSettings();
-        if (Array.isArray(d.tables) && d.tables.length > 0) {
-          saveRestaurantSettings({ ...current, ...d });
-          changed++;
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new Event(RESTAURANT_CHANGED_EVENT));
-          }
-        }
-      }
-    }
-    return changed;
-  }
-
+/**
+ * Cloud documents (and deletions) of one table into Dexie, echo-free. Returns rows written.
+ * Running restaurant orders / Set-up are NOT pulled here: lib/restaurant/cloudOrders.ts
+ * (startRestaurantCloud) owns them — first-read reconcile, the sent map, KOT printing (v4.171.0).
+ */
+export async function mergeCloudDocs(table: CloudTable, docs: Row[], ctx: PullContext, removedIds: string[] = [], strictly = true): Promise<number> {
   const withId = docs.filter((d) => d && d.id);
-  const dexie = db.table(table as CloudTable);
+  const dexie = db.table(table);
   const locals = withId.length ? ((await dexie.bulkGet(withId.map((d) => String(d.id)))) as (Row | undefined)[]) : [];
-  const counter = (table in COUNTER_FIELDS) ? (table as CounterTable) : null;
+  const counter = table in COUNTER_FIELDS ? (table as CounterTable) : null;
   const rows: Row[] = [];
   withId.forEach((d, i) => {
     const pending = counter ? pendingDelta(counter, String(d.id)) : 0;
-    const next = mergedRow(table as CloudTable, d, locals[i], ctx, strictly, pending);
+    const next = mergedRow(table, d, locals[i], ctx, strictly, pending);
     if (next) rows.push(next);
   });
   const dels = FOLLOW_DELETES.has(table) ? removedIds.filter(Boolean) : [];
@@ -199,7 +156,7 @@ export async function pullEverything(ctx: PullContext): Promise<Record<string, n
   const stats: Record<string, number> = {};
   const shop = await getDoc(doc(firestore, 'businesses', ctx.bizId));
   if (shop.exists()) await mergeShopDoc(shop.data(), ctx);
-  for (const table of ALL_PULL_TABLES) {
+  for (const table of DATA_TABLES) {
     const snap = await getDocs(collection(firestore, `businesses/${ctx.bizId}/${table}`));
     const docs: Row[] = [];
     const removed: string[] = [];
@@ -213,7 +170,7 @@ export async function pullEverything(ctx: PullContext): Promise<Record<string, n
     });
     stats[table] = await mergeCloudDocs(table, docs, ctx, removed, false);
   }
-  for (const table of ALL_PULL_TABLES) saveCursor(table, started);
+  for (const table of DATA_TABLES) saveCursor(table, started);
   return stats;
 }
 
@@ -222,7 +179,7 @@ export async function pullEverything(ctx: PullContext): Promise<Record<string, n
  * (`synced_at` ≥ cursor − 10 min). Our own writes that the cloud has not confirmed yet are
  * skipped (`hasPendingWrites`). Returns a stop function.
  */
-export function listenToCloud(ctx: PullContext, handlers: { onChange?: (table: CloudTable | RestaurantCollection | 'businesses', n: number) => void; onError?: (err: Error) => void; onShop?: (data: Row) => void } = {}): () => void {
+export function listenToCloud(ctx: PullContext, handlers: { onChange?: (table: CloudTable | 'businesses', n: number) => void; onError?: (err: Error) => void; onShop?: (data: Row) => void } = {}): () => void {
   const firestore = fs();
   const stops: (() => void)[] = [];
   const queues = new Map<string, Promise<unknown>>();
@@ -239,11 +196,10 @@ export function listenToCloud(ctx: PullContext, handlers: { onChange?: (table: C
   }, (e) => handlers.onError?.(e)));
 
   const cursors = readCursors();
-  for (const table of ALL_PULL_TABLES) {
+  for (const table of DATA_TABLES) {
     const ref = collection(firestore, `businesses/${ctx.bizId}/${table}`);
     const since = Math.max(0, (cursors[table] || 0) - OVERLAP_MS);
-    const isWhole = WHOLE.has(table as CloudTable) || table === 'restaurant_orders' || table === 'restaurant_meta';
-    const source = isWhole ? ref : query(ref, where('synced_at', '>=', Timestamp.fromMillis(since)));
+    const source = WHOLE.has(table) ? ref : query(ref, where('synced_at', '>=', Timestamp.fromMillis(since)));
     stops.push(onSnapshot(source, (snap) => {
       const docs: Row[] = [];
       const removed: string[] = [];

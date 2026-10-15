@@ -16,57 +16,64 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.171.0',
+    items: [
+      msg('Weighing-scale barcodes (starting 20 / 21) add the right weight — grams for an item sold in grams, kg for one sold in kg.'),
+      msg("Settings → Staff: salary, advances and today's sales count only that person's own entries (two staff with similar names are no longer mixed)."),
+    ],
+  },
+  {
     version: '4.170.0',
     items: [
-      msg('Staff & Billing: full billing authority for staff and enhanced salary & advance ledger.'),
+      msg('Settings → Staff: add a staff member with just a name and a role (type any role, or tap a suggestion). Salary & advances for each member: paid this month and the balance to pay.'),
     ],
   },
   {
     version: '4.169.0',
     items: [
-      msg('Security & Reliability: tamper-evident backup verification, outbox poison-pill protection, and production console shielding.'),
+      msg('Backups: a backup file changed by hand is not restored — your shop data stays safe. Cloud sync: one bad record no longer stops the rest from going up.'),
     ],
   },
   {
     version: '4.168.0',
     items: [
-      msg('Transactions & Bills: Staff attribution labels (👤 name) on bills, staff performance metrics, and seamless staff billing sync.'),
+      msg("Bills: a bill taken by a waiter or staff member shows their name (👤 Raju) in Transactions and Today's bills."),
     ],
   },
   {
     version: '4.167.0',
     items: [
-      msg('Products & Staff: dynamic vertical variant presets and custom staff roles with granular security permissions.'),
+      msg('Products: size / variant suggestions match your kind of shop (Half / Full, 500 g / 1 kg, strips…).'),
     ],
   },
   {
     version: '4.166.0',
     items: [
-      msg('Inventory: unlimited items excluded from stock asset totals to prevent large digits, restaurant purchases enabled, and toasts moved to top navbar.'),
+      msg('Inventory: the stock value no longer counts items with unlimited stock. Short messages now show at the top of the screen.'),
     ],
   },
   {
     version: '4.165.0',
     items: [
-      msg('Restaurant: Inventory & Stock page enabled under Menu & Kitchen for kitchen stock tracking and valuation.'),
+      msg('Restaurant: Inventory (kitchen stock) and Purchases from suppliers are on.'),
     ],
   },
   {
     version: '4.164.0',
     items: [
-      msg('Settings → Staff: QR and join code modal automatically closes with confirmation when staff phone joins.'),
+      msg('Settings → Staff: the join code window closes by itself once the staff phone is connected.'),
     ],
   },
   {
     version: '4.163.0',
     items: [
-      msg('Sidebar: quick access Staff link under Ledger & Customers, all retail verticals staff roles unlocked, and inventory tracking added to restaurant menu.'),
+      msg('Staff in the side menu (under Customers). Every kind of shop can add staff now.'),
     ],
   },
   {
     version: '4.162.0',
     items: [
-      msg('Settings → Staff: permanent delete option, live staff order counts & sales performance, role permissions & security limits, and salary & advance payment management.'),
+      msg("Settings → Staff: today's bills and sales of each staff member; remove a staff member for good. Tables & Orders: the \"New delivery\" button is gone."),
     ],
   },
   {

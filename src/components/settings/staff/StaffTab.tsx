@@ -187,7 +187,7 @@ export function StaffTab() {
             <div>
               <h3 className="text-base font-black text-slate-900">{tr('Staff Management')}</h3>
               <p className="text-xs text-slate-500 leading-relaxed max-w-xl">
-                {tr('Manage shop staff, track order counts & performance, configure security limits, and manage salaries & advances.')}
+                {tr('Add staff with a name and a role, see their bills today, and keep their salary & advances. Staff sign in on their phone with the join code.')}
               </p>
             </div>
           </div>

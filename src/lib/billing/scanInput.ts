@@ -47,6 +47,10 @@ export interface ScaleEan13Result {
 export function parseScaleEan13(code: string): ScaleEan13Result | null {
   const c = code.trim();
   if (c.length !== 13 || !/^(20|21)\d{11}$/.test(c)) return null;
+  // A scale prints a valid check digit; a mistyped / half-read code is not taken as a weight (v4.171.0).
+  let sum = 0;
+  for (let i = 0; i < 12; i++) sum += Number(c[i]) * (i % 2 === 0 ? 1 : 3);
+  if ((10 - (sum % 10)) % 10 !== Number(c[12])) return null;
   const plu = c.slice(2, 7);
   const grams = parseInt(c.slice(7, 12), 10);
   if (isNaN(grams) || grams <= 0) return null;

@@ -1656,8 +1656,9 @@ async function run() {
         const tables = page.locator('[data-restaurant-screen="tables"]');
         const onTables = await tables.waitFor({ timeout: 20000 }).then(() => true, () => false);
         check(onTables && new URL(page.url()).pathname.startsWith('/restaurant'), 'Restaurant mode on: Billing opens Tables & Orders');
-        check((await page.locator('aside a[href="/restaurant"]').count()) === 1 && (await page.locator('aside a[href="/inventory"]').count()) === 0
-          && (await page.locator('aside a[href="/purchases"]').count()) === 0, 'Menu shows Tables & Orders; Stock and Purchases are hidden');
+        // v4.165.0 / v4.166.0: a restaurant keeps kitchen stock and buys from suppliers — Inventory and Purchases are on.
+        check((await page.locator('aside a[href="/restaurant"]').count()) === 1 && (await page.locator('aside a[href="/inventory"]').count()) === 1
+          && (await page.locator('aside a[href="/purchases"]').count()) === 1, 'Menu shows Tables & Orders, Inventory (kitchen stock) and Purchases');
         const freeCount = await page.locator('[data-table-state="free"]').count();
         check(freeCount >= 10, `Ten starter tables are free (${freeCount})`);
         const menuText = async (href) => ((await page.locator(`aside a[href="${href}"]`).first().innerText().catch(() => '')) || '').trim();
@@ -1801,8 +1802,8 @@ async function run() {
 
         step = 'settings in restaurant mode';
         await page.evaluate(() => { window.location.href = '/inventory/'; });
-        check(await textVisible(page, 'is turned off', 15000) && (await page.locator('aside a[href="/inventory"]').count()) === 0,
-          'Restaurant mode: Inventory & Stock is off (menu and address)');
+        check(!(await textVisible(page, 'is turned off', 8000)) && (await page.locator('aside a[href="/inventory"]').count()) === 1,
+          'Restaurant mode: Inventory & Stock opens (kitchen stock, v4.165.0)');
 
         // KAMAI_E2E_SHOTS=1: a screenshot of every screen in Restaurant mode (review what a restaurant sees).
         if (process.env.KAMAI_E2E_SHOTS) {
@@ -1810,7 +1811,8 @@ async function run() {
           await page.setViewportSize({ width: 1366, height: 768 }).catch(() => {});
           for (const [name, url] of [['home', '/'], ['tables', '/restaurant/'], ['menu', '/products/'], ['guests', '/customers/'], ['khata', '/khata/'],
             ['bills', '/transactions/'], ['reports', '/reports/'], ['gst', '/gst-reports/'], ['settings', '/settings/'],
-            ['cash', '/cash-register/'], ['themes', '/invoice-designer/'], ['backup', '/cloud-backup/'], ['inventory', '/inventory/']]) {
+            ['cash', '/cash-register/'], ['themes', '/invoice-designer/'], ['backup', '/cloud-backup/'], ['inventory', '/inventory/'],
+            ['purchases', '/purchases/'], ['staff', '/settings/?tab=staff']]) {
             await page.evaluate((u) => { window.location.href = u; }, url);
             await page.waitForTimeout(3500);
             await shot(page, `restaurant-${name}`);

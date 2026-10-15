@@ -16,19 +16,22 @@ interface AddStaffDialogProps {
   onAdded: (staffId: string, name: string) => void;
 }
 
-/** Suggestion chips for quick one-tap role selection per business vertical */
+/**
+ * Suggestion chips for quick one-tap role selection per business vertical, in the shop's language.
+ * No "Kitchen": a kitchen phone cannot sign in yet (no kitchen screen) — v4.171.0.
+ */
 function getRoleSuggestions(vertical: VerticalId | null | undefined): string[] {
   switch (vertical) {
     case 'restaurant':
-      return ['Waiter', 'Captain', 'Cashier', 'Kitchen', 'Helper', 'Manager'];
+      return [tr('Waiter'), tr('Captain'), tr('Cashier'), tr('Helper'), tr('Manager')];
     case 'pharmacy':
-      return ['Billing staff', 'Stock staff', 'Pharmacist', 'Helper', 'Delivery'];
+      return [tr('Billing staff'), tr('Stock staff'), tr('Pharmacist'), tr('Helper'), tr('Delivery')];
     case 'clothing':
-      return ['Salesperson', 'Cashier', 'Floor Manager', 'Helper', 'Tailor'];
+      return [tr('Salesperson'), tr('Cashier'), tr('Floor Manager'), tr('Helper'), tr('Tailor')];
     case 'hardware':
-      return ['Salesman', 'Godown staff', 'Counter Billing', 'Helper'];
+      return [tr('Salesman'), tr('Godown staff'), tr('Counter Billing'), tr('Helper')];
     default:
-      return ['Billing staff', 'Stock staff', 'Delivery staff', 'Helper', 'Manager'];
+      return [tr('Billing staff'), tr('Stock staff'), tr('Delivery staff'), tr('Helper'), tr('Manager')];
   }
 }
 
@@ -38,7 +41,7 @@ function getRoleSuggestions(vertical: VerticalId | null | undefined): string[] {
 export function AddStaffDialog({ open, vertical, onClose, onAdded }: AddStaffDialogProps) {
   const roles = staffRolesFor(vertical);
   const suggestions = getRoleSuggestions(vertical);
-  const defaultRole = suggestions[0] || 'Waiter';
+  const defaultRole = suggestions[0] || tr('Waiter');
 
   const [name, setName] = useState('');
   const [role, setRole] = useState(defaultRole);
@@ -89,7 +92,7 @@ export function AddStaffDialog({ open, vertical, onClose, onAdded }: AddStaffDia
       isOpen={open}
       onClose={() => !busy && onClose()}
       title={tr('Add staff')}
-      description={tr('Enter member details, assign role & permissions, then connect their phone.')}
+      description={tr('Type the name and pick a role, then connect their phone.')}
       size="md"
     >
       <form onSubmit={save} className="space-y-4" data-add-staff>

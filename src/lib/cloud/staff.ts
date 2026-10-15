@@ -30,7 +30,8 @@ export function staffRolesFor(vertical: VerticalId | null | undefined): StaffRol
         r('waiter', tr('Waiter'), tr('Tables, taking orders, sending KOTs. No bills or money.'), true),
         r('captain', tr('Captain'), tr('A waiter who can also move tables and cancel items.'), true),
         r('cashier', tr('Cashier'), tr('Bill & pay, today’s cash.'), true),
-        r('kitchen', tr('Kitchen'), tr('Incoming KOTs on a kitchen screen, mark ready.'), true),
+        // Not yet: the phone has no kitchen screen, so a kitchen member could not sign in (v4.171.0).
+        r('kitchen', tr('Kitchen'), tr('Incoming KOTs on a kitchen screen, mark ready.'), false),
       ];
     case 'pharmacy':
       return [
@@ -164,6 +165,7 @@ export function staffDraft(
   if (!preset && !isCustom) {
     return { ok: false, error: tr('Pick a role.') };
   }
+  if (preset && !preset.available) return { ok: false, error: tr('This role cannot sign in on the phone yet. Pick another role.') };
 
   const finalRole = preset ? preset.id : cleanRole;
 

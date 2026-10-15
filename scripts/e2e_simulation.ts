@@ -2366,8 +2366,9 @@ assert(readSource('app/billing/page.tsx').split('\n').length <= 401, `POS page s
   const pullSrc = readSource('lib/cloud/cloudPull.ts');
   assert(pullSrc.includes('data.deleted === true || data.is_deleted === true'),
     'Cloud pull: tombstone soft-deletes are handled by deleting locally (Fix 2)');
-  assert(pullSrc.includes('restaurant_orders') && pullSrc.includes('restaurant_meta'),
-    'Cloud pull: restaurant_orders and restaurant_meta collections are synced live for waiter app parity (Fix 5)');
+  assert(!pullSrc.includes('restaurant_orders') && !pullSrc.includes('restaurant_meta') && !pullSrc.includes('RESTAURANT_COLLECTIONS')
+    && readSource('lib/restaurant/cloudOrders.ts').includes('reconcileFirstRead(state, sent'),
+    'Cloud pull (v4.171.0): running orders / restaurant Set-up are NOT in the generic pull — startRestaurantCloud owns them (a second listener brought back orders settled offline and overwrote this PC Set-up)');
 }
 
 // (t) Google sign-in (v4.84.0, Step 2 — Rahul: Google the very first time, then the master password).
@@ -5536,6 +5537,60 @@ pendingAsyncChecks.push((async () => {
     && tab.includes("tr('Staff phones get your menu, tables and orders through the cloud. Turn on cloud sync on this computer now?')"),
     'Staff tab: sync off = a red card with "Turn on cloud sync" (one click, sends at once); Add staff turns it on first');
 }
+
+// v4.171.0 — Review of the Antigravity changes (v4.163–v4.170): fixes that must not come back.
+pendingAsyncChecks.push((async () => {
+  // (a) Poison-pill outbox: only a one-document error is counted; offline / quota / signed out fail the
+  //     round and drop nothing. A row that went through later has its count cleared (it was re-sent forever).
+  const cwSrc = readSource('lib/cloud/cloudWrite.ts');
+  assert(/const ONE_DOC_ERRORS = new Set\(\['invalid-argument', 'permission-denied', 'failed-precondition', 'out-of-range'\]\)/.test(cwSrc)
+    && cwSrc.includes('if (!isOneDocError(batchErr)) throw batchErr;') && cwSrc.includes('if (!isOneDocError(err)) throw err;')
+    && cwSrc.includes('if (chunk.length > 1 && failed.length === chunk.length) throw') && (cwSrc.match(/clearRetry\(table, idOf\(x\)\)/g) || []).length === 2,
+    'Cloud write: only a one-document refusal is counted / skipped; a network or account error fails the round (nothing dropped); success clears the count');
+  const { isOneDocError } = await import('../src/lib/cloud/cloudWrite');
+  assert(isOneDocError({ code: 'invalid-argument' }) && isOneDocError({ code: 'permission-denied' }) && !isOneDocError({ code: 'unavailable' })
+    && !isOneDocError({ code: 'resource-exhausted' }) && !isOneDocError(new Error('offline')) && !isOneDocError(null),
+    'Cloud write: invalid-argument / permission-denied = this document; unavailable / quota / anything else = try the whole round later');
+  const ob = await import('../src/lib/cloud/cloudOutbox');
+  clearOutbox();
+  setOutboxRecording(true);
+  ob.recordChange('products', 'put', ['p_poison']);
+  ob.recordRetry('products', 'p_poison');
+  assert(ob.getRetries('products', 'p_poison') === 1 && Boolean(peekOutbox().items.products?.p_poison), 'Outbox: a refused row stays waiting with its count');
+  ob.clearRetry('products', 'p_poison');
+  assert(ob.getRetries('products', 'p_poison') === 0, 'Outbox: the count is cleared once the row goes through');
+  for (let i = 0; i < ob.MAX_OUTBOX_RETRIES; i++) ob.recordRetry('products', 'p_poison');
+  assert(!peekOutbox().items.products?.p_poison, `Outbox: a row refused ${ob.MAX_OUTBOX_RETRIES} times is dropped (never blocks the rest)`);
+  clearOutbox();
+  setOutboxRecording(false);
+
+  // (b) Weighing-scale EAN-13: valid check digit only, and the grams in the item's own unit.
+  const { parseScaleEan13 } = await import('../src/lib/billing/scanInput');
+  const { weighedQuantity } = await import('../src/lib/barcode/weighedBarcode');
+  const scale = parseScaleEan13('2000012002502'); // PLU 00012, 250 g
+  assert(Boolean(scale) && scale!.plu === '00012' && scale!.grams === 250 && scale!.pluCandidates.includes('12')
+    && parseScaleEan13('2000012002509') === null && parseScaleEan13('8901234567890') === null,
+    'Scale barcode: prefix 20/21 with a valid check digit (a half-read code is not a weight)');
+  assert(weighedQuantity('kg', 250) === 0.25 && weighedQuantity('gram', 250) === 250 && weighedQuantity('piece', 250) === null
+    && readSource('components/billing/usePosScanning.ts').includes('weighedQuantity(scaleProduct.unit, scaleBar.grams)')
+    && !readSource('components/billing/usePosScanning.ts').includes('scaleBar.quantityKg'),
+    'Scale barcode at the counter: 250 g = 0.25 for a kg item, 250 for a gram item (it was always billed as kg)');
+
+  // (c) Staff performance / salary: the member's own records only — never "Raj" taking Rajesh's.
+  const metrics = readSource('lib/staff/staffMetrics.ts');
+  assert(!/\.includes\(clean\)/.test(metrics) && metrics.includes("(staffId && s.staff_id === staffId)")
+    && metrics.includes("title === `advance: ${clean}`") && metrics.includes(".startsWith('advance')")
+    && readSource('components/settings/staff/StaffSalaryDialog.tsx').includes('getStaffSalaryLedger(staffName, salaryPaise, member?.id)')
+    && readSource('components/settings/staff/StaffPerformanceDialog.tsx').includes('getStaffTodayPerformance(member.name, member.id)'),
+    'Staff performance / salary: by staff id or the whole name (no substring match, no bill-note match); "Advance:" by title only');
+
+  // (d) Kitchen: the phone has no kitchen screen, so the role is not offered and cannot be saved.
+  const st = await import('../src/lib/cloud/staff');
+  assert(st.staffRolesFor('restaurant').find((r) => r.id === 'kitchen')?.available === false
+    && !st.staffDraft('Ramu', 'Kitchen', 'restaurant', 'x', { isCustom: true }).ok && st.staffDraft('Ramu', 'Helper', 'restaurant', 'x', { isCustom: true }).ok
+    && !readSource('components/settings/staff/AddStaffDialog.tsx').includes("tr('Kitchen')"),
+    'Add staff: no Kitchen chip / role (a kitchen phone could not sign in); a custom role like Helper still works');
+})());
 
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.
 Promise.allSettled(pendingAsyncChecks).then((results) => {
