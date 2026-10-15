@@ -502,7 +502,15 @@ per-screen mirrors (`cloudMerge` / `cloudSyncSoon` / `backgroundSync`, `syncLoca
   unchanged row is not rewritten; a product / customer / category / supplier deleted on the phone is
   deleted here (removed document or tombstone). **Not here:** `restaurant_orders` / `restaurant_meta` —
   `lib/restaurant/cloudOrders.ts` `startRestaurantCloud` alone owns them (first-read reconcile, sent
-  map, KOT printing); a second generic listener (v4.169.0) was removed in v4.171.0.
+  map, KOT printing); a second generic listener (v4.169.0) was removed in v4.171.0. This PC keeps
+  Firestore in memory, so an order paid / cancelled here whose delete has not gone yet is kept in
+  localStorage `kamai_restaurant_cloud_gone` (v4.173.0, `removedHere`) and deleted again after a restart.
+- **Send to counter** (v4.173.0) `lib/cloud/counterCarts.ts` (pure) + `counterCartsCloud.ts`: a staff phone
+  of a shop (not a restaurant) sends the cart to `businesses/{biz}/counter_carts` (status `sent`, own
+  `staff_id` only — rules); `components/layout/StaffCartInbox.tsx` (AppShell) shows it, `takeCart` marks it
+  `taken` in a transaction, localStorage `kamai_staff_cart_pending` → Billing (`useStaffCartPickup`, via
+  `usePosScanning`) opens a NEW bill tab through `addToCart` (unknown item = Custom Item at the phone's
+  price). Taken carts older than 2 days are deleted by the counter. Emulator: `npm run test:cloud` §10.
 - **Scheduler** `components/layout/CloudSyncScheduler.tsx` (AppShell): sends 20 s after opening,
   5 s after a noted change (`kamai_cloud_outbox_changed`), every minute, on `online`; listens only after
   the first sync, stops when switched off. Status `kamai_cloud_sync_status` (last sent, last from the
@@ -952,7 +960,7 @@ There is no global state library. Modules talk through window events:
 `kamai_thermal_paper_width` · `kamai_silent_print` · `kamai_print_upi_qr` ·
 `kamai_cash_drawer_enabled` · `kamai_saved_bt_printer_mac` ·
 `kamai_last_backup_time` ·
-`kamai_last_backup_type` · `kamai_last_restore_time` · `kamai_cloud_account` · `kamai_cloud_sync_on` · `kamai_cloud_outbox` · `kamai_cloud_full_push` · `kamai_cloud_sync_status` · `kamai_cloud_inflight` · `kamai_cloud_pull_cursor` · `kamai_cloud_device_id` · `kamai_label_calibrated` · `kamai_app_installed` ·
+`kamai_last_backup_type` · `kamai_last_restore_time` · `kamai_cloud_account` · `kamai_cloud_sync_on` · `kamai_cloud_outbox` · `kamai_cloud_full_push` · `kamai_cloud_sync_status` · `kamai_cloud_inflight` · `kamai_cloud_pull_cursor` · `kamai_cloud_device_id` · `kamai_restaurant_cloud_gone` · `kamai_staff_cart_pending` · `kamai_label_calibrated` · `kamai_app_installed` ·
 `kamai_pwa_banner_dismissed` · `kamai_cashier_owner_pin` · `kamai_cashier_privacy_locked` ·
 `kamai_print_settings` (bill printers) · `kamai_label_settings` · `kamai_last_import_ids` ·
 `kamai_label_handoff` (Purchases → Barcode Studio labels) · `kamai_stock_entry_draft` (typed "New stock" rows) ·

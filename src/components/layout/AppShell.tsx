@@ -19,6 +19,7 @@ import { UpdateReadyBanner } from './UpdateReadyBanner';
 import { FeatureGate } from '@/components/features/FeatureGate';
 import { AutoBackupScheduler } from './AutoBackupScheduler';
 import { CloudSyncScheduler } from './CloudSyncScheduler';
+import { StaffCartInbox } from './StaffCartInbox';
 import { AdminMessageBanner } from '@/components/admin/AdminMessageBanner';
 import { ShopHealthReporter } from '@/components/admin/ShopHealthReporter';
 import { AdminControlHost } from '@/components/admin/AdminControlHost';
@@ -284,6 +285,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       <UpdateReadyBanner />
       <AutoBackupScheduler />
       <CloudSyncScheduler />
+      {/* v4.173.0: carts sent from a staff phone ("Send to counter") */}
+      <StaffCartInbox />
       <ShopHealthReporter />
       {/* v4.105.0: the Admin Console's remote control (features, lock, read-only, update, jobs) */}
       <AdminControlHost />

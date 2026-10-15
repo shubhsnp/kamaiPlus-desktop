@@ -212,7 +212,9 @@ async function main() {
   // ── 7. Deleted here → deleted on the phone ──
   await db.products.delete('prod_desk_b');
   await push.sendToCloudNow();
-  check(!(await fsdk.getDoc(pdoc(`businesses/${bizId}/products/prod_desk_b`))).exists(), 'An item deleted here is deleted in the cloud (the phone deletes it too)');
+  // v4.169.0: a deletion is a tombstone (`deleted: true`) — an offline device / a synced_at reader still sees it.
+  const tomb = (await fsdk.getDoc(pdoc(`businesses/${bizId}/products/prod_desk_b`))).data();
+  check(tomb?.deleted === true && tomb?.is_deleted === true, 'An item deleted here is marked deleted in the cloud (tombstone — the phone deletes it too)');
 
   // ── 8. Rules: another Google account cannot read this shop ──
   let blocked = false;
@@ -234,6 +236,51 @@ async function main() {
   const backOnline = (await fsdk.getDoc(pdoc(`businesses/${bizId}/products/prod_desk_a`))).data()?.stock_quantity;
   check(!offlineTry.ok && backOnline === 4 && (await db.products.get('prod_desk_a'))?.current_stock === 4,
     `No internet: the bill waits (${offlineTry.error}); back online it goes up once (stock 5 → ${backOnline})`);
+
+  // ── 10. Rules (v4.171.0 / v4.173.0): audit trail, staff carts, staff never write bills ──
+  const denied = async (p: Promise<unknown>) => { try { await p; return false; } catch (e: any) { return /permission/i.test(String(e?.code || e?.message)); } };
+  const auditRef = pdoc(`businesses/${bizId}/audit_logs/audit_e2e_1`);
+  await fsdk.setDoc(auditRef, { id: 'audit_e2e_1', business_id: bizId, action: 'PRICE_CHANGE', details: 'Parle-G 10 → 12', entity_type: 'product', entity_id: 'prod_phone_1', created_at: nowIso() });
+  const resendOk = !(await denied(fsdk.setDoc(auditRef, { action: 'PRICE_CHANGE', synced_at: fsdk.serverTimestamp() }, { merge: true })));
+  const tombOk = !(await denied(fsdk.setDoc(auditRef, { deleted: true, is_deleted: true, updated_at: nowIso() }, { merge: true })));
+  const rewriteBlocked = await denied(fsdk.setDoc(auditRef, { details: 'nothing happened' }, { merge: true }));
+  check(resendOk && tombOk && rewriteBlocked, 'Rules: the owner may send an audit log again (full sync) or tombstone it, never change what it says');
+
+  // A staff phone: signed in with the server's custom claims (the emulator takes an unsigned token).
+  const b64 = (o: object) => Buffer.from(JSON.stringify(o)).toString('base64url');
+  const staffToken = (sid: string) => {
+    const now = Math.floor(Date.now() / 1000);
+    const sub = `kpst_${bizId.replace(/^biz_/, '')}_${sid}`;
+    return `${b64({ alg: 'none', typ: 'JWT' })}.${b64({ iss: 'firebase-auth-emulator@example.com', sub: 'firebase-auth-emulator@example.com', aud: 'https://identitytoolkit.googleapis.com/google.identity.identitytoolkit.v1.IdentityToolkit', iat: now, exp: now + 3600, uid: sub, claims: { kp_biz: bizId, kp_sid: sid, kp_role: 'billing' } })}.`;
+  };
+  await fsdk.setDoc(pdoc(`businesses/${bizId}/staff/st_raju01`), { name: 'Raju', role: 'billing', active: true, created_at: nowIso() });
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { signInWithCustomToken } = require('firebase/auth') as typeof import('firebase/auth');
+  const staffApp = initializeApp({ apiKey: 'demo-key', projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID, authDomain: 'x' }, 'staff');
+  const staffAuth = getAuth(staffApp);
+  connectAuthEmulator(staffAuth, process.env.NEXT_PUBLIC_AUTH_EMULATOR!, { disableWarnings: true });
+  await signInWithCustomToken(staffAuth, staffToken('st_raju01'));
+  const staff = fsdk.getFirestore(staffApp);
+  fsdk.connectFirestoreEmulator(staff, ph, Number(pp));
+  const cartDoc = (id: string, staffId: string) => ({
+    id, staff_id: staffId, staff_name: 'Raju', status: 'sent', created_at: nowIso(), total_paise: 2400,
+    lines: [{ product_id: 'prod_phone_1', name: 'Parle-G 80g', qty: 2, unit_price_paise: 1200, unit: 'packet' }],
+  });
+  const ownCart = !(await denied(fsdk.setDoc(fsdk.doc(staff, `businesses/${bizId}/counter_carts/cart_e2e_1`), cartDoc('cart_e2e_1', 'st_raju01'))));
+  const otherCart = await denied(fsdk.setDoc(fsdk.doc(staff, `businesses/${bizId}/counter_carts/cart_e2e_2`), cartDoc('cart_e2e_2', 'st_someone')));
+  const staffBill = await denied(fsdk.setDoc(fsdk.doc(staff, `businesses/${bizId}/sales/sale_by_staff`), { id: 'sale_by_staff', grand_total: 100 }));
+  const staffPrice = await denied(fsdk.setDoc(fsdk.doc(staff, `businesses/${bizId}/products/prod_phone_1`), { selling_price: 1 }, { merge: true }));
+  const mine = await fsdk.getDocs(fsdk.query(fsdk.collection(staff, `businesses/${bizId}/counter_carts`), fsdk.where('staff_id', '==', 'st_raju01')));
+  check(ownCart && otherCart && staffBill && staffPrice && mine.size === 1,
+    'Rules: a staff phone sends a cart only in its own name and reads only its own; it can never write a bill or change an item');
+
+  // The counter takes the cart once (a second counter gets nothing).
+  const carts = await import('../src/lib/cloud/counterCartsCloud');
+  const taken = await carts.takeCart(bizId, 'cart_e2e_1', 'pc-1');
+  const again = await carts.takeCart(bizId, 'cart_e2e_1', 'pc-2');
+  const after = (await fsdk.getDoc(pdoc(`businesses/${bizId}/counter_carts/cart_e2e_1`))).data();
+  check(taken?.staffName === 'Raju' && taken.lines[0].qty === 2 && again === null && after?.status === 'taken' && after?.taken_by === 'pc-1',
+    'Send to counter: the counter takes the cart once (status taken); a second counter gets nothing');
 
   stop();
   push.setCloudSendOn(false);

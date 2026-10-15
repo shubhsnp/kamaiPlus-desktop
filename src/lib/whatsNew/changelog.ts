@@ -16,6 +16,13 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.173.0',
+    items: [
+      msg('Staff phones (shops, not restaurants): "Send to counter" instead of billing on the phone — the cart shows up here (bottom right) and "Open bill at the counter" opens it as a new bill with this counter\'s invoice number, GST and stock.'),
+      msg('Restaurant: a table paid or cancelled while the internet was off no longer comes back after the app is restarted.'),
+    ],
+  },
+  {
     version: '4.172.0',
     items: [
       msg('Purchases and Inventory: "1 bill" / "1 item" instead of "1 bills"; a reorder card no longer shows "Deficit: 0" or "Cost: ₹0.00". Restaurant: Inventory says "Manage Menu".'),
@@ -328,30 +335,6 @@ export const CHANGELOG: Release[] = [
     version: '4.121.0',
     items: [
       msg('New shops: sample items now fit the shop category — medicines by the strip, clothes in sizes, restaurant dishes in Half / Full and never counted, general store items for retail. New units: Strip, Plate, Portion.'),
-    ],
-  },
-  {
-    version: '4.120.0',
-    items: [
-      msg('Bills of a new shop without a GSTIN carry no GST and are titled Bill of Supply; store setup has an optional GSTIN box, and GST starts once a GSTIN is saved.'),
-    ],
-  },
-  {
-    version: '4.119.0',
-    items: [
-      msg('Shops that do not count stock (for example restaurants) are never stopped with Out of stock at the counter, and the counter shows no stock numbers for them.'),
-    ],
-  },
-  {
-    version: '4.118.0',
-    items: [
-      msg('New shops: the app follows the shop category chosen in store setup (Cafe / Restaurant opens Tables & Orders by itself; GST screens and fields appear once a GSTIN is saved). Settings no longer has a Features tab.'),
-    ],
-  },
-  {
-    version: '4.117.0',
-    items: [
-      msg('Upgraded Store Onboarding: visual Category Selection Cards (Kirana, Pharmacy, Clothing, Hardware, Restaurant, Retail), vertical-tailored starter catalogs, and 1-click Cross-Device Cloud Store Restore.'),
     ],
   },
   ...OLDER_RELEASES,

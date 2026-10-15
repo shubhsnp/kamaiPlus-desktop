@@ -4,10 +4,11 @@ import { Product } from '@/types';
 import { useHardwareBarcodeScanner } from '@/lib/hardware/barcodeScannerListener';
 import { parseWeighedBarcode, weighedQuantity } from '@/lib/barcode/weighedBarcode';
 import { parseScaleEan13 } from '@/lib/billing/scanInput';
+import { useStaffCartPickup, type StaffCartPickupDeps } from '@/components/billing/useStaffCartPickup';
 import { generalCategoryId } from '@/lib/products/defaultCategory';
 import type { Business, Category, Sale } from '@/types';
 
-export interface UsePosScanningDeps {
+export interface UsePosScanningDeps extends Omit<StaffCartPickupDeps, 'addToCart' | 'business' | 'categories'> {
   setSearchQuery: React.Dispatch<React.SetStateAction<string>>;
   searchInputRef: React.RefObject<HTMLInputElement>;
   isBillPrinterOpen: boolean;
@@ -38,6 +39,8 @@ export function usePosScanning(deps: UsePosScanningDeps) {
     setIsQuickAddModalOpen, setScannedUnknownBarcode, scannedUnknownBarcode, setQuickAddPrice, quickAddPrice, setQuickAddName,
     quickAddName, business, categories, variantPick, addToCart,
   } = deps;
+  // A cart sent from a staff phone arrives like a scan: into a new bill (v4.173.0).
+  useStaffCartPickup(deps);
   // Barcode scanned handler (gun, camera, rapid scan, or a code typed into the search box)
   const handleBarcodeScanned = async (barcode: string) => {
     const clean = barcode.trim();

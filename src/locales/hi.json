@@ -3516,5 +3516,15 @@
   "1 bill recorded": "1 बिल दर्ज",
   "item low": "सामान कम",
   "Manage Menu": "मेन्यू संभालें",
-  "Purchases and Inventory: \"1 bill\" / \"1 item\" instead of \"1 bills\"; a reorder card no longer shows \"Deficit: 0\" or \"Cost: ₹0.00\". Restaurant: Inventory says \"Manage Menu\".": "खरीद और इन्वेंट्री: \"1 बिल\" / \"1 सामान\" (\"1 बिल्स\" नहीं); रीऑर्डर कार्ड पर अब \"कमी: 0\" या \"लागत: ₹0.00\" नहीं दिखता। रेस्टोरेंट: इन्वेंट्री में \"मेन्यू संभालें\"।"
+  "Purchases and Inventory: \"1 bill\" / \"1 item\" instead of \"1 bills\"; a reorder card no longer shows \"Deficit: 0\" or \"Cost: ₹0.00\". Restaurant: Inventory says \"Manage Menu\".": "खरीद और इन्वेंट्री: \"1 बिल\" / \"1 सामान\" (\"1 बिल्स\" नहीं); रीऑर्डर कार्ड पर अब \"कमी: 0\" या \"लागत: ₹0.00\" नहीं दिखता। रेस्टोरेंट: इन्वेंट्री में \"मेन्यू संभालें\"।",
+  "{name} sent a cart": "{name} ने कार्ट भेजा",
+  "1 item": "1 सामान",
+  "{count} items": "{count} सामान",
+  "Opening…": "खुल रहा है…",
+  "Open bill at the counter": "काउंटर पर बिल खोलें",
+  "This cart was already opened on another counter.": "यह कार्ट दूसरे काउंटर पर पहले ही खुल चुका है।",
+  "Could not open the cart. Check the internet and try again.": "कार्ट नहीं खुला। इंटरनेट देखें और फिर कोशिश करें।",
+  "{name}'s cart is open as a new bill — check it and complete the sale.": "{name} का कार्ट नए बिल में खुला है — जाँचें और बिक्री पूरी करें।",
+  "Staff phones (shops, not restaurants): \"Send to counter\" instead of billing on the phone — the cart shows up here (bottom right) and \"Open bill at the counter\" opens it as a new bill with this counter's invoice number, GST and stock.": "स्टाफ फ़ोन (दुकान, रेस्टोरेंट नहीं): फ़ोन पर बिल नहीं, \"काउंटर को भेजें\" — कार्ट यहाँ (नीचे दाईं ओर) आता है और \"काउंटर पर बिल खोलें\" से नए बिल में खुलता है, इसी काउंटर के बिल नंबर, GST और स्टॉक के साथ।",
+  "Restaurant: a table paid or cancelled while the internet was off no longer comes back after the app is restarted.": "रेस्टोरेंट: इंटरनेट बंद होने पर भुगतान या रद्द की गई टेबल अब ऐप दोबारा खोलने पर वापस नहीं आती।"
 }

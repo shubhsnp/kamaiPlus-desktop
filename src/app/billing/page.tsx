@@ -162,7 +162,7 @@ export default function BillingPage() {
   const { handleBarcodeScanned, focusProductSearch, handleSaveQuickAddItem } = usePosScanning({
     setSearchQuery, searchInputRef, isBillPrinterOpen, isInvoiceModalOpen, setIsInvoiceModalOpen, setActiveSaleForInvoice,
     setIsQuickAddModalOpen, setScannedUnknownBarcode, scannedUnknownBarcode, setQuickAddPrice, quickAddPrice, setQuickAddName,
-    quickAddName, business, categories, variantPick, addToCart,
+    quickAddName, business, categories, variantPick, addToCart, setTabs, setActiveTabId, activeTabId, showBillingToast,
   });
 
   // These three read values set up further down (customers, calculateItemTax, focusProductSearch),

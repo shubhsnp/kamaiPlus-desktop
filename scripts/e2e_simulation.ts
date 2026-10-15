@@ -5605,6 +5605,41 @@ pendingAsyncChecks.push((async () => {
     'Restaurant: Inventory header says "Manage Menu" (inventory is on for a restaurant since v4.165.0)');
 }
 
+// v4.173.0 — money / data: "Send to counter" (a staff phone's cart is billed at the counter, never on the
+// phone), an order paid here offline never comes back, rules covered on the emulator (npm run test:cloud).
+pendingAsyncChecks.push((async () => {
+  const cc = await import('../src/lib/cloud/counterCarts');
+  const cart = cc.parseStaffCart('cart_1', {
+    staff_id: 'st_raju01', staff_name: 'Raju', status: 'sent', created_at: '2026-10-15T10:00:00.000Z', total_paise: 3000, customer_name: 'Anil',
+    lines: [{ product_id: 'prod_1', name: 'Parle-G 80g', qty: 3, unit_price_paise: 1000, unit: 'packet' }, { name: '', qty: 1 }, { name: 'Bad', qty: 0 }],
+  });
+  assert(Boolean(cart) && cart!.lines.length === 1 && cart!.lines[0].qty === 3 && cart!.staffName === 'Raju' && cart!.customerName === 'Anil' && cart!.status === 'sent'
+    && cc.parseStaffCart('x', { lines: [] }) === null && cc.COUNTER_CARTS === 'counter_carts',
+    'Send to counter: a cart document is read like the phone writes it (empty / zero lines dropped; an empty cart is no cart)');
+  const pure = readSource('lib/cloud/counterCarts.ts');
+  assert(!/from 'firebase|import\('firebase/.test(pure) && readSource('lib/cloud/counterCartsCloud.ts').includes("tx.update(ref, { status: 'taken'")
+    && readSource('components/layout/StaffCartInbox.tsx').includes("import('@/lib/cloud/counterCartsCloud')")
+    && readSource('components/billing/useStaffCartPickup.ts').includes('addToCart(product, line.qty)')
+    && readSource('components/billing/usePosScanning.ts').includes('useStaffCartPickup(deps)')
+    && readSource('app/billing/page.tsx').includes('addToCart, setTabs, setActiveTabId, activeTabId, showBillingToast')
+    && readSource('components/layout/AppShell.tsx').includes('<StaffCartInbox />'),
+    'Send to counter: the inbox on every screen (Firebase loaded only there), taken once in a transaction, opened as a new bill through the counter\'s own addToCart');
+
+  const ro = await import('../src/lib/restaurant/cloudOrders');
+  const remote = { id: 'table_t1', updatedAt: '2026-10-15T10:00:00.000Z' } as any;
+  const sent = new Map([['table_t1', '2026-10-15T10:00:00.000Z']]);
+  const gone = new Map<string, string>();
+  assert(ro.removedHere(remote, false, sent, gone) && !ro.removedHere(remote, true, sent, gone)
+    && !ro.removedHere({ ...remote, updatedAt: '2026-10-15T10:05:00.000Z' }, false, sent, gone)
+    && ro.removedHere(remote, false, new Map(), new Map([['table_t1', '2026-10-15T10:00:00.000Z']]))
+    && !ro.removedHere(remote, false, new Map(), new Map()),
+    'Restaurant: an order paid / cancelled here (delete not through yet) is not merged back — unless another device changed it later');
+  const co = readSource('lib/restaurant/cloudOrders.ts');
+  assert(co.includes('RESTAURANT_GONE_KEY') && co.includes('if (removedHere(remote, state.orders.some((o) => o.id === remote.id), sent, gone))')
+    && co.includes('fs.deleteDoc(fs.doc(col, id)).then(() => { gone.delete(id); writeGone(gone); })'),
+    'Restaurant: a delete made offline is kept on disk and sent again after a restart (this PC keeps Firestore in memory only)');
+})());
+
 // Checks that need a real round trip (a local HTTP server) finish here, before the summary.
 Promise.allSettled(pendingAsyncChecks).then((results) => {
   for (const r of results) if (r.status === 'rejected') assert(false, 'An async check threw', String(r.reason));

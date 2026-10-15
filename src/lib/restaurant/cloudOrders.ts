@@ -90,6 +90,24 @@ export interface RestaurantCloudHooks {
 }
 
 export const RESTAURANT_SENT_KEY = 'kamai_restaurant_cloud_sent';
+/**
+ * Orders paid / cancelled HERE whose cloud delete may not have gone yet (v4.173.0): id → the order's
+ * updatedAt when it left. This PC keeps Firestore in memory only, so a delete made offline was lost
+ * on restart and the next read brought the paid table back (a second bill). Cleared when the cloud
+ * confirms the delete.
+ */
+export const RESTAURANT_GONE_KEY = 'kamai_restaurant_cloud_gone';
+
+/**
+ * A cloud order this PC removed itself (paid / cancelled; its delete not confirmed yet) — never merge it
+ * back. Only while the cloud copy is not newer than what this PC had (another device changing it later
+ * wins).
+ */
+export function removedHere(remote: RestOrder, inState: boolean, sent: Map<string, string>, gone: Map<string, string>): boolean {
+  if (inState) return false;
+  const mine = gone.get(remote.id) ?? sent.get(remote.id);
+  return mine !== undefined && time(remote.updatedAt) <= time(mine);
+}
 
 /**
  * The first full read from the server: an order this device sent before that is no longer in the cloud
@@ -116,6 +134,22 @@ function writeSent(sent: Map<string, string>) {
   } catch {}
 }
 
+function readGone(): Map<string, string> {
+  try {
+    const raw = JSON.parse(localStorage.getItem(RESTAURANT_GONE_KEY) || '{}');
+    return new Map(Object.entries(raw && typeof raw === 'object' ? raw : {}).filter(([, v]) => typeof v === 'string') as [string, string][]);
+  } catch {
+    return new Map();
+  }
+}
+
+function writeGone(gone: Map<string, string>) {
+  try {
+    if (gone.size) localStorage.setItem(RESTAURANT_GONE_KEY, JSON.stringify(Object.fromEntries(gone)));
+    else localStorage.removeItem(RESTAURANT_GONE_KEY);
+  } catch {}
+}
+
 /**
  * Staff sign-in (v4.144.0): the restaurant's tables, GST, charges and add-ons, for the staff phones (they
  * read `businesses/{biz}/restaurant_meta/settings`). "Print the waiters' KOTs on this PC" stays on this PC.
@@ -135,6 +169,7 @@ export async function startRestaurantCloud(bizId: string, device: string, hooks:
   if (!db) return () => {};
   const col = fs.collection(db, `businesses/${bizId}/${RESTAURANT_ORDERS}`);
   const sent = readSent();
+  const gone = readGone();
   const printing = new Set<string>();
   let stopped = false;
   // Nothing goes up before the first read from the server (reconcileFirstRead).
@@ -143,16 +178,23 @@ export async function startRestaurantCloud(bizId: string, device: string, hooks:
   const push = () => {
     if (stopped || !ready) return;
     const { put, del } = ordersToSend(sent, loadRestState().orders);
-    if (!put.length && !del.length) return;
+    if (!put.length && !del.length && !gone.size) return;
     for (const o of put) {
       sent.set(o.id, o.updatedAt);
       fs.setDoc(fs.doc(col, o.id), { ...orderToCloud(o, device), synced_at: fs.serverTimestamp() }).catch((e) => hooks.onError?.(e));
     }
     for (const id of del) {
+      gone.set(id, sent.get(id) || gone.get(id) || '');
       sent.delete(id);
-      fs.deleteDoc(fs.doc(col, id)).catch((e) => hooks.onError?.(e));
+    }
+    // Every delete not confirmed yet goes (again) — also one made before a restart.
+    const live = new Set(loadRestState().orders.filter(isShared).map((o) => o.id));
+    for (const id of Array.from(gone.keys())) {
+      if (live.has(id)) { gone.delete(id); continue; }
+      fs.deleteDoc(fs.doc(col, id)).then(() => { gone.delete(id); writeGone(gone); }).catch((e) => hooks.onError?.(e));
     }
     writeSent(sent);
+    writeGone(gone);
   };
 
   const printAsked = async (o: RestOrder) => {
@@ -193,10 +235,16 @@ export async function startRestaurantCloud(bizId: string, device: string, hooks:
       if (c.type === 'removed') {
         state = removeCloudOrder(state, c.doc.id);
         sent.delete(c.doc.id);
+        gone.delete(c.doc.id);
         continue;
       }
       const remote = orderFromCloud(c.doc.data() as Record<string, unknown>, c.doc.id);
       if (!remote) continue;
+      // Paid / cancelled here, delete not through yet (offline, or the app was closed): not back.
+      if (removedHere(remote, state.orders.some((o) => o.id === remote.id), sent, gone)) {
+        if (!gone.has(remote.id)) gone.set(remote.id, sent.get(remote.id) || remote.updatedAt);
+        continue;
+      }
       const next = mergeCloudOrder(state, remote);
       if (next !== state) sent.set(remote.id, remote.updatedAt);
       state = next;
@@ -207,7 +255,8 @@ export async function startRestaurantCloud(bizId: string, device: string, hooks:
     ready = true;
     if (state !== before) saveRestState(state);
     writeSent(sent);
-    if (first) push();
+    writeGone(gone);
+    if (first || gone.size) push();
     for (const o of asked) void printAsked(o);
   }, (e) => hooks.onError?.(e));
 
