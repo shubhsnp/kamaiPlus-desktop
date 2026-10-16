@@ -57,6 +57,8 @@ export interface RestOrder {
   kotRequestedAt?: string;
   /** v4.144.0: the staff member (a waiter's phone, staff sign-in) who took the order. */
   takenBy?: string;
+  /** v4.175.0: that staff member's id — the bill carries it (staff_id), so their phone sees it. */
+  takenById?: string;
   /**
    * v4.161.0 Fast POS (a token counter with no tables): the order is billed at once and never kept as a
    * running order. `dineIn` = eaten at the shop (no packing charge); otherwise a takeaway parcel.

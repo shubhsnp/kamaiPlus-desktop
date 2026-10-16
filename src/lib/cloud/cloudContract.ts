@@ -1,5 +1,7 @@
 import { FieldSpec, paiseInt, specFromCloud, specToCloud, toBool } from '@/lib/cloud/cloudFormat';
 import { calculateLineTax } from '@/lib/sales/saleMath';
+import { UNLIMITED_REPAIR_AT } from '@/lib/products/unlimitedStock';
+import { staffDay } from '@/lib/staff/staffDay';
 
 /**
  * Cloud data contract, Desktop side (docs/CLOUD_DATA_CONTRACT.md). Every Firestore write
@@ -140,7 +142,9 @@ const SPECS: Record<CloudTable | RestaurantCollection, TableSpec> = {
       row.unit = normalizeUnit(row.unit) || 'piece';
       // v4.134.0: the phone writes "unlimited / uncounted" as stock >= 99990 (no flag). Taken as stock it
       // counted 999999 pieces — Inventory Asset ₹5.5 crore for one ₹55 item (live sync test).
-      if (Number(row.current_stock) >= 99990) row.is_unlimited_stock = true;
+      // v4.175.0: from 99900 — the phone lowered the cloud 99999 by 1 per sale (fixed there 2026-10-16),
+      // so after 10 bills an unlimited item came here as a counted "99989" (= Android unlimitedRepairAt).
+      if (Number(row.current_stock) >= UNLIMITED_REPAIR_AT) row.is_unlimited_stock = true;
       if (local) return;
       // A product first made on the phone: the fields the Desktop screens expect.
       row.category_id ??= '';
@@ -197,9 +201,10 @@ const SPECS: Record<CloudTable | RestaurantCollection, TableSpec> = {
     rename: { subtotal: 'subtotal_paise', tax_total: 'tax_amount_paise', grand_total: 'total_amount_paise' },
     custom: ['items', 'payment_split', 'discount_total'],
     ignoreIn: ['items', 'discount_paise', 'line_discount_paise', 'split_cash_paise', 'split_upi_paise', 'split_card_paise',
-      'split_credit_paise', 'split_notes', 'timestamp', 'source', 'total_amount'],
+      'split_credit_paise', 'split_notes', 'timestamp', 'source', 'total_amount', 'staff_day'],
     dates: DATES,
     out: (row, doc) => {
+      if (row.staff_id && row.created_at) doc.staff_day = staffDay(String(row.staff_id), String(row.created_at));
       const items = mapLines(row.items, saleItemToCloud) || [];
       doc.items = items;
       // §3.5 — `discount_paise` is the bill-level discount only; line discounts are separate.

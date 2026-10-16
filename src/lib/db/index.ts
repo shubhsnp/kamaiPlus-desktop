@@ -16,7 +16,8 @@ import {
   PurchaseBill,
   BusinessType,
 } from '@/types';
-import { STARTER_CATEGORIES } from '@/lib/constants/storeProfiles';
+import { STARTER_CATEGORY } from '@/lib/constants/storeProfiles';
+import { readVerticalProfile } from '@/lib/business/verticalProfile';
 import { seedCategoryDefaultProducts } from '@/lib/constants/defaultProducts';
 import { backupChangeMiddleware } from '@/lib/backup/backupChanges';
 import { cloudOutboxMiddleware } from '@/lib/cloud/cloudOutbox';
@@ -141,11 +142,13 @@ export async function ensureStarterBusinessIfEmpty(): Promise<Business> {
     return starterBiz;
   }
 
-  // If business exists but products table is empty, auto-seed default products unless manually cleared
+  // A shop that exists but never had anything (no item, no category, no bill) gets its starter items
+  // once. v4.175.0: before, ANY shop whose items were all deleted got the samples and the generic
+  // categories back on the next bill / Billing visit — "it keeps coming back".
   try {
     const isManuallyCleared = typeof window !== 'undefined' && localStorage.getItem('kamai_products_manually_cleared') === 'true';
     const prodCount = await db.products.count();
-    if (prodCount === 0 && !isManuallyCleared) {
+    if (prodCount === 0 && !isManuallyCleared && (await db.categories.count()) === 0 && (await db.sales.count()) === 0) {
       await seedBusinessStarterData(existing.id);
     }
   } catch (err) {
@@ -167,23 +170,25 @@ export {
 // Starter categories, sample products and marketing templates for a new shop.
 export async function seedBusinessStarterData(businessId: string, categoryType?: string) {
   const now = new Date().toISOString();
+  // v4.175.0: always the shop's own category (vertical) — callers without one (Billing "Load sample
+  // items", Settings restore, a fresh shop) used to seed the generic list into every vertical.
+  const vertical = categoryType || readVerticalProfile()?.vertical;
 
-  // 1. Seed the universal starter categories. v4.121.0 (AU-16): a shop set up with a business
-  // category gets only "General" here — its own categories come with its sample items.
-  const starterCategories = categoryType ? ['General'] : STARTER_CATEGORIES;
-  for (let i = 0; i < starterCategories.length; i++) {
-    const catId = `cat_${Date.now()}_${i}`;
+  // 1. "General" once (it was added again on every seed); the vertical's own categories come with its
+  // sample items. The old generic starters (FMCG, Apparel…) are not seeded any more (AU-16, verticalCatalog.ts).
+  const hasGeneral = await db.categories.filter((c) => c.name.trim().toLowerCase() === 'general').count();
+  if (!hasGeneral) {
     await db.categories.put({
-      id: catId,
+      id: `cat_${Date.now()}_0`,
       business_id: businessId,
-      name: starterCategories[i],
+      name: STARTER_CATEGORY,
       icon: 'package',
       created_at: now,
     });
   }
 
   // 2. Seed starter retail products into db.products (stock = 10, no barcode)
-  await seedCategoryDefaultProducts(businessId, categoryType);
+  await seedCategoryDefaultProducts(businessId, vertical);
 
   // 3. Marketing Templates for festival/growth
   const templates: Array<Omit<MarketingTemplate, 'id'>> = [

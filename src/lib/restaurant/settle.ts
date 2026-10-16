@@ -5,6 +5,7 @@ import { cloudMerge, cloudSyncSoon, cloudTrackInvoice } from '@/lib/firebase/laz
 import type { Business, CartItem, PaymentMethod, Product, Sale } from '@/types';
 import { DELIVERY_CHARGE_ID, DiscountInput, PACKING_CHARGE_ID, RestOrder, SERVICE_CHARGE_ID, orderRef, orderTotals } from '@/lib/restaurant/model';
 import type { RestaurantSettings } from '@/lib/restaurant/settings';
+import { addUdhar, guestCustomerFor } from '@/lib/restaurant/guestCustomer';
 
 /*
  * Paying a restaurant bill (v4.106.0). The order becomes an ordinary Sale — the same table the
@@ -15,7 +16,8 @@ import type { RestaurantSettings } from '@/lib/restaurant/settings';
  * bill format and shows in Transactions without touching the invoice code.
  */
 
-export type RestPayMethod = Extract<PaymentMethod, 'cash' | 'upi' | 'card' | 'split'>;
+/** v4.175.0: 'credit' = Udhar on the guest's khata (a name or mobile is needed). */
+export type RestPayMethod = Extract<PaymentMethod, 'cash' | 'upi' | 'card' | 'split' | 'credit'>;
 
 export interface SettleInput {
   order: RestOrder;
@@ -50,7 +52,8 @@ export async function settleOrder(input: SettleInput): Promise<Sale> {
   const totals = orderTotals(order, settings, input.discount);
   if (totals.items.length === 0 || totals.grandTotal <= 0) throw new Error('empty-order');
   const grand = totals.grandTotal;
-  const received = method === 'cash' ? Math.max(grand, Math.round(input.receivedPaise || 0)) : grand;
+  const udhar = method === 'credit';
+  const received = udhar ? 0 : method === 'cash' ? Math.max(grand, Math.round(input.receivedPaise || 0)) : grand;
   // Cash + UPI (v4.108.0): the same payment_split the counter writes, so the cash drawer and reports
   // count each part where it belongs.
   const splitCash = method === 'split' ? Math.round(input.receivedPaise || 0) : 0;
@@ -75,13 +78,18 @@ export async function settleOrder(input: SettleInput): Promise<Sale> {
     return cost > 0 ? { ...i, cost_price: cost } : i;
   });
 
+  // v4.175.0: the guest is a saved customer when a mobile is given (or for udhar) — guestCustomer.ts.
+  const customer = await guestCustomerFor({ businessId, name: guestName, phone: cleanGuestPhone(guestPhone), udhar, now });
+  const phone = cleanGuestPhone(guestPhone) || cleanGuestPhone(customer?.phone);
+
   const { invoiceNumber, nextSeq } = await getNextUniqueInvoiceNumber(businessId);
   const sale: Sale = {
     id: saleId,
     business_id: businessId,
     invoice_number: invoiceNumber,
-    customer_name: billCustomerName(order, guestName),
-    ...(cleanGuestPhone(guestPhone) ? { customer_phone: cleanGuestPhone(guestPhone) } : {}),
+    customer_name: billCustomerName(order, guestName || customer?.name),
+    ...(customer ? { customer_id: customer.id } : {}),
+    ...(phone ? { customer_phone: phone } : {}),
     items,
     subtotal: totals.subtotal,
     discount_total: totals.discountTotal,
@@ -90,12 +98,15 @@ export async function settleOrder(input: SettleInput): Promise<Sale> {
     payment_method: method,
     ...(method === 'split' ? { payment_split: { cash_amount: splitCash, upi_amount: grand - splitCash, card_amount: 0, credit_amount: 0 } } : {}),
     amount_received: received,
-    balance_due: 0,
-    change_returned: Math.max(0, received - grand),
-    payment_status: 'paid',
+    balance_due: udhar ? grand : 0,
+    change_returned: udhar ? 0 : Math.max(0, received - grand),
+    payment_status: udhar ? 'unpaid' : 'paid',
     status: 'completed',
     notes: address ? `${billLabel(order)} · ${address}` : billLabel(order),
     created_by: order.takenBy || 'owner',
+    // v4.175.0: the waiter who took it — their phone's "Today's Bills" lists it (lib/staff/staffDay.ts).
+    ...(order.takenBy ? { staff_name: order.takenBy } : {}),
+    ...(order.takenById ? { staff_id: order.takenById } : {}),
     created_at: now,
     updated_at: now,
     sync_status: 'synced',
@@ -112,6 +123,7 @@ export async function settleOrder(input: SettleInput): Promise<Sale> {
   });
   void cloudSyncSoon(businessId);
   if (biz?.id) await commitNextInvoiceNumber(biz.id, nextSeq);
+  if (udhar && customer) await addUdhar(sale, customer, items.map((i) => `${i.quantity}x ${i.product_name}`).join(', '));
 
   // Stock: only items that are counted (a menu item is "unlimited stock" by default → nothing to do).
   const changed: Product[] = [];

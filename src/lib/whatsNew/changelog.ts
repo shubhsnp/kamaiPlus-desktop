@@ -16,6 +16,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.175.0',
+    items: [
+      msg('Add Product starts on the category you used last (else General) and your shop\'s own unit (plate for a restaurant, strip for a medical store) — no more a random category like "Accessories" in a restaurant. Your shop\'s units are listed first.'),
+      msg('Categories that do not belong to your kind of shop (FMCG, Apparel… in a restaurant) are removed while no item uses them, and no longer come back when you delete all items.'),
+      msg('Unlimited items are never counted in Inventory — an item a phone had sold 10+ times no longer shows 99,989 in stock.'),
+      msg('Restaurant bill: a guest\'s mobile saves them as a customer (the name fills in next time), and Udhar puts the bill on their khata — like the counter.'),
+      msg('A waiter\'s table bill carries the waiter\'s name, so it shows on their phone under Today\'s Bills.'),
+    ],
+  },
+  {
     version: '4.174.0',
     items: [
       msg('Staff cart opened at the counter: an item this counter has too little stock for is named in the message (it is not added — add it by hand after checking the stock).'),

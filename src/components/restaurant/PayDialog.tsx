@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Banknote, CreditCard, FileText, Printer, Smartphone, UserRound, Wallet } from 'lucide-react';
+import { Banknote, BookOpen, CreditCard, FileText, Printer, Smartphone, UserRound, Wallet } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { cn, formatINR } from '@/lib/utils';
@@ -12,12 +12,18 @@ import type { RestaurantSettings } from '@/lib/restaurant/settings';
 import { RestPayMethod, cleanGuestPhone } from '@/lib/restaurant/settle';
 import type { Business } from '@/types';
 import { RestUpiQr } from '@/components/restaurant/RestUpiQr';
+import { useFeatureSwitches } from '@/lib/features/featureSwitches';
+import { checkCreditLimit } from '@/lib/billing/creditLimit';
+import { db } from '@/lib/db';
+import type { Customer } from '@/types';
 
 const METHODS: { id: RestPayMethod; label: string; icon: typeof Banknote }[] = [
   { id: 'cash', label: 'Cash', icon: Banknote },
   { id: 'upi', label: 'UPI', icon: Smartphone },
   { id: 'card', label: 'Card', icon: CreditCard },
   { id: 'split', label: 'Cash + UPI', icon: Wallet },
+  // v4.175.0: on the guest's khata, as at the counter (only with Khata on).
+  { id: 'credit', label: 'Udhar', icon: BookOpen },
 ];
 
 export interface SettleExtras {
@@ -51,6 +57,10 @@ export function PayDialog({ order, settings, business, open, busy, onClose, onSe
   const [guestPhone, setGuestPhone] = useState('');
   const [printNow, setPrintNow] = useState(false);
   const [splitCash, setSplitCash] = useState('');
+  // v4.175.0: the saved customer with this mobile — fills the name, shows their udhar (guestCustomer.ts).
+  const [known, setKnown] = useState<Customer | null>(null);
+  const switches = useFeatureSwitches();
+  const methods = METHODS.filter((m) => m.id !== 'credit' || switches.khata);
 
   useEffect(() => {
     if (open) {
@@ -72,6 +82,19 @@ export function PayDialog({ order, settings, business, open, busy, onClose, onSe
   const short = method === 'cash' && received !== '' && receivedPaise < totals.grandTotal;
   const change = method === 'cash' && receivedPaise > totals.grandTotal ? receivedPaise - totals.grandTotal : 0;
   const phoneBad = guestPhone.trim() !== '' && !cleanGuestPhone(guestPhone);
+  const goodPhone = cleanGuestPhone(guestPhone);
+  useEffect(() => {
+    let live = true;
+    if (!goodPhone) { setKnown(null); return; }
+    void db.customers.where('phone').anyOf([goodPhone, `+91${goodPhone}`, `91${goodPhone}`, `0${goodPhone}`]).first().then((c) => {
+      if (!live) return;
+      setKnown(c || null);
+      if (c?.name) setGuestName((n) => n.trim() ? n : c.name);
+    }).catch(() => {});
+    return () => { live = false; };
+  }, [goodPhone]);
+  const udharNoGuest = method === 'credit' && !guestName.trim() && !goodPhone;
+  const limit = method === 'credit' && known ? checkCreditLimit(known, totals.grandTotal) : null;
   const splitCashPaise = splitCash ? Math.round((parseFloat(splitCash) || 0) * 100) : 0;
   const splitUpiPaise = Math.max(0, totals.grandTotal - splitCashPaise);
   const splitBad = method === 'split' && (splitCashPaise <= 0 || splitCashPaise >= totals.grandTotal);
@@ -131,7 +154,9 @@ export function PayDialog({ order, settings, business, open, busy, onClose, onSe
                 className={cn('h-9 px-3 rounded-lg border text-sm font-mono font-semibold focus:outline-none', phoneBad ? 'border-rose-400 focus:border-rose-500' : 'border-slate-300 focus:border-emerald-600')} data-pay-guest-phone />
             </div>
             <p className={cn('text-[10.5px]', phoneBad ? 'text-rose-600 font-bold' : 'text-slate-500')}>
-              {phoneBad ? tr('Enter a 10-digit mobile number, or leave it empty.') : tr('The mobile fills WhatsApp when you send the bill.')}
+              {phoneBad ? tr('Enter a 10-digit mobile number, or leave it empty.') : known
+                ? tr('Saved customer {name} · udhar {amount}', { name: known.name, amount: formatINR(known.current_balance || 0) })
+                : tr('A mobile saves the guest as a customer and fills WhatsApp when you send the bill.')}
             </p>
           </div>
         </div>
@@ -140,8 +165,8 @@ export function PayDialog({ order, settings, business, open, busy, onClose, onSe
         <div className="space-y-3">
           <div>
             <span className="text-[11px] font-black uppercase tracking-wide text-slate-500 block mb-1.5">{tr('Paid by')}</span>
-            <div className="grid grid-cols-4 gap-2">
-              {METHODS.map(({ id, label, icon: Icon }) => (
+            <div className={cn('grid gap-2', methods.length > 4 ? 'grid-cols-5' : 'grid-cols-4')}>
+              {methods.map(({ id, label, icon: Icon }) => (
                 <button key={id} type="button" onClick={() => setMethod(id)} aria-pressed={method === id} data-pay-method={id}
                   className={cn('h-14 rounded-xl border-2 flex flex-col items-center justify-center gap-0.5 text-xs font-black cursor-pointer transition-colors leading-tight text-center px-1',
                     method === id ? 'border-emerald-600 bg-emerald-50 text-emerald-800' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-400')}>
@@ -183,6 +208,15 @@ export function PayDialog({ order, settings, business, open, busy, onClose, onSe
               {!splitBad && <RestUpiQr business={business} amountPaise={splitUpiPaise} reference={orderRef(order)} />}
             </div>
           )}
+          {method === 'credit' && (
+            <div className="space-y-1.5" data-pay-udhar>
+              <p className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5 text-xs font-semibold text-amber-900">
+                {tr('{amount} goes on the guest\'s khata (udhar). Nothing is paid now.', { amount: formatINR(totals.grandTotal) })}
+              </p>
+              {udharNoGuest && <p className="text-xs font-bold text-rose-600">{tr('Udhar needs the guest\'s name or mobile (left).')}</p>}
+              {limit?.over && <p className="text-xs font-bold text-rose-600">{tr('Over the udhar limit: {name} will owe {after} (limit {limit}).', { name: known?.name || '', after: formatINR(limit.after), limit: formatINR(limit.limit) })}</p>}
+            </div>
+          )}
           {method === 'card' && <p className="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2.5 text-xs font-semibold text-slate-600">{tr('Swipe the card on your machine for {amount}, then settle here.', { amount: formatINR(totals.grandTotal) })}</p>}
 
           <div>
@@ -195,7 +229,7 @@ export function PayDialog({ order, settings, business, open, busy, onClose, onSe
 
           <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
             <Button type="button" variant="outline" onClick={onClose} disabled={busy}>{tr('Back')}</Button>
-            <Button type="button" variant="success" size="lg" isLoading={busy} disabled={short || phoneBad || splitBad || totals.grandTotal <= 0}
+            <Button type="button" variant="success" size="lg" isLoading={busy} disabled={short || phoneBad || splitBad || udharNoGuest || totals.grandTotal <= 0}
               onClick={() => onSettle(method, method === 'split' ? splitCashPaise : receivedPaise, discount, { guestName, guestPhone, printNow })} data-pay-settle>
               {printNow ? <Printer className="w-4 h-4" /> : <FileText className="w-4 h-4" />} {printNow ? tr('Settle & Print Bill') : tr('Settle & Show Bill')}
             </Button>

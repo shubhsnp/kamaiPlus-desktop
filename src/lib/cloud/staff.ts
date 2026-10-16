@@ -215,6 +215,9 @@ export async function addStaff(doc: Record<string, unknown>): Promise<string> {
   const [{ getFirestoreDb }, fs] = await Promise.all([import('@/lib/firebase/config'), import('firebase/firestore')]);
   const db = getFirestoreDb();
   if (!db) throw new Error('not_configured');
+  // Offline the write waits for the internet and "Saving…" stayed for ever (v4.175.0): say so at once.
+  // (No timeout: the queued write would still land later and a retry would add the person twice.)
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) throw new Error('offline');
   const id = newStaffId();
   await fs.setDoc(fs.doc(db, `businesses/${bizId}/staff/${id}`), doc);
   return id;

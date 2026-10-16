@@ -25,7 +25,7 @@ if (fs.existsSync(envPath)) {
   }
 }
 
-import { MASTER_UNITS, RECOMMENDED_UNITS, STARTER_CATEGORIES } from '../src/lib/constants/storeProfiles';
+import { MASTER_UNITS, RECOMMENDED_UNITS, STARTER_CATEGORY } from '../src/lib/constants/storeProfiles';
 import { getDefaultProductsForCategory, DEFAULT_CATEGORY_PRODUCTS, STARTER_PRODUCTS_BY_CATEGORY } from '../src/lib/constants/defaultProducts';
 import { checkRateLimit } from '../src/lib/security/rateLimiter';
 import { EscPosEncoder } from '../src/lib/hardware/escpos';
@@ -583,7 +583,7 @@ assert(
 const profileSrc = readSource('lib/constants/storeProfiles.ts');
 assert(!/getStoreProfile|hasModule|getAllStoreProfiles|StoreProfile\b/.test(profileSrc), 'storeProfiles.ts exposes no per-vertical profile API');
 assert(MASTER_UNITS.length > 0, 'MASTER_UNITS still ships the shared unit list');
-assert(STARTER_CATEGORIES.length > 0, 'STARTER_CATEGORIES seeds a universal starter catalogue');
+assert(STARTER_CATEGORY === 'General', 'Every shop starts with one "General" category (v4.175.0: no generic FMCG / Apparel list)');
 assert(RECOMMENDED_UNITS.every((u) => MASTER_UNITS.some((m) => m.id === u)), 'Every recommended unit exists in MASTER_UNITS');
 
 // 3. `ModuleId` (the per-vertical module gate) is gone from the domain types.
@@ -2926,7 +2926,7 @@ assert(readSource('app/billing/page.tsx').split('\n').length <= 401, `POS page s
     'First run: the password and its button come first, the optional Google account under it; the fireworks sample catalog is not ticked by default');
   const productsPage = readProductsPage();
   const form = readProductForm();
-  assert(/useState<ProductUnit>\('piece'\)/.test(productsPage) && /setFormUnit\('piece'\);/.test(productsPage) && !/useState<ProductUnit>\('packet'\)/.test(productsPage)
+  assert(/useState<ProductUnit>\('piece'\)/.test(productsPage) && readSource('components/products/productActions.ts').includes('setFormUnit(unitsForVertical(readVerticalProfile()?.vertical).defaultUnit);') && !/useState<ProductUnit>\('packet'\)/.test(productsPage)
     && /!excelTipHidden && \(/.test(form) && /localStorage\.setItem\(EXCEL_TIP_KEY, '1'\)/.test(form) && form.includes('data-excel-tip-hide'),
     'Add Product: a new item starts as Piece (not Packet); the "wholesale bill in Excel?" tip can be closed for good');
   const hiCat = JSON.parse(readSource('locales/hi.json')) as Record<string, string>;
@@ -4329,7 +4329,7 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
   const iPut = settleSrc.indexOf('await db.sales.put(sale)');
   const iCommit = settleSrc.indexOf('await commitNextInvoiceNumber(');
   const iStock = settleSrc.indexOf("db.transaction('rw', db.products, db.inventory_movements");
-  assert(iNum > 0 && iNum < iPut && iPut < iCommit && iCommit < iStock && !/await cloud/.test(settleSrc) && settleSrc.includes("customer_name: billCustomerName(order, guestName)") && settleSrc.includes("payment_status: 'paid'")
+  assert(iNum > 0 && iNum < iPut && iPut < iCommit && iCommit < iStock && !/await cloud/.test(settleSrc) && settleSrc.includes("customer_name: billCustomerName(order, guestName || customer?.name)") && settleSrc.includes("payment_status: udhar ? 'unpaid' : 'paid'")
     && settleSrc.includes('if (!prod || prod.is_unlimited_stock) continue;') && settleSrc.includes('SERVICE_CHARGE_ID') && settleSrc.includes("status: 'completed'"),
     'Restaurant pay: reserve the number → save the bill → commit the number → stock (counted items only); cloud never awaited; the table name is the bill\'s customer');
   const orderScreenAll = readSource('components/restaurant/OrderScreen.tsx');
@@ -4403,7 +4403,7 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
     && cleanGuestPhone('12345') === '' && cleanGuestPhone('5876543210') === '' && cleanGuestPhone('') === '',
     'Restaurant bill: "Rahul · Table T4" when the guest gives a name; a mobile is kept only when it is a real 10-digit Indian number');
   const settle2 = readSource('lib/restaurant/settle.ts');
-  assert(settle2.includes('...(cleanGuestPhone(guestPhone) ? { customer_phone: cleanGuestPhone(guestPhone) } : {})') && settle2.includes("notes: address ? `${billLabel(order)} · ${address}` : billLabel(order)"),
+  assert(settle2.includes('...(phone ? { customer_phone: phone } : {})') && settle2.includes("notes: address ? `${billLabel(order)} · ${address}` : billLabel(order)"),
     'The guest\'s mobile goes on the bill (customer_phone) so WhatsApp opens with it; the note stays the table name (Today\'s bills, reports)');
 
   // After paying: like the counter — "Print straight away" (same setting) or the bill window.
@@ -4720,8 +4720,8 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
   const seedSrc = readSource('lib/constants/defaultProducts.ts');
   assert(seedSrc.includes('has_variants: true, current_stock: 0') && seedSrc.includes('parent_id: parent.id') && seedSrc.includes('is_unlimited_stock: true } : {}'),
     'Seeding makes a variant parent + children with their own stock / price, and unlimited dishes');
-  assert(readSource('lib/db/index.ts').includes("const starterCategories = categoryType ? ['General'] : STARTER_CATEGORIES;"),
-    'A shop set up with a category gets only General + its own categories (no Apparel / Accessories in a kirana — AU-16); old path unchanged');
+  assert(readSource('lib/db/index.ts').includes('const vertical = categoryType || readVerticalProfile()?.vertical;') && !readSource('lib/db/index.ts').includes('STARTER_CATEGORIES'),
+    'Every seed uses the shop vertical: General + its own categories (no Apparel / Accessories in a kirana — AU-16; v4.175.0 also on paths without a category)');
   const onbPage = readSource('app/onboarding/page.tsx');
   assert(cats.every((c) => new RegExp(`  ${c}: 'Adds 10 `).test(onbPage)) && !/Biryani, Naan\) ready/.test(onbPage),
     'Store setup hints match what is really added (AU-08)');
@@ -5604,6 +5604,60 @@ pendingAsyncChecks.push((async () => {
   assert(RESTAURANT_WORDS['Manage Products'] === 'Manage Menu' && readSource('components/inventory/InventoryHeaderActions.tsx').includes("tr('Manage Products')"),
     'Restaurant: Inventory header says "Manage Menu" (inventory is on for a restaurant since v4.165.0)');
 }
+
+// v4.175.0 — category / unit by vertical (kept coming back), unlimited stock never counted, staff bills on
+// the waiter's phone, restaurant checkout like the counter (customer saved, udhar), Add staff offline.
+pendingAsyncChecks.push((async () => {
+  const vc = await import('../src/lib/products/verticalCatalog');
+  const cats = [
+    { id: 'c_acc', name: 'Accessories' }, { id: 'c_app', name: 'Apparel' }, { id: 'c_fmcg', name: 'FMCG' },
+    { id: 'c_loose', name: 'Loose Items' }, { id: 'c_gen', name: 'General' }, { id: 'c_main', name: 'Main Course' },
+  ];
+  assert(vc.foreignStarterCategoryIds('restaurant', cats, [{ category_id: 'c_fmcg' }]).join() === 'c_acc,c_app,c_loose'
+    && vc.foreignStarterCategoryIds('restaurant', cats, [{ category_name: 'apparel' }]).join() === 'c_acc,c_fmcg,c_loose'
+    && vc.foreignStarterCategoryIds('grocery', cats, []).join() === 'c_acc,c_app'
+    && vc.foreignStarterCategoryIds('clothing', cats, []).join() === 'c_fmcg,c_loose'
+    && vc.foreignStarterCategoryIds('retail', cats, []).length === 0 && vc.foreignStarterCategoryIds(null, cats, []).length === 0,
+    'Categories: the generic starters a vertical does not use go while no item uses them (by id or name); a shop\'s own / used / fitting ones stay; old shops untouched');
+  assert(vc.defaultCategoryForNewItem(cats, 'c_main') === 'c_main' && vc.defaultCategoryForNewItem(cats, 'gone') === '' && vc.defaultCategoryForNewItem(cats, null) === ''
+    && vc.unitsForVertical('restaurant').defaultUnit === 'plate' && vc.unitsForVertical('pharmacy').defaultUnit === 'strip' && vc.unitsForVertical('grocery').defaultUnit === 'kg'
+    && vc.unitsForVertical(null).defaultUnit === 'piece' && vc.unitsForVertical('clothing').units.includes('pair'),
+    'Add Product: a new item starts on the category used last (else General) and the vertical\'s unit (same table as Android) — never the first category A to Z');
+  const idx = readSource('lib/db/index.ts');
+  assert(idx.includes("(await db.categories.count()) === 0 && (await db.sales.count()) === 0") && idx.includes('if (!hasGeneral)')
+    && !readSource('lib/constants/storeProfiles.ts').includes('export const STARTER_CATEGORIES')
+    && readSource('components/layout/AppShell.tsx').includes("import('@/lib/products/categoryCleanup')")
+    && readSource('lib/products/categoryCleanup.ts').includes('db.categories.bulkDelete(ids)')
+    && readSource('components/products/AddEditProductModal.tsx').includes("<optgroup label={tr('More units')}>")
+    && readSource('components/products/productActions.ts').includes('localStorage.setItem(LAST_PRODUCT_CATEGORY_KEY, categoryId)'),
+    'Categories: no re-seed when the items are deleted (only a never-used shop), General once, the cleanup runs every session; the unit list starts with the shop\'s own units');
+
+  const { tracksOwnStock } = await import('../src/lib/products/variants');
+  const cc = await import('../src/lib/cloud/cloudContract');
+  const fromPhone = cc.fromCloud('products', { id: 'p1', name: 'Tea', stock_quantity: 99989, selling_price_paise: 1000 }, null, { bizId: 'biz_x' });
+  assert(fromPhone.is_unlimited_stock === true && !tracksOwnStock({ current_stock: 99950 } as any) && tracksOwnStock({ current_stock: 500 } as any),
+    'Unlimited stock: a phone item the cloud lowered per sale (99989) is unlimited again, never counted in Inventory (Asset in crores before)');
+
+  const { staffDay } = await import('../src/lib/staff/staffDay');
+  const at = new Date(2026, 9, 16, 21, 30);
+  const doc = cc.toCloud('sales', { id: 's1', staff_id: 'st_raju01', staff_name: 'Raju', created_at: at.toISOString(), items: [], grand_total: 100 }, { bizId: 'biz_x' });
+  const plain = cc.toCloud('sales', { id: 's2', created_at: at.toISOString(), items: [], grand_total: 100 }, { bizId: 'biz_x' });
+  assert(staffDay('st_raju01', at) === 'st_raju01_2026-10-16' && doc.staff_day === 'st_raju01_2026-10-16' && !('staff_day' in plain)
+    && readSource('lib/restaurant/settle.ts').includes('...(order.takenById ? { staff_id: order.takenById } : {})')
+    && readSource('lib/restaurant/store.ts').includes('takenById: str(o.takenById, 40)'),
+    'Staff bills: a table bill carries the waiter (staff_id / staff_name) and staff_day, so the waiter\'s phone lists it under Today\'s Bills');
+
+  const settle = readSource('lib/restaurant/settle.ts');
+  const guest = readSource('lib/restaurant/guestCustomer.ts');
+  const pay = readSource('components/restaurant/PayDialog.tsx');
+  assert(settle.includes('await guestCustomerFor({ businessId, name: guestName, phone: cleanGuestPhone(guestPhone), udhar, now })')
+    && settle.includes("balance_due: udhar ? grand : 0") && settle.includes('if (udhar && customer) await addUdhar(')
+    && guest.includes("throw new Error('udhar-needs-guest')") && guest.includes("transaction_type: 'CREDIT_SALE'")
+    && pay.includes("methods = METHODS.filter((m) => m.id !== 'credit' || switches.khata)") && pay.includes('udharNoGuest') && pay.includes('checkCreditLimit(known'),
+    'Restaurant checkout = the counter: a mobile saves / finds the customer (name filled), Udhar on the khata (with Khata on, needs a name or mobile, limit warned)');
+  assert(readSource('lib/cloud/staff.ts').includes("navigator.onLine === false) throw new Error('offline')"),
+    'Add staff: offline it says so at once (it showed "Saving…" for ever); no timeout, so a retry never adds the person twice');
+})());
 
 // v4.174.0 — Send to counter: a line this PC's stock cannot take (addToCart adds nothing for it) is
 // named in the last toast; before, the "cart is open" toast hid the out-of-stock one and the line was lost.

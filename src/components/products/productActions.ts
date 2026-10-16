@@ -4,6 +4,8 @@ import { foodTypeOf } from '@/lib/restaurant/dish';
 import { showConfirm } from '@/lib/ui/dialogs';
 import { db } from '@/lib/db';
 import { generalCategoryId } from '@/lib/products/defaultCategory';
+import { defaultCategoryForNewItem, LAST_PRODUCT_CATEGORY_KEY, unitsForVertical } from '@/lib/products/verticalCatalog';
+import { readVerticalProfile } from '@/lib/business/verticalProfile';
 import { Product } from '@/types';
 import { parseRupeesToPaise } from '@/lib/utils';
 import { validateProductData } from '@/lib/validation/validators';
@@ -99,8 +101,12 @@ export function createProductActions(deps: CreateProductActionsDeps) {
     setEditingProduct(null);
     setFormError('');
     setFormName('');
-    setFormCategory('');
-    setFormUnit('piece');
+    // v4.175.0: the category used last (else General) and the shop's own unit — never whichever
+    // category comes first in the list (lib/products/verticalCatalog.ts).
+    let lastCategory: string | null = null;
+    try { lastCategory = localStorage.getItem(LAST_PRODUCT_CATEGORY_KEY); } catch { /* private window */ }
+    setFormCategory(defaultCategoryForNewItem(categories, lastCategory));
+    setFormUnit(unitsForVertical(readVerticalProfile()?.vertical).defaultUnit);
     setFormPurchasePrice('');
     setFormSellingPrice('');
     setFormIsLooseItem(false);
@@ -287,6 +293,9 @@ export function createProductActions(deps: CreateProductActionsDeps) {
         });
       }
 
+      if (!editingProduct) {
+        try { localStorage.setItem(LAST_PRODUCT_CATEGORY_KEY, categoryId); } catch { /* private window */ }
+      }
       setIsModalOpen(false);
       if (printAfterSave && saved) {
         setBarcodePrintProduct(saved);

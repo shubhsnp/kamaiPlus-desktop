@@ -16,6 +16,7 @@ import { tr } from '@/lib/i18n/core';
  */
 
 import type { VerticalId } from '@/lib/business/verticalProfile';
+import { UNLIMITED_REPAIR_AT } from '@/lib/products/unlimitedStock';
 
 /** Quick presets matching the Android "Variants Matrix" across all verticals. */
 export const VARIANT_PRESETS = [
@@ -102,7 +103,7 @@ export const isVariantChild = (p: Pick<Product, 'parent_id'>): boolean => Boolea
  * its children, so stock alerts, "out of stock" badges and valuation skip it.
  */
 export const tracksOwnStock = (p: Pick<Product, 'has_variants' | 'is_unlimited_stock'> & { current_stock?: number }): boolean =>
-  !p.is_unlimited_stock && !isVariantParent(p) && !(Number(p.current_stock ?? 0) >= 99990);
+  !p.is_unlimited_stock && !isVariantParent(p) && !(Number(p.current_stock ?? 0) >= UNLIMITED_REPAIR_AT);
 
 /**
  * New products are "Unlimited stock" (not counted) by default, like the Android app.

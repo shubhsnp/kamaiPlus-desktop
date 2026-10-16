@@ -40,6 +40,16 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     navigator.storage?.persist?.().catch(() => {});
   }, []);
 
+  // v4.175.0: generic starter categories the shop's vertical does not use go (lib/products/categoryCleanup.ts).
+  const signedIn = Boolean(currentUser) && !locked;
+  useEffect(() => {
+    if (!signedIn) return;
+    const t = window.setTimeout(() => {
+      void import('@/lib/products/categoryCleanup').then((m) => m.removeForeignStarterCategories()).catch(() => {});
+    }, 20_000);
+    return () => window.clearTimeout(t);
+  }, [signedIn]);
+
   // --- 1. MOUNT SETUP: DB HYDRATION & EVENT LISTENERS ---
   useEffect(() => {
     setIsClient(true);

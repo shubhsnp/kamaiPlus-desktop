@@ -860,11 +860,14 @@ The local Dexie copy is always the source of truth; Firestore is a mirror.
 ```
 ensureStarterBusinessIfEmpty()
   no business  → create one (business_type: 'retail') + seedBusinessStarterData()
-  business but 0 products, and the user has not explicitly cleared the catalog
-               → re-seed
+  business but 0 products AND 0 categories AND 0 bills (a never-used shop, v4.175.0), and the
+  user has not explicitly cleared the catalog → seed. (Before v4.175.0: any shop whose items were
+  all deleted got the samples + generic categories back on the next bill.)
 seedBusinessStarterData(businessId, categoryType?)
-  → STARTER_CATEGORIES (storeProfiles.ts) — with a category (v4.121.0) only "General"
-  → seedCategoryDefaultProducts(categoryType) → STARTER_PRODUCTS_BY_CATEGORY[category]
+  → vertical = categoryType || readVerticalProfile()?.vertical (v4.175.0 — every caller)
+  → "General" only, and only when missing (STARTER_CATEGORY; the generic FMCG / Loose Items /
+    Apparel / Accessories list is gone — lib/products/verticalCatalog.ts)
+  → seedCategoryDefaultProducts(vertical) → STARTER_PRODUCTS_BY_CATEGORY[category]
       (10 per category, v4.121.0: variants as parent + children, restaurant dishes unlimited)
       no category → DEFAULT_STARTER_PRODUCTS (the old fireworks list, only for the old path)
   → 3 marketing templates
@@ -1745,6 +1748,9 @@ Each was a real bug that cost real time. The test suite guards most of them.
 | 48 | **Staff needed the owner's Google account on their phone (before v4.144.0).** A waiter's phone signed in with the owner's Gmail saw every bill, khata and report, could bill and cancel, and carried the owner's Google account. | Staff sign-in: one-time code from Settings → Staff → staff user with kp_biz / kp_sid / kp_role claims; rules let an active waiter read the menu / settings and write running orders only; removal = active false (rules check it each request + tokens revoked). Restaurant settings published to `restaurant_meta/settings`; orders carry `takenBy`. Suite 9 "v4.144.0" block; Android `test/staff_sign_in_test.dart`; functions `test/staff_core.test.js`. |
 | 49 | **No free trial; no way to keep a shop on its version (before v4.148.0).** Every new PC needed a key on day one; any release auto-updated every shop (the live shop on 4.98.0 included). | Trial: `desktopLicence` trial_info / trial_start / trial_refresh (Android repo `functions/trial_core.js`, days in `platform_settings/desktop_trial`, one per machine id in `desktop_trials`); `licence.js` `trialInfo` / `startTrial`, refresh by `trial_refresh`; LicenceGate offer + trial-ended key screen; `TrialNotice` strip. Version lock: `updater.js` channels `stable` / `early` (older apps read `latest` / `beta`, written only by `prepare_release.js --legacy`); Admin control `update_hold` (`adminLink.cleanControl`, `isHeld`). Suite 9 "v4.148.0" block. |
 | 50 | **Contact boxes took anything (before v4.150.0).** Add Customer's mobile took unlimited digits and the save check kept the last 10 of them (15 typed digits passed); birthday was free text ("31-02", DD-MM-YYYY that the cloud could not send to the phone); bank IFSC / account, owner name and amounts were not checked. | Typing filters from `fieldRules.ts` on every mobile / GSTIN / pincode / IFSC / account / email / name box; `validateIndianPhone` refuses 11+ digits; birthday / anniversary = `DayMonthField` (day + month + optional year → YYYY-MM-DD or MM-DD); Settings checks bank details; edited bill and sign-up check the mobile. Suite 9 "v4.150.0 — strong validation". |
+| 51 | **Wrong category / unit on a new item, again and again (before v4.175.0).** Neither app could delete a category; the Desktop seeded "General, FMCG, Loose Items, Apparel, Accessories" into every vertical — again whenever the items were empty — and the cloud carried them to the phone, whose Add Product picked the first category A→Z ("Accessories" in a restaurant). The Desktop always started on "piece". | `lib/products/verticalCatalog.ts` (= Android `core/utils/vertical_catalog.dart`): generic starters a vertical does not use are deleted while no item uses them (`categoryCleanup.ts`, AppShell, every session; tombstone to the cloud); a new item starts on the category used last (`kamai_last_product_category`) else General, and on the vertical's unit (`VERTICAL_UNITS`, the shop's units first in the picker); seeding is vertical-only and only for a never-used shop (§6.5). Suite 9 v4.175.0. |
+| 52 | **Unlimited items counted as 99,989 (before v4.175.0).** The phone lowered the cloud stock of every sold item, unlimited 99999 included; after 10 bills it dropped under 99990 and every device counted it (Inventory Asset in crores). | Phone: no cloud decrement for an unlimited item. Both apps: a stock ≥ `UNLIMITED_REPAIR_AT` (99900, `lib/products/unlimitedStock.ts`) is unlimited (`tracksOwnStock`, cloud pull). |
+| 53 | **Restaurant bill was not the counter's (before v4.175.0).** The guest's mobile was only printed (no customer saved, nothing filled next visit), no Udhar; a waiter's phone never saw a bill. | `lib/restaurant/guestCustomer.ts`: mobile → saved / found customer (`resolveBillCustomer`), Udhar = balance + CREDIT_SALE ledger like the counter (Khata on, name or mobile needed, limit warned in PayDialog). Orders carry `takenById`; the bill `staff_id` / `staff_name`, and in the cloud `staff_day` (`lib/staff/staffDay.ts`) — the staff phone reads its own bills (rules: own staff_id only; query filters staff_id + staff_day). |
 
 ---
 

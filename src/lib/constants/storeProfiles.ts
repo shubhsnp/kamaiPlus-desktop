@@ -51,5 +51,9 @@ export const DEFAULT_UNIT: ProductUnit = 'piece';
 /** Units surfaced first in pickers, before the full master list. */
 export const RECOMMENDED_UNITS: ProductUnit[] = ['piece', 'packet', 'kg', 'box'];
 
-/** Categories created for a brand new shop so the catalogue is never empty. */
-export const STARTER_CATEGORIES: string[] = ['General', 'FMCG', 'Loose Items', 'Apparel', 'Accessories'];
+/**
+ * The one category every shop starts with. v4.175.0: the generic list ('General', 'FMCG', 'Loose Items',
+ * 'Apparel', 'Accessories') went into every vertical (a restaurant with "Apparel"); a shop's own
+ * categories now come with its vertical's sample items (lib/products/verticalCatalog.ts).
+ */
+export const STARTER_CATEGORY = 'General';

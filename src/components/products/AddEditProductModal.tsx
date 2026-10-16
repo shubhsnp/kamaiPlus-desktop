@@ -22,6 +22,7 @@ const NAME_EXAMPLE: Record<string, string> = {
 };
 import { ProductFormDetails } from '@/components/products/ProductFormDetails';
 import { categoryLabel } from '@/lib/products/defaultCategory';
+import { unitsForVertical } from '@/lib/products/verticalCatalog';
 
 const EXCEL_TIP_KEY = 'kamai_hide_excel_tip';
 
@@ -155,6 +156,8 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
   const priceFieldCount = 1 + (showSellingPrice ? 1 : 0) + (switches.product_cost_price ? 1 : 0) + (switches.wholesale_price ? 1 : 0);
   const codeFieldCount = (switches.product_barcode ? 1 : 0) + (switches.product_hsn ? 1 : 0) + (switches.product_gst_rate ? 1 : 0);
   const SM_COLS: Record<number, string> = { 1: 'sm:grid-cols-1', 2: 'sm:grid-cols-2', 3: 'sm:grid-cols-3', 4: 'sm:grid-cols-4' };
+  const shopUnitIds = unitsForVertical(readVerticalProfile()?.vertical).units;
+  const shopUnits = shopUnitIds.map((id) => MASTER_UNITS.find((u) => u.id === id)!).filter(Boolean);
 
   // The "Have a wholesale bill in Excel?" tip: closed once = gone on this computer.
   const [excelTipHidden, setExcelTipHidden] = useState(() => {
@@ -265,9 +268,15 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
               onChange={(e) => setFormUnit(e.target.value as ProductUnit)}
               className="w-full h-10 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-sky-500"
             >
-              {MASTER_UNITS.map((u) => (
+              {/* v4.175.0: the shop's own units first (its category), every other unit below. */}
+              {shopUnits.map((u) => (
                 <option key={u.id} value={u.id}>{u.labelEn}</option>
               ))}
+              <optgroup label={tr('More units')}>
+                {MASTER_UNITS.filter((u) => !shopUnits.includes(u)).map((u) => (
+                  <option key={u.id} value={u.id}>{u.labelEn}</option>
+                ))}
+              </optgroup>
             </select>
           </div>
         </div>

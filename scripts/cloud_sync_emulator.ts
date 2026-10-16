@@ -274,6 +274,17 @@ async function main() {
   check(ownCart && otherCart && staffBill && staffPrice && mine.size === 1,
     'Rules: a staff phone sends a cart only in its own name and reads only its own; it can never write a bill or change an item');
 
+  // v4.175.0: the waiter's phone reads its own bills (made at the counter) — never another's.
+  const { staffDay } = await import('../src/lib/staff/staffDay');
+  const day = staffDay('st_raju01', new Date());
+  await fsdk.setDoc(pdoc(`businesses/${bizId}/sales/sale_raju_1`), { id: 'sale_raju_1', staff_id: 'st_raju01', staff_name: 'Raju', staff_day: day, total_amount_paise: 15000 });
+  await fsdk.setDoc(pdoc(`businesses/${bizId}/sales/sale_amit_1`), { id: 'sale_amit_1', staff_id: 'st_amit02', staff_name: 'Amit', staff_day: staffDay('st_amit02', new Date()), total_amount_paise: 9000 });
+  const myBills = await fsdk.getDocs(fsdk.query(fsdk.collection(staff, `businesses/${bizId}/sales`), fsdk.where('staff_id', '==', 'st_raju01'), fsdk.where('staff_day', '==', day)));
+  const otherBill = await denied(fsdk.getDoc(fsdk.doc(staff, `businesses/${bizId}/sales/sale_amit_1`)));
+  const allBills = await denied(fsdk.getDocs(fsdk.collection(staff, `businesses/${bizId}/sales`)));
+  check(myBills.size === 1 && myBills.docs[0].id === 'sale_raju_1' && otherBill && allBills,
+    "Rules: a staff phone reads its own bills of today (staff_day) — never another member's, never the whole list");
+
   // The counter takes the cart once (a second counter gets nothing).
   const carts = await import('../src/lib/cloud/counterCartsCloud');
   const taken = await carts.takeCart(bizId, 'cart_e2e_1', 'pc-1');
