@@ -10,7 +10,7 @@ import { buildBillCustomer, isDraftEmpty, resolveBillCustomer } from '@/lib/bill
 import { cloudMerge, cloudSyncSoon, cloudTrackInvoice } from '@/lib/firebase/lazyCloud';
 import { getDesktopApi } from '@/lib/desktop/desktopBridge';
 import { newId } from '@/lib/ids';
-import { tabsAfterClosing, tabsAfterSale } from '@/lib/billing/billTabs';
+import { staffOfBill, tabsAfterClosing, tabsAfterSale } from '@/lib/billing/billTabs';
 import { isFeatureOn } from '@/lib/features/featureSwitches';
 import { tr } from '@/lib/i18n/core';
 import { createEstimateAction } from '@/components/billing/posEstimateAction';
@@ -236,7 +236,7 @@ export function createSaleActions(deps: CreateSaleActionsDeps) {
         status: 'completed',
         // A wholesale bill says so (Transactions, the cloud) — v4.87.0.
         ...(isFeatureOn('wholesale_price') && priceMode === 'wholesale' ? { price_mode: 'wholesale' as const } : {}),
-        created_by: 'owner',
+        created_by: 'owner', ...staffOfBill(tabs, soldTabId), // a staff phone's cart: their bill (v4.177.0)
         created_at: now,
         updated_at: now,
         sync_status: 'synced',

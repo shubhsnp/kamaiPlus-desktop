@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.177.0',
+    items: [
+      msg("Send to counter: a bill made from a staff phone's cart is in that staff member's name — their Today's Bills and Staff performance show it."),
+    ],
+  },
+  {
     version: '4.176.0',
     items: [
       msg('Restaurant: Add Dish starts on Plate in Restaurant mode and has no wholesale-Excel tip; no "GST 0%" line when the shop has no GST.'),
@@ -345,18 +351,6 @@ export const CHANGELOG: Release[] = [
     version: '4.123.0',
     items: [
       msg('Restaurant: with no kitchen (KOT) printer chosen, Send KOT no longer says sent — it asks whether the kitchen was told, and marks the order only then.'),
-    ],
-  },
-  {
-    version: '4.122.0',
-    items: [
-      msg('Safer: if KamaiPlus support deletes a shop, this computer saves today\'s backup first and clears the data only after that; the app also opens without waiting for the internet.'),
-    ],
-  },
-  {
-    version: '4.121.0',
-    items: [
-      msg('New shops: sample items now fit the shop category — medicines by the strip, clothes in sizes, restaurant dishes in Half / Full and never counted, general store items for retail. New units: Strip, Plate, Portion.'),
     ],
   },
   ...OLDER_RELEASES,

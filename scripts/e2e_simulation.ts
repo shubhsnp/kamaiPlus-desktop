@@ -5605,6 +5605,22 @@ pendingAsyncChecks.push((async () => {
     'Restaurant: Inventory header says "Manage Menu" (inventory is on for a restaurant since v4.165.0)');
 }
 
+// v4.177.0 — Send to counter (retail): the bill the counter makes from a staff phone's cart carries that
+// staff member's staff_id / staff_name (only restaurant bills did) — their phone's Today's Bills lists it.
+pendingAsyncChecks.push((async () => {
+  const bt = await import('../src/lib/billing/billTabs');
+  const tabs = [{ ...bt.makeEmptyTab('t1', 1) }, { ...bt.makeEmptyTab('t2', 2), staffId: 'st_raju01', staffName: 'Raju' }];
+  const own = bt.staffOfBill(tabs, 't2');
+  assert(own.staff_id === 'st_raju01' && own.staff_name === 'Raju' && Object.keys(bt.staffOfBill(tabs, 't1')).length === 0
+    && Object.keys(bt.staffOfBill(tabs, 'gone')).length === 0,
+    'Send to counter: a bill opened from a staff cart carries their staff_id / staff_name; a counter bill carries none');
+  const pick = readSource('components/billing/useStaffCartPickup.ts');
+  const sale = readSource('components/billing/posSaleActions.ts');
+  assert(pick.includes('...(cart.staffId ? { staffId: cart.staffId, staffName: cart.staffName } : {})')
+    && sale.includes("created_by: 'owner', ...staffOfBill(tabs, soldTabId),") && sale.split('\n').length <= 401,
+    'Send to counter: the staff cart tab is tagged with the staff member and Complete Sale puts it on the bill');
+})());
+
 // v4.176.0 — restaurant screen-by-screen check (Electron screenshots): Restaurant mode decides the dish form's
 // units, no "GST 0%" line without GST, no wholesale-Excel tip on Add Dish, a mobile-only customer's number is
 // never typed into the name box.

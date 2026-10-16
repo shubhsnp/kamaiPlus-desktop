@@ -22,12 +22,26 @@ export interface BillTab {
   billDiscountValue?: string;
   /** Retail (default) or wholesale prices for this bill (v4.87.0, lib/billing/priceMode.ts). */
   priceMode?: 'retail' | 'wholesale';
+  /** v4.177.0: a bill opened from a staff phone's cart ("Send to counter") — the bill carries their staff_id. */
+  staffId?: string;
+  staffName?: string;
   isHeld: boolean;
   heldAt?: string;
   holdNote?: string;
 }
 
 export const TABS_STORAGE_KEY = 'kamai_pos_tabs';
+
+/**
+ * The staff member a bill is for (v4.177.0): a cart sent from their phone and billed at the counter
+ * carries their staff_id / staff_name, like a waiter's restaurant bill — their phone's "Today's Bills"
+ * lists it (staff_day, lib/staff/staffDay.ts) and Staff performance counts it. Other bills: nothing.
+ */
+export function staffOfBill(tabs: BillTab[], tabId: string): { staff_id?: string; staff_name?: string } {
+  const tab = tabs.find((t) => t.id === tabId);
+  if (!tab?.staffId) return {};
+  return { staff_id: tab.staffId, ...(tab.staffName ? { staff_name: tab.staffName } : {}) };
+}
 
 /** A blank bill: no items, no customer, cash, no split amounts, no discount. */
 export function makeEmptyTab(id: string, tabNumber: number): BillTab {

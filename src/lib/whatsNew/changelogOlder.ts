@@ -1,8 +1,20 @@
 import { msg } from '@/lib/i18n/core';
 import type { Release } from '@/lib/whatsNew/changelog';
 
-/** "What's new" for 4.120.0 and older (moved out of changelog.ts to stay <= 400 lines, newest first). */
+/** "What's new" for 4.122.0 and older (moved out of changelog.ts to stay <= 400 lines, newest first). */
 export const OLDER_RELEASES: Release[] = [
+  {
+    version: '4.122.0',
+    items: [
+      msg('Safer: if KamaiPlus support deletes a shop, this computer saves today\'s backup first and clears the data only after that; the app also opens without waiting for the internet.'),
+    ],
+  },
+  {
+    version: '4.121.0',
+    items: [
+      msg('New shops: sample items now fit the shop category — medicines by the strip, clothes in sizes, restaurant dishes in Half / Full and never counted, general store items for retail. New units: Strip, Plate, Portion.'),
+    ],
+  },
   {
     version: '4.120.0',
     items: [

@@ -513,6 +513,8 @@ per-screen mirrors (`cloudMerge` / `cloudSyncSoon` / `backgroundSync`, `syncLoca
   price). Taken carts older than 2 days are deleted by the counter. Emulator: `npm run test:cloud` §10.
   A line this PC's stock cannot take (addToCart adds nothing) is named in the last toast
   (`linesShortOfStock`, v4.174.0) — the "cart is open" toast used to hide the stock error.
+  The tab carries `staffId` / `staffName` (v4.177.0) and Complete Sale puts them on the bill
+  (`staffOfBill`, `lib/billing/billTabs.ts`) → `staff_id` / `staff_day` → the staff phone's Today's Bills.
 - **Scheduler** `components/layout/CloudSyncScheduler.tsx` (AppShell): sends 20 s after opening,
   5 s after a noted change (`kamai_cloud_outbox_changed`), every minute, on `online`; listens only after
   the first sync, stops when switched off. Status `kamai_cloud_sync_status` (last sent, last from the

@@ -51,7 +51,10 @@ export function useStaffCartPickup(deps: StaffCartPickupDeps) {
       const tabId = `tab_staff_${Date.now()}`;
       setTabs((prev) => {
         const tab = makeEmptyTab(tabId, prev.reduce((m, t) => Math.max(m, t.tabNumber), 0) + 1);
-        return [...prev, { ...tab, customerName: cart.customerName || '', customerPhone: cart.customerPhone || '' }];
+        return [...prev, {
+          ...tab, customerName: cart.customerName || '', customerPhone: cart.customerPhone || '',
+          ...(cart.staffId ? { staffId: cart.staffId, staffName: cart.staffName } : {}),
+        }];
       });
       setActiveTabId(tabId);
       setPending({ tabId, cart });
