@@ -5,7 +5,7 @@ import { showConfirm } from '@/lib/ui/dialogs';
 import { db } from '@/lib/db';
 import { generalCategoryId } from '@/lib/products/defaultCategory';
 import { defaultCategoryForNewItem, LAST_PRODUCT_CATEGORY_KEY, unitsForVertical } from '@/lib/products/verticalCatalog';
-import { readVerticalProfile } from '@/lib/business/verticalProfile';
+import { shopVertical } from '@/lib/products/shopVertical';
 import { Product } from '@/types';
 import { parseRupeesToPaise } from '@/lib/utils';
 import { validateProductData } from '@/lib/validation/validators';
@@ -106,7 +106,7 @@ export function createProductActions(deps: CreateProductActionsDeps) {
     let lastCategory: string | null = null;
     try { lastCategory = localStorage.getItem(LAST_PRODUCT_CATEGORY_KEY); } catch { /* private window */ }
     setFormCategory(defaultCategoryForNewItem(categories, lastCategory));
-    setFormUnit(unitsForVertical(readVerticalProfile()?.vertical).defaultUnit);
+    setFormUnit(unitsForVertical(shopVertical()).defaultUnit);
     setFormPurchasePrice('');
     setFormSellingPrice('');
     setFormIsLooseItem(false);

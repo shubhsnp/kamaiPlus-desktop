@@ -3539,5 +3539,6 @@
   "Categories that do not belong to your kind of shop (FMCG, Apparel… in a restaurant) are removed while no item uses them, and no longer come back when you delete all items.": "ज्या कॅटेगरी तुमच्या दुकानाच्या नाहीत (रेस्टॉरंटमध्ये FMCG, Apparel…) आणि ज्यात कोणताही आयटम नाही, त्या काढल्या जातात — सर्व आयटम काढले तरी परत येत नाहीत.",
   "Unlimited items are never counted in Inventory — an item a phone had sold 10+ times no longer shows 99,989 in stock.": "Unlimited आयटम इन्व्हेंटरीमध्ये कधीच मोजले जात नाहीत — फोनवरून 10+ वेळा विकलेला आयटम आता 99,989 स्टॉक दाखवत नाही.",
   "Restaurant bill: a guest's mobile saves them as a customer (the name fills in next time), and Udhar puts the bill on their khata — like the counter.": "रेस्टॉरंट बिल: पाहुण्याचा मोबाइल त्याला ग्राहक म्हणून सेव्ह करतो (पुढच्या वेळी नाव भरले जाते), आणि उधार बिल त्याच्या खात्यावर टाकते — काउंटरसारखे.",
-  "A waiter's table bill carries the waiter's name, so it shows on their phone under Today's Bills.": "वेटरच्या टेबल बिलावर वेटरचे नाव जाते, म्हणून ते त्याच्या फोनवर Today's Bills मध्ये दिसते."
+  "A waiter's table bill carries the waiter's name, so it shows on their phone under Today's Bills.": "वेटरच्या टेबल बिलावर वेटरचे नाव जाते, म्हणून ते त्याच्या फोनवर Today's Bills मध्ये दिसते.",
+  "Restaurant: Add Dish starts on Plate in Restaurant mode and has no wholesale-Excel tip; no \"GST 0%\" line when the shop has no GST.": "रेस्टॉरंट: Restaurant mode मध्ये Add Dish Plate ने सुरू होतो आणि त्यात wholesale-Excel सूचना नाही; दुकानावर GST नसेल तर \"GST 0%\" ची ओळ नाही."
 }

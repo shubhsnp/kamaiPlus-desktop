@@ -1718,6 +1718,7 @@ async function run() {
         await page.locator('[data-pay-method="cash"]').click();
         await page.locator('[data-pay-received]').fill(String(Math.ceil(payTotal) + 100));
         check((await page.locator('[data-pay-change]').count()) === 1, 'Cash received above the total shows the change to give back');
+        await page.locator('[data-pay-guest-name]').fill('Ramesh');
         await page.locator('[data-pay-guest-phone]').fill('98765 43210');
         await page.locator('[data-pay-after="show"]').click();
         await page.locator('[data-pay-settle]').click();
@@ -1739,6 +1740,38 @@ async function run() {
         check(reopened, "Today's bills on the Tables screen: tapping one opens it again (print, PDF, WhatsApp)");
         await page.keyboard.press('Escape');
         await page.waitForTimeout(600);
+
+        // v4.175.0: the guest's mobile saves the customer; next time it fills the name; Udhar goes on their khata.
+        step = 'guest saved';
+        const guestCust = (await readStore(page, 'customers')).find((c) => c.phone === '9876543210');
+        const guestSale = (await readStore(page, 'sales')).find((s) => guestCust && s.customer_id === guestCust.id);
+        check(guestCust?.name === 'Ramesh' && guestSale?.customer_phone === '9876543210',
+          'Restaurant bill: the guest (Ramesh, 98765 43210) is saved as a customer and the bill points to them');
+        step = 'udhar';
+        await page.locator('[data-table="T3"]').click();
+        await page.locator('[data-restaurant-screen="order"]').waitFor({ timeout: 10000 });
+        await addDish();
+        await page.locator('[data-order-pay]').click();
+        await page.locator('[data-restaurant-pay]').waitFor({ timeout: 5000 });
+        await page.locator('[data-pay-guest-phone]').fill('9876543210');
+        const named = await page.locator('[data-pay-guest-name]').evaluate((el) => new Promise((r) => {
+          const t = Date.now();
+          const tick = () => (el.value || Date.now() - t > 5000 ? r(el.value) : setTimeout(tick, 150));
+          tick();
+        }));
+        await page.locator('[data-pay-method="credit"]').click();
+        const udharNote = await page.locator('[data-pay-udhar]').count();
+        await page.locator('[data-pay-after="show"]').click();
+        await page.locator('[data-pay-settle]').click();
+        await tables.waitFor({ timeout: 25000 });
+        await page.getByRole('button', { name: /Back to Tables/i }).click({ timeout: 15000 }).catch(() => {});
+        await page.waitForTimeout(800);
+        const owing = (await readStore(page, 'customers')).find((c) => c.phone === '9876543210');
+        const credit = (await readStore(page, 'ledger_transactions')).filter((l) => owing && l.party_id === owing.id && l.transaction_type === 'CREDIT_SALE');
+        const udharBill = (await readStore(page, 'sales')).find((s) => s.payment_method === 'credit' && owing && s.customer_id === owing.id);
+        check(named === 'Ramesh' && udharNote === 1 && owing?.current_balance > 0 && credit.length === 1 && udharBill?.balance_due === owing.current_balance
+            && (await page.locator('[data-table="T3"]').getAttribute('data-table-state')) === 'free',
+          `Restaurant Udhar: the mobile fills the saved name (${named}); the bill goes on the khata (balance + CREDIT_SALE entry) and the table is free`);
 
         step = 'move table';
         await page.locator('[data-table="T2"]').click();
@@ -1820,10 +1853,21 @@ async function run() {
           await page.evaluate(() => { window.location.href = '/restaurant/'; });
           await page.locator('[data-table="T7"]').click({ timeout: 15000 }).catch(() => {});
           await page.waitForTimeout(2000);
+          // A real order on the screen (two dishes) — an empty table showed nothing to review.
+          for (let i = 0; i < 2; i++) {
+            await page.locator('[data-menu-dish]:not([disabled])').nth(i).click().catch(() => {});
+            const sz = page.locator('[data-restaurant-sizes]');
+            if (await sz.count()) await sz.locator('button').first().click().catch(() => {});
+          }
+          await page.waitForTimeout(800);
           await shot(page, 'restaurant-order');
           await page.locator('[data-order-pay]').click().catch(() => {});
           await page.waitForTimeout(1500);
           await shot(page, 'restaurant-pay');
+          await page.locator('[data-pay-guest-phone]').fill('9876543210').catch(() => {});
+          await page.locator('[data-pay-method="credit"]').click().catch(() => {});
+          await page.waitForTimeout(1200);
+          await shot(page, 'restaurant-pay-udhar');
           await page.keyboard.press('Escape');
           await page.evaluate(() => { window.location.href = '/products/'; });
           await page.getByRole('button', { name: /Add Dish/i }).first().click({ timeout: 15000 }).catch(() => {});

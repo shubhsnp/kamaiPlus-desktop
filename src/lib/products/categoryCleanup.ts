@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { readVerticalProfile } from '@/lib/business/verticalProfile';
+import { shopVertical } from '@/lib/products/shopVertical';
 import { foreignStarterCategoryIds } from '@/lib/products/verticalCatalog';
 
 /**
@@ -9,7 +9,7 @@ import { foreignStarterCategoryIds } from '@/lib/products/verticalCatalog';
  * goes to the cloud as a tombstone (cloudOutbox), so the shop's phone drops them too.
  */
 export async function removeForeignStarterCategories(): Promise<number> {
-  const vertical = readVerticalProfile()?.vertical;
+  const vertical = shopVertical();
   if (!vertical) return 0;
   const [categories, products] = await Promise.all([db.categories.toArray(), db.products.toArray()]);
   const ids = foreignStarterCategoryIds(vertical, categories, products);

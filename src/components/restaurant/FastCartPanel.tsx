@@ -88,7 +88,7 @@ export function FastCartPanel({ cart, settings, token, busy, onDineIn, onQty, on
       <div className="border-t border-slate-200 bg-slate-50/70 px-3.5 pt-2.5 pb-3 space-y-1">
         {totals.serviceChargePaise > 0 && <Row label={`${tr('Service charge')} ${settings.serviceChargePercent}%`} value={formatINR(totals.serviceChargePaise)} />}
         {totals.packingPaise > 0 && <Row label={tr('Packing charge')} value={formatINR(totals.packingPaise)} />}
-        <Row label={`GST ${settings.gstRate}% ${settings.gstInclusive ? tr('(included)') : tr('(added)')}`} value={formatINR(totals.taxTotal)} muted />
+        {settings.gstRate > 0 && <Row label={`GST ${settings.gstRate}% ${settings.gstInclusive ? tr('(included)') : tr('(added)')}`} value={formatINR(totals.taxTotal)} muted />}
         <div className="flex items-end justify-between pt-1">
           <span className="text-[11px] font-black uppercase tracking-wide text-slate-500">{tr('Total')} · {piecesText(pieces)}</span>
           <span className="text-2xl font-black font-mono text-slate-900" data-fast-total>{formatINR(totals.grandTotal)}</span>

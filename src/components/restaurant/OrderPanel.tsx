@@ -164,7 +164,8 @@ export function OrderPanel({ order, settings, kotBusy, checkBusy, onBack, onQty,
         {totals.serviceChargePaise > 0 && <TotalRow label={`${tr('Service charge')} ${settings.serviceChargePercent}%`} value={formatINR(totals.serviceChargePaise)} />}
         {totals.packingPaise > 0 && <TotalRow label={tr('Packing charge')} value={formatINR(totals.packingPaise)} />}
         {totals.deliveryPaise > 0 && <TotalRow label={tr('Delivery charge')} value={formatINR(totals.deliveryPaise)} />}
-        <TotalRow label={`GST ${settings.gstRate}% ${settings.gstInclusive ? tr('(included)') : tr('(added)')}`} value={formatINR(totals.taxTotal)} muted />
+        {/* v4.176.0: no "GST 0% ₹0.00" line for a shop without GST */}
+        {settings.gstRate > 0 && <TotalRow label={`GST ${settings.gstRate}% ${settings.gstInclusive ? tr('(included)') : tr('(added)')}`} value={formatINR(totals.taxTotal)} muted />}
         <div className="flex items-end justify-between pt-1">
           <span className="text-[11px] font-black uppercase tracking-wide text-slate-500">{tr('Total')}</span>
           <span className="text-2xl font-black font-mono text-slate-900" data-order-total>{formatINR(totals.grandTotal)}</span>

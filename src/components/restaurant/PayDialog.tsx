@@ -89,7 +89,8 @@ export function PayDialog({ order, settings, business, open, busy, onClose, onSe
     void db.customers.where('phone').anyOf([goodPhone, `+91${goodPhone}`, `91${goodPhone}`, `0${goodPhone}`]).first().then((c) => {
       if (!live) return;
       setKnown(c || null);
-      if (c?.name) setGuestName((n) => n.trim() ? n : c.name);
+      // A customer saved with only a mobile carries it as the name — do not type the number into the name box.
+      if (c?.name && cleanGuestPhone(c.name) !== goodPhone) setGuestName((n) => n.trim() ? n : c.name);
     }).catch(() => {});
     return () => { live = false; };
   }, [goodPhone]);
@@ -125,7 +126,7 @@ export function PayDialog({ order, settings, business, open, busy, onClose, onSe
             {totals.serviceChargePaise > 0 && <Row label={`${tr('Service charge')} ${settings.serviceChargePercent}%`} value={formatINR(totals.serviceChargePaise)} />}
             {totals.packingPaise > 0 && <Row label={tr('Packing charge')} value={formatINR(totals.packingPaise)} />}
             {totals.deliveryPaise > 0 && <Row label={tr('Delivery charge')} value={formatINR(totals.deliveryPaise)} />}
-            <Row label={`GST ${settings.gstRate}% ${settings.gstInclusive ? tr('(included)') : tr('(added)')}`} value={formatINR(totals.taxTotal)} muted />
+            {settings.gstRate > 0 && <Row label={`GST ${settings.gstRate}% ${settings.gstInclusive ? tr('(included)') : tr('(added)')}`} value={formatINR(totals.taxTotal)} muted />}
             <div className="flex items-end justify-between pt-2 mt-1 border-t border-slate-200">
               <span className="text-xs font-black uppercase tracking-wide text-slate-500">{tr('Total')}</span>
               <span className="text-3xl font-black font-mono text-slate-900" data-pay-total>{formatINR(totals.grandTotal)}</span>

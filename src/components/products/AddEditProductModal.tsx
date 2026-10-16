@@ -23,6 +23,7 @@ const NAME_EXAMPLE: Record<string, string> = {
 import { ProductFormDetails } from '@/components/products/ProductFormDetails';
 import { categoryLabel } from '@/lib/products/defaultCategory';
 import { unitsForVertical } from '@/lib/products/verticalCatalog';
+import { shopVertical } from '@/lib/products/shopVertical';
 
 const EXCEL_TIP_KEY = 'kamai_hide_excel_tip';
 
@@ -156,7 +157,7 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
   const priceFieldCount = 1 + (showSellingPrice ? 1 : 0) + (switches.product_cost_price ? 1 : 0) + (switches.wholesale_price ? 1 : 0);
   const codeFieldCount = (switches.product_barcode ? 1 : 0) + (switches.product_hsn ? 1 : 0) + (switches.product_gst_rate ? 1 : 0);
   const SM_COLS: Record<number, string> = { 1: 'sm:grid-cols-1', 2: 'sm:grid-cols-2', 3: 'sm:grid-cols-3', 4: 'sm:grid-cols-4' };
-  const shopUnitIds = unitsForVertical(readVerticalProfile()?.vertical).units;
+  const shopUnitIds = unitsForVertical(shopVertical()).units;
   const shopUnits = shopUnitIds.map((id) => MASTER_UNITS.find((u) => u.id === id)!).filter(Boolean);
 
   // The "Have a wholesale bill in Excel?" tip: closed once = gone on this computer.
@@ -183,7 +184,8 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
     >
       <form onSubmit={onSubmit} className="space-y-3.5">
         {/* Bulk Excel Inward Suggestion Banner — ✕ hides it on this computer (v4.93.0) */}
-        {!editingProduct && onOpenInwardSheet && !excelTipHidden && (
+        {/* v4.176.0: a wholesale bill is not how a restaurant adds a dish — no tip there */}
+        {!editingProduct && onOpenInwardSheet && !excelTipHidden && shopVertical() !== 'restaurant' && (
           <div className="p-3 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/20 border border-amber-200/80 dark:border-amber-800/60 flex items-center justify-between gap-3 shadow-2xs">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-8 h-8 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-bold shrink-0">

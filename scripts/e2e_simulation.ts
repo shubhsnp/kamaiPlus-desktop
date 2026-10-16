@@ -2926,8 +2926,8 @@ assert(readSource('app/billing/page.tsx').split('\n').length <= 401, `POS page s
     'First run: the password and its button come first, the optional Google account under it; the fireworks sample catalog is not ticked by default');
   const productsPage = readProductsPage();
   const form = readProductForm();
-  assert(/useState<ProductUnit>\('piece'\)/.test(productsPage) && readSource('components/products/productActions.ts').includes('setFormUnit(unitsForVertical(readVerticalProfile()?.vertical).defaultUnit);') && !/useState<ProductUnit>\('packet'\)/.test(productsPage)
-    && /!excelTipHidden && \(/.test(form) && /localStorage\.setItem\(EXCEL_TIP_KEY, '1'\)/.test(form) && form.includes('data-excel-tip-hide'),
+  assert(/useState<ProductUnit>\('piece'\)/.test(productsPage) && readSource('components/products/productActions.ts').includes('setFormUnit(unitsForVertical(shopVertical()).defaultUnit);') && readSource('lib/products/shopVertical.ts').includes("isRestaurantMode() ? 'restaurant'") && !/useState<ProductUnit>\('packet'\)/.test(productsPage)
+    && /!excelTipHidden && shopVertical\(\) !== 'restaurant' && \(/.test(form) && /localStorage\.setItem\(EXCEL_TIP_KEY, '1'\)/.test(form) && form.includes('data-excel-tip-hide'),
     'Add Product: a new item starts as Piece (not Packet); the "wholesale bill in Excel?" tip can be closed for good');
   const hiCat = JSON.parse(readSource('locales/hi.json')) as Record<string, string>;
   const enGeneral = categoryLabel('General');
@@ -5604,6 +5604,21 @@ pendingAsyncChecks.push((async () => {
   assert(RESTAURANT_WORDS['Manage Products'] === 'Manage Menu' && readSource('components/inventory/InventoryHeaderActions.tsx').includes("tr('Manage Products')"),
     'Restaurant: Inventory header says "Manage Menu" (inventory is on for a restaurant since v4.165.0)');
 }
+
+// v4.176.0 — restaurant screen-by-screen check (Electron screenshots): Restaurant mode decides the dish form's
+// units, no "GST 0%" line without GST, no wholesale-Excel tip on Add Dish, a mobile-only customer's number is
+// never typed into the name box.
+pendingAsyncChecks.push((async () => {
+  const sv = readSource('lib/products/shopVertical.ts');
+  const rows = ['components/restaurant/OrderPanel.tsx', 'components/restaurant/PayDialog.tsx', 'components/restaurant/FastCartPanel.tsx'].map(readSource);
+  assert(sv.includes("isRestaurantMode() ? 'restaurant' : readVerticalProfile()?.vertical ?? null")
+    && readSource('components/products/AddEditProductModal.tsx').includes('unitsForVertical(shopVertical()).units')
+    && readSource('lib/products/categoryCleanup.ts').includes('const vertical = shopVertical();')
+    && rows.every((src) => src.includes('settings.gstRate > 0 && <'))
+    && readSource('components/products/AddEditProductModal.tsx').includes("!excelTipHidden && shopVertical() !== 'restaurant' && (")
+    && readSource('components/restaurant/PayDialog.tsx').includes('cleanGuestPhone(c.name) !== goodPhone'),
+    'Restaurant: Restaurant mode gives Add Dish its units (Plate), no "GST 0%" row, no wholesale-Excel tip, the name box never gets a phone number');
+})());
 
 // v4.175.0 — category / unit by vertical (kept coming back), unlimited stock never counted, staff bills on
 // the waiter's phone, restaurant checkout like the counter (customer saved, udhar), Add staff offline.

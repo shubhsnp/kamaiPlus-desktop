@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.176.0',
+    items: [
+      msg('Restaurant: Add Dish starts on Plate in Restaurant mode and has no wholesale-Excel tip; no "GST 0%" line when the shop has no GST.'),
+    ],
+  },
+  {
     version: '4.175.0',
     items: [
       msg('Add Product starts on the category you used last (else General) and your shop\'s own unit (plate for a restaurant, strip for a medical store) — no more a random category like "Accessories" in a restaurant. Your shop\'s units are listed first.'),
