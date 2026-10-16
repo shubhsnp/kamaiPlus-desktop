@@ -3,7 +3,9 @@ import { db } from '@/lib/db';
 import type { Business, Category, Product } from '@/types';
 import { BillTab, makeEmptyTab } from '@/lib/billing/billTabs';
 import { buildCustomItem } from '@/lib/billing/customItem';
-import { parseStaffCart, STAFF_CART_OPEN_EVENT, STAFF_CART_PENDING_KEY, type StaffCart } from '@/lib/cloud/counterCarts';
+import { isFeatureOn } from '@/lib/features/featureSwitches';
+import { countsStockAtCounter } from '@/lib/billing/stockRule';
+import { linesShortOfStock, parseStaffCart, STAFF_CART_OPEN_EVENT, STAFF_CART_PENDING_KEY, type StaffCart } from '@/lib/cloud/counterCarts';
 import { tr } from '@/lib/i18n/core';
 
 export interface StaffCartPickupDeps {
@@ -66,13 +68,21 @@ export function useStaffCartPickup(deps: StaffCartPickupDeps) {
     setPending(null);
     void (async () => {
       const found = (await db.products.bulkGet(cart.lines.map((l) => l.productId || '-'))) as (Product | undefined)[];
+      const products = cart.lines.map((line, i) => (found[i] && found[i]!.is_active !== false ? found[i]! : null));
+      const stockOn = isFeatureOn('stock_counting');
+      const short = linesShortOfStock(cart.lines, (i) => {
+        const p = products[i];
+        return p && !p.has_variants && countsStockAtCounter(p, stockOn) ? Number(p.current_stock ?? 0) : null;
+      });
       cart.lines.forEach((line, i) => {
-        const product = found[i] && found[i]!.is_active !== false ? found[i]! : buildCustomItem({
+        const product = products[i] || buildCustomItem({
           name: line.name, pricePaise: line.unitPricePaise, businessId: business?.id || '', categories, save: false,
         });
         addToCart(product, line.qty);
       });
-      showBillingToast(tr("{name}'s cart is open as a new bill — check it and complete the sale.", { name: cart.staffName }), 'success');
+      // A line this PC's stock could not take is told in the last toast — it used to hide that one.
+      if (short.length) showBillingToast(tr("{name}'s cart is open — not added (low stock here): {items}. Check the stock and add them by hand.", { name: cart.staffName, items: short.join(', ') }), 'error');
+      else showBillingToast(tr("{name}'s cart is open as a new bill — check it and complete the sale.", { name: cart.staffName }), 'success');
     })();
   }, [pending, activeTabId, addToCart, business, categories, showBillingToast]);
 }

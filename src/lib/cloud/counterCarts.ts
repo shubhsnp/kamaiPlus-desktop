@@ -65,3 +65,16 @@ export function parseStaffCart(id: string, d: Record<string, unknown> | undefine
     status: d.status === 'taken' ? 'taken' : 'sent',
   };
 }
+
+/**
+ * The lines the counter's addToCart will refuse (v4.174.0): this PC's stock is lower than the cart's
+ * quantity (addToCart then adds nothing for that line — the same rule, line by line). `stockOf(i)` =
+ * this PC's stock for line i, or null when the item is not counted at the counter / not on this PC.
+ * Before, such a line was dropped with a toast that the "cart is open" toast hid at once.
+ */
+export function linesShortOfStock(lines: StaffCartLine[], stockOf: (i: number) => number | null): string[] {
+  return lines.filter((line, i) => {
+    const stock = stockOf(i);
+    return stock !== null && (stock <= 0 || line.qty > stock);
+  }).map((line) => line.name);
+}

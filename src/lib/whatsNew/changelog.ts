@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.174.0',
+    items: [
+      msg('Staff cart opened at the counter: an item this counter has too little stock for is named in the message (it is not added — add it by hand after checking the stock).'),
+    ],
+  },
+  {
     version: '4.173.0',
     items: [
       msg('Staff phones (shops, not restaurants): "Send to counter" instead of billing on the phone — the cart shows up here (bottom right) and "Open bill at the counter" opens it as a new bill with this counter\'s invoice number, GST and stock.'),

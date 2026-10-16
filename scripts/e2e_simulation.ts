@@ -5605,6 +5605,26 @@ pendingAsyncChecks.push((async () => {
     'Restaurant: Inventory header says "Manage Menu" (inventory is on for a restaurant since v4.165.0)');
 }
 
+// v4.174.0 — Send to counter: a line this PC's stock cannot take (addToCart adds nothing for it) is
+// named in the last toast; before, the "cart is open" toast hid the out-of-stock one and the line was lost.
+pendingAsyncChecks.push((async () => {
+  const cc = await import('../src/lib/cloud/counterCarts');
+  const lines = [
+    { productId: 'p1', name: 'Atta 5kg', qty: 3, unitPricePaise: 0 },
+    { productId: 'p2', name: 'Soap', qty: 1, unitPricePaise: 0 },
+    { productId: 'p3', name: 'Maggi', qty: 2, unitPricePaise: 0 },
+    { productId: '', name: 'Custom', qty: 9, unitPricePaise: 500 },
+  ];
+  const stock: (number | null)[] = [2, 0, 2, null];
+  const short = cc.linesShortOfStock(lines, (i) => stock[i]);
+  assert(short.join('|') === 'Atta 5kg|Soap' && cc.linesShortOfStock(lines, () => null).length === 0,
+    'Send to counter: lines short of the counter stock are found (qty above stock, stock 0); exactly-enough and not-counted lines pass');
+  const pick = readSource('components/billing/useStaffCartPickup.ts');
+  assert(pick.includes('linesShortOfStock(cart.lines') && pick.includes('!p.has_variants && countsStockAtCounter(p, stockOn)')
+    && pick.includes("not added (low stock here): {items}") && readSource('locales/hi.json').includes("not added (low stock here): {items}"),
+    'Send to counter: the last toast names the lines that were not added (not "cart is open" over the stock error)');
+})());
+
 // v4.173.0 — money / data: "Send to counter" (a staff phone's cart is billed at the counter, never on the
 // phone), an order paid here offline never comes back, rules covered on the emulator (npm run test:cloud).
 pendingAsyncChecks.push((async () => {

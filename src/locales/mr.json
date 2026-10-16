@@ -3525,6 +3525,8 @@
   "This cart was already opened on another counter.": "हे कार्ट दुसऱ्या काउंटरवर आधीच उघडले आहे.",
   "Could not open the cart. Check the internet and try again.": "कार्ट उघडले नाही. इंटरनेट तपासा आणि पुन्हा प्रयत्न करा.",
   "{name}'s cart is open as a new bill — check it and complete the sale.": "{name} चे कार्ट नवीन बिलमध्ये उघडले आहे — तपासा आणि विक्री पूर्ण करा.",
+  "{name}'s cart is open — not added (low stock here): {items}. Check the stock and add them by hand.": "{name} चे कार्ट उघडले — हे जोडले नाहीत (इथे स्टॉक कमी): {items}. स्टॉक तपासा आणि स्वतः जोडा.",
+  "Staff cart opened at the counter: an item this counter has too little stock for is named in the message (it is not added — add it by hand after checking the stock).": "काउंटरवर उघडलेले स्टाफ कार्ट: ज्या आयटमचा इथे स्टॉक कमी आहे त्याचे नाव मेसेजमध्ये दिसते (ते जोडले जात नाही — स्टॉक तपासून स्वतः जोडा).",
   "Staff phones (shops, not restaurants): \"Send to counter\" instead of billing on the phone — the cart shows up here (bottom right) and \"Open bill at the counter\" opens it as a new bill with this counter's invoice number, GST and stock.": "स्टाफ फोन (दुकान, रेस्टॉरंट नाही): फोनवर बिल नाही, \"काउंटरला पाठवा\" — कार्ट इथे (खाली उजवीकडे) येते आणि \"काउंटरवर बिल उघडा\" ने नवीन बिलमध्ये उघडते, याच काउंटरचा बिल नंबर, GST आणि स्टॉकसह.",
   "Restaurant: a table paid or cancelled while the internet was off no longer comes back after the app is restarted.": "रेस्टॉरंट: इंटरनेट बंद असताना पैसे घेतलेली किंवा रद्द केलेली टेबल आता ॲप पुन्हा उघडल्यावर परत येत नाही."
 }
