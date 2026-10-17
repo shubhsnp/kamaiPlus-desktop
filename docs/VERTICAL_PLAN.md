@@ -285,6 +285,16 @@ Aaj: items, grahak, bills, categories dono taraf; baaki tables sirf Desktop → 
 - AU-A1 phone root copy (sirf samjhaya — karna nahi)
 - Admin Console: permanent delete mein `restaurant_orders` bhi jode (abhi 15 tables)
 - Rahul ke haath: Cloud Functions Node 22 deploy (30 Oct se pehle); Android branch feat/desktop-health-message → main merge ka faisla
+- **UI simple karna (Rahul 2026-10-17: "complexity kaise kam karein" → future plan).** Dukaan wale ko app bhaari lagta hai. Pehle mockup dikhana, phir ek-ek kadam; purani dukaanon ka raasta nahi badalna (simple mode sirf nayi dukaan par).
+  1. Simple mode default — nayi dukaan mein sirf Bill, Khata, Items, Stock aaya, Aaj ka hisaab; baaki (GST, staff, purchases, campaigns, scale, themes) "More features" mein (FeatureSwitchesService / Desktop admin switches) — ~1 din
+  2. Naya Home — upar "Aaj ki bikri · Udhar baaki", 3 bade button (Naya bill · Udhar · Stock aaya), baaki tiles Menu mein — ~1 din
+  3. Ek "Stock aaya" sheet — Home / Inventory / Products / Purchases sab wahi kholein (Barcode / Photo / PDF / Excel / Haath se) — ~½ din
+  4. Number cards 4 → 2 har screen par (Khata, Transactions, Customers, Cash, Backup, Inventory, Products), baaki "Details" mein — ~½ din
+  5. Menu 3 hisson mein: Roz (Khata, Customers, Cash) · Dukaan (Items, Stock, Staff) · Settings (Printer, Backup, Bill design, Support); Pro / Refer neeche — 2–3 ghante
+  6. Chhota Add Product — sirf Naam, Bechne ka daam, Stock; baaki "More details ▾"; customer add sirf Naam + Mobile — ~1 din
+  7. Shor kam — screen par max 1 rangeen badge, emoji sirf WhatsApp messages mein — 2–3 ghante
+  8. Main screens Hindi mein (A-6 ke saath) — +2–3 din
+  Andaza: Android #1–#7 ~5 din, + Hindi ~1.5 hafta; Desktop parity +3–4 din. Pehla kadam: mockup + #1 + #2 (~2 din). 2026-10-17 ko pehle hi ho chuka: corner tags hataye, technical shabd → dukaan wale shabd (Android 4.55).
 
 ### Category conflict (proventurein@, 2026-10-10) — v4.141.0 + Android
 - Mila: Sharma Resturant (PC par restaurant, 9 Oct) cloud mein 'grocery' (purana PC default); phone ne wahi liya; phone har sync par apni lock category cloud par likhta tha, PC kabhi nahi bhejta tha.
