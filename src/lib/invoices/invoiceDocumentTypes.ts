@@ -75,6 +75,9 @@ export interface InvoiceDocument {
   statutory: boolean;
   showHsn: boolean;
   rows: InvoiceRow[];
+  /** v4.180.0 (Customer Change): lines on the bill and the quantity they add up to — every output prints them. */
+  itemCount: number;
+  totalQty: string;
   pages: InvoiceRow[][];
   amountInWords: string;
   showTaxSlabs: boolean;

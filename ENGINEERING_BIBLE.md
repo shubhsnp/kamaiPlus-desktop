@@ -831,6 +831,10 @@ Sale + Business
         └─ Browser : hidden iframe + window.print()
 ```
 
+**v4.180.0 (Customer Change):** `InvoiceDocument.itemCount` / `totalQty` — the thermal slip and the
+Bluetooth (ESC/POS) bill number each item `1) 2) 3)` and print "Total Items / Qty" under the items;
+the A4 keeps its `#` column and shows the count in the Amount-in-Words strip (the page does not grow).
+
 **Consequence:** any invoice setting that has a preview in `/invoice-designer` must
 change *every* output, because they all read the same `InvoiceDocument`. If you add a
 field to the A4 and not the thermal slip, you have created an inconsistency bug.

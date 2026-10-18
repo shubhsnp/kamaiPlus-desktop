@@ -323,6 +323,8 @@ export function buildInvoiceDocument(sale: Sale, business: Business, options: Bu
     statutory,
     showHsn,
     rows,
+    itemCount: rows.length,
+    totalQty: formatQty(items.reduce((acc, i) => acc + (Number(i.quantity) || 0), 0)),
     pages: paginateInvoiceRows(rows),
     amountInWords: `Indian ${numberToWordsINR(sale.grand_total || 0)}.`,
     showTaxSlabs: statutory && config.show_gst_breakup !== false && taxSlabs.length > 0,

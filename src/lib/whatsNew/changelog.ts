@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.180.0',
+    items: [
+      msg("Bills: each item is numbered 1) 2) 3) on the printed slip (A4 already has #), and every bill shows Total Items and Qty."),
+    ],
+  },
+  {
     version: '4.179.0',
     items: [
       msg("Variants (Half / Full) in the edit form too — a dish you already have can get Half / Full; one Price box per size in a restaurant; each size ∞ or its own stock; nothing sticks out of the window."),
@@ -342,18 +348,6 @@ export const CHANGELOG: Release[] = [
     version: '4.127.0',
     items: [
       msg('Electronics & mobile shops: the ✏️ on a bill line takes the IMEI / serial no. and warranty months of that piece, printed on the bill.'),
-    ],
-  },
-  {
-    version: '4.126.0',
-    items: [
-      msg('Pharmacy: batch no. and expiry month on medicines (printed on the bill), a warning when an expired medicine is added, a list of medicines expiring in 90 days on Inventory, and patient / doctor name on the bill.'),
-    ],
-  },
-  {
-    version: '4.125.0',
-    items: [
-      msg('Licence: if KamaiPlus support blocks and later unblocks your key, the app starts working again by itself at the next check-in.'),
     ],
   },
   ...OLDER_RELEASES,

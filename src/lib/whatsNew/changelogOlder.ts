@@ -1,8 +1,20 @@
 import { msg } from '@/lib/i18n/core';
 import type { Release } from '@/lib/whatsNew/changelog';
 
-/** "What's new" for 4.124.0 and older (moved out of changelog.ts to stay <= 400 lines, newest first). */
+/** "What's new" for 4.126.0 and older (moved out of changelog.ts to stay <= 400 lines, newest first). */
 export const OLDER_RELEASES: Release[] = [
+  {
+    version: '4.126.0',
+    items: [
+      msg('Pharmacy: batch no. and expiry month on medicines (printed on the bill), a warning when an expired medicine is added, a list of medicines expiring in 90 days on Inventory, and patient / doctor name on the bill.'),
+    ],
+  },
+  {
+    version: '4.125.0',
+    items: [
+      msg('Licence: if KamaiPlus support blocks and later unblocks your key, the app starts working again by itself at the next check-in.'),
+    ],
+  },
   {
     version: '4.124.0',
     items: [

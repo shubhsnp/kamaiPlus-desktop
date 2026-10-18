@@ -231,13 +231,18 @@ class BluetoothPrinterService {
     sale.items.forEach((item, idx) => {
       const row = doc.rows[idx];
       const priceStr = `${row ? row.qty : item.quantity} x ${(item.unit_price / 100).toFixed(2)}`;
-      enc.itemRow(item.product_name, priceStr, (getLineGrossPaise(item) / 100).toFixed(2));
+      // v4.180.0 (Customer Change): numbered 1) 2) 3), like the slip.
+      enc.itemRow(`${idx + 1}) ${item.product_name}`, priceStr, (getLineGrossPaise(item) / 100).toFixed(2));
       const meta = [item.size ? `Size:${item.size}` : '', item.color || '', item.imei_serial ? `SN:${item.imei_serial}` : '']
         .filter(Boolean)
         .join(' ');
       if (meta) enc.textLine(`  [${meta}]`);
       if ((item.discount_amount || 0) > 0) enc.textLine(`  Disc -${(item.discount_amount / 100).toFixed(2)}`);
     });
+    enc.hr('-');
+    enc.bold(true);
+    enc.row(`Total Items: ${doc.itemCount}`, `Qty: ${doc.totalQty}`);
+    enc.bold(false);
     enc.hr('-');
 
     // 5. Totals

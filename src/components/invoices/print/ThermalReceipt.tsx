@@ -70,7 +70,8 @@ export function ThermalReceipt({ doc, sale, business, width }: Props) {
       {rule}
       {(sale.items || []).map((item, i) => (
         <div key={i} style={{ marginBottom: 2 }}>
-          <div style={{ wordBreak: 'break-word' }}>{item.product_name}</div>
+          {/* v4.180.0 (Customer Change): each item numbered 1) 2) 3) */}
+          <div style={{ wordBreak: 'break-word' }} data-thermal-sno>{i + 1}) {item.product_name}</div>
           {doc.showHsn && doc.rows[i]?.hsn && doc.rows[i].hsn !== '-' && (
             <div style={small} data-thermal-hsn>
               HSN: {doc.rows[i].hsn}
@@ -91,6 +92,11 @@ export function ThermalReceipt({ doc, sale, business, width }: Props) {
           {item.imei_serial && <div style={small} data-thermal-imei>IMEI/SN: {item.imei_serial}</div>}
         </div>
       ))}
+      {rule}
+      <div style={bold(row)} data-thermal-item-count>
+        <span>Total Items: {doc.itemCount}</span>
+        <span>Qty: {doc.totalQty}</span>
+      </div>
       {rule}
       {doc.totals.map((t, i) => (
         <div key={i} style={row}>

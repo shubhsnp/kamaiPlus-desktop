@@ -5606,6 +5606,25 @@ pendingAsyncChecks.push((async () => {
     'Restaurant: Inventory header says "Manage Menu" (inventory is on for a restaurant since v4.165.0)');
 }
 
+// v4.180.0 — Customer Change: every bill numbers its items 1) 2) 3) and says how many items there are
+// (thermal slip, Bluetooth printer, A4 / PDF — one InvoiceDocument).
+{
+  const doc = buildInvoiceDocument({ ...sampleGstSale, items: [
+    { ...sampleGstSale.items[0], quantity: 2 },
+    { ...sampleGstSale.items[0], product_id: 'p2', quantity: 0.5 },
+    { ...sampleGstSale.items[0], product_id: 'p3', quantity: 1 },
+  ] }, invBiz, {});
+  assert(doc.itemCount === 3 && doc.totalQty === '3.5' && doc.rows.map((r) => r.sno).join() === '1,2,3',
+    'Bill: 3 items, total qty 3.5, rows numbered 1 2 3');
+  const slip = readSource('components/invoices/print/ThermalReceipt.tsx');
+  const bt = readSource('lib/hardware/bluetoothPrinter.ts');
+  const a4 = readSource('components/invoices/print/A4InvoiceSummary.tsx');
+  assert(slip.includes('data-thermal-sno>{i + 1}) {item.product_name}') && slip.includes('<span>Total Items: {doc.itemCount}</span>')
+    && bt.includes('enc.itemRow(`${idx + 1}) ${item.product_name}`') && bt.includes('enc.row(`Total Items: ${doc.itemCount}`, `Qty: ${doc.totalQty}`);')
+    && a4.includes('Total Items: {doc.itemCount} &nbsp;•&nbsp; Qty: {doc.totalQty}') && readSource('components/invoices/print/A4TaxInvoice.tsx').includes('{r.sno}</td>'),
+    'Bill: thermal slip and Bluetooth printer number each item 1) 2) 3) and print "Total Items / Qty"; A4 keeps its # column and shows the count');
+}
+
 // v4.179.0 — Rahul's restaurant list: variants in the edit form too (a plain dish can get Half / Full), one Price
 // column and ∞ / counted stock per variant, no box sticking out of the window; Add Dish has stock (bottles), a
 // counted dish shows "N left" and stops at 0; the menu order = the phone's (starred, A → Z); the Tables screen says

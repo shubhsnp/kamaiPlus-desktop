@@ -11,7 +11,11 @@ export function A4InvoiceSummary({ doc }: { doc: InvoiceDocument }) {
     <div style={{ marginTop: 10 }}>
       <div style={{ ...card, borderRadius: 5, padding: '6px 10px', display: 'flex', gap: 6 }}>
         <span style={text(10, 800, C.slate900, { whiteSpace: 'nowrap' })}>Amount in Words:</span>
-        <span style={text(10, 400, C.slate700)}>{doc.amountInWords}</span>
+        <span style={text(10, 400, C.slate700, { flex: 1 })}>{doc.amountInWords}</span>
+        {/* v4.180.0 (Customer Change): how many items, in the same strip (the page does not grow). */}
+        <span style={text(10, 800, C.slate900, { whiteSpace: 'nowrap' })} data-a4-item-count>
+          Total Items: {doc.itemCount} &nbsp;•&nbsp; Qty: {doc.totalQty}
+        </span>
       </div>
 
       {doc.showTaxSlabs && <TaxSlabTable doc={doc} />}
