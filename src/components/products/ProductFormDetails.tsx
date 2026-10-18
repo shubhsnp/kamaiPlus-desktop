@@ -195,8 +195,9 @@ export function ProductFormDetails(props: ProductFormDetailsProps) {
 
       {/* Stock: "Unlimited" (no count) is the default for a new item, like the
           Android app. Switching it off fills stock and the low-stock alert with 10.
-          v4.108.0: with Stock counting off the choice is not shown (a new item stays unlimited). */}
-      {switches.stock_counting && (
+          v4.108.0: with Stock counting off the choice is not shown (a new item stays unlimited).
+          v4.179.0: with variants each variant has its own stock (in the variants list), so not here. */}
+      {switches.stock_counting && !variantsEnabled && (
       <div className={`rounded-2xl border ${formIsUnlimitedStock ? 'border-emerald-200 bg-emerald-50/60' : 'border-slate-200 bg-white'}`}>
         <div className="px-3.5 py-2.5 flex items-center gap-2.5">
           <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${formIsUnlimitedStock ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'}`}>
@@ -280,8 +281,9 @@ export function ProductFormDetails(props: ProductFormDetailsProps) {
         </div>
       )}
 
-      {/* Variants matrix: new products only (edit a variant from the Variants list) */}
-      {switches.product_variants && !editingProduct && setVariantsEnabled && setVariantRows && (
+      {/* Variants: adding, and since v4.179.0 editing too (an item with variants edits them here; a plain
+          item can be given variants). A single variant is edited as an item of its own. */}
+      {switches.product_variants && !editingProduct?.parent_id && setVariantsEnabled && setVariantRows && (
         <VariantMatrixEditor
           enabled={variantsEnabled}
           onToggle={setVariantsEnabled}
@@ -289,6 +291,10 @@ export function ProductFormDetails(props: ProductFormDetailsProps) {
           onChange={setVariantRows}
           defaults={{ price: showSellingPrice ? formSellingPrice : formMrp, mrp: formMrp, stock: formStock }}
           unlimitedStock={formIsUnlimitedStock}
+          showMrp={showSellingPrice}
+          showStock={switches.stock_counting}
+          showBarcode={switches.product_barcode}
+          locked={Boolean(editingProduct?.has_variants)}
         />
       )}
       {editingProduct?.variant_label && (

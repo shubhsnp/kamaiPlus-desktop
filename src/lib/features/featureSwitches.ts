@@ -190,7 +190,7 @@ export function restaurantModeFromRaw(rawAdmin: string | null | undefined): bool
 }
 
 /**
- * How a restaurant uses the app (v4.106.0, widened in v4.107.0): no stock counting, labels, supplier
+ * How a restaurant uses the app (v4.106.0, widened in v4.107.0): no labels, supplier
  * purchases, wholesale, size / colour or counter payment keys; GST and HSN come from Restaurant
  * Set-up, not from each dish; one price per dish, with Half / Full as variants. The Admin's forced
  * switches still win over this.
@@ -206,7 +206,8 @@ export const RESTAURANT_PRESET: Partial<FeatureSwitches> = {
   product_hsn: false,
   product_gst_rate: false,
   payment_keys: false,
-  stock_counting: false,
+  // v4.179.0: stock counting on — a dish stays unlimited (∞, the default), a bottle / can can be counted.
+  stock_counting: true,
   product_barcode: false,
   product_variants: true,
 };

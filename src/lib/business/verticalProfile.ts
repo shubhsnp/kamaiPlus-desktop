@@ -103,7 +103,8 @@ export const VERTICAL_BASE: Record<VerticalId, Base> = {
     product_selling_price: false,
     product_cost_price: false,
     product_variants: true,
-    stock_counting: false,
+    // v4.179.0: dishes stay unlimited (∞), bottles / cans can be counted.
+    stock_counting: true,
     product_barcode: false,
   },
 };

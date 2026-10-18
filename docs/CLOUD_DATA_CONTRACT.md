@@ -67,6 +67,7 @@ Kolum: **Cloud** · **Type** · **Desktop** (Dexie) · **Android** (model / aaj 
 | `fssai` | string | `fssai_license_no` | `fssai` | |
 | `business_type` | string (vertical: `grocery`, `pharmacy`, `restaurant`, `clothing`, `hardware`, `retail`) | store setup ki category (v4.117.0+; app usi se chalta — `kamai_vertical_profile`) | `businessType` | Desktop purani dukaan ka nahi badalta; cloud mein dukaan nayi ho to `grocery` |
 | `platform` | string | `desktop` | `android_native` | aakhri likhne wala |
+| `pc_linked` | bool | sync on hone par `true` likhta (padhta nahi) | `true` dekhte hi apna default `INV-` → `M-` (app_counters `pc_linked`) | v4.179.0 / 4.57.0: PC ke bill `D-001…`, phone ke `M-001…` — dono ka number kabhi ek nahi |
 | `created_at`, `updated_at` | ISO | same | — | |
 | Desktop-only (R11): `drug_license_no`, `pharmacist_reg_no`, `bank_*`, `language`, `currency`, `invoice_prefix`, `terms_conditions`, `footer_message`, `invoice_theme_config`, `gst_pricing_mode`, `upi_ids` | | same | — | |
 | Android-only: `fcm_token`, `trial_started_at`, `device_reported_*`, `total_sales_count`, `total_revenue_paise`, `last_sale_at`, `category` | | — (padhta nahi) | same | |

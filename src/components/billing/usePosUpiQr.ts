@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { generateUPILink } from '@/lib/utils';
+import { effectiveInvoicePrefix } from '@/lib/invoices/invoiceNumberService';
 import QRCode from 'qrcode';
 import { tr } from '@/lib/i18n/core';
 import type { Business, PaymentMethod } from '@/types';
@@ -36,7 +37,7 @@ export function usePosUpiQr(deps: UsePosUpiQrDeps) {
 
     if (activeUpi?.upi_id && grandTotalPaise > 0) {
       const nextNum = business.next_invoice_number || 1;
-      const invPrefix = business.invoice_prefix || 'INV-';
+      const invPrefix = effectiveInvoicePrefix(business);
       const invCode = `${invPrefix}${String(nextNum).padStart(3, '0')}`;
 
       // Calculate effective payable amount for UPI (handles split payment as well)

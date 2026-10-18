@@ -107,7 +107,7 @@ const SPECS: Record<CloudTable | RestaurantCollection, TableSpec> = {
     local: ['next_invoice_number', 'is_onboarded', 'business_type'],
     ignoreIn: ['id', 'business_id', 'owner_uid', 'platform', 'shop_name', 'business_name', 'store_name', 'city', 'fcm_token',
       'trial_started_at', 'device_reported_pro', 'device_reported_plan', 'device_reported_expiry', 'device_reported_tier',
-      'total_sales_count', 'total_revenue_paise', 'last_sale_at', 'category'],
+      'total_sales_count', 'total_revenue_paise', 'last_sale_at', 'category', 'pc_linked'],
     dates: DATES,
     out: (row, doc) => {
       doc.platform = 'desktop';

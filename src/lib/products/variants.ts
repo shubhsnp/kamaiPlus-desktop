@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { InventoryMovement, Product } from '@/types';
 import { tr } from '@/lib/i18n/core';
+import { parseRupeesToPaise } from '@/lib/utils';
 
 /**
  * Product variants — the Android app's model (lib/core/database/local_database.dart
@@ -93,6 +94,52 @@ export interface VariantDraft {
   mrpPaise: number;
   stock: number;
   barcode?: string;
+  /** v4.179.0: this variant is not counted (∞). Not given = the parent's own choice. */
+  unlimited?: boolean;
+  /** v4.179.0: an existing child being edited (saveVariantRows). */
+  id?: string;
+}
+
+/** One row of the variants form, kept as typed text until saved (VariantMatrixEditor). */
+export interface VariantFormRow {
+  /** Set for a variant that is already saved (editing a dish / item). */
+  id?: string;
+  label: string;
+  price: string;
+  mrp: string;
+  stock: string;
+  barcode: string;
+  /** ∞ = not counted. */
+  unlimited?: boolean;
+}
+
+/** Form rows → drafts. With one price box (no separate MRP, e.g. a restaurant) the price is the MRP too. */
+export function rowsToDrafts(rows: VariantFormRow[], separateMrp: boolean): VariantDraft[] {
+  return rows.map((r) => {
+    const price = parseRupeesToPaise(r.price || '0');
+    return {
+      id: r.id,
+      label: r.label,
+      sellingPricePaise: price,
+      mrpPaise: separateMrp && r.mrp ? parseRupeesToPaise(r.mrp) : price,
+      unlimited: r.unlimited !== false,
+      stock: r.unlimited !== false ? 0 : Math.max(0, parseFloat(r.stock) || 0),
+      barcode: r.barcode,
+    };
+  });
+}
+
+/** A saved parent's children as form rows, for the edit form. */
+export async function variantRowsOf(parentId: string): Promise<VariantFormRow[]> {
+  return (await getVariantChildren(parentId)).map((c) => ({
+    id: c.id,
+    label: c.variant_label || c.size || c.name,
+    price: (c.selling_price / 100).toFixed(2),
+    mrp: c.mrp ? (c.mrp / 100).toFixed(2) : '',
+    stock: String(c.is_unlimited_stock ? DEFAULT_COUNTED_STOCK : c.current_stock),
+    barcode: c.barcode || '',
+    unlimited: Boolean(c.is_unlimited_stock),
+  }));
 }
 
 export const isVariantParent = (p: Pick<Product, 'has_variants'>): boolean => p.has_variants === true;
@@ -151,7 +198,8 @@ function buildChild(parent: Product, draft: VariantDraft, id: string, now: strin
     barcode: draft.barcode?.trim() || undefined,
     selling_price: Math.round(draft.sellingPricePaise),
     mrp: Math.round(draft.mrpPaise > 0 ? draft.mrpPaise : draft.sellingPricePaise),
-    current_stock: Math.max(0, draft.stock),
+    is_unlimited_stock: draft.unlimited ?? parent.is_unlimited_stock,
+    current_stock: draft.unlimited ? 0 : Math.max(0, draft.stock),
     size: draft.label.trim(),
     parent_id: parent.id,
     has_variants: false,
@@ -219,6 +267,44 @@ export async function addVariantToParent(parent: Product, draft: VariantDraft): 
     if (child.current_stock > 0) await db.inventory_movements.put(openingMovement(child, now, `mov_${Date.now()}_v`));
   });
   return { ok: true, child };
+}
+
+/**
+ * v4.179.0: the edit form's variants → the saved children, in one transaction. The parent becomes /
+ * stays a parent (a plain item switched to variants is turned into one); a row with an id updates that
+ * child (name, category, unit, GST, veg mark follow the parent; a counted stock change is a stock
+ * movement), a new row adds a child, a child whose row was removed is deleted (old bills keep its name).
+ */
+export async function saveVariantRows(parent: Product, drafts: VariantDraft[]): Promise<void> {
+  const now = new Date().toISOString();
+  const stamp = Date.now();
+  const savedParent: Product = { ...parent, has_variants: true, parent_id: undefined, variant_label: undefined, current_stock: 0, updated_at: now };
+  const existing = await getVariantChildren(parent.id);
+  const keep = new Set(drafts.map((d) => d.id).filter(Boolean));
+  const moves: InventoryMovement[] = [];
+  const puts: Product[] = [];
+  drafts.forEach((d, i) => {
+    const old = d.id ? existing.find((c) => c.id === d.id) : undefined;
+    const fresh = buildChild(savedParent, d, old ? old.id : `prod_${stamp}_v${i}`, now);
+    if (!old) {
+      puts.push(fresh);
+      if (fresh.current_stock > 0) moves.push(openingMovement(fresh, now, `mov_${stamp}_v${i}`));
+      return;
+    }
+    const next: Product = { ...old, ...fresh, barcode: d.barcode?.trim() || undefined, is_favorite: old.is_favorite, created_at: old.created_at };
+    const before = old.is_unlimited_stock ? 0 : old.current_stock;
+    if (!next.is_unlimited_stock && next.current_stock !== before) {
+      moves.push({ ...openingMovement(next, now, `mov_${stamp}_e${i}`), quantity: next.current_stock - before, previous_stock: before, reason: 'Variant stock edited' });
+    }
+    puts.push(next);
+  });
+  await db.transaction('rw', db.products, db.inventory_movements, async () => {
+    await db.products.put(savedParent);
+    const gone = existing.filter((c) => !keep.has(c.id)).map((c) => c.id);
+    if (gone.length) await db.products.bulkDelete(gone);
+    if (puts.length) await db.products.bulkPut(puts);
+    if (moves.length) await db.inventory_movements.bulkPut(moves);
+  });
 }
 
 /** Deleting a parent removes its children too (they cannot be sold without it). */

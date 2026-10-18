@@ -10,6 +10,7 @@ import type { RestaurantSettings } from '@/lib/restaurant/settings';
 import type { Sale } from '@/types';
 import { RecentBills } from '@/components/restaurant/RecentBills';
 import { CancelledToday } from '@/components/restaurant/CancelledToday';
+import { PhonesLinkNotice } from '@/components/restaurant/PhonesLinkNotice';
 
 type View = 'all' | 'running' | 'free';
 /** A table open this long gets a red time — someone may be waiting for the bill. */
@@ -76,6 +77,8 @@ export function TablesHome({ orders, settings, onOpenTable, onOpenOrder, onNewTa
           <Button type="button" variant="outline" onClick={onSetup} data-restaurant-setup aria-label={tr('Set-up')}><Settings2 className="w-4 h-4" /> <span className="hidden sm:inline">{tr('Set-up')}</span></Button>
         </div>
       </div>
+
+      <PhonesLinkNotice />
 
       <section aria-label={tr('Dine-in tables')}>
         <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">

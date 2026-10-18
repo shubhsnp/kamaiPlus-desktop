@@ -16,6 +16,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.179.0',
+    items: [
+      msg("Variants (Half / Full) in the edit form too — a dish you already have can get Half / Full; one Price box per size in a restaurant; each size ∞ or its own stock; nothing sticks out of the window."),
+      msg("Restaurant: Add Dish has stock — a dish stays unlimited (∞), a bottle or can is counted; the menu shows \"N left\" and stops at 0. Excel Quantity decides it (blank or \"Unlimited\" = unlimited)."),
+      msg("Restaurant menu in the same order as the phones (starred first, then A → Z). The Tables screen tells you when the waiters' phones cannot see the tables (sync off)."),
+      msg("PC + phone on one shop: the PC's bills are D-001, D-002…, the phone's M-001… — two bills never get the same number."),
+    ],
+  },
+  {
     version: '4.178.0',
     items: [
       msg('Store setup: typing your mobile number no longer brings back "Looking for your shop…" — the form stays open.'),
@@ -345,18 +354,6 @@ export const CHANGELOG: Release[] = [
     version: '4.125.0',
     items: [
       msg('Licence: if KamaiPlus support blocks and later unblocks your key, the app starts working again by itself at the next check-in.'),
-    ],
-  },
-  {
-    version: '4.124.0',
-    items: [
-      msg('Day Summary shows udhar received in cash; GST screen lists each HSN per unit; restoring a shop from the cloud brings back customers, udhar and bills, and bill numbers carry on.'),
-    ],
-  },
-  {
-    version: '4.123.0',
-    items: [
-      msg('Restaurant: with no kitchen (KOT) printer chosen, Send KOT no longer says sent — it asks whether the kitchen was told, and marks the order only then.'),
     ],
   },
   ...OLDER_RELEASES,

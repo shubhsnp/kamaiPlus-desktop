@@ -12,6 +12,9 @@ import { MenuDish, menuPick, useMenu } from '@/components/restaurant/useMenu';
 import { FoodMark } from '@/components/restaurant/FoodMark';
 import { foodTypeOf, isSoldOutToday, soldOutPatch } from '@/lib/restaurant/dish';
 import { db } from '@/lib/db';
+import { countsStockAtCounter } from '@/lib/billing/stockRule';
+import { useFeatureSwitches } from '@/lib/features/featureSwitches';
+import type { Product } from '@/types';
 
 /**
  * The menu side of an order (v4.106.0): search, category chips and big touch tiles — one tap adds a
@@ -34,6 +37,12 @@ export function MenuPanel({ onPick, inOrder, searchRef }: {
   const soldOut = (d: MenuDish) => isSoldOutToday(d.product);
   const soldOutCount = dishes.filter(soldOut).length;
   const gridRef = useRef<HTMLDivElement>(null);
+  // v4.179.0: a counted dish / bottle shows how many are left (stock minus this order) and stops at 0;
+  // an unlimited one (∞, the default) shows nothing.
+  const stockOn = useFeatureSwitches().stock_counting;
+  const leftOf = (p: Product): number | null =>
+    countsStockAtCounter(p, stockOn) && !p.has_variants ? Math.max(0, (Number(p.current_stock) || 0) - (inOrder.get(p.id) || 0)) : null;
+  const isOut = (d: MenuDish) => (d.sizes.length ? d.sizes.every((s) => leftOf(s) === 0) : leftOf(d.product) === 0);
 
   // Enter in the search box adds the first match (a waiter types "pan" and Enter).
   const addFirst = () => {
@@ -45,7 +54,7 @@ export function MenuPanel({ onPick, inOrder, searchRef }: {
       void db.products.update(d.product.id, soldOutPatch(!soldOut(d)));
       return;
     }
-    if (soldOut(d)) return;
+    if (soldOut(d) || isOut(d)) return;
     if (d.sizes.length > 0) return setSizeFor(d);
     if (!(unitPriceFor(d.product, 'retail') > 0)) return;
     onPick(menuPick(d.product));
@@ -153,11 +162,13 @@ export function MenuPanel({ onPick, inOrder, searchRef }: {
               const n = countOf(d);
               const out = soldOut(d);
               const noPrice = d.sizes.length === 0 && !(unitPriceFor(d.product, 'retail') > 0);
+              const left = d.sizes.length ? null : leftOf(d.product);
+              const empty = !out && isOut(d);
               return (
                 <button
                   key={d.product.id}
                   type="button"
-                  disabled={noPrice && !soldOutMode}
+                  disabled={(noPrice || empty) && !soldOutMode}
                   onClick={() => choose(d)}
                   data-menu-dish={d.product.id}
                   data-sold-out={out ? 'yes' : undefined}
@@ -165,7 +176,7 @@ export function MenuPanel({ onPick, inOrder, searchRef }: {
                     'relative text-left rounded-2xl border bg-white p-3 min-h-[88px] flex flex-col justify-between gap-2 cursor-pointer transition-all duration-100',
                     'hover:border-emerald-500 hover:shadow-md active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600',
                     n > 0 ? 'border-emerald-500 ring-1 ring-emerald-500/30' : 'border-slate-200',
-                    noPrice && !soldOutMode && 'opacity-50 cursor-not-allowed',
+                    (noPrice || empty) && !soldOutMode && 'opacity-50 cursor-not-allowed',
                     out && 'bg-slate-50 border-dashed border-rose-300',
                     soldOutMode && 'hover:border-rose-500'
                   )}
@@ -175,9 +186,11 @@ export function MenuPanel({ onPick, inOrder, searchRef }: {
                     <span className="line-clamp-2">{d.product.name}</span>
                   </span>
                   {out && <span className="text-[10px] font-black uppercase text-rose-600" data-sold-out-badge>{tr('Sold out today')}</span>}
+                  {empty && <span className="text-[10px] font-black uppercase text-rose-600" data-out-of-stock>{tr('Out of stock')}</span>}
                   <span className="flex items-center justify-between gap-2">
                     <span className="text-xs font-black text-emerald-700 font-mono">{priceText(d)}</span>
-                    {d.sizes.length > 0 && <span className="text-[10px] font-bold text-slate-500 uppercase">{d.sizes.map((s) => s.variant_label).filter(Boolean).slice(0, 2).join(' / ')}</span>}
+                    {d.sizes.length > 0 && <span className="text-[10px] font-bold text-slate-500 uppercase truncate">{d.sizes.map((s) => s.variant_label).filter(Boolean).slice(0, 2).join(' / ')}</span>}
+                    {left !== null && left > 0 && <span className={cn('text-[10px] font-bold truncate', left <= 5 ? 'text-amber-700' : 'text-slate-500')} data-stock-left>{tr('{count} left', { count: left })}</span>}
                   </span>
                   {n > 0 && (
                     <span className="absolute top-2 right-2 min-w-[22px] h-[22px] px-1 rounded-full bg-emerald-600 text-white text-[11px] font-black flex items-center justify-center shadow-xs">
@@ -193,20 +206,27 @@ export function MenuPanel({ onPick, inOrder, searchRef }: {
 
       <Modal isOpen={Boolean(sizeFor)} onClose={() => setSizeFor(null)} title={sizeFor?.product.name} description={tr('Which one?')} size="sm">
         <div className="grid gap-2" data-restaurant-sizes>
-          {(sizeFor?.sizes || []).map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => {
-                onPick(menuPick(s));
-                setSizeFor(null);
-              }}
-              className="flex items-center justify-between gap-3 px-4 h-14 rounded-xl border border-slate-200 bg-white hover:border-emerald-500 hover:bg-emerald-50 text-left cursor-pointer"
-            >
-              <span className="text-sm font-black text-slate-900">{s.variant_label || s.name}</span>
-              <span className="text-sm font-black text-emerald-700 font-mono">{formatINR(unitPriceFor(s, 'retail'))}</span>
-            </button>
-          ))}
+          {(sizeFor?.sizes || []).map((s) => {
+            const left = leftOf(s);
+            return (
+              <button
+                key={s.id}
+                type="button"
+                disabled={left === 0}
+                onClick={() => {
+                  onPick(menuPick(s));
+                  setSizeFor(null);
+                }}
+                className="flex items-center justify-between gap-3 px-4 h-14 rounded-xl border border-slate-200 bg-white hover:border-emerald-500 hover:bg-emerald-50 text-left cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span className="min-w-0 flex flex-col">
+                  <span className="text-sm font-black text-slate-900 truncate">{s.variant_label || s.name}</span>
+                  {left !== null && <span className={cn('text-[11px] font-bold', left === 0 ? 'text-rose-600' : 'text-slate-500')}>{left === 0 ? tr('Out of stock') : tr('{count} left', { count: left })}</span>}
+                </span>
+                <span className="text-sm font-black text-emerald-700 font-mono shrink-0">{formatINR(unitPriceFor(s, 'retail'))}</span>
+              </button>
+            );
+          })}
         </div>
       </Modal>
     </div>

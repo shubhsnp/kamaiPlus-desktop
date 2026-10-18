@@ -3542,5 +3542,16 @@
   "A waiter's table bill carries the waiter's name, so it shows on their phone under Today's Bills.": "वेटर के टेबल बिल पर वेटर का नाम जाता है, इसलिए वह उसके फ़ोन पर Today's Bills में दिखता है।",
   "Restaurant: Add Dish starts on Plate in Restaurant mode and has no wholesale-Excel tip; no \"GST 0%\" line when the shop has no GST.": "रेस्टोरेंट: Restaurant mode में Add Dish Plate से शुरू होता है और उसमें wholesale-Excel वाला सुझाव नहीं; दुकान पर GST न हो तो \"GST 0%\" की लाइन नहीं।",
   "Send to counter: a bill made from a staff phone's cart is in that staff member's name — their Today's Bills and Staff performance show it.": "काउंटर को भेजें: स्टाफ फ़ोन के कार्ट से बना बिल अब उस स्टाफ के नाम पर होता है — उनके आज के बिल और स्टाफ परफ़ॉर्मेंस में दिखता है।",
-  "Store setup: typing your mobile number no longer brings back \"Looking for your shop…\" — the form stays open.": "दुकान सेटअप: मोबाइल नंबर टाइप करते समय अब बीच में \"आपकी दुकान ढूँढ रहे हैं…\" नहीं आता — फ़ॉर्म खुला रहता है।"
+  "Store setup: typing your mobile number no longer brings back \"Looking for your shop…\" — the form stays open.": "दुकान सेटअप: मोबाइल नंबर टाइप करते समय अब बीच में \"आपकी दुकान ढूँढ रहे हैं…\" नहीं आता — फ़ॉर्म खुला रहता है।",
+  "Tap to add (tap again to remove)": "जोड़ने के लिए दबाएँ (हटाने के लिए फिर दबाएँ)",
+  "Unlimited — tap to count stock": "अनलिमिटेड — स्टॉक गिनने के लिए दबाएँ",
+  "Make unlimited (no count)": "अनलिमिटेड करें (गिनती नहीं)",
+  "∞ = not counted. Tap ∞ to count the stock of that one (e.g. bottles).": "∞ = गिनती नहीं। जिसका स्टॉक गिनना है (जैसे बोतल), उसके ∞ पर दबाएँ।",
+  "{count} left": "{count} बचे",
+  "Waiters' phones cannot see these tables: cloud sync is off on this computer. Turn it on with the same Google account as the phones.": "वेटर के फ़ोन ये टेबल नहीं देख सकते: इस कंप्यूटर पर क्लाउड सिंक बंद है। फ़ोन वाले उसी Google अकाउंट से इसे चालू करें।",
+  "Turn on sync": "सिंक चालू करें",
+  "Variants (Half / Full) in the edit form too — a dish you already have can get Half / Full; one Price box per size in a restaurant; each size ∞ or its own stock; nothing sticks out of the window.": "वैरिएंट (हाफ / फुल) अब एडिट में भी — पहले से बनी डिश को हाफ / फुल दे सकते हैं; रेस्टोरेंट में हर साइज़ का एक दाम; हर साइज़ ∞ या अपना स्टॉक; कोई बॉक्स विंडो से बाहर नहीं।",
+  "Restaurant: Add Dish has stock — a dish stays unlimited (∞), a bottle or can is counted; the menu shows \"N left\" and stops at 0. Excel Quantity decides it (blank or \"Unlimited\" = unlimited).": "रेस्टोरेंट: डिश जोड़ते समय स्टॉक — डिश अनलिमिटेड (∞) रहती है, बोतल / कैन गिने जाते हैं; मेन्यू में \"N बचे\" दिखता है और 0 पर रुकता है। Excel की Quantity से तय होता है (खाली या \"Unlimited\" = अनलिमिटेड)।",
+  "Restaurant menu in the same order as the phones (starred first, then A → Z). The Tables screen tells you when the waiters' phones cannot see the tables (sync off).": "रेस्टोरेंट मेन्यू फ़ोन वाले क्रम में (स्टार वाले पहले, फिर A → Z)। वेटर के फ़ोन टेबल नहीं देख सकते (सिंक बंद) तो टेबल स्क्रीन बताती है।",
+  "PC + phone on one shop: the PC's bills are D-001, D-002…, the phone's M-001… — two bills never get the same number.": "PC + फ़ोन एक दुकान पर: PC के बिल D-001, D-002…, फ़ोन के M-001… — दो बिलों का नंबर कभी एक नहीं।"
 }

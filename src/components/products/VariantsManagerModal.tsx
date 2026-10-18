@@ -85,10 +85,10 @@ export function VariantsManagerModal({ parent, onClose, onEditVariant }: Variant
         <form onSubmit={handleAdd} className="p-3 rounded-xl bg-purple-50 border border-purple-200 space-y-2">
           <p className="text-xs font-black text-purple-900">{tr('Add a variant')}</p>
           <div className="grid grid-cols-2 sm:grid-cols-[1fr_110px_90px_1fr_auto] gap-2">
-            <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={tr('Size / colour, e.g. XXL')} className="h-9 px-3 rounded-lg border border-slate-300 text-xs focus:outline-none focus:border-purple-500" />
-            <input type="number" step="0.01" min="0" value={price} onChange={(e) => setPrice(e.target.value)} placeholder={tr('Price ₹')} className="h-9 px-3 rounded-lg border border-slate-300 text-xs font-mono focus:outline-none focus:border-purple-500" />
-            <input type="number" step="any" min="0" value={stock} onChange={(e) => setStock(e.target.value)} placeholder={tr('Stock')} className="h-9 px-3 rounded-lg border border-slate-300 text-xs font-mono focus:outline-none focus:border-purple-500" />
-            <input value={barcode} onChange={(e) => setBarcode(e.target.value)} placeholder={tr('Barcode (optional)')} className="h-9 px-3 rounded-lg border border-slate-300 text-xs font-mono focus:outline-none focus:border-purple-500" />
+            <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={tr('Size / colour, e.g. XXL')} className="w-full min-w-0 h-9 px-3 rounded-lg border border-slate-300 text-xs focus:outline-none focus:border-purple-500" />
+            <input type="number" step="0.01" min="0" value={price} onChange={(e) => setPrice(e.target.value)} placeholder={tr('Price ₹')} className="w-full min-w-0 h-9 px-3 rounded-lg border border-slate-300 text-xs font-mono focus:outline-none focus:border-purple-500" />
+            <input type="number" step="any" min="0" value={stock} onChange={(e) => setStock(e.target.value)} placeholder={tr('Stock')} className="w-full min-w-0 h-9 px-3 rounded-lg border border-slate-300 text-xs font-mono focus:outline-none focus:border-purple-500" />
+            <input value={barcode} onChange={(e) => setBarcode(e.target.value)} placeholder={tr('Barcode (optional)')} className="w-full min-w-0 h-9 px-3 rounded-lg border border-slate-300 text-xs font-mono focus:outline-none focus:border-purple-500" />
             <button type="submit" disabled={saving} className="h-9 px-3 rounded-lg bg-purple-600 hover:bg-purple-700 disabled:bg-slate-400 text-white text-xs font-bold flex items-center justify-center gap-1 cursor-pointer">
               <Plus className="w-3.5 h-3.5" /> {tr('Add')}
             </button>

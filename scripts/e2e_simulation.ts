@@ -1107,7 +1107,8 @@ assert(readSource('app/billing/page.tsx').split('\n').length <= 401, `POS page s
   assert(DEFAULT_COUNTED_STOCK === 10 && /setFormIsUnlimitedStock\(true\)/.test(openAdd) && /setFormIsUnlimitedStock\(Boolean\(p\.is_unlimited_stock\)\)/.test(productsSrc), 'Add Product opens with Unlimited stock ON; editing keeps the product\'s own setting');
   assert(/setFormStock\(counted \? String\(editingProduct\.current_stock\) : String\(DEFAULT_COUNTED_STOCK\)\)/.test(formSrc) && /setFormMinStock\(counted \? String\(editingProduct\.min_stock_level \|\| 5\) : String\(DEFAULT_COUNTED_STOCK\)\)/.test(formSrc),
     'Switching Unlimited off fills stock 10 and low-stock alert 10 (an already counted product gets its own numbers back)');
-  assert(/stock: formIsUnlimitedStock \? 0 : parseFloat\(r\.stock\) \|\| 0/.test(productsSrc) && /unlimitedStock=\{formIsUnlimitedStock\}/.test(formSrc) && !tracksOwnStock({ has_variants: false, is_unlimited_stock: true }),
+  // v4.179.0: each variant row is ∞ or counted on its own (rowsToDrafts); a new row follows the item's own choice.
+  assert(productsSrc.includes('rowsToDrafts(variantRows, sellingShown)') && /unlimitedStock=\{formIsUnlimitedStock\}/.test(formSrc) && !tracksOwnStock({ has_variants: false, is_unlimited_stock: true }),
     'Unlimited variants carry no stock count and never show in low-stock alerts');
 }
 
@@ -2174,7 +2175,7 @@ assert(readSource('app/billing/page.tsx').split('\n').length <= 401, `POS page s
 
   assert(/on1ClickBarcodePrint=\{switches\.barcode_studio \? handle1ClickBarcodePrint : undefined\}/.test(readProductsPage())
     && /\{on1ClickBarcodePrint && <button/.test(readSource('components/products/ProductTableView.tsx'))
-    && /\{switches\.barcode_studio && !\(variantsEnabled && !editingProduct\) && \(/.test(readProductForm())
+    && /\{switches\.barcode_studio && !variantsEnabled && \(/.test(readProductForm())
     && /\{switches\.barcode_studio && \(\s*<button[\s\S]{0,300}?save\(true\)/.test(readSource('components/inward/FastBarcodeInwardModal.tsx'))
     && /labelCount > 0 && switches\.barcode_studio/.test(readSource('components/inward/FastBarcodeInwardModal.tsx'))
     && /const labels = labelsOn \?/.test(readSource('components/purchases/BillInwardDone.tsx'))
@@ -3999,7 +4000,7 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
     && !estFn.includes('ledger_transactions') && !estFn.includes('commitNextInvoiceNumber') && !estFn.includes('db.customers.put') && bill.includes('data-save-estimate'),
     'K-D07: "Save as Estimate" saves the bill as priced — no stock, khata, bill number or new customer — and Transactions "Convert to Bill" does the rest');
   const ins = readSource('lib/invoices/invoiceNumberService.ts');
-  assert(/!key\.toUpperCase\(\)\.startsWith\('EST-'\) \? parseInvoiceSequenceNumber\(key\)/.test(ins),
+  assert(/!key\.toUpperCase\(\)\.startsWith\('EST-'\) && \(!only \|\| key\.toUpperCase\(\)\.startsWith\(only\)\)\s*\? parseInvoiceSequenceNumber\(key\)/.test(ins),
     'K-D07: EST-012 does not push the next bill number to INV-013');
 
   // K-D21: debit note (goods back to the supplier) and purchase order.
@@ -4310,7 +4311,7 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
   const preset = applyRestaurantPreset({ ...DEFAULT_FEATURE_SWITCHES, inventory: true, barcode_studio: true, purchases: true, suppliers: true, khata: true }, true);
   assert(preset.inventory && !preset.barcode_studio && preset.purchases && preset.suppliers && preset.khata && preset.whatsapp
     && !preset.wholesale_price && !preset.product_size_colour && !preset.product_gst_rate && !preset.product_hsn && !preset.payment_keys && !preset.product_selling_price && preset.product_variants
-    && applyRestaurantPreset(DEFAULT_FEATURE_SWITCHES, false) === DEFAULT_FEATURE_SWITCHES && RESTAURANT_PRESET_OFF.length === 9 && !RESTAURANT_PRESET_OFF.includes('product_variants') && !preset.stock_counting && !preset.product_barcode,
+    && applyRestaurantPreset(DEFAULT_FEATURE_SWITCHES, false) === DEFAULT_FEATURE_SWITCHES && RESTAURANT_PRESET_OFF.length === 8 && !RESTAURANT_PRESET_OFF.includes('product_variants') && preset.stock_counting === true && !preset.product_barcode,
     'Restaurant mode: labels, wholesale, size / colour, per-dish GST / HSN and counter keys go off; inventory, purchases, suppliers and Half / Full variants on; khata and WhatsApp stay');
   const fsSrc2 = readSource('lib/features/featureSwitches.ts');
   assert(/\.\.\.applyRestaurantPreset\(parseFeatureSwitches\(localStorage\.getItem\(FEATURE_SWITCHES_KEY\)\), isRestaurantMode\(\)\), \.\.\.readAdminFeatureOverrides\(\)/.test(fsSrc2),
@@ -4490,10 +4491,10 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
   // Stock counting / Barcode on items: switches; Restaurant mode turns them off.
   assert(DEFAULT_FEATURE_SWITCHES.stock_counting === true && DEFAULT_FEATURE_SWITCHES.product_barcode === true
     && FEATURES.some((f) => f.id === 'stock_counting') && FEATURES.some((f) => f.id === 'product_barcode'),
-    'Stock counting and Barcode on items are ON for every shop (nothing changes for a shop) — Restaurant mode turns them off');
+    'Stock counting and Barcode on items are ON for every shop (nothing changes for a shop) — Restaurant mode turns Barcode off (stock stays on since v4.179.0)');
   const formSrc3 = readProductForm();
   const prodPage = readProductsPage();
-  assert(formSrc3.includes('{switches.product_barcode && <ProductBarcodeField') && formSrc3.includes('{switches.stock_counting && (')
+  assert(formSrc3.includes('{switches.product_barcode && <ProductBarcodeField') && formSrc3.includes('{switches.stock_counting && !variantsEnabled && (')
     && prodPage.includes('showStock={switches.stock_counting}') && prodPage.includes('onToggleLowStock={switches.stock_counting ? setShowLowStockOnly : undefined}')
     && readSource('components/dashboard/DashboardHome.tsx').includes('{switches.stock_counting && <DashboardStockWatchlist')
     && readSource('app/reports/page.tsx').includes("...(featureSwitches.stock_counting ? [{ id: 'dead' as Tab"),
@@ -4574,7 +4575,7 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
   assert(!ph.barcode_studio && ph.purchases && ph.product_cost_price && !ph.wholesale_price && !ph.product_variants
     && c.barcode_studio && c.product_size_colour && c.product_variants && hw.product_variants && hw.barcode_studio && !hw.product_size_colour && rt.barcode_studio && !rt.product_variants,
     'Pharmacy without labels; clothing with price tags + sizes / colours; electronics with variants; retail with labels');
-  assert(r.inventory && !r.stock_counting && !r.product_barcode && !r.barcode_studio && r.purchases && r.suppliers && r.cash_register && r.product_variants && r.khata,
+  assert(r.inventory && r.stock_counting && !r.product_barcode && !r.barcode_studio && r.purchases && r.suppliers && r.cash_register && r.product_variants && r.khata,
     'Restaurant: kitchen inventory and purchases on; no barcode, labels; cash register, khata and Half / Full on');
   assert(VERTICAL_IDS.every((v) => !sw(v).gst_reports && !sw(v).product_gst_rate && !sw(v).product_hsn && sw(v, true).gst_reports)
     && VERTICAL_IDS.filter((v) => v !== 'restaurant').every((v) => sw(v, true).product_gst_rate && sw(v, true).product_hsn) && !sw('restaurant', true).product_gst_rate,
@@ -4621,7 +4622,7 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
     mem.clear();
     mem.set('kamai_admin_feature_overrides', JSON.stringify({ restaurant_mode: true }));
     const adminOnOldShop = isRestaurantMode();
-    assert(restOn && restSw.inventory && !restSw.stock_counting && !restAdminOff && adminOnOldShop,
+    assert(restOn && restSw.inventory && restSw.stock_counting && !restAdminOff && adminOnOldShop,
       'Restaurant chosen in store setup = Restaurant mode by itself (AU-04); the Admin can still switch it off, or on for any shop');
   } finally {
     if (hadWindow) { /* keep */ } else delete G.window;
@@ -5031,7 +5032,7 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
   assert(out.food_type === 'veg' && out.sold_out_on === '2026-10-10' && back.food_type === 'veg' && back.sold_out_on === '2026-10-10',
     'Restaurant: food_type / sold_out_on go to the cloud and come back on the product (both apps)');
   const menu = readSource('components/restaurant/MenuPanel.tsx');
-  assert(menu.includes('<FoodMark type={foodTypeOf(d.product)}') && menu.includes('soldOutPatch(!soldOut(d))') && menu.includes('if (soldOut(d)) return;'),
+  assert(menu.includes('<FoodMark type={foodTypeOf(d.product)}') && menu.includes('soldOutPatch(!soldOut(d))') && menu.includes('if (soldOut(d) || isOut(d)) return;'),
     'Restaurant menu: mark on every dish; "Sold out today" mode toggles a dish; a sold-out dish cannot be added');
   const form = readSource('components/products/ProductFormDetails.tsx');
   const acts = readSource('components/products/productActions.ts');
@@ -5604,6 +5605,49 @@ pendingAsyncChecks.push((async () => {
   assert(RESTAURANT_WORDS['Manage Products'] === 'Manage Menu' && readSource('components/inventory/InventoryHeaderActions.tsx').includes("tr('Manage Products')"),
     'Restaurant: Inventory header says "Manage Menu" (inventory is on for a restaurant since v4.165.0)');
 }
+
+// v4.179.0 — Rahul's restaurant list: variants in the edit form too (a plain dish can get Half / Full), one Price
+// column and ∞ / counted stock per variant, no box sticking out of the window; Add Dish has stock (bottles), a
+// counted dish shows "N left" and stops at 0; the menu order = the phone's (starred, A → Z); the Tables screen says
+// when phones cannot see the tables; PC + phone syncing bill D-001… / M-001… (never the same number).
+pendingAsyncChecks.push((async () => {
+  const inv = await import('../src/lib/invoices/invoiceNumberService');
+  assert(inv.devicePrefix('INV-', true) === 'D-' && inv.devicePrefix(undefined, true) === 'D-' && inv.devicePrefix('INV-', false) === 'INV-'
+    && inv.devicePrefix('shop-', true) === 'SHOP-',
+    'Bill series: with sync on the PC bills D-001… (the phone M-001…); a prefix the shop chose stays; sync off = INV- as before');
+  const insSrc = readSource('lib/invoices/invoiceNumberService.ts');
+  assert(insSrc.includes('const configuredNext = scope ? 1 : business?.next_invoice_number || 1;') && insSrc.includes('if (!seriesScope(effectiveInvoicePrefix(await db.businesses.get(businessId)))) {')
+    && readSource('components/layout/CloudSyncScheduler.tsx').includes("{ pc_linked: true }, { merge: true }") && readSource('lib/cloud/cloudContract.ts').includes("'category', 'pc_linked']"),
+    'Bill series: D- starts at 001 and counts only D- bills (the phone\'s M- bills never push it); the PC marks the shop pc_linked so phones take M-');
+  const v = await import('../src/lib/products/variants');
+  const drafts = v.rowsToDrafts([
+    { label: 'Half', price: '90', mrp: '', stock: '5', barcode: '', unlimited: false },
+    { id: 'c1', label: 'Full', price: '180', mrp: '200', stock: '7', barcode: '' },
+  ], false);
+  assert(drafts[0].mrpPaise === 9000 && drafts[0].stock === 5 && drafts[0].unlimited === false
+    && drafts[1].id === 'c1' && drafts[1].mrpPaise === 18000 && drafts[1].stock === 0 && drafts[1].unlimited === true
+    && v.rowsToDrafts([{ label: 'L', price: '100', mrp: '120', stock: '1', barcode: '', unlimited: true }], true)[0].mrpPaise === 12000,
+    'Variants: one Price box = price and MRP (restaurant); each row ∞ (no count) or its own counted stock');
+  const actions = readSource('components/products/productActions.ts');
+  const details = readSource('components/products/ProductFormDetails.tsx');
+  const matrix = readSource('components/products/VariantMatrixEditor.tsx');
+  assert(actions.includes('await saveVariantRows({ ...editingProduct, ...productPayload, id: editingProduct.id }, rowsToDrafts(variantRows, sellingShown));')
+    && actions.includes('if (isVariantParent(p)) void variantRowsOf(p.id).then(setVariantRows);')
+    && details.includes('{switches.product_variants && !editingProduct?.parent_id && setVariantsEnabled && setVariantRows && (')
+    && details.includes('showMrp={showSellingPrice}') && details.includes('locked={Boolean(editingProduct?.has_variants)}')
+    && matrix.includes("'minmax(0,1fr)'") && matrix.includes("const box = 'w-full min-w-0 h-9")
+    && actions.split('\n').length <= 401 && readSource('lib/products/variants.ts').includes('export async function saveVariantRows('),
+    'Variants: the edit form edits them (or gives a plain dish Half / Full); every box shrinks to fit the window');
+  const fsw = await import('../src/lib/features/featureSwitches');
+  const menu = readSource('components/restaurant/MenuPanel.tsx');
+  assert(fsw.RESTAURANT_PRESET.stock_counting === true && menu.includes('data-stock-left') && menu.includes("countsStockAtCounter(p, stockOn) && !p.has_variants")
+    && menu.includes('disabled={left === 0}'),
+    'Restaurant: stock on — a dish stays ∞ by default, a counted one (bottle) shows "N left" and cannot go past 0 (sizes too)');
+  const um = await import('../src/components/restaurant/useMenu');
+  const order = um.menuOrder([{ name: 'paneer tikka' }, { name: 'Butter Naan' }, { name: 'Zeera Rice', is_favorite: true }, { name: 'Biryani' }]).map((p) => p.name).join('|');
+  assert(order === 'Zeera Rice|Biryani|Butter Naan|paneer tikka' && readSource('components/restaurant/TablesHome.tsx').includes('<PhonesLinkNotice />'),
+    'Restaurant: menu order = the phone\'s (starred, then A → Z ignoring case); Tables screen says when phones cannot see the tables');
+})());
 
 // v4.178.0 — Store setup: "Looking for your shop in your Google account…" came back while the owner typed the
 // phone number (the lookup re-ran on every key and hid the whole form). Only the first lookup / the one right

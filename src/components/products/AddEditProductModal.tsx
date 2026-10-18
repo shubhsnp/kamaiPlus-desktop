@@ -80,7 +80,7 @@ interface AddEditProductModalProps {
   onSubmit: (e: React.FormEvent) => Promise<void>;
   onDeleteProduct?: (id: string, name: string) => Promise<void>;
   formError?: string;
-  // Variants matrix — offered only when adding a new product (Android parity)
+  // Variants — adding and (v4.179.0) editing
   variantsEnabled?: boolean;
   setVariantsEnabled?: (val: boolean) => void;
   variantRows?: VariantRow[];
@@ -323,7 +323,7 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
             </Button>
             {/* Save, then its labels (the 1-click label window) — not for a new item with variants (each size has its own),
                 nor with Settings → Features → Barcode Studio & Labels off. */}
-            {switches.barcode_studio && !(variantsEnabled && !editingProduct) && (
+            {switches.barcode_studio && !variantsEnabled && (
               <Button type="submit" variant="outline" data-save-action="print" className="rounded-xl font-bold gap-1" data-product-save-print>
                 <Printer className="w-3.5 h-3.5" />
                 {tr('Save & print label')}

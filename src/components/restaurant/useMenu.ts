@@ -3,7 +3,6 @@
 import { useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import { favouritesFirst } from '@/lib/billing/posLayout';
 import { unitPriceFor } from '@/lib/billing/priceMode';
 import { searchProducts } from '@/lib/search/productSearch';
 import type { Category, Product } from '@/types';
@@ -21,6 +20,15 @@ export interface MenuDish {
   sizes: Product[];
 }
 
+/**
+ * v4.179.0: the menu order on every device — starred first, then A → Z by name (lower case, the same
+ * compare as the phone's menu), so the PC and a waiter's phone list the dishes alike.
+ */
+export function menuOrder<T extends { name: string; is_favorite?: boolean }>(items: T[]): T[] {
+  const key = (p: T) => p.name.trim().toLowerCase();
+  return [...items].sort((a, b) => Number(Boolean(b.is_favorite)) - Number(Boolean(a.is_favorite)) || (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0));
+}
+
 export const menuPick = (p: Product): MenuPick => ({ productId: p.id, name: p.name, unit: p.unit, basePaise: unitPriceFor(p, 'retail') });
 
 export function useMenu(query: string, categoryId: string) {
@@ -31,7 +39,7 @@ export function useMenu(query: string, categoryId: string) {
     const live = products.filter((p) => p.is_active !== false);
     const byParent = new Map<string, Product[]>();
     for (const p of live) if (p.parent_id) byParent.set(p.parent_id, [...(byParent.get(p.parent_id) || []), p]);
-    const top = live.filter((p) => !p.parent_id);
+    const top = menuOrder(live.filter((p) => !p.parent_id));
     return top.map((p) => ({ product: p, sizes: (byParent.get(p.id) || []).sort((a, b) => a.selling_price - b.selling_price) }));
   }, [products]);
 
@@ -42,9 +50,7 @@ export function useMenu(query: string, categoryId: string) {
       const byId = new Map(inCategory.map((d) => [d.product.id, d]));
       return hits.map((p) => byId.get(p.id)!).filter(Boolean);
     }
-    const ordered = favouritesFirst(inCategory.map((d) => d.product));
-    const byId = new Map(inCategory.map((d) => [d.product.id, d]));
-    return ordered.map((p) => byId.get(p.id)!);
+    return inCategory;
   }, [dishes, query, categoryId]);
 
   // Only categories that have a dish, in the order the shop made them.

@@ -11,7 +11,7 @@ import { parseRupeesToPaise } from '@/lib/utils';
 import { validateProductData } from '@/lib/validation/validators';
 import { lookupBarcode } from '@/lib/barcode/barcodeDictionary';
 import { showSellingPriceField } from '@/lib/features/featureSwitches';
-import { createProductWithVariants, DEFAULT_COUNTED_STOCK, deleteProductAndVariants, isVariantParent } from '@/lib/products/variants';
+import { createProductWithVariants, DEFAULT_COUNTED_STOCK, deleteProductAndVariants, isVariantParent, rowsToDrafts, saveVariantRows, variantRowsOf } from '@/lib/products/variants';
 import { tr } from '@/lib/i18n/core';
 import { newId } from '@/lib/ids';
 import type { Business, Category, ProductUnit } from '@/types';
@@ -132,8 +132,10 @@ export function createProductActions(deps: CreateProductActionsDeps) {
   };
 
   const handleOpenEditModal = (p: Product) => {
-    setVariantsEnabled(false);
+    setVariantsEnabled(isVariantParent(p));
     setVariantRows([]);
+    // v4.179.0: an item with variants edits them in the same form.
+    if (isVariantParent(p)) void variantRowsOf(p.id).then(setVariantRows);
     setEditingProduct(p);
     setFormError('');
     setFormName(p.name);
@@ -241,8 +243,8 @@ export function createProductActions(deps: CreateProductActionsDeps) {
       sync_status: 'synced',
     };
 
-    // Variants: every row needs a price; the parent itself is never sold.
-    const useVariants = !editingProduct && variantsEnabled;
+    // Variants: every row needs a price; the parent itself is never sold. v4.179.0: in the edit form too.
+    const useVariants = variantsEnabled && !editingProduct?.parent_id;
     if (useVariants) {
       if (variantRows.length === 0) {
         setFormError(tr('Add at least one variant (size / colour), or switch variants off.'));
@@ -257,21 +259,14 @@ export function createProductActions(deps: CreateProductActionsDeps) {
 
     try {
       let saved: Product | null = null;
-      if (editingProduct) {
+      if (editingProduct && useVariants) {
+        await saveVariantRows({ ...editingProduct, ...productPayload, id: editingProduct.id }, rowsToDrafts(variantRows, sellingShown));
+      } else if (editingProduct) {
         // Keep fields the form does not show (variant links, supplier, IMEI…).
         saved = { ...editingProduct, ...productPayload, id: editingProduct.id };
         await db.products.put(saved);
       } else if (useVariants) {
-        await createProductWithVariants(
-          { ...productPayload, id: newId('prod') },
-          variantRows.map((r) => ({
-            label: r.label,
-            sellingPricePaise: parseRupeesToPaise(r.price || '0'),
-            mrpPaise: r.mrp ? parseRupeesToPaise(r.mrp) : 0,
-            stock: formIsUnlimitedStock ? 0 : parseFloat(r.stock) || 0,
-            barcode: r.barcode,
-          }))
-        );
+        await createProductWithVariants({ ...productPayload, id: newId('prod') }, rowsToDrafts(variantRows, sellingShown));
       } else {
         const newProdId = newId('prod');
         saved = { ...productPayload, id: newProdId };

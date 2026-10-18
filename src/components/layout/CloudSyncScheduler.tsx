@@ -76,6 +76,16 @@ export function CloudSyncScheduler() {
         const [{ listenToCloud }, { db }] = await Promise.all([import('@/lib/cloud/cloudPull'), import('@/lib/db')]);
         const local = await db.businesses.toCollection().first();
         if (!local || listeningFor !== want) return;
+        // v4.179.0: tells the shop's phones a PC bills too — they take the M- series, this PC D-.
+        void (async () => {
+          try {
+            const [{ getFirestoreDb }, { doc, setDoc }] = await Promise.all([import('@/lib/firebase/config'), import('firebase/firestore')]);
+            const fs = getFirestoreDb();
+            if (fs) await setDoc(doc(fs, 'businesses', want), { pc_linked: true }, { merge: true });
+          } catch (e) {
+            console.warn('PC link notice:', e);
+          }
+        })();
         stopListening = listenToCloud({ bizId: want, localBizId: local.id }, {
           onChange: () => setCloudStatus({ lastPulledAt: new Date().toISOString() }),
           onShop: (data) => {

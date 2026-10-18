@@ -1,8 +1,20 @@
 import { msg } from '@/lib/i18n/core';
 import type { Release } from '@/lib/whatsNew/changelog';
 
-/** "What's new" for 4.122.0 and older (moved out of changelog.ts to stay <= 400 lines, newest first). */
+/** "What's new" for 4.124.0 and older (moved out of changelog.ts to stay <= 400 lines, newest first). */
 export const OLDER_RELEASES: Release[] = [
+  {
+    version: '4.124.0',
+    items: [
+      msg('Day Summary shows udhar received in cash; GST screen lists each HSN per unit; restoring a shop from the cloud brings back customers, udhar and bills, and bill numbers carry on.'),
+    ],
+  },
+  {
+    version: '4.123.0',
+    items: [
+      msg('Restaurant: with no kitchen (KOT) printer chosen, Send KOT no longer says sent — it asks whether the kitchen was told, and marks the order only then.'),
+    ],
+  },
   {
     version: '4.122.0',
     items: [

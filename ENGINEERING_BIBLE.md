@@ -519,6 +519,11 @@ per-screen mirrors (`cloudMerge` / `cloudSyncSoon` / `backgroundSync`, `syncLoca
   5 s after a noted change (`kamai_cloud_outbox_changed`), every minute, on `online`; listens only after
   the first sync, stops when switched off. Status `kamai_cloud_sync_status` (last sent, last from the
   phone, waiting, error) → the card. Device id `kamai_cloud_device_id` (in `sync_ops`).
+- **Bill series (v4.179.0)**: with sync on, the PC's default `INV-` becomes `D-` (`devicePrefix` /
+  `effectiveInvoicePrefix` in `lib/invoices/invoiceNumberService.ts`; D- counts only D- bills, starts
+  at 001, never moves the shop's `next_invoice_number`); the scheduler sets `pc_linked: true` on the
+  shop document and the phone then bills `M-001…` (Android `LocalDatabase.getNextInvoiceNumber`,
+  `app_counters` `pc_linked` / `invoice_sequence_m`). A prefix the shop chose stays on both.
 - **Ids (C12)**: `lib/ids.ts` `newId(prefix)` = `prefix_<ms>_<8 random>` for sales, ledger, movements,
   products, customers, categories, expenses, shifts.
 - **The phone** (Android `feat/cloud-data-contract`, `lib/services/cloud_counters.dart`): product /
@@ -885,10 +890,11 @@ deliberately emptied its catalog is **not** re-seeded on next launch. Respect it
 
 ### 6.6 Restaurant mode (v4.106.0) — `/restaurant`
 
-- **Switch (v4.118.0):** a shop set up as **"Cafe / Restaurant"** (vertical profile `restaurant`, §9.0b) is in Restaurant mode by itself; the Admin's own `restaurant_mode` true / false (`adminRestaurantChoice`) wins over that, and is the only switch for a shop without a profile. Before v4.118.0: only the Admin Console (Remote control → Features → "Restaurant mode"). Stored as `restaurant_mode: true` inside the Admin's forced features (`kamai_admin_feature_overrides`); read by `restaurantModeFromRaw` / `useRestaurantMode`. It is **not** a `FeatureId` and has no row in Settings → Features. Order of precedence in `readFeatureSwitches`: stored shop switches → `RESTAURANT_PRESET` (v4.107.0: barcode_studio, wholesale_price, product_size_colour, product_selling_price, product_hsn, product_gst_rate, payment_keys, and since v4.108.0 stock_counting, product_barcode **off**; inventory, purchases, suppliers, product_variants **on**) → Admin's forced switches.
+- **Switch (v4.118.0):** a shop set up as **"Cafe / Restaurant"** (vertical profile `restaurant`, §9.0b) is in Restaurant mode by itself; the Admin's own `restaurant_mode` true / false (`adminRestaurantChoice`) wins over that, and is the only switch for a shop without a profile. Before v4.118.0: only the Admin Console (Remote control → Features → "Restaurant mode"). Stored as `restaurant_mode: true` inside the Admin's forced features (`kamai_admin_feature_overrides`); read by `restaurantModeFromRaw` / `useRestaurantMode`. It is **not** a `FeatureId` and has no row in Settings → Features. Order of precedence in `readFeatureSwitches`: stored shop switches → `RESTAURANT_PRESET` (v4.107.0: barcode_studio, wholesale_price, product_size_colour, product_selling_price, product_hsn, product_gst_rate, payment_keys, and since v4.108.0 product_barcode **off**; inventory, purchases, suppliers, product_variants **on**; stock_counting was off v4.108–v4.178 and is **on** since v4.179.0 — a dish stays unlimited (∞, the default), a bottle / can can be counted) → Admin's forced switches.
 - **Words (v4.107.0):** `lib/restaurant/words.ts` `RESTAURANT_WORDS` (exact English text → restaurant text: Products → Menu, Customers → Guests, Transactions → Bills, Add Product → Add Dish, `+ New Bill` → Back to Tables…). `I18nProvider` reads the mode before paint and calls `setActiveWords`; `tr()` = `translate(table, withWords(text))`, so the swap happens before Hindi / Marathi; a mode change remounts the app (`key={language:mode}`). Only WORDS change — no screen reads the mode to behave differently except the ones listed here (Sidebar, FeatureGate, FeaturesTab). Suite 21 v4.107.0: every key must still exist in `src/` and every replacement must have hi + mr.
 - **Screens:** Tables (cards, takeaway tokens, Set-up) → Order (menu left, running order right) → Bill & Pay. Leaving a table keeps the order on hold.
 - **Data:** open orders `kamai_restaurant_orders`, set-up `kamai_restaurant_settings` (tables, GST % + inclusive / added, service %, packing ₹, add-on list). Menu = `db.products` (variants = Half / Full). No new Dexie table.
+- **Menu (v4.179.0):** order = `menuOrder` (`useMenu.ts`: starred, then A → Z by lower-case name) = the phone's `RestaurantMenu.compare`. A counted dish / size shows "N left" (stock − this order, `countsStockAtCounter`) and cannot be added at 0. Tables screen: `PhonesLinkNotice` when cloud sync is off (running tables reach phones only through `cloudOrders.ts`).
 - **KOT:** `printKot` → silent print on the counter's thermal printer; only the change since the last slip (ADD / CANCEL); `markKotSent` only after a successful print. Add-ons for one piece after the slip split that piece into its own line.
 - **Pay:** `settleOrder` — reserve number → `db.sales.put` → commit number → stock (counted products only) → cloud fire-and-forget; the table is freed only after the Sale is saved. Service and packing are bill lines (`restaurant_service_charge`, `restaurant_packing_charge`, HSN 9963) with the same GST. `customer_name` = `billCustomerName` ("Table T4" or "Rahul · Table T4"), `notes` = `billLabel` ("Table T4" — `isRestaurantBill` keys Today's bills on it), `customer_phone` = `cleanGuestPhone` (10-digit Indian mobile or nothing).
 - **Order screen (v4.108.0):** 🗑 per line = `removeLine` (unsent → gone; in kitchen → qty 0 → CANCEL on the next KOT). ⋯ menu: Reprint KOT (`reprintKotLines`, slip kind `reprint`), Cancel order (`CancelOrderDialog`: reason required — `VOID_REASONS` or typed; owner PIN when `piecesInKitchen > 0 && hasOwnerPin()`; `cancelOrderChanges` → slip kind `cancel` with the reason; `recordVoid` → localStorage `kamai_restaurant_voids` (last 300) **before** the order is removed; `CancelledToday` on the Tables screen). Print bill = `lib/restaurant/checkPrint.ts` (`buildCheckBody` / `printCheck`: dishes, charges, GST, total, shop's UPI QR, "not a tax invoice" — nothing saved, no number). Pay: `split` = Cash + UPI → `payment_split` like the counter (`settleOrder` refuses cash ≤ 0 or ≥ total).
@@ -1674,10 +1680,17 @@ child   "Cotton Shirt (M)"    parent_id = parent.id, variant_label = "M", size =
 child   "Cotton Shirt (XL)"   own selling_price / mrp / current_stock / barcode
 ```
 
-- **Create:** Add Product → "Variants (Size / Colour)" switch (new products only) →
+- **Create:** Add Product → "Variants (Size / Colour)" switch →
   presets (S…3XL, 28…42, colours) or custom labels → price / MRP / stock / barcode per
   row. `createProductWithVariants` writes parent + children + opening-stock movements
   in one transaction. Later sizes: product list → "Variants ▾" → `VariantsManagerModal`.
+- **Edit (v4.179.0):** the edit form shows the same editor — a parent's children load as rows
+  (`variantRowsOf`, switch locked on), a plain item can be switched to variants; save =
+  `saveVariantRows` (one transaction: changed rows updated, new added, removed deleted, the
+  parent's name / category / unit / GST / veg mark copied to the children, a counted stock
+  change = a stock movement). Rows → drafts `rowsToDrafts`: one Price column when the shop has
+  no separate selling price (restaurant: price = MRP); each row ∞ (`unlimited`) or counted;
+  Barcode column only with `product_barcode`; every box `min-w-0` (nothing sticks out).
 - **Children are ordinary products** — billing, stock deduction, returns, reports and
   barcode scanning need no special case. Lists hide children unless searching.
 - **POS:** every add path goes through `addToCart`; a parent opens

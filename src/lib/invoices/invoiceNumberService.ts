@@ -1,5 +1,24 @@
 import { db } from '@/lib/db';
 import { Business, Sale } from '@/types';
+import { cloudSendActive } from '@/lib/cloud/cloudPush';
+
+/**
+ * v4.179.0: a PC and a phone billing the same shop (cloud sync on) each keep their own series — the
+ * PC's bills D-001, D-002…, the phone's M-001… (Android LocalDatabase.getNextInvoiceNumber) — so two
+ * bills made at the same moment can never get the same number. Only the default "INV-" changes; a
+ * prefix the shop chose itself stays. Sync off = INV- exactly as before.
+ */
+export const PC_INVOICE_SERIES = 'D-';
+export function devicePrefix(stored: string | undefined, synced: boolean): string {
+  const prefix = (stored || 'INV-').trim().toUpperCase() || 'INV-';
+  return synced && prefix === 'INV-' ? PC_INVOICE_SERIES : prefix;
+}
+/** The prefix this computer's next bill uses. */
+export function effectiveInvoicePrefix(business: Pick<Business, 'invoice_prefix'> | undefined): string {
+  let synced = false;
+  try { synced = cloudSendActive(); } catch { /* no localStorage (tests) */ }
+  return devicePrefix(business?.invoice_prefix, synced);
+}
 
 /**
  * Formats a prefix and integer sequence into a standardized, zero-padded invoice code.
@@ -42,31 +61,36 @@ export function parseInvoiceSequenceNumber(invoiceNumber: string): number | null
  * that adds or removes sales (restore, cloud pull, clear history) changes the count
  * and forces a rescan.
  */
-let maxSeqCache: { count: number; maxSeq: number } | null = null;
+let maxSeqCache: { count: number; maxSeq: number; scope: string } | null = null;
 
-async function getMaxUsedInvoiceSeq(): Promise<number> {
+/** `only` = count only that series (the PC's D- series ignores the phone's M- bills and the old INV- ones). */
+async function getMaxUsedInvoiceSeq(only = ''): Promise<number> {
   const count = await db.sales.count();
-  if (maxSeqCache && maxSeqCache.count === count) return maxSeqCache.maxSeq;
+  if (maxSeqCache && maxSeqCache.count === count && maxSeqCache.scope === only) return maxSeqCache.maxSeq;
 
   const keys = await db.sales.orderBy('invoice_number').uniqueKeys();
   let maxSeq = 0;
   for (const key of keys) {
     // Estimates (EST-007, v4.102.0) have their own series: they never push the bill number on.
-    const parsed = typeof key === 'string' && !key.toUpperCase().startsWith('EST-') ? parseInvoiceSequenceNumber(key) : null;
+    const parsed = typeof key === 'string' && !key.toUpperCase().startsWith('EST-') && (!only || key.toUpperCase().startsWith(only))
+      ? parseInvoiceSequenceNumber(key) : null;
     if (parsed !== null && parsed > maxSeq) maxSeq = parsed;
   }
-  maxSeqCache = { count, maxSeq };
+  maxSeqCache = { count, maxSeq, scope: only };
   return maxSeq;
 }
 
 /** Fills the cache ahead of time (called when the POS opens). Never throws. */
 export async function warmInvoiceNumberCache(): Promise<void> {
   try {
-    await getMaxUsedInvoiceSeq();
+    await getMaxUsedInvoiceSeq(seriesScope(effectiveInvoicePrefix(await db.businesses.toCollection().first())));
   } catch {
     // The next bill simply computes it itself.
   }
 }
+
+/** The series the max is read from: only the device series is counted on its own. */
+const seriesScope = (prefix: string): string => (prefix === PC_INVOICE_SERIES ? PC_INVOICE_SERIES : '');
 
 /** Resets the cached invoice sequence when sales history is wiped or restored. */
 export function resetInvoiceNumberCache(): void {
@@ -84,11 +108,13 @@ export async function getNextUniqueInvoiceNumber(businessId = 'biz_default'): Pr
   prefix: string;
 }> {
   const business = await db.businesses.get(businessId);
-  const prefix = business?.invoice_prefix || 'INV-';
-  const configuredNext = business?.next_invoice_number || 1;
+  const prefix = effectiveInvoicePrefix(business);
+  const scope = seriesScope(prefix);
+  // The D- series starts at 001 and follows only its own bills (the shop's counter belongs to INV-).
+  const configuredNext = scope ? 1 : business?.next_invoice_number || 1;
 
   // Next sequence must be strictly greater than any existing sale sequence
-  let nextSeq = Math.max(configuredNext, (await getMaxUsedInvoiceSeq()) + 1);
+  let nextSeq = Math.max(configuredNext, (await getMaxUsedInvoiceSeq(scope)) + 1);
   let invoiceNumber = formatInvoiceNumber(prefix, nextSeq, 3);
 
   // Belt and braces: an indexed lookup guarantees the number is not already taken.
@@ -112,14 +138,16 @@ export async function commitNextInvoiceNumber(
   usedSequenceNumber: number
 ): Promise<number> {
   const nextNum = Math.max(1, usedSequenceNumber + 1);
-  await db.businesses.update(businessId, {
-    next_invoice_number: nextNum,
-    updated_at: new Date().toISOString(),
-  });
+  // The shop's counter is the INV- series; a D- bill (v4.179.0) follows its own bills only.
+  if (!seriesScope(effectiveInvoicePrefix(await db.businesses.get(businessId)))) {
+    await db.businesses.update(businessId, {
+      next_invoice_number: nextNum,
+      updated_at: new Date().toISOString(),
+    });
+  }
   // The sale carrying this number is already saved: keep the cache in step so the
   // next bill does not rescan the index.
   const count = await db.sales.count();
-  const prevMax = maxSeqCache ? maxSeqCache.maxSeq : 0;
-  maxSeqCache = { count, maxSeq: Math.max(prevMax, usedSequenceNumber) };
+  if (maxSeqCache) maxSeqCache = { ...maxSeqCache, count, maxSeq: Math.max(maxSeqCache.maxSeq, usedSequenceNumber) };
   return nextNum;
 }
