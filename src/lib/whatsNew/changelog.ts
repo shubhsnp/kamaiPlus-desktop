@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.178.0',
+    items: [
+      msg('Store setup: typing your mobile number no longer brings back "Looking for your shop…" — the form stays open.'),
+    ],
+  },
+  {
     version: '4.177.0',
     items: [
       msg("Send to counter: a bill made from a staff phone's cart is in that staff member's name — their Today's Bills and Staff performance show it."),

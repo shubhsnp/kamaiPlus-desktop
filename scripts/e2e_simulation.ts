@@ -5605,6 +5605,18 @@ pendingAsyncChecks.push((async () => {
     'Restaurant: Inventory header says "Manage Menu" (inventory is on for a restaurant since v4.165.0)');
 }
 
+// v4.178.0 — Store setup: "Looking for your shop in your Google account…" came back while the owner typed the
+// phone number (the lookup re-ran on every key and hid the whole form). Only the first lookup / the one right
+// after Connect Google holds the form back; later ones run quietly, for a full 10-digit number only.
+{
+  const ob = readSource('app/onboarding/page.tsx');
+  assert(ob.includes('const accountRun = lookedUpForTick.current !== accountTick;')
+    && ob.includes('if (!accountRun && clean.length !== 10) return;')
+    && ob.includes('if (accountRun && linked && !detectedCloudStore) setCloudChecking(true);')
+    && !ob.includes('        if (linked && !detectedCloudStore) setCloudChecking(true);'),
+    'Store setup: typing the phone number never brings back "Looking for your shop…" (the form stays, only the first lookup waits)');
+}
+
 // v4.177.0 — Send to counter (retail): the bill the counter makes from a staff phone's cart carries that
 // staff member's staff_id / staff_name (only restaurant bills did) — their phone's Today's Bills lists it.
 pendingAsyncChecks.push((async () => {

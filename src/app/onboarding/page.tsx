@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { BusinessType } from '@/types';
 import { db as localDb } from '@/lib/db';
@@ -48,6 +48,8 @@ export default function OnboardingPage() {
   const [cloudLinked, setCloudLinked] = useState<boolean>(false);
   const [cloudChecking, setCloudChecking] = useState<boolean>(false);
   const [accountTick, setAccountTick] = useState<number>(0);
+  // v4.178.0: the account lookup that last held the form back ("Looking for your shop…").
+  const lookedUpForTick = useRef<number>(-1);
 
   // Existing User Gate: If local store is already onboarded, immediately redirect to Home
   useEffect(() => {
@@ -90,8 +92,14 @@ export default function OnboardingPage() {
     const checkCloud = async () => {
       if (isDismissedCloud) return;
       const clean = phone.replace(/\D/g, '').slice(-10);
+      // v4.178.0: only the first lookup (and one right after Connect Google) holds the form back.
+      // It used to run on every key typed in the phone box and hid the form mid-typing; later
+      // lookups run quietly and only for a full 10-digit number.
+      const accountRun = lookedUpForTick.current !== accountTick;
+      if (!accountRun && clean.length !== 10) return;
       if (clean.length === 10 || currentUser?.uid || linked) {
-        if (linked && !detectedCloudStore) setCloudChecking(true);
+        lookedUpForTick.current = accountTick;
+        if (accountRun && linked && !detectedCloudStore) setCloudChecking(true);
         // Offline the lookup could wait long — after 12 s the form shows.
         const cloudMatch = await Promise.race([
           findCloudStore({ uid: currentUser?.uid, phone: clean }),
