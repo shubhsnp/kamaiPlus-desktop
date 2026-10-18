@@ -1818,20 +1818,19 @@ async function run() {
         await tables.waitFor({ timeout: 10000 });
         check((await page.locator('[data-takeaway]').count()) === 0, 'An empty takeaway token is not kept');
 
-        step = 'restaurant hides stock';
+        // v4.179.0: a restaurant counts stock again (a dish stays ∞ by default, a bottle can be counted) — no barcodes.
+        step = 'restaurant stock, no barcodes';
         await page.evaluate(() => { window.location.href = '/products/'; });
         await page.getByRole('button', { name: /Add Dish/i }).first().waitFor({ timeout: 15000 });
         const noInward = (await page.getByRole('button', { name: /Fast barcode inward/i }).count()) === 0;
-        const noLowStock = (await page.getByRole('button', { name: /^Low Stock$/i }).count()) === 0 && !(await textVisible(page, 'Inventory Asset', 1500));
+        const lowStockShown = (await page.getByRole('button', { name: /^Low Stock$/i }).count()) === 1;
         await page.getByRole('button', { name: /Add Dish/i }).first().click();
         await textVisible(page, 'Dish name', 8000);
-        const noBarcode = !(await textVisible(page, 'Barcode / EAN-13', 1500)) && !(await textVisible(page, 'Unlimited Stock (no count)', 1000));
+        const noBarcode = !(await textVisible(page, 'Barcode / EAN-13', 1500));
+        const stockCard = await textVisible(page, 'Unlimited Stock (no count)', 3000);
         await page.keyboard.press('Escape');
-        await page.evaluate(() => { window.location.href = '/'; });
-        await page.waitForTimeout(2500);
-        const noHomeStock = !(await textVisible(page, 'Low Stock & Out-of-Stock Alert', 2000));
-        check(noInward && noLowStock && noBarcode && noHomeStock,
-          `Restaurant mode hides stock and barcodes: Menu page (inward ${noInward}, low stock / value ${noLowStock}), Add Dish (barcode / stock ${noBarcode}), Home stock alert (${noHomeStock})`);
+        check(noInward && lowStockShown && noBarcode && stockCard,
+          `Restaurant mode: stock shown (Low Stock ${lowStockShown}, Add Dish stock card ${stockCard}), no barcodes (inward ${noInward}, barcode box ${noBarcode})`);
 
         step = 'settings in restaurant mode';
         await page.evaluate(() => { window.location.href = '/inventory/'; });
