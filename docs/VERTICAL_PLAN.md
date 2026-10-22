@@ -277,7 +277,7 @@ Aaj: items, grahak, bills, categories dono taraf; baaki tables sirf Desktop → 
 - Android suite: sab pass (rapid-scan widget test ek baar timing se fail, akele 6/6).
 
 ### FUTURE (Rahul 2026-10-10: "jo important h vahi karo, baki future me")
-- A-6 Hindi / Marathi har Android screen par (~1,500 shabd; Desktop jaisa t('English') + hi/mr map, pehle Billing / Checkout / Khata / Products / Home / Galla / Restaurant)
+- A-6 Hindi / Marathi har Android screen par — **SHURU 2026-10-22 (Android 4.58.0 `116be98`: setup + Home ✅; agle Phase 1: Billing, Checkout, Khata, Products, Galla, Restaurant; asli ginti ~1,800 text / 82 screen files)** (~1,500 shabd; Desktop jaisa t('English') + hi/mr map, pehle Billing / Checkout / Khata / Products / Home / Galla / Restaurant)
 - Restaurant: item par "Stock ginein" (bottle / packet), bill split + table merge, waiter naam + waiter-wise bikri, din ki dish report, Bluetooth KOT asli test + kitchen/bar alag printer, kitchen screen, recipe se kachcha maal, Swiggy/Zomato, QR table order
 - Website / help guides sync (HELP_SYNC 4.118 → 4.140 pending)
 - Phone checks A3, A4, A5, A7, A12, A15; Desktop WhatsApp PDF asli WhatsApp par (v4.181.0: ab paste khud hota hai — Rahul ka final Send test baaki)
