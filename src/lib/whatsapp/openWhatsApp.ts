@@ -16,14 +16,19 @@ export interface WhatsAppOpenResult {
   via: 'app' | 'web';
   /** The text was put on the clipboard (too long for a link). */
   copied: boolean;
+  /** v4.181.0: WhatsApp Desktop — the message was pasted into the chat (old draft cleared first). */
+  textPasted?: boolean;
+  /** v4.181.0: the bill PDF was pasted too — WhatsApp shows it with the message as its caption. */
+  filePasted?: boolean;
   error?: string;
 }
 
-export async function openWhatsApp(number: string | null, text: string): Promise<WhatsAppOpenResult> {
+/** file (desktop app): a bill PDF in Documents\KamaiPlus to put in the chat with the message (v4.181.0). */
+export async function openWhatsApp(number: string | null, text: string, file?: string): Promise<WhatsAppOpenResult> {
   const api = getDesktopApi();
   if (api?.openWhatsApp) {
     try {
-      return await api.openWhatsApp({ phone: number || '', text });
+      return await api.openWhatsApp({ phone: number || '', text, ...(file ? { file } : {}) });
     } catch (err: any) {
       return { ok: false, via: 'web', copied: false, error: err?.message || 'Could not open WhatsApp' };
     }

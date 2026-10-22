@@ -40,6 +40,8 @@
         "src/components/billing/**",
         "src/lib/billing/**",
         "src/components/invoices/InvoiceModal.tsx",
+        "src/components/whatsapp/WhatsAppComposer*.tsx",
+        "whatsapp.js",
         "src/app/restaurant/**",
         "src/components/restaurant/**",
         "src/lib/restaurant/**"
@@ -57,7 +59,9 @@
         "src/components/transactions/**",
         "src/components/sales/**",
         "src/components/invoices/EditInvoiceModal.tsx",
-        "src/components/invoices/InvoiceModal.tsx"
+        "src/components/invoices/InvoiceModal.tsx",
+        "src/components/whatsapp/WhatsAppComposer*.tsx",
+        "whatsapp.js"
       ],
       "tourStages": [
         "transactions"

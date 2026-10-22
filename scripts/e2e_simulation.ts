@@ -182,6 +182,8 @@ let passedTests = 0;
 let failedTests = 0;
 /** Checks that need a real round trip (e.g. a local HTTP server); awaited before the summary. */
 const pendingAsyncChecks: Promise<unknown>[] = [];
+// The cloud outbox is one global: an async check that clears it or turns recording off waits for this one (v4.181.0).
+let outboxSyncCheck: Promise<unknown> = Promise.resolve();
 
 function assert(condition: boolean, testName: string, detail?: string) {
   totalTests++;
@@ -2567,7 +2569,7 @@ assert(readSource('app/billing/page.tsx').split('\n').length <= 401, `POS page s
   const tables: Record<string, any> = { products: fakeTable('products'), sales: fakeTable('sales'), customers: fakeTable('customers'), foo: fakeTable('foo') };
   const core = (cloudOutboxMiddleware.create as any)({ stack: 'dbcore', table: (n: string) => tables[n], tables: [] });
 
-  pendingAsyncChecks.push((async () => {
+  pendingAsyncChecks.push(outboxSyncCheck = (async () => {
     clearOutbox();
     setOutboxRecording(false);
     await core.table('products').mutate({ type: 'put', values: [{ id: 'p0', current_stock: 3 }] });
@@ -5553,6 +5555,8 @@ pendingAsyncChecks.push((async () => {
     && !isOneDocError({ code: 'resource-exhausted' }) && !isOneDocError(new Error('offline')) && !isOneDocError(null),
     'Cloud write: invalid-argument / permission-denied = this document; unavailable / quota / anything else = try the whole round later');
   const ob = await import('../src/lib/cloud/cloudOutbox');
+  // Same global outbox as the cloud-sync check: running between its awaits wiped its notes (flaky 2 FAILs).
+  await outboxSyncCheck;
   clearOutbox();
   setOutboxRecording(true);
   ob.recordChange('products', 'put', ['p_poison']);
@@ -5605,6 +5609,66 @@ pendingAsyncChecks.push((async () => {
   assert(RESTAURANT_WORDS['Manage Products'] === 'Manage Menu' && readSource('components/inventory/InventoryHeaderActions.tsx').includes("tr('Manage Products')"),
     'Restaurant: Inventory header says "Manage Menu" (inventory is on for a restaurant since v4.165.0)');
 }
+
+// v4.181.0 — Rahul: a bill on WhatsApp goes as the A4 PDF with the message under it, no copy / Ctrl+V.
+// Found on the real WhatsApp Desktop (2.2640): a link's text is ADDED to the chat's draft (D-001 went out twice);
+// a PDF pasted after the message never opened the preview; WhatsApp reads a pasted file seconds later.
+pendingAsyncChecks.push((async () => {
+  const wa = require('../whatsapp.js');
+  const fakeDeps = (stage: string) => {
+    const calls: any = { opened: [] as string[], copied: [] as string[], env: null };
+    return {
+      calls,
+      deps: {
+        shell: { openExternal: async (u: string) => { calls.opened.push(u); } },
+        app: { getApplicationNameForProtocol: () => 'WhatsApp' },
+        clipboard: { writeText: (t: string) => { calls.copied.push(t); } },
+        prepare: async (env: any) => { calls.env = env; return stage; },
+        platform: 'win32',
+      },
+    };
+  };
+  const req = { phone: '919822012345', text: 'Bill #1\nTotal ₹10', file: 'C:\Docs\KamaiPlus\Invoices\Kamai_Invoice_1.pdf' };
+  const both = fakeDeps('both');
+  const r1 = await wa.openWhatsApp(both.deps, req);
+  assert(r1.ok && r1.textPasted && r1.filePasted && !r1.copied && both.calls.opened.length === 0
+    && both.calls.env.KP_WA_URL === 'whatsapp://send?phone=919822012345' && both.calls.env.KP_WA_TEXT === 'Bill #1\r\nTotal ₹10' && both.calls.env.KP_WA_FILE === req.file,
+    'WhatsApp bill: the chat is opened WITHOUT text in the link (no doubled draft); message + PDF go in by paste, nothing left to do but Send');
+  const fail = fakeDeps('focus');
+  const r2 = await wa.openWhatsApp(fail.deps, req);
+  const half = fakeDeps('file');
+  const r3 = await wa.openWhatsApp(half.deps, req);
+  assert(r2.ok && !r2.filePasted && fail.calls.opened[0] === wa.whatsAppUrls(req.phone, req.text).app
+    && r3.filePasted && !r3.textPasted && r3.copied && half.calls.copied[0] === req.text,
+    'WhatsApp never came to the front → the old way (text in the link, PDF copied by the window); PDF in but not the text → the text is copied');
+  const noNum = fakeDeps('both');
+  await wa.openWhatsApp(noNum.deps, { ...req, phone: '' });
+  const mac = fakeDeps('both');
+  mac.deps.platform = 'darwin';
+  await wa.openWhatsApp(mac.deps, req);
+  const noApp = fakeDeps('both');
+  noApp.deps.app.getApplicationNameForProtocol = () => '';
+  await wa.openWhatsApp(noApp.deps, req);
+  assert(noNum.calls.env === null && mac.calls.env === null && noApp.calls.env === null && noApp.calls.opened[0].startsWith('https://wa.me/'),
+    'No keys are typed without a number (the open chat would get them), off Windows, or without WhatsApp Desktop (wa.me as before)');
+  const ps: string = wa.PREPARE_SCRIPT;
+  const pasteAt = Array.from(ps.matchAll(/\[KpWa\]::Ctrl\(0x56\)/g), (m) => m.index || 0);
+  const pastes = pasteAt.length;
+  const fronts = pasteAt.every((at) => ps.lastIndexOf('[KpWa]::Front()', at) > ps.lastIndexOf('Set-Clipboard', at));
+  assert(pastes === 2 && fronts && !/0x0D|\{ENTER\}|SendKeys/i.test(ps) && ps.indexOf('Set-Clipboard -LiteralPath $env:KP_WA_FILE') < ps.indexOf('Set-Clipboard -Value $env:KP_WA_TEXT')
+    && ps.includes('[KpWa]::Esc()') && /Start-Process \$env:KP_WA_URL[\s\S]*Start-Process \$env:KP_WA_URL/.test(ps) && ps.includes('$env:KP_WA_FILE_MS') && !/\$\{/.test(ps),
+    'Paste script: PDF first, then the message (caption); each paste only while WhatsApp is in front; Esc + link again puts the cursor in the chat; it NEVER presses Enter / Send; data only in env');
+  const mj = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+  const h = mj.slice(mj.indexOf("ipcMain.handle('kp:open-whatsapp'"), mj.indexOf('function insideDocuments'));
+  assert(h.includes('insideDocuments(r.file)') && h.includes('\.pdf$/i') && h.includes('fs.existsSync'),
+    'kp:open-whatsapp: only a PDF that exists inside Documents\\KamaiPlus goes into WhatsApp');
+  const comp = readSource('components/whatsapp/WhatsAppComposer.tsx');
+  const parts = readSource('components/whatsapp/WhatsAppComposerParts.tsx');
+  assert(comp.includes('openWhatsApp(number, text, pdfPath)') && comp.includes('!open.filePasted') && comp.includes("result?.open.filePasted && result.number === number")
+    && comp.includes("await openWhatsApp(number, '')") && comp.includes('markBillPrepared(number)') && comp.includes('data-wa-earlier-bill')
+    && parts.includes('data-wa-ready') && readSource('lib/invoices/invoiceOutput.tsx').includes("renderInvoiceHtml(input, 'a4')"),
+    'Bill window: the A4 PDF goes with the message; "Open again" after a pasted PDF only brings the chat up (another paste would send the waiting one); a reminder when an earlier PDF may still wait in that chat');
+})());
 
 // v4.180.0 — Customer Change: every bill numbers its items 1) 2) 3) and says how many items there are
 // (thermal slip, Bluetooth printer, A4 / PDF — one InvoiceDocument).

@@ -432,7 +432,12 @@ ipcMain.handle('kp:printer-status', async () => printers.getPrinterStatus());
 ipcMain.handle('kp:calibrate-label-printer', async (_event, name) => labelCalibrate.calibrate(printers, String(name || '')));
 
 // WhatsApp Desktop when installed, else wa.me in the browser (whatsapp.js) — v4.79.0.
-ipcMain.handle('kp:open-whatsapp', async (_event, request) => whatsapp.openWhatsApp({ shell, app, clipboard }, request));
+// v4.181.0: a bill PDF goes into the chat with the message — only a PDF inside Documents\KamaiPlus.
+ipcMain.handle('kp:open-whatsapp', async (_event, request) => {
+  const r = request || {};
+  const file = r.file && insideDocuments(r.file) && /\.pdf$/i.test(String(r.file)) && fs.existsSync(path.normalize(r.file)) ? path.normalize(r.file) : '';
+  return whatsapp.openWhatsApp({ shell, app, clipboard }, { phone: r.phone, text: r.text, file });
+});
 
 function insideDocuments(target) {
   const full = path.normalize(String(target || ''));

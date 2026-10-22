@@ -110,7 +110,7 @@ Defined in `main.js` (`ipcMain.handle`), exposed in `preload.js`, typed in
 | `kp:get-printers` | `getPrinters()` | Installed printer list |
 | `kp:printer-status` | `getPrinterStatus()` | v4.78.0: Windows `Get-Printer` via `printers.js` → `{name, driver, port, status, offline}[]` (null if Windows cannot say; v4.80.0: a USB printer whose device is gone is offline); cached 5 s, ~2 s per real call (in the `psWorker.js` utility process since v4.97.0). Feeds printer auto-detect (§9.10) |
 | `kp:calibrate-label-printer` | `calibrateLabelPrinter(name)` | v4.80.0: `labelCalibrate.js` — the label printer's own gap calibration as a RAW job (TSPL `GAPDETECT`, Zebra ZPL `~JC` / EPL `xa`, Godex `~S,SENSOR`), picked by make from a fixed list; only the name crosses over (to PowerShell via env). Unknown make → `{ok:false, manual:true}` (FEED button) (§9.4) |
-| `kp:open-whatsapp` | `openWhatsApp({phone, text})` | v4.79.0: `whatsapp.js` — WhatsApp Desktop (`whatsapp://send`) if installed, else `wa.me` in the browser; text over the Windows link limit → clipboard + empty chat → `{ok, via: 'app'\|'web', copied}` (§9.11) |
+| `kp:open-whatsapp` | `openWhatsApp({phone, text, file?})` | v4.79.0: `whatsapp.js` — WhatsApp Desktop (`whatsapp://send`) if installed, else `wa.me` in the browser; text over the Windows link limit → clipboard + empty chat → `{ok, via: 'app'\|'web', copied}`. v4.181.0: WhatsApp Desktop + a number → `PREPARE_SCRIPT` pastes the bill PDF (`file`, only inside Documents\KamaiPlus) and the message as its caption → `{textPasted, filePasted}` (§9.11) |
 | `kp:open-path` | `openPath(target)` | Opens a saved file — **only inside `Documents/KamaiPlus`** |
 | `kp:show-in-folder` | `showItemInFolder(target)` | Same path restriction |
 | `kp:copy-file` | `copyFileToClipboard(target)` | v4.133.0: a bill PDF inside Documents\KamaiPlus onto the Windows clipboard as a file (PowerShell `Set-Clipboard -LiteralPath`, path passed in an env var) — the WhatsApp composer copies it so Ctrl+V in the chat attaches the bill (§9.11) |
@@ -1622,6 +1622,22 @@ bill PDF and open its folder" (bills), message settings, **Copy message** and **
 `stopImmediatePropagation`) closes only itself. A customer without a number gets the typed one
 saved (`db.customers.update`, box ticked by default).
 
+**Bill PDF + message, nothing by hand (v4.181.0)** — WhatsApp Desktop on Windows and a number:
+`whatsapp.js` `openWhatsApp` runs `PREPARE_SCRIPT` (PowerShell, `-EncodedCommand`; link / text /
+file only in `KP_WA_*` env vars): `whatsapp://send?phone=` WITHOUT text → WhatsApp brought to the
+front → Esc + the link again (the link never moves the cursor into a chat already open) → Ctrl+A,
+Backspace (old draft gone: a link's text is ADDED to the draft — D-001 went out twice) → the PDF
+pasted (`Set-Clipboard -LiteralPath`) → 3 s → the message pasted into the preview's caption box.
+The shop checks the name and presses Send — the script never presses Enter. Each paste only while
+WhatsApp is the foreground window; nothing typed → the v4.79.0 way below. Found on WhatsApp Desktop
+2.2640 (2026-10-22): a PDF pasted AFTER the message never opened the preview; WhatsApp reads a
+pasted file seconds later (clipboard changed sooner = "1 document … has no content"); a file
+preview left unsent stays in that chat (per chat — never another customer's), survives Esc
+("Discard selection?") and another pasted file was seen to send it — so "Open again" after a pasted
+PDF only brings the chat up, and the window warns (`billPreparedRecently`, `kamai_wa_prepared`,
+24 h) when that number got a PDF before. No UI Automation: WhatsApp's WebView2 shows Windows 8
+elements only. Suite 9 v4.181.0 block.
+
 **Opening** — `kp:open-whatsapp` → `whatsapp.js` (main): WhatsApp Desktop installed
 (`app.getApplicationNameForProtocol('whatsapp://')`) → `whatsapp://send?phone=&text=`, else
 `https://wa.me/…` in the browser. Windows cannot open links over ~2081 characters
@@ -1648,9 +1664,9 @@ Transactions rows, Khata header (udhar reminder) + every khata entry ("Slip"), C
 list, Suppliers panel, Billing's big UPI QR (payment link to the bill's customer), Day Summary
 (to the owner), cash count (`DenominationCalculatorModal`), GST page ("Send to CA"), low stock
 (`RestockOrderButton` → `RestockOrderModal`: tick items, quantities, saved or typed supplier) on
-Home and Inventory. Not ported: Android's Growth campaigns (Pro, templates) and PDF attached by
-the Android share sheet — wa.me carries text only, so the desktop saves the PDF and opens its
-folder to drag it in. Suite 9 §9j(o); Electron E2E "whatsapp" (the IPC is caught in the main
+Home and Inventory. Not ported: Android's Growth campaigns (Pro, templates). A bill PDF goes in by paste with WhatsApp
+Desktop (v4.181.0); WhatsApp Web in a browser: wa.me carries text only, so the PDF is copied
+for Ctrl+V (v4.133.0), or its folder opens to drag it in. Suite 9 §9j(o); Electron E2E "whatsapp" (the IPC is caught in the main
 process — nothing opens).
 
 ### 9.12 Products page toolbar (v4.81.0)

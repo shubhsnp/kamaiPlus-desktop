@@ -10,7 +10,7 @@ import { getLanguage, tr } from '@/lib/i18n/core';
 import { openWhatsApp, WhatsAppOpenResult, WhatsAppRequest } from '@/lib/whatsapp/openWhatsApp';
 import { resolveWhatsAppDraft, WhatsAppDraft } from '@/lib/whatsapp/whatsappDrafts';
 import { toWhatsAppNumber, WHATSAPP_URL_LIMIT, whatsAppWebUrl } from '@/lib/whatsapp/whatsappLinks';
-import { getWhatsAppSettings, saveWhatsAppSettings, WaLang } from '@/lib/whatsapp/whatsappSettings';
+import { billPreparedRecently, getWhatsAppSettings, markBillPrepared, saveWhatsAppSettings, WaLang } from '@/lib/whatsapp/whatsappSettings';
 import type { ReminderTone } from '@/lib/whatsapp/customerMessages';
 import { WhatsAppIcon } from './WhatsAppButton';
 import { Chips, LANG_CHIPS, RecipientField, SentNote } from './WhatsAppComposerParts';
@@ -39,7 +39,7 @@ export function WhatsAppComposer({ request, onClose }: { request: WhatsAppReques
   const [showSettings, setShowSettings] = useState(false);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [result, setResult] = useState<{ open: WhatsAppOpenResult; pdfPath?: string; pdfPasteReady?: boolean } | null>(null);
+  const [result, setResult] = useState<{ open: WhatsAppOpenResult; pdfPath?: string; pdfPasteReady?: boolean; number?: string | null } | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -74,7 +74,10 @@ export function WhatsAppComposer({ request, onClose }: { request: WhatsAppReques
   const number = toWhatsAppNumber(phone);
   const phoneBad = phone.trim() !== '' && !number;
   const canSend = Boolean(draft) && !busy && !phoneBad && (Boolean(number) || Boolean(draft?.phoneOptional)) && text.trim() !== '';
-  const longText = whatsAppWebUrl(number, text).length > WHATSAPP_URL_LIMIT;
+  // The desktop app pastes the message into WhatsApp Desktop (v4.181.0) — no link limit there.
+  const longText = whatsAppWebUrl(number, text).length > WHATSAPP_URL_LIMIT && !(getDesktopApi() && number);
+  // v4.181.0: an earlier bill PDF for this number may still sit unsent in that chat.
+  const earlierBill = useMemo(() => Boolean(draft?.pdfSale) && attachPdf && !result && billPreparedRecently(number), [draft, attachPdf, result, number]);
 
   const rebuild = (fn: () => void) => {
     fn();
@@ -99,6 +102,12 @@ export function WhatsAppComposer({ request, onClose }: { request: WhatsAppReques
     if (!canSend || !draft) return;
     setBusy(true);
     try {
+      // v4.181.0: the PDF is already in that chat — only bring it up. Pasting another file there
+      // makes WhatsApp send the waiting one by itself (the bill would go twice).
+      if (result?.open.filePasted && result.number === number) {
+        await openWhatsApp(number, '');
+        return;
+      }
       const remember = draft.remember && number ? { [draft.remember === 'owner' ? 'ownerPhone' : 'caPhone']: phone.trim() } : {};
       saveWhatsAppSettings({ ...(draft.languages ? { lang } : {}), ...(draft.pdfSale ? { attachPdf } : {}), ...remember });
       if (draft.customerId && !draft.customerHasPhone && number && savePhone) {
@@ -112,15 +121,17 @@ export function WhatsAppComposer({ request, onClose }: { request: WhatsAppReques
         const res = await saveInvoicePdf({ sale: draft.pdfSale, business, customer, upiVpa: getPrimaryUpiVpa(business) });
         if (res.ok && res.path) pdfPath = res.path;
       }
-      const open = await openWhatsApp(number, text);
+      // v4.181.0 (Rahul): WhatsApp Desktop gets the PDF pasted into the chat, the message as its caption.
+      const open = await openWhatsApp(number, text, pdfPath);
       // v4.133.0 (Rahul): the PDF goes on the clipboard as a file — Ctrl+V in the chat attaches it.
       // Not when the text itself had to be copied (too long for the link); then the folder opens to drag it.
       let pdfPasteReady = false;
-      if (pdfPath && desktop) {
+      if (pdfPath && desktop && !open.filePasted) {
         pdfPasteReady = !open.copied && Boolean(desktop.copyFileToClipboard) && (await desktop.copyFileToClipboard!(pdfPath)).ok;
         if (!pdfPasteReady) void desktop.showItemInFolder(pdfPath);
       }
-      setResult({ open, pdfPath, pdfPasteReady });
+      if (open.filePasted && number) markBillPrepared(number);
+      setResult({ open, pdfPath, pdfPasteReady, number });
     } finally {
       setBusy(false);
     }
@@ -190,8 +201,13 @@ export function WhatsAppComposer({ request, onClose }: { request: WhatsAppReques
               {draft.pdfSale && getDesktopApi() && (
                 <label className="flex items-center gap-1.5 cursor-pointer text-slate-700">
                   <input type="checkbox" checked={attachPdf} onChange={(e) => setAttachPdf(e.target.checked)} data-wa-attach-pdf />
-                  {tr('Send the bill PDF too — it is copied, press Ctrl+V in the chat')}
+                  {tr('Send the bill PDF (A4) with the message under it')}
                 </label>
+              )}
+              {earlierBill && (
+                <p className="p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 font-semibold" data-wa-earlier-bill>
+                  {tr('A bill PDF was put into this WhatsApp chat recently. If it is still waiting there (not sent), press Send or ✕ on it first — WhatsApp will not take a new PDF over it.')}
+                </p>
               )}
               <div className="rounded-xl border border-slate-200">
                 <button type="button" onClick={() => setShowSettings((s) => !s)} className="w-full flex items-center gap-1.5 px-2.5 py-2 font-bold text-slate-600 cursor-pointer" aria-expanded={showSettings}>

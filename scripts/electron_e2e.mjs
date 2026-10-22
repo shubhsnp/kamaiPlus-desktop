@@ -1358,7 +1358,8 @@ async function run() {
         ipcMain.removeHandler('kp:open-whatsapp');
         ipcMain.handle('kp:open-whatsapp', async (_e, req) => {
           globalThis.__waJobs.push(req);
-          return { ok: true, via: 'web', copied: false };
+          // v4.181.0: a bill PDF comes with the request — WhatsApp Desktop gets it pasted (the real paste is never run).
+          return req && req.file ? { ok: true, via: 'app', copied: false, textPasted: true, filePasted: true } : { ok: true, via: 'web', copied: false };
         });
         // v4.133.0: the bill PDF onto the clipboard — caught here, the real clipboard is never touched.
         globalThis.__clipFiles = [];
@@ -1382,10 +1383,9 @@ async function run() {
       await page.locator('[data-wa-result]').waitFor({ timeout: 10000 });
       const waBillJob = (await waJobs())[0] || {};
       const clipFiles = await app.evaluate(() => globalThis.__clipFiles);
-      const pasteNote = await page.locator('[data-wa-pdf-paste]').isVisible().catch(() => false);
-      const pdfAsked = await page.locator('[data-wa-result]').innerText().then((t) => /PDF/.test(t)).catch(() => false);
-      check(!pdfAsked || (clipFiles.length === 1 && /\.pdf$/i.test(clipFiles[0]) && pasteNote),
-        `WhatsApp bill with the PDF: the PDF goes on the clipboard and the window says "press Ctrl+V" (${JSON.stringify(clipFiles)})`);
+      const readyNote = await page.locator('[data-wa-ready]').isVisible().catch(() => false);
+      check(/\.pdf$/i.test(waBillJob.file || '') && readyNote && clipFiles.length === 0,
+        `WhatsApp bill: the A4 PDF goes with the message into WhatsApp and the window says "WhatsApp is ready" — nothing to copy (${JSON.stringify({ file: waBillJob.file, clipFiles })})`);
       await page.keyboard.press('Escape');
       await page.waitForTimeout(300);
       check(waBillJob.phone === '919822012345' && /\*(INVOICE|ESTIMATE) #/.test(waBillJob.text || '') && /💰 \*Total: ₹/.test(waBillJob.text || '') && /बिल #|एस्टिमेट #/.test(hindiText) && !(await composer.isVisible().catch(() => false)),

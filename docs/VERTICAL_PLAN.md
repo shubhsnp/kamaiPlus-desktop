@@ -266,7 +266,7 @@ Aaj: items, grahak, bills, categories dono taraf; baaki tables sirf Desktop → 
 - [x] Purchase order ki nakli "Wholesale Inward Consignment" line (Android 78bf222)
 - [ ] Cloud Functions Node 22 deploy — code + tests (93/93) taiyaar, live code = local (desktopLicence 9 Oct); deploy Claude ke session mein roka gaya → Rahul khud chalayein
 **Sirf samjhana:** AU-A1 (phone har bill do jagah likhta) — karna nahi.
-**Baad mein:** website / help guides sync; phone par A3, A4, A5, A7, A12, A15 checks; Desktop Ctrl+V PDF asli WhatsApp par; installer code-signing; staff login / roles.
+**Baad mein:** website / help guides sync; phone par A3, A4, A5, A7, A12, A15 checks; Desktop WhatsApp PDF asli WhatsApp par (v4.181.0: ab paste khud hota hai — Rahul ka final Send test baaki); installer code-signing; staff login / roles.
 - R2 (aadha): "Aaj khatam" ho gaya — product par `sold_out_on` (aaj ki taareekh), kal apne-aap wapas; Desktop menu "Sold out today" mode, Android "Khatam" mode; dono taraf product sync se. "Stock ginein" (bottle) abhi baaki.
 - R1 kaise: har chalu order = `businesses/{biz}/restaurant_orders/{orderId}` (dono apps ka same shape); badlaav turant upar, naya `updatedAt` jeetta; bill / cancel = doc delete = sab device se hata. Table ki id naam se (`table_t4`) — do device ek hi order. PC khulne par server ka pehla jawab aane tak kuch nahi bhejta; jo order pehle bheja tha aur ab cloud mein nahi (doosre device par bill ho gaya) woh yahan bhi hatta — wapas zinda nahi hota. KOT: phone ke paas printer nahi → `kotRequestedAt` → PC (Set-up switch) chhaapta + sent mark. Takeaway token: doosre device ka TA-07 dekhkar apni ginti aage.
 
@@ -280,7 +280,7 @@ Aaj: items, grahak, bills, categories dono taraf; baaki tables sirf Desktop → 
 - A-6 Hindi / Marathi har Android screen par (~1,500 shabd; Desktop jaisa t('English') + hi/mr map, pehle Billing / Checkout / Khata / Products / Home / Galla / Restaurant)
 - Restaurant: item par "Stock ginein" (bottle / packet), bill split + table merge, waiter naam + waiter-wise bikri, din ki dish report, Bluetooth KOT asli test + kitchen/bar alag printer, kitchen screen, recipe se kachcha maal, Swiggy/Zomato, QR table order
 - Website / help guides sync (HELP_SYNC 4.118 → 4.140 pending)
-- Phone checks A3, A4, A5, A7, A12, A15; Desktop Ctrl+V PDF asli WhatsApp par
+- Phone checks A3, A4, A5, A7, A12, A15; Desktop WhatsApp PDF asli WhatsApp par (v4.181.0: ab paste khud hota hai — Rahul ka final Send test baaki)
 - Installer code-signing; staff login / roles
 - AU-A1 phone root copy (sirf samjhaya — karna nahi)
 - Admin Console: permanent delete mein `restaurant_orders` bhi jode (abhi 15 tables)

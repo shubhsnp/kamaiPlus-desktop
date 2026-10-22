@@ -135,7 +135,8 @@ export interface KamaiDesktopApi {
   /** Sends the label printer's own gap calibration (v4.80.0); manual = unknown make, use the FEED button. */
   calibrateLabelPrinter?(name: string): Promise<{ ok: boolean; manual?: boolean; language?: string; error?: string }>;
   /** WhatsApp Desktop if installed, else wa.me; a too-long text is copied instead (v4.79.0). */
-  openWhatsApp?(request: { phone: string; text: string }): Promise<{ ok: boolean; via: 'app' | 'web'; copied: boolean; error?: string }>;
+  /** v4.181.0: file = a bill PDF — WhatsApp Desktop gets the message and the PDF pasted into the chat. */
+  openWhatsApp?(request: { phone: string; text: string; file?: string }): Promise<{ ok: boolean; via: 'app' | 'web'; copied: boolean; textPasted?: boolean; filePasted?: boolean; error?: string }>;
   openPath(path: string): Promise<DesktopResult>;
   showItemInFolder(path: string): Promise<DesktopResult>;
   /** A bill PDF (in Documents\KamaiPlus) onto the clipboard as a file — Ctrl+V in WhatsApp attaches it (v4.133.0). */

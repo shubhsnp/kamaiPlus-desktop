@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.181.0',
+    items: [
+      msg("WhatsApp bill: the A4 bill PDF goes straight into the chat with the message under it — no copy, no Ctrl+V; just check the name and press Send. A bill sent twice no longer doubles the message."),
+    ],
+  },
+  {
     version: '4.180.0',
     items: [
       msg("Bills: each item is numbered 1) 2) 3) on the printed slip (A4 already has #), and every bill shows Total Items and Qty."),
