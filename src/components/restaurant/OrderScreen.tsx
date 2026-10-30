@@ -43,9 +43,13 @@ export function OrderScreen({ order, settings, update, business, freeTables, onB
   const [addOnsFor, setAddOnsFor] = useState<RestLine | null>(null);
   const [payOpen, setPayOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [kotBusy, setKotBusy] = useState(false);
+  // v4.183.0: per order. The strip changes table while this screen stays open, and a slow printer on
+  // T4 must not hold back the KOT of T2.
+  const [kotBusyFor, setKotBusyFor] = useState<string | null>(null);
+  const kotBusy = kotBusyFor === order.id;
   const [moveOpen, setMoveOpen] = useState(false);
-  const [checkBusy, setCheckBusy] = useState(false);
+  const [checkBusyFor, setCheckBusyFor] = useState<string | null>(null);
+  const checkBusy = checkBusyFor === order.id;
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelBusy, setCancelBusy] = useState(false);
   const now = () => new Date().toISOString();
@@ -63,7 +67,7 @@ export function OrderScreen({ order, settings, update, business, freeTables, onB
   // v4.108.0: the bill for the table to check before paying (not saved, no number).
   const check = async () => {
     if (checkBusy) return;
-    setCheckBusy(true);
+    setCheckBusyFor(order.id);
     try {
       const res = await printCheck({ order, settings, business });
       if (res.ok) notify(tr('Bill for {label} sent to the printer (not paid yet).', { label: order.label }), 'success');
@@ -71,7 +75,7 @@ export function OrderScreen({ order, settings, update, business, freeTables, onB
     } catch (e) {
       notify(tr('The bill did not print: {error}', { error: failText(e) }), 'error');
     } finally {
-      setCheckBusy(false);
+      setCheckBusyFor((id) => (id === order.id ? null : id));
     }
   };
 
@@ -118,7 +122,7 @@ export function OrderScreen({ order, settings, update, business, freeTables, onB
 
   const sendKot = async () => {
     if (kotBusy) return;
-    setKotBusy(true);
+    setKotBusyFor(order.id);
     try {
       const res = await printKot({ order, shopName: business?.name, round: order.kotRounds + 1 });
       if (res.ok) {
@@ -143,7 +147,7 @@ export function OrderScreen({ order, settings, update, business, freeTables, onB
     } catch (e: any) {
       notify(tr('KOT did not print: {error}', { error: e?.message || tr('printer not ready') }), 'error');
     } finally {
-      setKotBusy(false);
+      setKotBusyFor((id) => (id === order.id ? null : id));
     }
   };
 
@@ -184,9 +188,9 @@ export function OrderScreen({ order, settings, update, business, freeTables, onB
   for (const l of liveLines(order)) inOrder.set(l.productId, (inOrder.get(l.productId) || 0) + l.qty);
 
   return (
-    <div className="grid gap-4 h-full min-h-[560px] lg:grid-cols-[minmax(0,1fr)_400px]" data-restaurant-screen="order">
+    <div className="grid gap-4 h-full min-h-[480px] lg:grid-cols-[minmax(0,1fr)_400px]" data-restaurant-screen="order">
       <div className="min-h-[420px] lg:min-h-0 lg:h-full rounded-2xl bg-slate-50/60 border border-slate-200 p-3 sm:p-4 flex flex-col">
-        <MenuPanel onPick={pick} inOrder={inOrder} searchRef={searchRef} />
+        <MenuPanel onPick={pick} inOrder={inOrder} searchRef={searchRef} resetKey={order.id} />
       </div>
       <div className="min-h-[520px] lg:min-h-0 lg:h-full">
         <OrderPanel order={order} settings={settings} kotBusy={kotBusy} onBack={onBack} onQty={qty} onAddOns={setAddOnsFor} onKot={sendKot} onPay={() => setPayOpen(true)} onMove={() => setMoveOpen(true)}

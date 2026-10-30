@@ -1750,9 +1750,152 @@ async function run() {
         await page.locator('[data-order-line]').first().waitFor({ timeout: 10000 });
         check((await page.locator('[data-order-line]').count()) === 2, 'Coming back to the table shows the same order');
 
+        // v4.183.0: the table strip. One click changes table; an empty table is free again; a drag never opens one.
+        step = 'table strip';
+        const stripChip = (label) => page.locator(`[data-strip-chip="${label}"]`);
+        const orderHeading = (text) => page.locator('[data-restaurant-order]').getByText(text, { exact: true });
+        const openLabels = () => page.evaluate(() => (JSON.parse(localStorage.getItem('kamai_restaurant_orders') || '{}').orders || []).map((o) => o.label));
+        check((await page.locator('[data-table-strip]').isVisible()) && (await page.locator('[data-strip-chip]').count()) === 10 && (await stripChip('T1').getAttribute('data-strip-current')) === 'true',
+          'Order screen: all ten tables are on the strip, the open one marked');
+        await stripChip('T2').click();
+        await orderHeading('Table T2').waitFor({ timeout: 5000 });
+        check((await page.locator('[data-order-line]').count()) === 0 && (await stripChip('T1').getAttribute('data-strip-state')) === 'running' && /₹/.test(await stripChip('T1').innerText()),
+          'One click on the strip opens another table; the one left stays running with its amount');
+        await stripChip('T3').click();
+        await orderHeading('Table T3').waitFor({ timeout: 5000 });
+        const afterEmpty = await openLabels();
+        check(!afterEmpty.includes('T2') && afterEmpty.includes('T1') && (await stripChip('T2').getAttribute('data-strip-state')) === 'free', `A table left with no dish is free again (open: ${afterEmpty.join(', ')})`);
+        await addDish();
+        await page.locator('[data-order-line]').first().waitFor({ timeout: 5000 });
+        await stripChip('T1').click();
+        await orderHeading('Table T1').waitFor({ timeout: 5000 });
+        check((await page.locator('[data-order-line]').count()) === 2 && (await stripChip('T3').getAttribute('data-strip-pending')) === 'true' && (await stripChip('T1').getAttribute('data-strip-pending')) === 'false',
+          'Back on T1 its order is there; T3 shows "KOT not sent" on the strip');
+        await shot(page, 'restaurant-strip');
+        await stripChip('T3').click();
+        await orderHeading('Table T3').waitFor({ timeout: 5000 });
+        await page.locator('[data-line-delete]').first().click();
+        await page.locator('[data-strip-new-takeaway]').click();
+        await orderHeading(/^Takeaway TA-/).waitFor({ timeout: 5000 });
+        await stripChip('T1').click();
+        await orderHeading('Table T1').waitFor({ timeout: 5000 });
+        const afterParcel = await openLabels();
+        check(afterParcel.join() === 'T1', `"+ Takeaway" works from the strip; orders nobody added to are not kept (open: ${afterParcel.join(', ')})`);
+
+        // At a laptop's size: the strip costs no scrolling, the whole order panel stays on screen.
+        const winSize = await app.evaluate(({ BrowserWindow }) => {
+          const w = BrowserWindow.getAllWindows()[0];
+          const was = { maximized: w.isMaximized(), size: w.getContentSize() };
+          w.unmaximize();
+          w.setContentSize(1366, 768);
+          return was;
+        });
+        await page.waitForTimeout(700);
+        const laptop = await page.evaluate(() => {
+          const panel = document.querySelector('[data-restaurant-order]').getBoundingClientRect();
+          const main = document.querySelector('main');
+          return { fits: panel.bottom <= window.innerHeight && main.scrollHeight <= main.clientHeight + 1, innerWidth: window.innerWidth, innerHeight: window.innerHeight, panelBottom: Math.round(panel.bottom), mainH: main.clientHeight, mainS: main.scrollHeight };
+        });
+        await shot(page, 'restaurant-strip-1366');
+        check(laptop.fits, `At 1366 x 768 the order screen with the strip fits, no scrolling (${JSON.stringify(laptop)})`);
+        await app.evaluate(({ BrowserWindow }, was) => {
+          const w = BrowserWindow.getAllWindows()[0];
+          w.setContentSize(was.size[0], was.size[1]);
+          if (was.maximized) w.maximize();
+        }, winSize);
+        await page.waitForTimeout(500);
+
+        // 30 tables: the strip starts on Running; All = all 30, hold and drag, or the wheel; a drag opens nothing.
+        step = 'table strip, 30 tables';
+        const savedSetup = await page.evaluate(() => localStorage.getItem('kamai_restaurant_settings'));
+        await page.evaluate(() => {
+          const cur = JSON.parse(localStorage.getItem('kamai_restaurant_settings') || '{}');
+          localStorage.setItem('kamai_restaurant_settings', JSON.stringify({ ...cur, tables: Array.from({ length: 30 }, (_, i) => `T${i + 1}`) }));
+          window.dispatchEvent(new Event('restaurant_changed'));
+        });
+        await page.locator('[data-strip-view="all"]').waitFor({ timeout: 5000 });
+        check((await page.locator('[data-strip-scroll] [data-strip-chip]').count()) === 1 && (await page.locator('[data-strip-view="running"]').getAttribute('aria-pressed')) === 'true', '30 tables: the strip starts on the running table(s) only');
+        await page.locator('[data-strip-view="all"]').click();
+        await page.waitForTimeout(500);
+        const stripRow = page.locator('[data-strip-scroll]');
+        const stripLeft = () => stripRow.evaluate((el) => Math.round(el.scrollLeft));
+        const stripCount = await page.locator('[data-strip-scroll] [data-strip-chip]').count();
+        const rowBox = await stripRow.boundingBox();
+        await shot(page, 'restaurant-strip-all');
+        await page.mouse.move(rowBox.x + rowBox.width - 80, rowBox.y + rowBox.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(rowBox.x + 80, rowBox.y + rowBox.height / 2, { steps: 12 });
+        await page.mouse.up();
+        await page.waitForTimeout(700);
+        const dragged = await stripLeft();
+        const dragOpened = !(await orderHeading('Table T1').count());
+        check(stripCount === 30 && dragged > 200 && !dragOpened, `All shows 30 tables; hold and drag moves the row (by ${dragged} px) and opens no table`);
+        await shot(page, 'restaurant-strip-dragged');
+        await page.mouse.move(rowBox.x + rowBox.width / 2, rowBox.y + rowBox.height / 2);
+        await page.mouse.wheel(0, -180);
+        await page.waitForTimeout(300);
+        const wheeled = await stripLeft();
+        check(wheeled < dragged, `The mouse wheel moves the row too (${dragged} → ${wheeled})`);
+        await stripChip('T20').scrollIntoViewIfNeeded();
+        await stripChip('T20').click();
+        const clickOpened = await orderHeading('Table T20').waitFor({ timeout: 5000 }).then(() => true, () => false);
+        check(clickOpened, 'After a drag a plain click still opens the table');
+        await stripChip('T1').scrollIntoViewIfNeeded();
+        await stripChip('T1').click();
+        await orderHeading('Table T1').waitFor({ timeout: 5000 });
+        await page.evaluate((raw) => {
+          if (raw === null) localStorage.removeItem('kamai_restaurant_settings');
+          else localStorage.setItem('kamai_restaurant_settings', raw);
+          window.dispatchEvent(new Event('restaurant_changed'));
+        }, savedSetup);
+        await page.waitForTimeout(400);
+
         step = 'pay';
         await page.locator('[data-order-pay]').click();
         await page.locator('[data-restaurant-pay]').waitFor({ timeout: 5000 });
+
+        // v4.183.0: the bill window keeps its size and place, whatever is picked or typed.
+        step = 'bill window size';
+        const billBox = () => page.evaluate(() => {
+          const win = document.querySelector('[data-restaurant-pay]').closest('.z-10').getBoundingClientRect();
+          const go = document.querySelector('[data-pay-settle]').getBoundingClientRect();
+          return [win.top, win.left, win.width, win.height, go.top, go.left, go.width].map(Math.round).join();
+        });
+        const billBoxes = new Set([await billBox()]);
+        for (const m of ['upi', 'card', 'split', 'credit', 'cash']) {
+          await page.locator(`[data-pay-method="${m}"]`).click();
+          await page.waitForTimeout(220);
+          billBoxes.add(await billBox());
+          await shot(page, `restaurant-bill-${m}`);
+        }
+        const payRound = Math.ceil(parseFloat((await page.locator('[data-pay-total]').innerText()).replace(/[^\d.]/g, '')));
+        for (const v of [String(payRound + 100), '1', '']) {
+          await page.locator('[data-pay-received]').fill(v);
+          await page.waitForTimeout(80);
+          billBoxes.add(await billBox());
+        }
+        await page.locator('[data-pay-method="split"]').click();
+        for (const v of [String(payRound + 100), '1', '']) {
+          await page.locator('[data-pay-split-cash]').fill(v);
+          await page.waitForTimeout(80);
+          billBoxes.add(await billBox());
+        }
+        await page.locator('[data-pay-method="credit"]').click();
+        await page.locator('[data-pay-guest-phone]').fill('123');
+        await page.waitForTimeout(80);
+        billBoxes.add(await billBox());
+        await page.locator('[data-pay-guest-phone]').fill('');
+        await page.locator('[data-pay-method="cash"]').click();
+        await page.getByLabel('Discount', { exact: true }).fill('10');
+        await page.waitForTimeout(80);
+        billBoxes.add(await billBox());
+        await page.getByLabel('Discount', { exact: true }).fill('');
+        await page.locator('[data-pay-after="show"]').click();
+        billBoxes.add(await billBox());
+        await page.locator('[data-pay-after="print"]').click();
+        billBoxes.add(await billBox());
+        check(billBoxes.size === 1, `Bill window: same size and place for Cash, UPI, Card, Cash + UPI, Udhar, change, short, discount, a bad mobile (${[...billBoxes].join(' | ')})`);
+
         const payTotal = parseFloat((await page.locator('[data-pay-total]').innerText()).replace(/[^\d.]/g, ''));
         await page.locator('[data-pay-method="upi"]').click();
         check(await page.locator('[data-pay-upi-qr] img').waitFor({ timeout: 8000 }).then(() => true, () => false), 'UPI shows the shop\'s QR for the exact amount');

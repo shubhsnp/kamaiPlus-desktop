@@ -3563,5 +3563,8 @@
   "No item with this name or barcode.": "इस नाम या बारकोड का कोई सामान नहीं मिला।",
   "Purchases → Manual Inward: type the item's name or scan its barcode to find it — no more scrolling a long list.": "खरीदारी → हाथ से माल दर्ज करें: सामान का नाम लिखकर या बारकोड स्कैन करके ढूँढें — लंबी सूची में ढूँढना नहीं पड़ेगा।",
   "Customers: type a Hindi or Marathi name in English letters — ramesh finds रमेश.": "ग्राहक: हिंदी या मराठी नाम अंग्रेज़ी अक्षरों में लिखें — ramesh से रमेश मिल जाएगा।",
-  "Could not load the salary entries. Please try again.": "वेतन की एंट्री नहीं खुल सकीं। कृपया फिर कोशिश करें।"
+  "Could not load the salary entries. Please try again.": "वेतन की एंट्री नहीं खुल सकीं। कृपया फिर कोशिश करें।",
+  "QR comes after the cash part": "कैश का हिस्सा भरने के बाद QR आएगा",
+  "Restaurant: all tables stay on top of the order screen. One click changes table, a red chef shows a KOT not sent. Many tables: Running or All, drag the row with the mouse.": "रेस्टोरेंट: ऑर्डर स्क्रीन पर ऊपर सभी टेबल दिखती रहेंगी। एक क्लिक में टेबल बदलें, लाल शेफ़ बताता है कि KOT नहीं गया। ज़्यादा टेबल हों तो चालू या सभी चुनें, और पट्टी को माउस से खींचें।",
+  "Restaurant bill: the window no longer changes size when you pick Cash, UPI, Card, Cash + UPI or Udhar. The buttons stay in place.": "रेस्टोरेंट बिल: कैश, UPI, कार्ड, नकद + UPI या उधार चुनने पर अब विंडो का आकार नहीं बदलता। बटन अपनी जगह रहते हैं।"
 }

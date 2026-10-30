@@ -17,6 +17,8 @@ import { tableOrderId } from '@/lib/restaurant/cloudOrders';
 import { OrderScreen } from '@/components/restaurant/OrderScreen';
 import { SetupDialog } from '@/components/restaurant/SetupDialog';
 import { TablesHome } from '@/components/restaurant/TablesHome';
+import { TableStrip } from '@/components/restaurant/TableStrip';
+import type { StripView } from '@/lib/restaurant/tableStrip';
 import { FastPosScreen } from '@/components/restaurant/FastPosScreen';
 import { RestaurantMode, readRestaurantMode, saveRestaurantMode } from '@/lib/restaurant/fastPos';
 
@@ -87,11 +89,33 @@ export function RestaurantPage() {
   };
   const newTakeaway = () => newParcel('takeaway');
 
+  // An order nobody added anything to is not kept (an empty table card or a wasted token).
+  const dropEmptyOrders = useCallback((keepId?: string) => {
+    update((s) => ({ ...s, orders: s.orders.filter((o) => o.lines.length > 0 || o.kotRounds > 0 || o.id === keepId) }));
+  }, [update]);
+
   const back = useCallback(() => {
     setSelectedId(null);
-    // An order nobody added anything to is not kept (an empty table card or a wasted token).
-    update((s) => ({ ...s, orders: s.orders.filter((o) => o.lines.length > 0 || o.kotRounds > 0) }));
-  }, [update]);
+    dropEmptyOrders();
+  }, [dropEmptyOrders]);
+
+  // v4.183.0 the table strip: straight from one order to another, leaving the old one as "Tables" does.
+  const [stripView, setStripView] = useState<StripView | null>(null);
+  const switchToTable = (label: string) => {
+    const existing = state.orders.find((o) => o.kind === 'table' && o.label === label);
+    if (existing && existing.id === selectedId) return;
+    dropEmptyOrders(existing?.id);
+    openTable(label);
+  };
+  const switchToOrder = (id: string) => {
+    if (id === selectedId) return;
+    dropEmptyOrders(id);
+    setSelectedId(id);
+  };
+  const stripTakeaway = () => {
+    dropEmptyOrders();
+    newTakeaway();
+  };
 
   // Like the counter: "Print straight away" sends it to the printer (the toast can still open it);
   // otherwise — or with no printer to send it to (a browser) — the bill window opens.
@@ -108,7 +132,9 @@ export function RestaurantPage() {
   return (
     <div className="relative h-full flex flex-col" data-restaurant-page>
       {toast && (
-        <div role="status" className={cn('fixed top-16 left-1/2 -translate-x-1/2 z-[70] max-w-[92vw] px-4 py-2.5 rounded-xl shadow-lg text-xs font-bold flex items-center gap-2 border',
+        <div role="status" className={cn('fixed left-1/2 -translate-x-1/2 z-[70] max-w-[92vw] px-4 py-2.5 rounded-xl shadow-lg text-xs font-bold flex items-center gap-2 border',
+          // On an order it sits below the table strip and lets clicks through: it must never hide a table.
+          order ? 'top-[152px] pointer-events-none' : 'top-16',
           toast.tone === 'success' && 'bg-emerald-600 text-white border-emerald-700', toast.tone === 'error' && 'bg-rose-600 text-white border-rose-700', toast.tone === 'info' && 'bg-slate-800 text-white border-slate-900')} data-restaurant-toast={toast.tone}>
           {toast.tone === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : toast.tone === 'error' ? <AlertCircle className="w-4 h-4 shrink-0" /> : <Info className="w-4 h-4 shrink-0" />}
           <span>{toast.text}</span>
@@ -125,7 +151,12 @@ export function RestaurantPage() {
 
       <div className="flex-1 min-h-0">
         {order ? (
-          <OrderScreen order={order} settings={settings} update={update} business={business} freeTables={freeTables} onBack={back} onSettled={onSettled} notify={notify} />
+          <div className="h-full flex flex-col gap-3 min-h-0">
+            <TableStrip orders={state.orders} settings={settings} currentId={order.id} view={stripView} onView={setStripView} onOpenTable={switchToTable} onOpenOrder={switchToOrder} onNewTakeaway={stripTakeaway} />
+            <div className="flex-1 min-h-0">
+              <OrderScreen order={order} settings={settings} update={update} business={business} freeTables={freeTables} onBack={back} onSettled={onSettled} notify={notify} />
+            </div>
+          </div>
         ) : mode === 'fast' ? (
           <FastPosScreen state={state} settings={settings} update={update} business={business} onTables={() => setMode('tables')} onSetup={() => setSetupOpen(true)} onSettled={onSettled} onOpenBill={(sale) => setSaleToShow({ sale, justPaid: false })} notify={notify} />
         ) : (

@@ -12,6 +12,8 @@ interface ModalProps {
   description?: string;
   children: React.ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
+  /** Extra classes on the window itself, for a width between the sizes. */
+  className?: string;
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -21,6 +23,7 @@ export const Modal: React.FC<ModalProps> = ({
   description,
   children,
   size = 'md',
+  className,
 }) => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -59,7 +62,8 @@ export const Modal: React.FC<ModalProps> = ({
       <div
         className={cn(
           'relative w-full bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col max-h-[92vh] z-10 text-slate-900',
-          sizeClasses[size]
+          sizeClasses[size],
+          className
         )}
       >
         {/* Header */}

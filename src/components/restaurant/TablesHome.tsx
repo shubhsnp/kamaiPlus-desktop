@@ -7,14 +7,13 @@ import { cn, formatINR } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
 import { RestOrder, formatOpenTime, hasUnsentItems, minutesOpen, orderTotals, pieceCount, piecesText } from '@/lib/restaurant/model';
 import type { RestaurantSettings } from '@/lib/restaurant/settings';
+import { LONG_OPEN_MINUTES } from '@/lib/restaurant/tableStrip';
 import type { Sale } from '@/types';
 import { RecentBills } from '@/components/restaurant/RecentBills';
 import { CancelledToday } from '@/components/restaurant/CancelledToday';
 import { PhonesLinkNotice } from '@/components/restaurant/PhonesLinkNotice';
 
 type View = 'all' | 'running' | 'free';
-/** A table open this long gets a red time — someone may be waiting for the bill. */
-const LONG_MINUTES = 60;
 
 /**
  * The Tables screen (v4.106.0, v4.107.0) — the first thing a waiter sees. White = free, amber = an
@@ -145,7 +144,7 @@ export function TablesHome({ orders, settings, onOpenTable, onOpenOrder, onNewTa
 
 function OrderCard({ order, settings, now, onOpen, table }: { order: RestOrder; settings: RestaurantSettings; now: number; onOpen: () => void; table?: boolean }) {
   const minutes = minutesOpen(order, now);
-  const long = minutes >= LONG_MINUTES;
+  const long = minutes >= LONG_OPEN_MINUTES; // A red time: someone may be waiting for the bill.
   const pieces = pieceCount(order);
   const dataAttrs = table ? { 'data-table': order.label, 'data-table-state': 'running' } : order.kind === 'delivery' ? { 'data-delivery': order.label } : { 'data-takeaway': order.label };
   return (

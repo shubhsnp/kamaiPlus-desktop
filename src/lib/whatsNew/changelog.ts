@@ -16,6 +16,13 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.183.0',
+    items: [
+      msg("Restaurant: all tables stay on top of the order screen. One click changes table, a red chef shows a KOT not sent. Many tables: Running or All, drag the row with the mouse."),
+      msg("Restaurant bill: the window no longer changes size when you pick Cash, UPI, Card, Cash + UPI or Udhar. The buttons stay in place."),
+    ],
+  },
+  {
     version: '4.182.0',
     items: [
       msg("Purchases → Manual Inward: type the item's name or scan its barcode to find it — no more scrolling a long list."),
@@ -349,12 +356,6 @@ export const CHANGELOG: Release[] = [
     version: '4.129.0',
     items: [
       msg('Sales Return opens fresh every time: after a return, Return on another bill shows that bill — not the last "Sales Return Completed" screen.'),
-    ],
-  },
-  {
-    version: '4.128.0',
-    items: [
-      msg('Pharmacy counter: loose tablets are billed with the strip\'s own tablet count (e.g. 3 of 15), never as tenths of a strip. Store setup card Electronics & Hardware matches the mobile app.'),
     ],
   },
   ...OLDER_RELEASES,

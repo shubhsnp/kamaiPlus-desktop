@@ -10,9 +10,10 @@ import { shopUpiId } from '@/lib/restaurant/checkPrint';
 
 /**
  * Restaurant bill (v4.107.0): the same UPI QR the counter shows — the guest scans it and GPay /
- * PhonePe / Paytm open with the exact amount filled in.
+ * PhonePe / Paytm open with the exact amount filled in. v4.183.0: drawn to fit the bill window's
+ * fixed box; `qrOnly` is the picture alone, beside the Cash + UPI boxes.
  */
-export function RestUpiQr({ business, amountPaise, reference }: { business?: Business | null; amountPaise: number; reference: string }) {
+export function RestUpiQr({ business, amountPaise, reference, qrOnly = false }: { business?: Business | null; amountPaise: number; reference: string; qrOnly?: boolean }) {
   const upi = shopUpiId(business);
   const [src, setSrc] = useState('');
   useEffect(() => {
@@ -31,17 +32,21 @@ export function RestUpiQr({ business, amountPaise, reference }: { business?: Bus
 
   if (!upi) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-center text-xs font-semibold text-slate-500" data-pay-upi-missing>
+      <div className={missingBox(qrOnly)} data-pay-upi-missing>
         <QrCode className="w-5 h-5 mx-auto mb-1 text-slate-400" />
         {tr('Add your UPI ID in Settings → Store & GST Profile to show a QR here.')}
       </div>
     );
   }
+  const picture = (
+    <div className="w-[132px] h-[132px] rounded-lg bg-white border border-slate-200 flex items-center justify-center shrink-0 overflow-hidden">
+      {src ? <img src={src} alt={tr('UPI QR for {amount}', { amount: formatINR(amountPaise) })} className="w-full h-full" /> : <QrCode className="w-8 h-8 text-slate-300" />}
+    </div>
+  );
+  if (qrOnly) return <div className="shrink-0" data-pay-upi-qr>{picture}</div>;
   return (
-    <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3 flex items-center gap-3" data-pay-upi-qr>
-      <div className="w-[132px] h-[132px] rounded-lg bg-white border border-slate-200 flex items-center justify-center shrink-0 overflow-hidden">
-        {src ? <img src={src} alt={tr('UPI QR for {amount}', { amount: formatINR(amountPaise) })} className="w-full h-full" /> : <QrCode className="w-8 h-8 text-slate-300" />}
-      </div>
+    <div className="h-full flex items-center gap-3" data-pay-upi-qr>
+      {picture}
       <div className="min-w-0 space-y-1">
         <div className="text-[10.5px] font-black uppercase tracking-wide text-emerald-800">{tr('Scan to pay')}</div>
         <div className="text-2xl font-black font-mono text-slate-900">{formatINR(amountPaise)}</div>
@@ -51,3 +56,8 @@ export function RestUpiQr({ business, amountPaise, reference }: { business?: Bus
     </div>
   );
 }
+
+const missingBox = (qrOnly: boolean) =>
+  qrOnly
+    ? 'shrink-0 w-[132px] h-[132px] rounded-lg border border-dashed border-slate-300 bg-white p-2 flex flex-col justify-center text-center text-[10.5px] leading-tight font-semibold text-slate-500'
+    : 'h-full rounded-lg border border-dashed border-slate-300 bg-white px-3 flex flex-col justify-center text-center text-xs font-semibold text-slate-500';

@@ -141,6 +141,7 @@ import { getQuantityConfigForUnit } from '../src/components/billing/posQuantityC
 import { scanIntoRows, splitTrailingCode } from '../src/lib/inward/fastInward';
 import { customerListHtmlBody, customerMatchesSearch, customerSheetRows, sortCustomers } from '../src/lib/customers/customerDirectory';
 import { restockMatches, restockPickOnEnter } from '../src/lib/inward/restockPicker';
+import { LONG_OPEN_MINUTES, STRIP_TOGGLE_ABOVE, chipAmount, defaultStripView, keepsOrder, stripChips } from '../src/lib/restaurant/tableStrip';
 import { BACKUP_TABLES, checkBackupPayload } from '../src/lib/backup/cloudBackupService';
 import { CLOUD_TABLES, fromCloud, normalizeUnit, tableForCloudPath, toCloud } from '../src/lib/cloud/cloudContract';
 import { cloudBizId, parseCloudAccount } from '../src/lib/cloud/cloudAccount';
@@ -5609,6 +5610,62 @@ pendingAsyncChecks.push((async () => {
     'Reorder card: no "Deficit: 0" at exactly the minimum, no "Cost: ₹0.00" without a buying price');
   assert(RESTAURANT_WORDS['Manage Products'] === 'Manage Menu' && readSource('components/inventory/InventoryHeaderActions.tsx').includes("tr('Manage Products')"),
     'Restaurant: Inventory header says "Manage Menu" (inventory is on for a restaurant since v4.165.0)');
+}
+
+// v4.183.0 — Restaurant (Rahul 2026-10-30): all tables stay in sight on the order screen (the table strip),
+// and the bill window keeps its size whichever payment method is picked.
+{
+  const stripSettings = (tables: string[]): any => ({ tables, gstRate: 0, gstInclusive: true, serviceChargePercent: 0, packingChargePaise: 0, deliveryChargePaise: 0, addOns: [], printRemoteKots: false, fastKot: false });
+  const tenTables = Array.from({ length: 10 }, (_, i) => `T${i + 1}`);
+  const at = '2026-10-30T10:00:00.000Z';
+  const later = Date.parse(at);
+  const dish = { productId: 'p1', name: 'Dal', unit: 'plate', basePaise: 15000 } as any;
+  const t2 = addPiece(newOrder('table', 'T2', 'table_t2', at), dish, at);
+  const emptyT4 = newOrder('table', 'T4', 'table_t4', at);
+  const strip = stripChips([t2, emptyT4], stripSettings(tenTables), 'table_t4', null, later);
+  const chipOf = (label: string) => strip.tables.find((c) => c.label === label)!;
+  assert(strip.tables.map((c) => c.label).join() === tenTables.join() && chipOf('T2').running && chipOf('T2').totalPaise === 15000 && chipOf('T2').pending
+    && !chipOf('T1').running && chipOf('T4').current && !chipOf('T4').running && strip.runningCount === 1,
+    'Table strip: tables in the shop\'s own order; a running one has its amount and "KOT not sent"; a table with no dish yet is on screen, not running');
+  const sent = stripChips([markKotSent(t2, at)], stripSettings(tenTables), null, null, later).tables.find((c) => c.label === 'T2')!;
+  const old = stripChips([t2], stripSettings(tenTables), null, null, later + 60 * 60000).tables.find((c) => c.label === 'T2')!;
+  assert(!sent.pending && !stripChips([t2], stripSettings(tenTables), null, null, later + 59 * 60000).tables.find((c) => c.label === 'T2')!.long && old.long && LONG_OPEN_MINUTES === 60,
+    'Table strip: the red chef goes when the KOT is sent; the red clock comes at one hour, as on the Tables screen');
+  const thirty = Array.from({ length: 30 }, (_, i) => `T${i + 1}`);
+  const many = stripChips([t2, emptyT4], stripSettings(thirty), 'table_t4', null, later);
+  const manyAll = stripChips([t2, emptyT4], stripSettings(thirty), 'table_t4', 'all', later);
+  assert(defaultStripView(16) === 'all' && defaultStripView(17) === 'running' && many.view === 'running' && many.tables.map((c) => c.label).join() === 'T2,T4' && many.tableCount === 30
+    && manyAll.view === 'all' && manyAll.tables.length === 30 && STRIP_TOGGLE_ABOVE === 12,
+    'Table strip: 30 tables start on Running (with the table on screen), All shows all 30; the switch shows above 12 tables');
+  const parcelA = addPiece(newOrder('takeaway', 'TA-02', 'ta2', '2026-10-30T09:30:00.000Z'), dish, at);
+  const parcelB = addPiece(newOrder('delivery', 'DL-01', 'dl1', '2026-10-30T09:00:00.000Z'), dish, at);
+  const gone = addPiece(newOrder('table', 'Garden 9', 'table_g9', at), dish, at);
+  const mixed = stripChips([parcelA, parcelB, gone], stripSettings(['T1']), null, null, later);
+  assert(mixed.parcels.map((c) => c.label).join() === 'DL-01,TA-02' && mixed.tables.map((c) => c.label).join() === 'T1,Garden 9',
+    'Table strip: takeaway and delivery oldest first; a table taken out of the set-up keeps showing until it is billed');
+  assert(!keepsOrder(emptyT4) && keepsOrder(t2) && keepsOrder({ lines: [], kotRounds: 1 }) && chipAmount(95000) === '₹950' && chipAmount(95050) === '₹950.50' && chipAmount(128000) === '₹1,280',
+    'Table strip: an order with no dish is not kept; amounts on a chip are short');
+
+  const restPage = readSource('components/restaurant/RestaurantPage.tsx');
+  const restOrder = readSource('components/restaurant/OrderScreen.tsx');
+  const dragHook = readSource('components/restaurant/useDragScroll.ts');
+  assert(restPage.includes('<TableStrip') && restPage.includes('dropEmptyOrders(existing?.id);') && restPage.includes('o.lines.length > 0 || o.kotRounds > 0 || o.id === keepId') && /const back = useCallback\(\(\) => \{\s*setSelectedId\(null\);\s*dropEmptyOrders\(\);/.test(restPage),
+    'Changing table on the strip leaves the old order as "Tables" does (an empty one is dropped, its table free again)');
+  assert(restPage.includes("order ? 'top-[152px] pointer-events-none' : 'top-16'"), 'On an order a message sits below the strip and lets clicks through: it never hides a table');
+  assert(restOrder.includes('const kotBusy = kotBusyFor === order.id;') && restOrder.includes('if (kotBusy) return;') && restOrder.includes('resetKey={order.id}') && readSource('components/restaurant/MenuPanel.tsx').includes('[resetKey]'),
+    'The order screen stays open across tables: a slow KOT printer on T4 does not hold back T2, and the menu search starts fresh');
+  assert(dragHook.includes('Math.abs(dx) < DRAG_START_PX') && dragHook.includes('setPointerCapture') && dragHook.includes('onClickCapture') && dragHook.includes("pointerType === 'touch'") && dragHook.includes('{ passive: false }') && readSource('components/restaurant/TableStrip.tsx').includes('{...handlers}'),
+    'The strip: hold and drag, wheel or swipe; a drag never opens a table, a plain click does');
+
+  const payDialog = readSource('components/restaurant/PayDialog.tsx');
+  const paneAt = payDialog.indexOf('data-pay-pane={method}');
+  const afterAt = payDialog.indexOf("tr('After paying')");
+  const inPane = ["{method === 'cash' && (", "{method === 'upi' && ", "{method === 'split' && (", "{method === 'credit' && (", "{method === 'card' && ("].every((m) => { const i = payDialog.indexOf(m); return i > paneAt && i < afterAt; });
+  assert(paneAt > 0 && inPane && payDialog.includes('h-[176px]') && !payDialog.includes('totals.discountTotal > 0 && <Row') && payDialog.includes('min-h-[28px] line-clamp-2') && payDialog.includes('whitespace-nowrap'),
+    'Bill window: every method fits one fixed box and every message has its line kept free, so the window never changes size or moves when the method changes');
+  const payFoot = payDialog.indexOf('data-pay-settle');
+  assert(payFoot > afterAt && payDialog.includes('min-w-[250px]') && readSource('components/restaurant/RestUpiQr.tsx').includes('qrOnly'), 'Bill window: Settle stays in one place, whichever text it shows');
+  assert(/className\?: string;/.test(readSource('components/ui/Modal.tsx')) && /sizeClasses\[size\],\s*className/.test(readSource('components/ui/Modal.tsx')), 'Modal: an optional width class, nothing changes for the other windows');
 }
 
 // v4.182.0 — FS-18, FS-20, FS-21, FS-25 (Rahul 2026-10-30: "solve kardo").

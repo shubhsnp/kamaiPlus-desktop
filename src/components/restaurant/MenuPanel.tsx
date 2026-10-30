@@ -21,11 +21,13 @@ import type { Product } from '@/types';
  * piece. A dish with Half / Full asks which one. The number on a tile is how many are already in
  * this order.
  */
-export function MenuPanel({ onPick, inOrder, searchRef }: {
+export function MenuPanel({ onPick, inOrder, searchRef, resetKey }: {
   onPick: (pick: MenuPick) => void;
   /** product id → pieces in the current order. */
   inOrder: Map<string, number>;
   searchRef: React.RefObject<HTMLInputElement>;
+  /** v4.183.0: another table on the strip = a fresh menu (no reload, so no flash of an empty grid). */
+  resetKey?: string;
 }) {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all');
@@ -64,6 +66,14 @@ export function MenuPanel({ onPick, inOrder, searchRef }: {
   useEffect(() => {
     gridRef.current?.scrollTo({ top: 0 });
   }, [category, query]);
+
+  useEffect(() => {
+    setQuery('');
+    setCategory('all');
+    setSizeFor(null);
+    setSoldOutMode(false);
+    gridRef.current?.scrollTo({ top: 0 });
+  }, [resetKey]);
 
   const countOf = (d: MenuDish) => (d.sizes.length ? d.sizes.reduce((n, s) => n + (inOrder.get(s.id) || 0), 0) : inOrder.get(d.product.id) || 0);
   const priceText = (d: MenuDish) => {
