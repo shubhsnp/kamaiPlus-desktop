@@ -1,4 +1,5 @@
 import { msg } from '@/lib/i18n/core';
+import { reportError } from '@/lib/diagnostics/errorReporter';
 
 /*
  * Barcode label printing setup (v4.71.0) — per computer, like the bill printer
@@ -161,7 +162,9 @@ export function getLabelSettings(): LabelSettings {
 export function saveLabelSettings(next: LabelSettings) {
   try {
     localStorage.setItem(LABEL_SETTINGS_KEY, JSON.stringify(next));
-  } catch {}
+  } catch (e) {
+    reportError('storage', e, 'label settings not saved');
+  }
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(LABEL_SETTINGS_EVENT));
 }
 
@@ -186,7 +189,9 @@ const LAST_IMPORT_KEY = 'kamai_last_import_ids';
 export function saveLastImportIds(ids: string[]) {
   try {
     localStorage.setItem(LAST_IMPORT_KEY, JSON.stringify(ids));
-  } catch {}
+  } catch (e) {
+    reportError('storage', e, 'last import list not saved');
+  }
 }
 
 export function getLastImportIds(): string[] {
@@ -210,7 +215,9 @@ export interface LabelHandoffItem {
 export function saveLabelHandoff(items: LabelHandoffItem[]) {
   try {
     localStorage.setItem(HANDOFF_KEY, JSON.stringify(items.filter((i) => i.id && i.copies > 0)));
-  } catch {}
+  } catch (e) {
+    reportError('storage', e, 'label handoff not saved');
+  }
 }
 
 export function readLabelHandoff(): LabelHandoffItem[] {

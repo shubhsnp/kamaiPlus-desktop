@@ -1,4 +1,5 @@
 import { db, seedBusinessStarterData } from './index';
+import { reportError } from '@/lib/diagnostics/errorReporter';
 
 /**
  * Completely clean all product and stock inventory data from local database.
@@ -65,7 +66,9 @@ export async function clearSalesAndAnalyticsHistory(options?: {
   try {
     const { resetInvoiceNumberCache } = await import('@/lib/invoices/invoiceNumberService');
     resetInvoiceNumberCache();
-  } catch {}
+  } catch (e) {
+    reportError('data-reset', e, 'invoice number cache not reset');
+  }
 
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new Event('kamai_sales_cleared'));
@@ -177,14 +180,18 @@ export async function completeFactoryReset(options?: {
   try {
     const { resetInvoiceNumberCache } = await import('@/lib/invoices/invoiceNumberService');
     resetInvoiceNumberCache();
-  } catch {}
+  } catch (e) {
+    reportError('data-reset', e, 'invoice number cache not reset');
+  }
 
   try {
     const { clearOutbox } = await import('@/lib/cloud/cloudOutbox');
     clearOutbox();
     const { clearPullCursors } = await import('@/lib/cloud/cloudPull');
     clearPullCursors();
-  } catch {}
+  } catch (e) {
+    reportError('data-reset', e, 'cloud queue not cleared');
+  }
 
   if (typeof window !== 'undefined') {
     localStorage.setItem('kamai_products_manually_cleared', 'true');

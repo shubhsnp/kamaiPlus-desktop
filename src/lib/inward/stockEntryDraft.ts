@@ -1,6 +1,7 @@
 import { MASTER_UNITS } from '@/lib/constants/storeProfiles';
 import { ProductUnit } from '@/types';
 import { StockEntryRow } from './stockEntry';
+import { reportError } from '@/lib/diagnostics/errorReporter';
 
 /*
  * Rows typed in "New stock + labels" survive closing the window, a page change or a
@@ -56,7 +57,9 @@ export function readStockEntryDraft(key = DRAFT_KEY): StockEntryDraft | null {
 export function saveStockEntryDraft(draft: StockEntryDraft, key = DRAFT_KEY) {
   try {
     localStorage.setItem(key, JSON.stringify(draft));
-  } catch {}
+  } catch (e) {
+    reportError('storage', e, 'stock entry draft not saved');
+  }
 }
 
 export function clearStockEntryDraft(key = DRAFT_KEY) {

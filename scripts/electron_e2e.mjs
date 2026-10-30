@@ -712,6 +712,9 @@ async function run() {
         });
       });
       await page.getByRole('button', { name: /Silent: OFF/ }).click();
+      // A PC with a receipt printer already has its bill printer (auto-detect, v4.78.0): Silent just turns on, no window.
+      const setupOpened = await page.locator('[data-bill-autoprint]').waitFor({ timeout: 2500 }).then(() => true, () => false);
+      if (!setupOpened) await page.locator('[data-bill-printer-open]').click();
       await page.locator('[data-bill-autoprint]').waitFor({ timeout: 5000 });
       await page.locator('[data-bill-format="thermal-80"]').click();
       const printerNames = await page.locator('select[data-bill-printer] option').evaluateAll((os) => os.map((o) => o.value).filter(Boolean));
@@ -1041,7 +1044,16 @@ async function run() {
       await page.evaluate(() => { window.location.href = '/purchases/'; });
       await page.locator('[data-purchases-inward-menu] > button').click(); // v4.93.0: one "Stock Inward" menu
       await page.locator('[data-inward-option="manual"]').click();
-      await page.locator('form select').first().selectOption(rocket.id);
+      // FS-20 (v4.182.0): the item is found by typing or the gun; Enter picks it, never saves the form.
+      await page.locator('[data-restock-search]').waitFor({ timeout: 5000 });
+      await shot(page, 'manual-inward-item-box');
+      await page.locator('[data-restock-search]').fill(rocket.name);
+      await page.locator('[data-restock-search]').press('Enter');
+      await page.locator('[data-restock-selected]').waitFor({ timeout: 5000 });
+      await shot(page, 'manual-inward-item-picked');
+      check((await page.locator('[data-restock-selected]').innerText()).includes(rocket.name)
+        && await page.getByPlaceholder('e.g. 50').evaluate((el) => el === document.activeElement),
+        'Manual Inward: typing the name + Enter picks the item and moves on to Quantity');
       await page.getByPlaceholder('e.g. 50').fill('10');
       await page.getByRole('button', { name: /Save Stock Inward/ }).click();
       await page.locator('[data-inward-label-offer]').waitFor({ timeout: 10000 });
@@ -1220,6 +1232,35 @@ async function run() {
       await page.waitForTimeout(400);
       check(/damaged/i.test(alertText) && !(await page.locator('[data-restore-modal]').count()) && (await readStore(page, 'products')).length === snap.products.length,
         'A damaged backup file is refused before anything is touched');
+
+      // FS-25 (v4.182.0): English letters find a Hindi name on the Customers page.
+      step = 'customers search';
+      const hindiCustomer = (op) => page.evaluate((what) => new Promise((resolve, reject) => {
+        const req = indexedDB.open('VyaparSetuDB');
+        req.onerror = () => reject(req.error);
+        req.onsuccess = () => {
+          const db = req.result;
+          const store = db.transaction('customers', 'readwrite').objectStore('customers');
+          const w = what === 'add'
+            ? store.put({ id: 'e2e_hindi_name', business_id: 'e2e', name: 'रमेश कुमार', phone: '9812300000', current_balance: 0, customer_type: 'regular', created_at: new Date().toISOString() })
+            : store.delete('e2e_hindi_name');
+          w.onsuccess = () => { db.close(); resolve(true); };
+          w.onerror = () => { db.close(); reject(w.error); };
+        };
+      }), op);
+      await hindiCustomer('add');
+      await page.evaluate(() => { window.location.href = '/customers/'; });
+      const customerSearch = page.getByPlaceholder('Search by name, phone, GSTIN, or city...');
+      await customerSearch.waitFor({ timeout: 15000 });
+      await customerSearch.fill('ramesh');
+      await page.waitForTimeout(400);
+      const rameshFound = await page.getByText('रमेश कुमार').count();
+      await shot(page, 'customers-search-hindi');
+      await customerSearch.fill('zzzzz');
+      await page.waitForTimeout(400);
+      check(rameshFound > 0 && (await page.getByText('रमेश कुमार').count()) === 0, 'Customers: "ramesh" finds रमेश कुमार, a wrong word does not');
+      await customerSearch.fill('');
+      await hindiCustomer('delete');
 
       // v4.78.0 — the Transactions pull-tab: dragged up it stays up (saved), a click still opens it.
       step = 'drawer drag';

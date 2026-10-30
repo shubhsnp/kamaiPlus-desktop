@@ -1,5 +1,6 @@
 import { RestOrder, lineTitle, liveLines, orderTotals, piecesInKitchen, pieceCount } from '@/lib/restaurant/model';
 import { RESTAURANT_CHANGED_EVENT, type RestaurantSettings } from '@/lib/restaurant/settings';
+import { reportError } from '@/lib/diagnostics/errorReporter';
 
 /*
  * Cancelled orders (v4.108.0) — a restaurant owner's "void report". Every order cancelled from the
@@ -66,7 +67,9 @@ export function loadVoids(): RestVoid[] {
 export function recordVoid(entry: RestVoid): void {
   try {
     localStorage.setItem(RESTAURANT_VOIDS_KEY, JSON.stringify(parseVoids([entry, ...loadVoids()])));
-  } catch {}
+  } catch (e) {
+    reportError('storage', e, 'void record not saved');
+  }
   window.dispatchEvent(new Event(RESTAURANT_CHANGED_EVENT));
 }
 

@@ -1,3 +1,5 @@
+import { reportError } from '@/lib/diagnostics/errorReporter';
+
 /*
  * Restaurant mode — the shop's own set-up (v4.106.0). Per computer, localStorage, like the other
  * counter settings. Everything here can be changed by the shop at any time (Tables → Set-up).
@@ -119,7 +121,9 @@ export function saveRestaurantSettings(next: RestaurantSettings): RestaurantSett
   const clean = sanitizeRestaurantSettings(next);
   try {
     localStorage.setItem(RESTAURANT_SETTINGS_KEY, JSON.stringify(clean));
-  } catch {}
+  } catch (e) {
+    reportError('storage', e, 'restaurant settings not saved');
+  }
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(RESTAURANT_CHANGED_EVENT));
   return clean;
 }

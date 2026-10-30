@@ -1,6 +1,7 @@
 import { doc, onSnapshot, Unsubscribe } from 'firebase/firestore';
 import { getFirestoreDb } from '@/lib/firebase/config';
 import { getDesktopApi } from '@/lib/desktop/desktopBridge';
+import { reportError } from '@/lib/diagnostics/errorReporter';
 
 /**
  * ⚡ KamaiPlus Desktop Realtime Listener (1-Second Instant Live Sync)
@@ -143,7 +144,9 @@ export function startDesktopLiveListener(): () => void {
         bindKey(status.key);
         void triggerLiveRefresh('startup');
       }
-    } catch {}
+    } catch (e) {
+      reportError('admin-live', e, 'listener not started');
+    }
 
     // Listen for licence changes (key activation, key renewal, machine reset)
     offLicenceChanged = api.onLicenceChanged?.((status) => {

@@ -3558,5 +3558,10 @@
   "Send the bill PDF (A4) with the message under it": "बिल PDF (A4) भेजें, नीचे संदेश के साथ",
   "WhatsApp is ready: the bill PDF with the message under it. Check the name at the top and press Send (✕ there cancels it).": "WhatsApp तैयार है: बिल PDF और उसके नीचे संदेश। ऊपर नाम देखें और Send दबाएँ (वहाँ ✕ से रद्द)।",
   "WhatsApp bill: the A4 bill PDF goes straight into the chat with the message under it — no copy, no Ctrl+V; just check the name and press Send. A bill sent twice no longer doubles the message.": "WhatsApp बिल: A4 बिल PDF सीधे चैट में, नीचे संदेश के साथ — न कॉपी, न Ctrl+V; बस नाम देखें और Send दबाएँ। एक बिल दो बार भेजने पर संदेश अब दो बार नहीं जुड़ता।",
-  "A bill PDF was put into this WhatsApp chat recently. If it is still waiting there (not sent), press Send or ✕ on it first — WhatsApp will not take a new PDF over it.": "इस WhatsApp चैट में हाल ही में एक बिल PDF डाला गया था। अगर वह वहाँ अभी भी रुका है (भेजा नहीं), तो पहले उस पर Send या ✕ दबाएँ — उसके ऊपर WhatsApp नया PDF नहीं लेता।"
+  "A bill PDF was put into this WhatsApp chat recently. If it is still waiting there (not sent), press Send or ✕ on it first — WhatsApp will not take a new PDF over it.": "इस WhatsApp चैट में हाल ही में एक बिल PDF डाला गया था। अगर वह वहाँ अभी भी रुका है (भेजा नहीं), तो पहले उस पर Send या ✕ दबाएँ — उसके ऊपर WhatsApp नया PDF नहीं लेता।",
+  "Could not save a safety backup of this computer's data, so nothing was cleared. Free some disk space and try again.": "इस कंप्यूटर के डेटा का सुरक्षा बैकअप नहीं बन सका, इसलिए कुछ भी मिटाया नहीं गया। डिस्क में थोड़ी जगह खाली करके फिर कोशिश करें।",
+  "No item with this name or barcode.": "इस नाम या बारकोड का कोई सामान नहीं मिला।",
+  "Purchases → Manual Inward: type the item's name or scan its barcode to find it — no more scrolling a long list.": "खरीदारी → हाथ से माल दर्ज करें: सामान का नाम लिखकर या बारकोड स्कैन करके ढूँढें — लंबी सूची में ढूँढना नहीं पड़ेगा।",
+  "Customers: type a Hindi or Marathi name in English letters — ramesh finds रमेश.": "ग्राहक: हिंदी या मराठी नाम अंग्रेज़ी अक्षरों में लिखें — ramesh से रमेश मिल जाएगा।",
+  "Could not load the salary entries. Please try again.": "वेतन की एंट्री नहीं खुल सकीं। कृपया फिर कोशिश करें।"
 }

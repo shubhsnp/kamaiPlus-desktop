@@ -3,6 +3,7 @@ import { hasUnsentItems, localDay, markKotSent } from '@/lib/restaurant/model';
 import { RESTAURANT_CHANGED_EVENT, RestaurantSettings, loadRestaurantSettings } from '@/lib/restaurant/settings';
 import { RestState, loadRestState, parseRestState, saveRestState } from '@/lib/restaurant/store';
 import { gstAllowed } from '@/lib/business/verticalProfile';
+import { reportError } from '@/lib/diagnostics/errorReporter';
 
 /*
  * Running restaurant orders on every device of the shop (v4.140.0, Rahul 2026-10-10, R1): the waiter's
@@ -131,7 +132,9 @@ function readSent(): Map<string, string> {
 function writeSent(sent: Map<string, string>) {
   try {
     localStorage.setItem(RESTAURANT_SENT_KEY, JSON.stringify(Object.fromEntries(sent)));
-  } catch {}
+  } catch (e) {
+    reportError('storage', e, 'restaurant sent list not saved');
+  }
 }
 
 function readGone(): Map<string, string> {
@@ -147,7 +150,9 @@ function writeGone(gone: Map<string, string>) {
   try {
     if (gone.size) localStorage.setItem(RESTAURANT_GONE_KEY, JSON.stringify(Object.fromEntries(gone)));
     else localStorage.removeItem(RESTAURANT_GONE_KEY);
-  } catch {}
+  } catch (e) {
+    reportError('storage', e, 'restaurant removed list not saved');
+  }
 }
 
 /**

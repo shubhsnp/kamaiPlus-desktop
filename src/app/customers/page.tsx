@@ -17,7 +17,7 @@ import { CustomerCard } from '@/components/customers/CustomerCard';
 import { AddEditCustomerModal } from '@/components/customers/AddEditCustomerModal';
 import { CustomerTableView } from '@/components/customers/CustomerTableView';
 import { CustomerListControls } from '@/components/customers/CustomerListControls';
-import { CUSTOMER_VIEW_KEY, CustomerSort, CustomerView, sortCustomers } from '@/lib/customers/customerDirectory';
+import { CUSTOMER_VIEW_KEY, CustomerSort, CustomerView, customerMatchesSearch, sortCustomers } from '@/lib/customers/customerDirectory';
 import { tr } from '@/lib/i18n/core';
 import { newId } from '@/lib/ids';
 
@@ -59,21 +59,7 @@ export default function CustomersPage() {
   // Filtered customers
   const filteredCustomers = rawCustomers.filter((c) => {
     // 1. Search Query
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
-      const cleanDigits = q.replace(/\D/g, '');
-      const cleanPhone = (c.phone || '').replace(/\D/g, '');
-      const phoneDigitsMatch = cleanDigits && cleanPhone ? cleanPhone.includes(cleanDigits) : false;
-
-      const matchName = c.name.toLowerCase().includes(q);
-      const matchPhone = Boolean(c.phone && c.phone.toLowerCase().includes(q));
-      const matchAddress = Boolean(c.address && c.address.toLowerCase().includes(q));
-      const matchGstin = Boolean(c.gstin && c.gstin.toLowerCase().includes(q));
-
-      if (!matchName && !matchPhone && !phoneDigitsMatch && !matchAddress && !matchGstin) {
-        return false;
-      }
-    }
+    if (!customerMatchesSearch(c, searchQuery)) return false;
 
     // 2. Category Filter
     if (selectedFilter === 'credit' && c.current_balance <= 0) return false;

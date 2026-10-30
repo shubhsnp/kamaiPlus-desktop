@@ -35,7 +35,9 @@ export function AdminControlHost() {
         let busy = false;
         try {
           busy = counterHasOpenBill(localStorage.getItem(TABS_STORAGE_KEY));
-        } catch {}
+        } catch {
+          busy = true; // Cannot tell (FS-18): never let a remote restart close a bill that may be open.
+        }
         done(!busy, busy ? 'A bill is open on the counter' : 'Counter is free');
       } else if (cmd.type === 'backup_now') {
         void runAutoBackup({ force: true })

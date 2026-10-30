@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { tr } from '@/lib/i18n/core';
 import { JoinCode, StaffMember, createJoinCode } from '@/lib/cloud/staff';
 import { getCloudAccount } from '@/lib/cloud/cloudAccount';
+import { reportError } from '@/lib/diagnostics/errorReporter';
 
 /**
  * v4.144.0 — the one-time code (and its QR) a staff phone joins with: KamaiPlus app → "Staff sign-in".
@@ -84,7 +85,9 @@ export function StaffJoinCodeDialog({ member, onClose }: { member: StaffMember |
             }
           }
         });
-      } catch {}
+      } catch (e) {
+        reportError('staff', e, 'join listener not started');
+      }
     })();
 
     return () => {

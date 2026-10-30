@@ -1,8 +1,14 @@
 import { msg } from '@/lib/i18n/core';
 import type { Release } from '@/lib/whatsNew/changelog';
 
-/** "What's new" for 4.126.0 and older (moved out of changelog.ts to stay <= 400 lines, newest first). */
+/** "What's new" for 4.127.0 and older (moved out of changelog.ts to stay <= 400 lines, newest first). */
 export const OLDER_RELEASES: Release[] = [
+  {
+    version: '4.127.0',
+    items: [
+      msg('Electronics & mobile shops: the ✏️ on a bill line takes the IMEI / serial no. and warranty months of that piece, printed on the bill.'),
+    ],
+  },
   {
     version: '4.126.0',
     items: [

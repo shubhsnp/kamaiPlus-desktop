@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
 import { FileSpreadsheet } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Product } from '@/types';
@@ -30,6 +31,7 @@ export function InwardBillButton({
   open,
   onOpenChange,
 }: InwardBillButtonProps) {
+  const router = useRouter();
   const [ownOpen, setOwnOpen] = useState(false);
   const controlled = open !== undefined;
   const isSheetOpen = controlled ? open : ownOpen;
@@ -59,7 +61,7 @@ export function InwardBillButton({
         existingProducts={existingProducts}
         onManualInwardClick={() => {
           setIsSheetOpen(false);
-          window.location.href = '/products';
+          router.push('/products'); // FS-21: a full reload flashed a black screen (Bible §10 #22).
         }}
         onScanSuccess={onScanSuccess}
       />

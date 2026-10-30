@@ -39,6 +39,7 @@ import { AddStaffDialog } from './AddStaffDialog';
 import { StaffJoinCodeDialog } from './StaffJoinCodeDialog';
 import { StaffPerformanceDialog } from './StaffPerformanceDialog';
 import { StaffSalaryDialog } from './StaffSalaryDialog';
+import { reportError } from '@/lib/diagnostics/errorReporter';
 
 /**
  * Settings → Staff: staff sign in with one-time codes on their phones.
@@ -119,7 +120,9 @@ export function StaffTab() {
           };
         }
         setTodayStats(stats);
-      } catch {}
+      } catch (e) {
+        reportError('staff', e, 'today stats not loaded');
+      }
     };
     void fetchTodayStats();
     return () => {

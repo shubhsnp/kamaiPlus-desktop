@@ -1,5 +1,6 @@
 import type { DBCore, DBCoreTransaction, Middleware } from 'dexie';
 import { CLOUD_TABLES, CloudTable } from '@/lib/cloud/cloudContract';
+import { reportError } from '@/lib/diagnostics/errorReporter';
 
 /**
  * Cloud outbox (Step 3 v4.85.0, Step 4 v4.86.0).
@@ -107,7 +108,9 @@ function load(): void {
 function save(): void {
   try {
     localStorage.setItem(OUTBOX_KEY, JSON.stringify(outbox));
-  } catch {}
+  } catch (e) {
+    reportError('storage', e, 'cloud outbox not saved');
+  }
 }
 
 function announce(): void {
@@ -209,7 +212,9 @@ export function takeDeltasForSend(newRoundId: string): InflightDeltas | null {
 export function finishInflight(): void {
   try {
     localStorage.removeItem(INFLIGHT_KEY);
-  } catch {}
+  } catch (e) {
+    reportError('storage', e, 'cloud inflight mark not cleared');
+  }
 }
 
 /** A counter change of this record still on its way to the cloud (waiting + in flight; 0 when none). */

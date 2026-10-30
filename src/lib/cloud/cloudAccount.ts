@@ -1,5 +1,6 @@
 import { getDesktopApi } from '@/lib/desktop/desktopBridge';
 import { tr } from '@/lib/i18n/core';
+import { reportError } from '@/lib/diagnostics/errorReporter';
 
 /**
  * The Google account this shop's cloud belongs to (v4.84.0, Step 2 — tracker §3b).
@@ -53,7 +54,9 @@ export function getCloudAccount(): CloudAccount | null {
 function saveCloudAccount(account: CloudAccount): void {
   try {
     localStorage.setItem(CLOUD_ACCOUNT_KEY, JSON.stringify(account));
-  } catch {}
+  } catch (e) {
+    reportError('storage', e, 'cloud account not saved');
+  }
   window.dispatchEvent(new Event(CLOUD_ACCOUNT_EVENT));
 }
 

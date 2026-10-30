@@ -11,6 +11,7 @@ import { isVerticalId, restaurantGstFor, saveVerticalProfile } from '@/lib/busin
 import { validateGstin, validateIndianPhone, validatePersonName, mobileDigits, FIELD_MAX } from '@/lib/validation/validators';
 import { loadRestaurantSettings, saveRestaurantSettings } from '@/lib/restaurant/settings';
 import type { useRouter } from 'next/navigation';
+import { reportError } from '@/lib/diagnostics/errorReporter';
 
 /** v4.124.0 (AU-32): bill terms that fit the category (a table, never a branch — Suite 9). */
 const BILL_TERMS: Record<string, string> = {
@@ -263,13 +264,17 @@ export function createOnboardingSubmit(deps: CreateOnboardingSubmitDeps) {
           setCloudSendOn(true);
           void sendToCloudNow();
         }
-      } catch {}
+      } catch (e) {
+        reportError('cloud', e, 'cloud send not started after setup');
+      }
 
       // Sync profile to cloud
       try {
         const { syncProfileToCloud } = await import('@/lib/sync/syncEngine');
         await syncProfileToCloud(businessId);
-      } catch (e) {}
+      } catch (e) {
+        reportError('cloud', e, 'profile not sent after setup');
+      }
 
       // 4. Navigate to dashboard
       router.replace('/');

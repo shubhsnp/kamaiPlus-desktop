@@ -15,6 +15,7 @@ import {
   type StaffSalaryLedger,
 } from '@/lib/staff/staffMetrics';
 import { StaffPaymentForm } from './StaffPaymentForm';
+import { reportError } from '@/lib/diagnostics/errorReporter';
 
 export function StaffSalaryDialog({
   open,
@@ -46,7 +47,9 @@ export function StaffSalaryDialog({
     try {
       const data = await getStaffSalaryLedger(staffName, salaryPaise, member?.id);
       setLedger(data);
-    } catch {
+    } catch (e) {
+      reportError('staff', e, 'salary ledger not loaded');
+      setError(tr('Could not load the salary entries. Please try again.'));
     } finally {
       setLoading(false);
     }

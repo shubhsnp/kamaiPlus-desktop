@@ -1,6 +1,7 @@
 import { getCloudAccount } from '@/lib/cloud/cloudAccount';
 import { tr } from '@/lib/i18n/core';
 import type { VerticalId } from '@/lib/business/verticalProfile';
+import { reportError } from '@/lib/diagnostics/errorReporter';
 
 /*
  * Staff sign-in (v4.144.0, Rahul 2026-10-10): the shop's staff join from their own phone with a one-time
@@ -296,7 +297,9 @@ export async function createJoinCode(staffId: string, fetchImpl: typeof fetch = 
       await auth.authStateReady();
       if (auth.currentUser?.uid === account.uid) token = await auth.currentUser.getIdToken();
     }
-  } catch {}
+  } catch (e) {
+    reportError('staff', e, 'sign-in token not read');
+  }
   if (!token) return { ok: false, error: joinCodeMessage('signed_out') };
   try {
     const res = await fetchImpl(STAFF_FUNCTION_URL, {

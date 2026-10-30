@@ -33,6 +33,7 @@ import { isFeatureOn, useFeatureSwitches } from '@/lib/features/featureSwitches'
 import { countsStockAtCounter } from '@/lib/billing/stockRule';
 import { useBackgroundBillPrint } from '@/components/billing/BillPrintQueue';
 import { tr } from '@/lib/i18n/core';
+import { reportError } from '@/lib/diagnostics/errorReporter';
 
 export default function BillingPage() {
   const { language, t } = useTranslation();
@@ -290,12 +291,10 @@ export default function BillingPage() {
   // add the highlighted result. The box's own text is read, so a code is never cut short.
   const handleSearchEnter = async () => {
     const text = (searchInputRef.current?.value || '').trim();
-    let exact: Product | undefined;
-    if (text) {
-      try {
-        exact = await db.products.where('barcode').equals(text).first();
-      } catch {}
-    }
+    const exact = text ? await db.products.where('barcode').equals(text).first().catch((e) => {
+      reportError('billing', e, 'barcode lookup failed');
+      return undefined;
+    }) : undefined;
     const action = searchEnterAction(text, cart.length, Boolean(exact), products.length);
     // Under "Sale completed" only a scanned code counts (it closes the window and starts the
     // next bill); an Enter on its own never finishes the bill waiting underneath.

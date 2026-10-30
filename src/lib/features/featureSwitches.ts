@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { msg } from '@/lib/i18n/core';
 import { readVerticalProfile, verticalSwitches } from '@/lib/business/verticalProfile';
+import { reportError } from '@/lib/diagnostics/errorReporter';
 
 /*
  * Feature switches (v4.69.0). Turning one off only HIDES a screen or field, the data stays.
@@ -282,7 +283,9 @@ export function setFeatureSwitch(id: FeatureId, on: boolean) {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(FEATURE_SWITCHES_KEY, JSON.stringify({ ...parseFeatureSwitches(localStorage.getItem(FEATURE_SWITCHES_KEY)), [id]: on }));
-  } catch {}
+  } catch (e) {
+    reportError('storage', e, 'feature switches not saved');
+  }
   window.dispatchEvent(new Event(FEATURE_SWITCHES_EVENT));
 }
 

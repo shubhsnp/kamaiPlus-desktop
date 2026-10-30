@@ -1,4 +1,5 @@
 import type { PaperFormat } from '@/lib/desktop/desktopBridge';
+import { reportError } from '@/lib/diagnostics/errorReporter';
 
 /**
  * Per-computer print preferences (printers belong to the machine, not the store,
@@ -42,7 +43,9 @@ export function savePrintSettings(next: PrintSettings): void {
   try {
     localStorage.setItem(KEY, JSON.stringify(next));
     window.dispatchEvent(new Event('print_settings_changed'));
-  } catch {}
+  } catch (e) {
+    reportError('storage', e, 'print settings not saved');
+  }
 }
 
 export function printerForFormat(settings: PrintSettings, format: PaperFormat): string {

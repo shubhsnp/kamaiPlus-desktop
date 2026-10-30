@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import type { DesktopPrinter, KamaiDesktopApi } from '@/lib/desktop/desktopBridge';
 import type { PrinterFacts } from '@/lib/hardware/printerDetect';
+import { reportError } from '@/lib/diagnostics/errorReporter';
 
 /*
  * The printers Windows has right now, shared by the printer watcher (AppShell) and the
@@ -62,6 +63,8 @@ export function readSilentPrint(): boolean {
 export function saveSilentPrint(on: boolean) {
   try {
     localStorage.setItem(SILENT_PRINT_KEY, String(on));
-  } catch {}
+  } catch (e) {
+    reportError('storage', e, 'silent print setting not saved');
+  }
   window.dispatchEvent(new Event(SILENT_PRINT_EVENT));
 }

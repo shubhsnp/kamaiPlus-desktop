@@ -21,9 +21,9 @@ likhein (jaise `[x] v4.85.0`). Naya kaam mile to neeche jod dein (agla ID).
 | FS-03 | Backup din mein ek baar se zyada | P1 | S | [x] v4.82.0 |
 | FS-04 | Billing page (2,208 lines) ko chhote hisson mein todna | P1 | L | [x] v4.104.0 |
 | FS-05 | Target dukaan tay karna → roadmap | P1 | S | [ ] |
-| FS-06 | Multi-counter / multi-computer sync + maalik ka mobile view | P2 | XL | [ ] |
-| FS-07 | Staff login aur roles (kisne bill kaata) | P2 | L | [ ] |
-| FS-08 | Batch / expiry tracking | P2 | L | [ ] |
+| FS-06 | Multi-counter / multi-computer sync + maalik ka mobile view | P2 | XL | [~] sync v4.86.0; ek licence kai PC baaki |
+| FS-07 | Staff login aur roles (kisne bill kaata) | P2 | L | [~] staff + staff_id ban gaye; rokne wale roles nahi |
+| FS-08 | Batch / expiry tracking | P2 | L | [x] v4.126.0 |
 | FS-09 | Purchase return / debit note, purchase order | P2 | M | [x] v4.102.0 |
 | FS-10 | GSTR-3B summary | P2 | M | [x] v4.101.0 |
 | FS-11 | E-invoice (IRN) | P3 | L | [ ] |
@@ -33,14 +33,14 @@ likhein (jaise `[x] v4.85.0`). Naya kaam mile to neeche jod dein (agla ID).
 | FS-15 | Baaki badi files todna (Khata, Products, Edit Invoice, Settings) | P2 | L | [x] v4.104.0 |
 | FS-16 | Database ke unit tests (fake-IndexedDB) | P2 | M | [ ] |
 | FS-17 | Regex source-checks ki jagah behaviour tests | P3 | M | [ ] |
-| FS-18 | Chupchaap nigle gaye errors (`catch {}`) ka audit | P2 | S | [ ] |
+| FS-18 | Chupchaap nigle gaye errors (`catch {}`) ka audit | P2 | S | [x] v4.182.0 |
 | FS-19 | Purana / bekaar code hatana | P3 | M | [ ] |
-| FS-20 | Manual Inward mein item dhoondhne wala picker | P2 | S | [ ] |
-| FS-21 | Purchases ka "Add Single Item Manually" reload hataana | P3 | S | [ ] |
+| FS-20 | Manual Inward mein item dhoondhne wala picker | P2 | S | [x] v4.182.0 |
+| FS-21 | Purchases ka "Add Single Item Manually" reload hataana | P3 | S | [x] v4.182.0 |
 | FS-22 | Excel / CSV export seedha folder mein save | P3 | M | [ ] |
 | FS-23 | Hindi / Marathi mein unit ke naam | P3 | S | [ ] |
 | FS-24 | Transactions pull-tab right-edge ke buttons dhak leta hai | P3 | S | [ ] |
-| FS-25 | Customers page par English se Hindi naam dhoondhna | P3 | S | [ ] |
+| FS-25 | Customers page par English se Hindi naam dhoondhna | P3 | S | [x] v4.182.0 |
 | FS-26 | AMC / support plan (baar-baar aane wali kamai) | P2 | S | [ ] |
 | FS-27 | Doosre software (Vyapar / Marg) se data import | P3 | L | [ ] |
 | FS-28 | Naye Firebase projects mein CI/CD deploy script update (site auto-creation) | P3 | S | [ ] |

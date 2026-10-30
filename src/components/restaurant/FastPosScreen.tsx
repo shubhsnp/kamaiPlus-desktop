@@ -18,6 +18,7 @@ import { FastCartPanel } from '@/components/restaurant/FastCartPanel';
 import { AddOnsDialog } from '@/components/restaurant/AddOnsDialog';
 import { PayDialog, SettleExtras } from '@/components/restaurant/PayDialog';
 import { RecentBills } from '@/components/restaurant/RecentBills';
+import { reportError } from '@/lib/diagnostics/errorReporter';
 
 const CART_KEY = 'kamai_fast_cart';
 
@@ -39,7 +40,9 @@ function loadCart(): RestOrder {
 const saveCart = (cart: RestOrder) => {
   try {
     localStorage.setItem(CART_KEY, JSON.stringify(cart));
-  } catch {}
+  } catch (e) {
+    reportError('storage', e, 'fast POS cart not saved');
+  }
 };
 
 /**

@@ -1,6 +1,7 @@
 import { getCloudAccount } from '@/lib/cloud/cloudAccount';
 import { getDesktopApi } from '@/lib/desktop/desktopBridge';
 import { tr } from '@/lib/i18n/core';
+import { reportError } from '@/lib/diagnostics/errorReporter';
 
 /*
  * "Reset test shop" (v4.142.0, Rahul 2026-10-10) — only for the team's own TEST Google accounts.
@@ -69,8 +70,11 @@ export async function resetTestShop(): Promise<{ ok: true } | { ok: false; error
   // A backup file in Documents\KamaiPlus first (the wipe never touches it) — best effort.
   try {
     const { runAutoBackup } = await import('@/lib/backup/autoBackup');
-    await runAutoBackup({ force: true });
-  } catch {}
+    const safety = await runAutoBackup({ force: true });
+    if (safety.status === 'failed') reportError('backup', safety.error, 'safety backup before test shop reset');
+  } catch (e) {
+    reportError('backup', e, 'safety backup before test shop reset');
+  }
   const api = getDesktopApi();
   if (api?.resetTestShopDevice) {
     await api.resetTestShopDevice();

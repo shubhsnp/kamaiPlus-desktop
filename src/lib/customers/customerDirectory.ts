@@ -1,5 +1,6 @@
 import { Customer } from '@/types';
 import { formatINR } from '@/lib/utils';
+import { makeProductQuery, productSearchScore } from '@/lib/search/productSearch';
 
 /*
  * Customer Directory (v4.78.0): sort orders, and the list as it is shown (after search /
@@ -16,6 +17,20 @@ const time = (iso?: string) => {
   const t = iso ? Date.parse(iso) : NaN;
   return Number.isFinite(t) ? t : 0;
 };
+
+/**
+ * The Customers page search box (FS-25, v4.182.0): name, phone (with or without spaces), address or
+ * GSTIN contains the text — or the name SOUNDS like it, so `ramesh` finds रमेश (Bible §9.6).
+ */
+export function customerMatchesSearch(c: Customer, query: string): boolean {
+  const q = query.toLowerCase().trim();
+  if (!q) return true;
+  const digits = q.replace(/\D/g, '');
+  const phoneDigits = (c.phone || '').replace(/\D/g, '');
+  if (digits && phoneDigits.includes(digits)) return true;
+  if (c.phone?.toLowerCase().includes(q) || c.address?.toLowerCase().includes(q) || c.gstin?.toLowerCase().includes(q)) return true;
+  return productSearchScore({ name: c.name }, makeProductQuery(query)) >= 0;
+}
 
 /** A new sorted list: most udhar first (default), name A–Z, most bought, latest visit. */
 export function sortCustomers(list: Customer[], sort: CustomerSort): Customer[] {

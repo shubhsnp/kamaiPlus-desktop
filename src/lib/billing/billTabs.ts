@@ -1,4 +1,5 @@
 import { CartItem, PaymentMethod } from '@/types';
+import { reportError } from '@/lib/diagnostics/errorReporter';
 
 /** Open POS bills (tabs) and their localStorage persistence — moved out of app/billing/page.tsx. */
 export interface BillTab {
@@ -193,7 +194,9 @@ export function getInitialTabs(): { tabs: BillTab[]; activeTabId: string } {
           return { tabs: parsed, activeTabId: (waiting || parsed[0]).id };
         }
       }
-    } catch {}
+    } catch (e) {
+      reportError('storage', e, 'open bills could not be read');
+    }
   }
   return { tabs: [makeEmptyTab('tab_1', 1)], activeTabId: 'tab_1' };
 }

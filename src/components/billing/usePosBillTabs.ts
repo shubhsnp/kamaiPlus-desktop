@@ -4,6 +4,7 @@ import { PriceMode } from '@/lib/billing/priceMode';
 import { CustomerDraft } from '@/lib/billing/billCustomer';
 import { scrollIntoContainer } from '@/lib/billing/cartFocus';
 import { BillTab, DiscardedBill, getInitialTabs, makeEmptyTab, tabsAfterClosing, tabsForNewBill, TABS_STORAGE_KEY } from '@/lib/billing/billTabs';
+import { reportError } from '@/lib/diagnostics/errorReporter';
 
 /**
  * The open bills on the counter (v4.104.0, K-D23 — moved out of app/billing/page.tsx unchanged): the
@@ -36,7 +37,9 @@ export function usePosBillTabs() {
   useEffect(() => {
     try {
       localStorage.setItem(TABS_STORAGE_KEY, JSON.stringify(tabs));
-    } catch {}
+    } catch (e) {
+      reportError('storage', e, 'open bills not saved');
+    }
   }, [tabs]);
 
   // The bill the counter is on right now — read when an item is added, so a scan never

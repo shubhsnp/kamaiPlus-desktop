@@ -3,6 +3,7 @@ import { getCloudAccount } from '@/lib/cloud/cloudAccount';
 import { finishInflight, markSent, MAX_OUTBOX_RETRIES, Outbox, OutboxOp, outboxSize, peekOutbox, setOutboxRecording, takeDeltasForSend } from '@/lib/cloud/cloudOutbox';
 import { newId } from '@/lib/ids';
 import { tr } from '@/lib/i18n/core';
+import { reportError } from '@/lib/diagnostics/errorReporter';
 
 /**
  * Cloud sync of this shop — Step 3 (Desktop → cloud, v4.85.0) + Step 4 (both ways, v4.86.0).
@@ -44,7 +45,9 @@ const write = (key: string, value: string | null) => {
   try {
     if (value === null) localStorage.removeItem(key);
     else localStorage.setItem(key, value);
-  } catch {}
+  } catch (e) {
+    reportError('storage', e, key);
+  }
 };
 
 /** This computer's name in the cloud's sync log (sync_ops). */

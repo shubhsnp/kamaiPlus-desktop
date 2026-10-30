@@ -16,6 +16,13 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.182.0',
+    items: [
+      msg("Purchases → Manual Inward: type the item's name or scan its barcode to find it — no more scrolling a long list."),
+      msg("Customers: type a Hindi or Marathi name in English letters — ramesh finds रमेश."),
+    ],
+  },
+  {
     version: '4.181.0',
     items: [
       msg("WhatsApp bill: the A4 bill PDF goes straight into the chat with the message under it — no copy, no Ctrl+V; just check the name and press Send. A bill sent twice no longer doubles the message."),
@@ -348,12 +355,6 @@ export const CHANGELOG: Release[] = [
     version: '4.128.0',
     items: [
       msg('Pharmacy counter: loose tablets are billed with the strip\'s own tablet count (e.g. 3 of 15), never as tenths of a strip. Store setup card Electronics & Hardware matches the mobile app.'),
-    ],
-  },
-  {
-    version: '4.127.0',
-    items: [
-      msg('Electronics & mobile shops: the ✏️ on a bill line takes the IMEI / serial no. and warranty months of that piece, printed on the bill.'),
     ],
   },
   ...OLDER_RELEASES,

@@ -25,6 +25,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Product, PurchaseBill } from '@/types';
 import { InwardBillButton } from '@/components/purchases/InwardBillButton';
 import { PurchaseInwardMenu } from '@/components/purchases/PurchaseInwardMenu';
+import { RestockProductPicker } from '@/components/purchases/RestockProductPicker';
 import { recordSupplierEntry } from '@/lib/suppliers/supplierLedger';
 import { isVariantParent, tracksOwnStock } from '@/lib/products/variants';
 import { CashierPrivacyToggleButton, ProfitMask } from '@/components/privacy/ProfitMask';
@@ -43,6 +44,7 @@ export default function PurchasesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState('');
   const [quantity, setQuantity] = useState('');
+  const quantityRef = React.useRef<HTMLInputElement>(null);
   const [costPrice, setCostPrice] = useState('');
   const [supplierName, setSupplierName] = useState('');
   // A saved supplier from /suppliers ('' = none, typed name only).
@@ -321,20 +323,17 @@ export default function PurchasesPage() {
         <form onSubmit={handleRecordPurchase} className="space-y-3">
           <div>
             <label className="text-xs font-bold text-slate-900 dark:text-slate-200 block mb-1">{tr('Select Product')}</label>
-            <select
+            <RestockProductPicker
+              products={products}
               value={selectedProductId}
-              onChange={(e) => setSelectedProductId(e.target.value)}
-              className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl p-2.5 text-xs font-semibold focus:border-slate-900 focus:outline-none min-h-[38px]"
-              required
-            >
-              <option value="">{tr('-- Choose item to restock --')}</option>
-              {products.map(p => (
-                <option key={p.id} value={p.id}>{p.name} {tr('(Current:')} {p.current_stock} {p.unit})</option>
-              ))}
-            </select>
+              onChange={(id) => {
+                setSelectedProductId(id);
+                if (id) quantityRef.current?.focus(); // The next thing a shop types after the scan.
+              }}
+            />
           </div>
 
-          <Input label={tr('Quantity Received')} placeholder={tr('e.g. 50')} type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} required />
+          <Input ref={quantityRef} label={tr('Quantity Received')} placeholder={tr('e.g. 50')} type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} required />
           {products.find((p) => p.id === selectedProductId)?.is_unlimited_stock && (
             <p className="text-[11px] font-semibold text-sky-800 bg-sky-50 border border-sky-200 rounded-lg px-2.5 py-1.5" data-inward-starts-counting>
               {tr('This item is not counted now ("Unlimited stock"). After this inward its stock is counted, starting from the quantity received.')}

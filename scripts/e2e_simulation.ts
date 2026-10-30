@@ -139,7 +139,8 @@ import { categoryKey, findCategoryByName } from '../src/lib/products/categories'
 import { allowsFractionalQty, dozenFromPieces, formatCartQty, lineAmountPaise, piecesInDozen, roundQty } from '../src/lib/billing/unitQuantity';
 import { getQuantityConfigForUnit } from '../src/components/billing/posQuantityConfig';
 import { scanIntoRows, splitTrailingCode } from '../src/lib/inward/fastInward';
-import { customerListHtmlBody, customerSheetRows, sortCustomers } from '../src/lib/customers/customerDirectory';
+import { customerListHtmlBody, customerMatchesSearch, customerSheetRows, sortCustomers } from '../src/lib/customers/customerDirectory';
+import { restockMatches, restockPickOnEnter } from '../src/lib/inward/restockPicker';
 import { BACKUP_TABLES, checkBackupPayload } from '../src/lib/backup/cloudBackupService';
 import { CLOUD_TABLES, fromCloud, normalizeUnit, tableForCloudPath, toCloud } from '../src/lib/cloud/cloudContract';
 import { cloudBizId, parseCloudAccount } from '../src/lib/cloud/cloudAccount';
@@ -5608,6 +5609,51 @@ pendingAsyncChecks.push((async () => {
     'Reorder card: no "Deficit: 0" at exactly the minimum, no "Cost: ₹0.00" without a buying price');
   assert(RESTAURANT_WORDS['Manage Products'] === 'Manage Menu' && readSource('components/inventory/InventoryHeaderActions.tsx').includes("tr('Manage Products')"),
     'Restaurant: Inventory header says "Manage Menu" (inventory is on for a restaurant since v4.165.0)');
+}
+
+// v4.182.0 — FS-18, FS-20, FS-21, FS-25 (Rahul 2026-10-30: "solve kardo").
+{
+  // FS-25: English letters find a Hindi name on the Customers page; phone, address and GSTIN still work.
+  const cust = (o: any) => ({ id: 'c', business_id: 'b', name: 'X', current_balance: 0, ...o }) as any;
+  assert(customerMatchesSearch(cust({ name: 'रमेश कुमार' }), 'ramesh') && customerMatchesSearch(cust({ name: 'सुरेश पाटील' }), 'patil')
+    && !customerMatchesSearch(cust({ name: 'रमेश कुमार' }), 'suresh'),
+    'Customers search: ramesh finds रमेश कुमार, patil finds सुरेश पाटील, suresh does not find रमेश');
+  assert(customerMatchesSearch(cust({ name: 'Ram', phone: '98765 43210' }), '9876543210') && customerMatchesSearch(cust({ name: 'Ram', address: 'Station Road' }), 'station')
+    && customerMatchesSearch(cust({ name: 'Ram', gstin: '27ABCDE1234F1Z5' }), '27abcde') && customerMatchesSearch(cust({ name: 'Ram' }), '  ')
+    && !customerMatchesSearch(cust({ name: 'Ramesh', phone: '9999900000' }), '12345'),
+    'Customers search: phone without spaces, address, GSTIN and an empty box as before; digits never match a name by sound');
+  assert(readSource('app/customers/page.tsx').includes('customerMatchesSearch(c, searchQuery)'), 'Customers page uses that search');
+
+  // FS-20: Manual Inward finds the item by name or gun; an unknown code never picks the first result.
+  const stock = [{ id: '1', name: 'Tata Salt 1kg', barcode: '8901058000012' }, { id: '2', name: 'चीटपुट बुलेट' }, { id: '3', name: 'Salt Lamp', barcode: '5500' }];
+  assert(restockPickOnEnter(stock, '8901058000012', 0)?.id === '1' && restockPickOnEnter(stock, '8901058000099', 0) === null
+    && restockPickOnEnter(stock, 'chitput', 0)?.id === '2' && restockPickOnEnter(stock, 'salt', 1)?.id === '3'
+    && restockPickOnEnter(stock, 'salt', 9)?.id === '3' && restockPickOnEnter(stock, '   ', 0) === null && restockPickOnEnter(stock, 'zzzz', 0) === null,
+    'Manual Inward picker: a saved barcode wins, an unknown code picks nothing, typed words pick the highlighted result');
+  assert(restockMatches(Array.from({ length: 200 }, (_, i) => ({ name: 'Item ' + i })), '').length === 50, 'Manual Inward picker: an empty box lists the first 50 items');
+  const restockBox = readSource('components/purchases/RestockProductPicker.tsx');
+  const purchasesPage = readSource('app/purchases/page.tsx');
+  assert(purchasesPage.includes('<RestockProductPicker') && !purchasesPage.includes('Choose item to restock') && /e\.key === 'Enter'\) \{\s*e\.preventDefault\(\);/.test(restockBox),
+    'Manual Inward: the dropdown is gone; Enter in the box never saves the form half-filled (the K-D16 trap)');
+
+  // FS-21: no full reload (black flash) from the inward sheet.
+  const inwardBtn = readSource('components/purchases/InwardBillButton.tsx');
+  assert(inwardBtn.includes("router.push('/products')") && !inwardBtn.includes('window.location.href'), '"Add Single Item Manually" navigates without reloading the app');
+
+  // FS-18: the empty catches that could hide lost data.
+  const restoreSrc = readSource('components/onboarding/cloudStoreRestore.ts');
+  const stopsAt = restoreSrc.indexOf('throw new Error(tr("Could not save a safety backup');
+  assert(restoreSrc.includes("safety.status === 'failed'") && stopsAt > 0 && stopsAt < restoreSrc.indexOf('localDb.businesses.clear()'),
+    'Cloud restore: a failed safety backup (it returns "failed", it does not throw) stops before anything is cleared');
+  assert(/catch \{\s*busy = true;/.test(readSource('components/admin/AdminControlHost.tsx')), 'Remote restart: when the open bills cannot be read, the counter counts as busy');
+  const emptyCatch = /catch(\s*\(\w+\))?\s*\{\s*\}/g;
+  const mustLog = ['components/billing/usePosBillTabs.ts', 'lib/billing/billTabs.ts', 'lib/cloud/cloudOutbox.ts', 'lib/cloud/cloudAccount.ts', 'lib/restaurant/store.ts', 'lib/restaurant/voids.ts',
+    'lib/restaurant/settings.ts', 'lib/inward/stockEntryDraft.ts', 'lib/hardware/printSettings.ts', 'lib/business/verticalProfile.ts', 'lib/db/dataReset.ts', 'components/restaurant/FastPosScreen.tsx'];
+  const harmlessLeft: Record<string, number> = { 'lib/cloud/cloudOutbox.ts': 1, 'lib/inward/stockEntryDraft.ts': 1 }; // Announcing an event; removing a finished draft.
+  assert(mustLog.every((f) => { const t = readSource(f); return t.includes('reportError(') && (t.match(emptyCatch) || []).length <= (harmlessLeft[f] || 0); }),
+    'Open bills, cloud queue, restaurant orders, drafts, printer and shop settings: a failed save goes to the error log, none is swallowed');
+  const emptyCatches = ALL_SOURCE.reduce((n, f) => n + (fs.readFileSync(f, 'utf8').match(emptyCatch) || []).length, 0);
+  assert(emptyCatches <= 53, `Empty catch ceiling (Bible §2.4): ${emptyCatches} of 53. A new one? Data can be lost → reportError; only a harmless preference may stay empty (and then raise this number)`);
 }
 
 // v4.181.0 — Rahul: a bill on WhatsApp goes as the A4 PDF with the message under it, no copy / Ctrl+V.

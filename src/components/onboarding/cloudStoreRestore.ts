@@ -1,11 +1,12 @@
 import { db as localDb } from '@/lib/db';
 import { Business } from '@/types';
 import { setStoredUser, AuthUser } from '@/lib/auth';
-import { getLanguage } from '@/lib/i18n/core';
+import { getLanguage, tr } from '@/lib/i18n/core';
 import { markWhatsNewSeen } from '@/lib/whatsNew/changelog';
 import { APP_VERSION } from '@/lib/constants/version';
 import { FEATURE_SWITCHES_KEY, FEATURE_SWITCHES_EVENT } from '@/lib/features/featureSwitches';
 import { isVerticalId, saveVerticalProfile } from '@/lib/business/verticalProfile';
+import { reportError } from '@/lib/diagnostics/errorReporter';
 
 export interface DetectedCloudStore {
   businessId: string;
@@ -148,10 +149,18 @@ export async function restoreCloudStoreToLocal(
   }
 
   // A safety copy of whatever this PC holds, then clear it for the restored shop (v4.124.0).
-  try {
-    const { runAutoBackup } = await import('@/lib/backup/autoBackup');
-    await runAutoBackup({ force: true });
-  } catch {}
+  // v4.182.0 (FS-18): a failed backup returns { status: 'failed' } and never threw, so the empty
+  // catch here never saw it — a full disk still wiped the PC with no copy. No copy, no clearing.
+  const { runAutoBackup } = await import('@/lib/backup/autoBackup');
+  let safety = await runAutoBackup({ force: true });
+  for (let i = 0; i < 40 && safety.status === 'skipped' && safety.reason === 'busy'; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 500)); // The hourly backup is writing right now.
+    safety = await runAutoBackup({ force: true });
+  }
+  if (safety.status === 'failed' || (safety.status === 'skipped' && safety.reason === 'busy')) {
+    reportError('backup', safety.status === 'failed' ? safety.error : 'still busy', 'safety backup before restore');
+    throw new Error(tr("Could not save a safety backup of this computer's data, so nothing was cleared. Free some disk space and try again."));
+  }
   // Clear stale data tables before restoring clean shop
   await Promise.all([
     localDb.businesses.clear().catch(() => {}),
@@ -202,7 +211,9 @@ export async function restoreCloudStoreToLocal(
   try {
     const { setCloudSendOn } = await import('@/lib/cloud/cloudPush');
     setCloudSendOn(true);
-  } catch {}
+  } catch (e) {
+    reportError('cloud', e, 'cloud send not started after restore');
+  }
 
   // 6. Navigate to Home
   router.replace('/');

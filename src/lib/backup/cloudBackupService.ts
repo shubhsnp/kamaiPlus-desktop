@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { tr } from '@/lib/i18n/core';
 import { FEATURE_SWITCHES_EVENT, FEATURE_SWITCHES_KEY, parseFeatureSwitches } from '@/lib/features/featureSwitches';
 import { getLabelSettings, parseLabelSettings, saveLabelSettings } from '@/lib/labels/labelSettings';
+import { reportError } from '@/lib/diagnostics/errorReporter';
 
 /** Every table of the shop's database, in restore order. */
 export const BACKUP_TABLES = [
@@ -62,7 +63,9 @@ export async function createFullBackupPayload(): Promise<FullBackupPayload> {
   try {
     const { printer: _printer, ...label } = getLabelSettings();
     payload.settings = { feature_switches: parseFeatureSwitches(localStorage.getItem(FEATURE_SWITCHES_KEY)), label_settings: label };
-  } catch {}
+  } catch (e) {
+    reportError('backup', e, 'settings left out of the backup');
+  }
   const hash = computeBackupIntegrityHash(payload as unknown as Record<string, unknown>);
   if (hash) payload.metadata._integrityHash = hash;
   return payload;
@@ -198,5 +201,7 @@ function applyBackupSettings(settings?: BackupSettings) {
       const printer = getLabelSettings().printer;
       saveLabelSettings({ ...parseLabelSettings(JSON.stringify(settings.label_settings)), printer });
     }
-  } catch {}
+  } catch (e) {
+    reportError('backup', e, 'settings from the backup not applied');
+  }
 }

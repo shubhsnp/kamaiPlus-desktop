@@ -413,6 +413,10 @@ Cloud sync is off (§12 #7), so the shop's own disk is the only safety net.
   one and log the error.
 - Settings → **Help & Support** (`HelpSupportTab`): "Copy report for support" and
   "Open log folder". The report holds no bills, customers or prices.
+- **Empty catches (FS-18, v4.182.0):** a `catch {}` may only guard a harmless preference (a view
+  mode, a remembered choice) or a read with a safe default. Where data can be lost or a save would
+  silently not happen — open bills, cloud queue, restaurant orders, drafts, printer / shop settings —
+  the catch calls `reportError(source, e, what)`. Suite 9 keeps a ceiling on the count.
 - `errorlog.js` must stay in `build.files`.
 
 ### 2.5 Support contacts (v4.64.0)
@@ -1420,7 +1424,9 @@ when its key starts a name word's key or runs on into the next words (`atombomb`
 query words must match, any order. Order: plain text / barcode match (the old search) →
 sound match (penalty: vowels differ +4, joined words +2, not the first word +1) → the
 section (Billing only, as before). Keys are cached per name (20 000 entries).
-Used by Billing (with category), Products, Barcode Studio's item search and Edit Invoice.
+Used by Billing (with category), Products, Barcode Studio's item search, Edit Invoice,
+Manual Inward's item box (`lib/inward/restockPicker.ts`, v4.182.0) and the Customers page
+(name only, `customerMatchesSearch` in `lib/customers/customerDirectory.ts`, v4.182.0).
 Suite 9 §9g checks real price-list names; Electron E2E types `chaurasa` / `anar special`.
 
 ### 9.7 Peak hour — the counter never waits for the printer (v4.74.0)
@@ -1786,6 +1792,7 @@ Each was a real bug that cost real time. The test suite guards most of them.
 | 51 | **Wrong category / unit on a new item, again and again (before v4.175.0).** Neither app could delete a category; the Desktop seeded "General, FMCG, Loose Items, Apparel, Accessories" into every vertical — again whenever the items were empty — and the cloud carried them to the phone, whose Add Product picked the first category A→Z ("Accessories" in a restaurant). The Desktop always started on "piece". | `lib/products/verticalCatalog.ts` (= Android `core/utils/vertical_catalog.dart`): generic starters a vertical does not use are deleted while no item uses them (`categoryCleanup.ts`, AppShell, every session; tombstone to the cloud); a new item starts on the category used last (`kamai_last_product_category`) else General, and on the vertical's unit (`VERTICAL_UNITS`, the shop's units first in the picker); seeding is vertical-only and only for a never-used shop (§6.5). Suite 9 v4.175.0. |
 | 52 | **Unlimited items counted as 99,989 (before v4.175.0).** The phone lowered the cloud stock of every sold item, unlimited 99999 included; after 10 bills it dropped under 99990 and every device counted it (Inventory Asset in crores). | Phone: no cloud decrement for an unlimited item. Both apps: a stock ≥ `UNLIMITED_REPAIR_AT` (99900, `lib/products/unlimitedStock.ts`) is unlimited (`tracksOwnStock`, cloud pull). |
 | 53 | **Restaurant bill was not the counter's (before v4.175.0).** The guest's mobile was only printed (no customer saved, nothing filled next visit), no Udhar; a waiter's phone never saw a bill. | `lib/restaurant/guestCustomer.ts`: mobile → saved / found customer (`resolveBillCustomer`), Udhar = balance + CREDIT_SALE ledger like the counter (Khata on, name or mobile needed, limit warned in PayDialog). Orders carry `takenById`; the bill `staff_id` / `staff_name`, and in the cloud `staff_day` (`lib/staff/staffDay.ts`) — the staff phone reads its own bills (rules: own staff_id only; query filters staff_id + staff_day). |
+| 54 | **Cloud restore wiped the PC without a copy when the backup failed (before v4.182.0).** `runAutoBackup` returns `{ status: 'failed' }` instead of throwing, so the `catch {}` around it never saw a full disk and the tables were cleared anyway. Now a failed backup throws before anything is cleared and the banner shows the message; `empty-shop` / `not-desktop` still go on (nothing to protect). Suite 9 v4.182.0. |
 
 ---
 

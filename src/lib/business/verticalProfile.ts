@@ -1,4 +1,5 @@
 import type { FeatureSwitches } from '@/lib/features/featureSwitches';
+import { reportError } from '@/lib/diagnostics/errorReporter';
 
 /**
  * Business vertical profile (v4.118.0, docs/VERTICAL_PLAN.md).
@@ -128,7 +129,9 @@ export function saveVerticalProfile(vertical: VerticalId, gst: boolean, at?: str
     const prev = readVerticalProfile();
     const stamp = at || (prev && prev.vertical === vertical ? prev.at : undefined) || new Date().toISOString();
     localStorage.setItem(VERTICAL_PROFILE_KEY, JSON.stringify({ v: 1, vertical, gst, at: stamp } satisfies VerticalProfile));
-  } catch {}
+  } catch (e) {
+    reportError('storage', e, 'shop category not saved');
+  }
 }
 
 /**

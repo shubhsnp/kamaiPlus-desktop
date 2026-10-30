@@ -5,6 +5,7 @@
  */
 
 import type { SupportedLanguage } from '@/types';
+import { reportError } from '@/lib/diagnostics/errorReporter';
 
 export type WaLang = SupportedLanguage;
 
@@ -64,7 +65,9 @@ export function saveWhatsAppSettings(patch: Partial<WhatsAppSettings>): WhatsApp
   const next = { ...getWhatsAppSettings(), ...patch };
   try {
     localStorage.setItem(WHATSAPP_SETTINGS_KEY, JSON.stringify(next));
-  } catch {}
+  } catch (e) {
+    reportError('storage', e, 'WhatsApp settings not saved');
+  }
   return next;
 }
 

@@ -3558,5 +3558,10 @@
   "Send the bill PDF (A4) with the message under it": "बिल PDF (A4) पाठवा, खाली संदेशासह",
   "WhatsApp is ready: the bill PDF with the message under it. Check the name at the top and press Send (✕ there cancels it).": "WhatsApp तयार आहे: बिल PDF आणि त्याखाली संदेश. वर नाव तपासा आणि Send दाबा (तिथे ✕ ने रद्द).",
   "WhatsApp bill: the A4 bill PDF goes straight into the chat with the message under it — no copy, no Ctrl+V; just check the name and press Send. A bill sent twice no longer doubles the message.": "WhatsApp बिल: A4 बिल PDF थेट चॅटमध्ये, खाली संदेशासह — कॉपी नाही, Ctrl+V नाही; फक्त नाव तपासा आणि Send दाबा. एक बिल दोनदा पाठवल्यास संदेश आता दोनदा जोडला जात नाही.",
-  "A bill PDF was put into this WhatsApp chat recently. If it is still waiting there (not sent), press Send or ✕ on it first — WhatsApp will not take a new PDF over it.": "या WhatsApp चॅटमध्ये नुकताच एक बिल PDF टाकला होता. तो तिथे अजून थांबला असेल (पाठवला नाही), तर आधी त्यावर Send किंवा ✕ दाबा — त्यावर WhatsApp नवीन PDF घेत नाही."
+  "A bill PDF was put into this WhatsApp chat recently. If it is still waiting there (not sent), press Send or ✕ on it first — WhatsApp will not take a new PDF over it.": "या WhatsApp चॅटमध्ये नुकताच एक बिल PDF टाकला होता. तो तिथे अजून थांबला असेल (पाठवला नाही), तर आधी त्यावर Send किंवा ✕ दाबा — त्यावर WhatsApp नवीन PDF घेत नाही.",
+  "Could not save a safety backup of this computer's data, so nothing was cleared. Free some disk space and try again.": "या संगणकावरील डेटाचा सुरक्षा बॅकअप तयार होऊ शकला नाही, म्हणून काहीही पुसले नाही. डिस्कवर थोडी जागा मोकळी करून पुन्हा प्रयत्न करा.",
+  "No item with this name or barcode.": "या नावाचा किंवा बारकोडचा माल सापडला नाही.",
+  "Purchases → Manual Inward: type the item's name or scan its barcode to find it — no more scrolling a long list.": "खरेदी → हाताने माल नोंदवा: मालाचे नाव लिहून किंवा बारकोड स्कॅन करून शोधा — लांब यादीत शोधावे लागणार नाही.",
+  "Customers: type a Hindi or Marathi name in English letters — ramesh finds रमेश.": "ग्राहक: हिंदी किंवा मराठी नाव इंग्रजी अक्षरांत लिहा — ramesh ने रमेश सापडेल.",
+  "Could not load the salary entries. Please try again.": "पगाराच्या नोंदी उघडता आल्या नाहीत. कृपया पुन्हा प्रयत्न करा."
 }

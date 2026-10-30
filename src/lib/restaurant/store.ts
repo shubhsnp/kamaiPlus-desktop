@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { RestLine, RestOrder, TokenCounter } from '@/lib/restaurant/model';
 import { RESTAURANT_CHANGED_EVENT, RestaurantSettings, loadRestaurantSettings } from '@/lib/restaurant/settings';
+import { reportError } from '@/lib/diagnostics/errorReporter';
 
 /*
  * The running orders of Restaurant mode (v4.106.0), kept on this computer in localStorage like the
@@ -69,7 +70,9 @@ export function loadRestState(): RestState {
 export function saveRestState(state: RestState): void {
   try {
     localStorage.setItem(RESTAURANT_ORDERS_KEY, JSON.stringify(state));
-  } catch {}
+  } catch (e) {
+    reportError('storage', e, 'restaurant orders not saved');
+  }
   window.dispatchEvent(new Event(RESTAURANT_CHANGED_EVENT));
 }
 
