@@ -166,13 +166,13 @@ Official compiled binary release for Indian small & medium retail businesses.
 100% Offline-First POS, Barcode Scanning, Thermal Receipt Printing, GST Invoicing & Khata Management.
 
 ### 📦 Available Downloads
-${filesToUpload.map(f => `- **${f.name}** (${(fs.statSync(f.path) / 1024 / 1024).toFixed(1)} MB)`).join('\n')}
+${filesToUpload.map(f => `- **${f.name}** (${(fs.statSync(f.path).size / 1024 / 1024).toFixed(1)} MB)`).join('\n')}
 
 ---
 
 ### 🌐 Official Links
 - Official Website: https://kamaiplus.com
-- Windows Desktop: https://kamaiplus.com/desktop
+- Windows Desktop: https://kamaiplus.com/download
 - Help Guides: https://kamaiplus.com/help
 - GST Calculator: https://kamaiplus.com/tools/gst-calculator
 - Barcode Generator: https://kamaiplus.com/tools/barcode-generator

@@ -5666,6 +5666,8 @@ pendingAsyncChecks.push((async () => {
   const payFoot = payDialog.indexOf('data-pay-settle');
   assert(payFoot > afterAt && payDialog.includes('min-w-[250px]') && readSource('components/restaurant/RestUpiQr.tsx').includes('qrOnly'), 'Bill window: Settle stays in one place, whichever text it shows');
   assert(/className\?: string;/.test(readSource('components/ui/Modal.tsx')) && /sizeClasses\[size\],\s*className/.test(readSource('components/ui/Modal.tsx')), 'Modal: an optional width class, nothing changes for the other windows');
+  const ghNotes = fs.readFileSync(path.join(__dirname, 'publish_github_release.mjs'), 'utf8');
+  assert(ghNotes.includes('fs.statSync(f.path).size / 1024') && ghNotes.includes('kamaiplus.com/download') && !ghNotes.includes('kamaiplus.com/desktop'), 'GitHub release notes: the real file size (they said NaN MB) and a download link that exists (/desktop was a 404)');
 }
 
 // v4.182.0 — FS-18, FS-20, FS-21, FS-25 (Rahul 2026-10-30: "solve kardo").
