@@ -49,6 +49,7 @@ likhein (jaise `[x] v4.85.0`). Naya kaam mile to neeche jod dein (agla ID).
 | FS-31 | Admin se is PC ki settings badalna + Admin audit log | P2 | M | [ ] |
 | FS-32 | Poore platform par control: kill switch, minimum version, staged rollout | P2 | M | [ ] |
 | FS-33 | Licence / plan: offline grace, plan ke feature, ek dukaan ke kai PC | P3 | L | [ ] |
+| FS-34 | Laptop (1366×700) UI / UX: bill mein 6+ item, sale ke baad ek kaam, Home, dhancha, Settings — design tayyar (`docs/LAPTOP_UI_PLAN.md`) | P2 | L | [ ] Rahul option chunenge |
 
 ---
 
@@ -239,6 +240,15 @@ Niyam: AGENTS.md Rule 5 (400 lines). Ek-ek file, bina vyavahaar badle.
 ### FS-25 · Customers page par English se Hindi naam dhoondhna — P3 · S
 - **Kyun:** Customers search saada `includes` hai; Billing / Products wala English → हिंदी search
   (`lib/search/productSearch.ts`, Bible §9.6) yahan nahi.
+
+### FS-34 · Laptop (1366×700) UI / UX — P2 · L (2026-11-07 / 08)
+- **Kyun:** asli Electron mein sabhi 6 vertical naape: 1366×700 par bill mein sirf 2 line (Pharmacy 1,
+  Clothing 1½), sale ke baad 3 bade button, Home par profit sabke saamne, Products par 4 item,
+  Settings 2.9 / 3.5 screen lambe aur do save niyam. Tracker K-D41…K-D46 (+ FS-24).
+- **Kya karna hai:** `docs/LAPTOP_UI_PLAN.md` — jo mila, har screen ke options (canvas
+  https://claude.ai/artifact/EQDaZm3CTn4gaGMkLJVKxZ), design niyam, banane ka kram aur files.
+  Salah A2 + D1 + C1 + B1 + S1; **Rahul ke chunne ke baad hi** banana. Screenshots + tour scripts:
+  `D:\My Web Sites\KamaiPlus Screens\desktop-4.183-laptop-ui-2026-11-07\`.
 
 ---
 

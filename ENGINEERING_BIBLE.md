@@ -32,7 +32,8 @@ by exactly this (see §12).
 | `ENGINEERING_BIBLE.md` (this file) | ✅ **Authoritative.** Verified map. |
 | `docs/PLATFORM_TRACKER.md` | ✅ **Read before any work (since 2026-09-30).** Cross-product decisions (Desktop + Android + website / domain), what runs where in Firebase, the web-app shutdown plan, and the numbered list of known gaps (K-…). Update it after every task. |
 | `docs/HELP_SYNC.md` + `docs/help-map.json` | ✅ **Help guides follow the app (since 2026-10-05, AGENTS.md Rule 7).** Which app files each kamaiplus.com/help guide describes, and the queue of guide updates per version. Run `node scripts/help_impact.mjs` before every version bump and add the version's row. |
-| `docs/FUTURE_SCOPE.md` | ✅ **Backlog, not a map.** Planned work (FS-01…FS-27: multi-counter sync, staff logins, batch / expiry, GSTR-3B, big-file splits…) with priority and code pointers. Pick work from here; tick it off with the version. |
+| `docs/FUTURE_SCOPE.md` | ✅ **Backlog, not a map.** Planned work (FS-01…FS-34: multi-counter sync, staff logins, batch / expiry, GSTR-3B, big-file splits, laptop UI…) with priority and code pointers. Pick work from here; tick it off with the version. |
+| `docs/LAPTOP_UI_PLAN.md` | 📐 **Design plan, not built (2026-11-07 / 08, FS-34).** Laptop (1366×700) UI / UX: measured findings on all 6 verticals, options per screen (billing, sale done, home, shell, settings) with a canvas link, design rules, build order with files. Build only the options Rahul picked. |
 | `docs/archive/SYSTEM_ARCHITECTURE.md` | ⚠️ **Partly stale.** Claims React 19 (actually 18.3.1), Next 15 (actually 16.3.1) and Supabase as the server DB (the Supabase dep was removed in v4.38.0 — nothing uses it). The *paise math* section in it is still correct. |
 | `docs/archive/HANDOVER.md`, `docs/archive/KamaiPlus_Complete_App_Documentation.md` | ⚠️ **Historical.** Snapshots of older versions. Treat as archaeology. |
 
