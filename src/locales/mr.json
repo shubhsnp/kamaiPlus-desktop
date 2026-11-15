@@ -1253,6 +1253,7 @@
   "Email:": "ईमेल:",
   "Emerald Green": "पाचू हिरवा",
   "Empty = \"Thank you for shopping with us! Visit again\"": "रिकामे = \"आमच्याकडून खरेदी केल्याबद्दल धन्यवाद! पुन्हा भेट द्या\"",
+  "Empty = \"Thank you for dining with us! Visit again\"": "रिकामे = \"आमच्याकडे जेवल्याबद्दल धन्यवाद! पुन्हा भेट द्या\"",
   "Empty = the shop number": "रिकामे = दुकानाचा नंबर",
   "Empty = walk-in customer": "रिकामे = सामान्य ग्राहक",
   "Encountered an unexpected error completing the sale. Please verify inventory.": "विक्री पूर्ण करताना काहीतरी चूक झाली. कृपया स्टॉक तपासा.",
@@ -3566,5 +3567,6 @@
   "Could not load the salary entries. Please try again.": "पगाराच्या नोंदी उघडता आल्या नाहीत. कृपया पुन्हा प्रयत्न करा.",
   "QR comes after the cash part": "रोख रक्कम भरल्यावर QR दिसेल",
   "Restaurant: all tables stay on top of the order screen. One click changes table, a red chef shows a KOT not sent. Many tables: Running or All, drag the row with the mouse.": "रेस्टॉरंट: ऑर्डर स्क्रीनवर वर सर्व टेबल दिसत राहतील. एका क्लिकमध्ये टेबल बदला, लाल शेफ म्हणजे KOT गेला नाही. जास्त टेबल असतील तर चालू किंवा सर्व निवडा आणि पट्टी माउसने ओढा.",
-  "Restaurant bill: the window no longer changes size when you pick Cash, UPI, Card, Cash + UPI or Udhar. The buttons stay in place.": "रेस्टॉरंट बिल: रोख, UPI, कार्ड, रोख + UPI किंवा उधारी निवडल्यावर आता विंडोचा आकार बदलत नाही. बटणे जागेवरच राहतात."
+  "Restaurant bill: the window no longer changes size when you pick Cash, UPI, Card, Cash + UPI or Udhar. The buttons stay in place.": "रेस्टॉरंट बिल: रोख, UPI, कार्ड, रोख + UPI किंवा उधारी निवडल्यावर आता विंडोचा आकार बदलत नाही. बटणे जागेवरच राहतात.",
+  "Restaurant: the bill on WhatsApp now says \"Guest\" and \"Thank you for dining with us\" — in English, Hindi and Marathi.": "रेस्टॉरंट: WhatsApp बिलात आता \"पाहुणे\" आणि \"जेवल्याबद्दल धन्यवाद\" येते — English, हिंदी आणि मराठीत."
 }

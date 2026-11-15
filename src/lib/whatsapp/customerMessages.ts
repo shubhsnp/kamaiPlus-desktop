@@ -16,6 +16,8 @@ export interface MessageShop {
   name: string;
   phone?: string;
   upiId?: string;
+  /** v4.184.0: Restaurant mode — the bill says "Guest" and the standard last line thanks for dining. */
+  dining?: boolean;
 }
 
 export interface MessageOptions {
@@ -37,7 +39,7 @@ export function messageDate(iso: string | Date): string {
 }
 
 function footer(shop: MessageShop, w: WaWords, o: MessageOptions): string[] {
-  return ['', (o.signOff || '').trim() || w.thanks, `— ${shop.name}${shop.phone ? ` • ${shop.phone}` : ''}`];
+  return ['', (o.signOff || '').trim() || (shop.dining ? w.thanksDining : w.thanks), `— ${shop.name}${shop.phone ? ` • ${shop.phone}` : ''}`];
 }
 
 /** "Pay by UPI" link + UPI ID lines for money still due. */
@@ -61,7 +63,7 @@ export function billMessage(sale: Sale, shop: MessageShop, o: MessageOptions): s
   const estimate = isEstimate(sale);
   const items = sale.items || [];
   const lines = [`🧾 *${estimate ? w.estimate : w.invoice} #${sale.invoice_number}*`, `🏪 *${shop.name}*`];
-  if (sale.customer_name) lines.push(`👤 ${w.customer}: ${sale.customer_name}`);
+  if (sale.customer_name) lines.push(`👤 ${shop.dining ? w.guest : w.customer}: ${sale.customer_name}`);
   lines.push(`📅 ${w.date}: ${messageDate(sale.created_at)}`, SEP);
   items.slice(0, MAX_BILL_LINES).forEach((it) => lines.push(itemLine(it)));
   if (items.length > MAX_BILL_LINES) lines.push(fill(w.moreItems, { count: items.length - MAX_BILL_LINES }));

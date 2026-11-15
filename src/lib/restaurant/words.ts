@@ -87,4 +87,7 @@ export const RESTAURANT_WORDS: Record<string, string> = {
 
   // Status bar (F1)
   'New bill': 'Tables & Orders',
+
+  // v4.184.0: WhatsApp window — the standard last line of a restaurant's messages
+  'Empty = "Thank you for shopping with us! Visit again"': 'Empty = "Thank you for dining with us! Visit again"',
 };

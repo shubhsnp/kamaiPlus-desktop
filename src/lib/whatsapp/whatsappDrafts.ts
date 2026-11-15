@@ -7,6 +7,7 @@ import type { Business, Sale } from '@/types';
 import { db } from '@/lib/db';
 import { getPrimaryUpiVpa } from '@/lib/invoices/invoiceDocument';
 import { msg } from '@/lib/i18n/core';
+import { isRestaurantMode } from '@/lib/features/featureSwitches';
 import {
   billMessage, customerGreetingMessage, khataReminderMessage, ledgerSlipMessage, MessageOptions, MessageShop, paymentRequestMessage, ReminderTone,
 } from './customerMessages';
@@ -39,7 +40,8 @@ export const REMINDER_TONES: { id: ReminderTone; label: string }[] = [
 ];
 
 export function messageShop(business: Business | null | undefined): MessageShop {
-  return { name: business?.name?.trim() || 'Our store', phone: business?.phone || '', upiId: getPrimaryUpiVpa(business) };
+  // v4.184.0: in Restaurant mode the customer messages say "Guest" / "Thank you for dining with us".
+  return { name: business?.name?.trim() || 'Our store', phone: business?.phone || '', upiId: getPrimaryUpiVpa(business), dining: isRestaurantMode() };
 }
 
 export async function resolveWhatsAppDraft(request: WhatsAppRequest, business: Business | null | undefined): Promise<WhatsAppDraft | null> {

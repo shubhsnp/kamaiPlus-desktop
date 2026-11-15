@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.184.0',
+    items: [
+      msg("Restaurant: the bill on WhatsApp now says \"Guest\" and \"Thank you for dining with us\" — in English, Hindi and Marathi."),
+    ],
+  },
+  {
     version: '4.183.0',
     items: [
       msg("Restaurant: all tables stay on top of the order screen. One click changes table, a red chef shows a KOT not sent. Many tables: Running or All, drag the row with the mouse."),
@@ -338,24 +344,6 @@ export const CHANGELOG: Release[] = [
     version: '4.132.0',
     items: [
       msg('WhatsApp buttons show the official WhatsApp logo, the same as the mobile app.'),
-    ],
-  },
-  {
-    version: '4.131.0',
-    items: [
-      msg('Printing: a printer that never answers (a switched-off printer, or "Microsoft Print to PDF" chosen as the bill printer) no longer blocks every later bill, KOT and label — after 45 seconds that print says it failed and the next one goes out.'),
-    ],
-  },
-  {
-    version: '4.130.0',
-    items: [
-      msg('Split payment: the 50 / 50 fill is worked out in paise, so cash + UPI always equal the bill (an odd-paise bill could leave 1 paisa on udhar). Day Summary names cash refunds of returns as refunds, not expenses.'),
-    ],
-  },
-  {
-    version: '4.129.0',
-    items: [
-      msg('Sales Return opens fresh every time: after a return, Return on another bill shows that bill — not the last "Sales Return Completed" screen.'),
     ],
   },
   ...OLDER_RELEASES,

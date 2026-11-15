@@ -10,6 +10,8 @@ export interface WaWords {
   invoice: string;
   estimate: string;
   customer: string;
+  /** v4.184.0: a restaurant's bill names the guest (the app says Guest in Restaurant mode). */
+  guest: string;
   date: string;
   discount: string;
   total: string;
@@ -19,6 +21,8 @@ export interface WaWords {
   payLink: string;
   upiId: string;
   thanks: string;
+  /** v4.184.0: a restaurant's standard last line. */
+  thanksDining: string;
   dear: string;
   reminderFriendly: string;
   reminderFormal: string;
@@ -40,6 +44,7 @@ const EN: WaWords = {
   invoice: 'INVOICE',
   estimate: 'ESTIMATE',
   customer: 'Customer',
+  guest: 'Guest',
   date: 'Date',
   discount: 'Discount',
   total: 'Total',
@@ -49,6 +54,7 @@ const EN: WaWords = {
   payLink: 'Pay by UPI',
   upiId: 'UPI ID',
   thanks: 'Thank you for shopping with us! Visit again 🙏',
+  thanksDining: 'Thank you for dining with us! Visit again 🙏',
   dear: 'Dear {name},',
   reminderFriendly: 'Your balance at {store} is {amount}. Please clear it at your convenience.',
   reminderFormal: 'This is a reminder that {amount} is outstanding on your account at {store}. Kindly clear the dues at the counter or by UPI.',
@@ -70,6 +76,7 @@ const HI: WaWords = {
   invoice: 'बिल',
   estimate: 'एस्टिमेट',
   customer: 'ग्राहक',
+  guest: 'मेहमान',
   date: 'तारीख',
   discount: 'छूट',
   total: 'कुल',
@@ -79,6 +86,7 @@ const HI: WaWords = {
   payLink: 'UPI से भुगतान करें',
   upiId: 'UPI आईडी',
   thanks: 'हमारे यहाँ से ख़रीदारी के लिए धन्यवाद! फिर पधारें 🙏',
+  thanksDining: 'हमारे यहाँ भोजन करने के लिए धन्यवाद! फिर पधारें 🙏',
   dear: 'नमस्ते {name} जी,',
   reminderFriendly: '{store} पर आपका {amount} बाकी है। सुविधा अनुसार चुका दीजिए।',
   reminderFormal: 'याद दिलाना चाहते हैं कि {store} में आपके खाते पर {amount} बकाया है। कृपया काउंटर पर या UPI से भुगतान करें।',
@@ -100,6 +108,7 @@ const MR: WaWords = {
   invoice: 'बिल',
   estimate: 'एस्टिमेट',
   customer: 'ग्राहक',
+  guest: 'पाहुणे',
   date: 'तारीख',
   discount: 'सूट',
   total: 'एकूण',
@@ -109,6 +118,7 @@ const MR: WaWords = {
   payLink: 'UPI ने पैसे भरा',
   upiId: 'UPI आयडी',
   thanks: 'आमच्याकडून खरेदी केल्याबद्दल धन्यवाद! पुन्हा भेट द्या 🙏',
+  thanksDining: 'आमच्याकडे जेवल्याबद्दल धन्यवाद! पुन्हा भेट द्या 🙏',
   dear: 'नमस्कार {name},',
   reminderFriendly: '{store} येथे तुमची {amount} बाकी आहे. सोयीनुसार भरावी ही विनंती.',
   reminderFormal: 'आठवण करून देतो की {store} येथे तुमच्या खात्यावर {amount} थकबाकी आहे. कृपया काउंटरवर किंवा UPI ने भरणा करा.',

@@ -5612,6 +5612,30 @@ pendingAsyncChecks.push((async () => {
     'Restaurant: Inventory header says "Manage Menu" (inventory is on for a restaurant since v4.165.0)');
 }
 
+// v4.184.0 — Restaurant (Rahul 2026-11-15): the bill on WhatsApp speaks a restaurant's words —
+// "Guest" and "Thank you for dining with us" — in English / हिंदी / मराठी; other shops unchanged.
+{
+  const shopR = { name: 'Sharma Restaurant', phone: '9876543210', upiId: 'shop@okaxis', dining: true };
+  const saleR: any = { invoice_number: 'INV-012', created_at: '2026-11-15T13:05:00.000Z', customer_name: 'Rahul · Table T4', status: 'completed', payment_method: 'upi',
+    amount_received: 22000, balance_due: 0, balance_due_at_sale: 0, change_returned: 0, items: [{ product_name: 'Paneer Butter Masala', quantity: 1, unit: 'plate', total_amount: 22000 }], discount_total: 0, grand_total: 22000 };
+  const en = billMessage(saleR, shopR, { lang: 'en', payLink: true });
+  const hi = billMessage(saleR, shopR, { lang: 'hi', payLink: true });
+  const mr = billMessage(saleR, shopR, { lang: 'mr', payLink: true });
+  const retail = billMessage(saleR, { ...shopR, dining: false }, { lang: 'en', payLink: true });
+  const own = billMessage(saleR, shopR, { lang: 'en', payLink: true, signOff: 'Come again!' });
+  assert(en.includes('👤 Guest: Rahul · Table T4') && en.includes('Thank you for dining with us! Visit again 🙏') && !en.includes('shopping') && !en.includes('Customer:')
+    && hi.includes('👤 मेहमान: Rahul') && hi.includes('भोजन करने के लिए धन्यवाद') && mr.includes('👤 पाहुणे: Rahul') && mr.includes('जेवल्याबद्दल धन्यवाद')
+    && retail.includes('👤 Customer: Rahul') && retail.includes('Thank you for shopping with us! Visit again') && !retail.includes('dining')
+    && own.includes('Come again!') && !own.includes('Thank you for dining'),
+    'WhatsApp bill in Restaurant mode: "Guest" and "Thank you for dining with us" (English / हिंदी / मराठी); other shops unchanged; the shop\'s own last line still wins');
+  const hint = 'Empty = "Thank you for dining with us! Visit again"';
+  const hintKey = JSON.stringify(hint).slice(1, -1);
+  assert(readSource('lib/whatsapp/whatsappDrafts.ts').includes('dining: isRestaurantMode()')
+    && RESTAURANT_WORDS['Empty = "Thank you for shopping with us! Visit again"'] === hint
+    && readSource('locales/hi.json').includes(`"${hintKey}": "ख़ाली = `) && readSource('locales/mr.json').includes(`"${hintKey}": "रिकामे = `),
+    'Restaurant mode reaches every customer message through messageShop (dining); the WhatsApp window\'s last-line hint says dining too (hi + mr)');
+}
+
 // v4.183.0 — Restaurant (Rahul 2026-10-30): all tables stay in sight on the order screen (the table strip),
 // and the bill window keeps its size whichever payment method is picked.
 {
