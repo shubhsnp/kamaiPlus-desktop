@@ -56,9 +56,10 @@ module.exports = {
         }
       },
       fontFamily: {
-        sans: ['Inter', 'Mukta', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
-        marathi: ['Mukta', 'Inter', 'sans-serif'],
-        hindi: ['Mukta', 'Inter', 'sans-serif'],
+        sans: ['Plus Jakarta Sans', 'Mukta', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+        marathi: ['Mukta', 'Plus Jakarta Sans', 'sans-serif'],
+        hindi: ['Mukta', 'Plus Jakarta Sans', 'sans-serif'],
       }
     },
   },

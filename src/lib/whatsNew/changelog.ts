@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.189.0',
+    items: [
+      msg('Typography upgrade: bundled Plus Jakarta Sans font for ultra-clean modern UI and JetBrains Mono for crisp prices and numbers.'),
+    ],
+  },
+  {
     version: '4.188.0',
     items: [
       msg('Restaurant: compact order lines (up to 7 dishes visible without scrolling on a laptop), inline add-on / note badge, and F8 (Print bill) / F9 (Send KOT) / F10 (Bill & Pay) keyboard keys. Top bar: WhatsApp panel opens cleanly without cropping.'),
@@ -350,12 +356,6 @@ export const CHANGELOG: Release[] = [
     version: '4.135.0',
     items: [
       msg('Mobile + PC: khata entries, expenses, cash shifts, suppliers, returns, stock history and purchase orders made on the phone now come to this PC (and this PC\'s go to the phone). A khata entry, expense or purchase order deleted on the phone is removed here too.'),
-    ],
-  },
-  {
-    version: '4.134.0',
-    items: [
-      msg('Mobile + PC on one Google account: store setup now finds the phone\'s shop reliably and restores it with its category and GSTIN; after the restore this PC syncs with the phone by itself. Phone items marked unlimited stay unlimited here.'),
     ],
   },
   ...OLDER_RELEASES,
