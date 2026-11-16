@@ -38,6 +38,7 @@ import { tr } from '@/lib/i18n/core';
 import { lockApp } from '@/lib/auth/masterPassword';
 import { getIdleLockMinutes, IDLE_LOCK_OPTIONS, setIdleLockMinutes } from '@/lib/auth/idleLock';
 import { SoundToggleButton } from './SoundToggleButton';
+import { WaNavButton } from '@/components/whatsapp/WaNavButton';
 import { getDesktopApi, LicenceStatus } from '@/lib/desktop/desktopBridge';
 
 
@@ -126,6 +127,9 @@ export const Navbar: React.FC = () => {
             <QrCode className="w-3.5 h-3.5 text-slate-700" />
             <span className="hidden sm:inline">{tr('Store QR')}</span>
           </button>
+
+          {/* v4.187.0: the shop's WhatsApp — green ✓ linked, grey not linked (click = link / settings) */}
+          <WaNavButton />
 
           {/* Sound on / off for every beep and voice in the app */}
           <SoundToggleButton />

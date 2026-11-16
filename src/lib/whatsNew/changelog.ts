@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.187.0',
+    items: [
+      msg('WhatsApp in the top bar: green ✓ = your WhatsApp is connected and every bill with a mobile goes by itself; grey = click it and scan the QR to connect. The "Send bill on WhatsApp" button is gone from the bill window — it shows "Sent on WhatsApp" or "Not sent · Send again".'),
+    ],
+  },
+  {
     version: '4.186.0',
     items: [
       msg('Printers are set once: the bill window no longer asks A4 / 80mm / 58mm, and Print Bill goes straight to your printer. Restaurant: choose a separate KOT printer for the kitchen (Printer setup); "print straight away after Settle" is set there too. No barcode label printer settings in shops without labels.'),
@@ -344,18 +350,6 @@ export const CHANGELOG: Release[] = [
     version: '4.134.0',
     items: [
       msg('Mobile + PC on one Google account: store setup now finds the phone\'s shop reliably and restores it with its category and GSTIN; after the restore this PC syncs with the phone by itself. Phone items marked unlimited stay unlimited here.'),
-    ],
-  },
-  {
-    version: '4.133.0',
-    items: [
-      msg('WhatsApp bill: the invoice PDF now goes with the message by default — it is copied for you, so just press Ctrl+V in the WhatsApp chat and Send.'),
-    ],
-  },
-  {
-    version: '4.132.0',
-    items: [
-      msg('WhatsApp buttons show the official WhatsApp logo, the same as the mobile app.'),
     ],
   },
   ...OLDER_RELEASES,

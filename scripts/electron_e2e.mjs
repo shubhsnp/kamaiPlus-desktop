@@ -1434,18 +1434,15 @@ async function run() {
       check(waBillJob.phone === '919822012345' && /\*(INVOICE|ESTIMATE) #/.test(waBillJob.text || '') && /💰 \*Total: ₹/.test(waBillJob.text || '') && /बिल #|एस्टिमेट #/.test(hindiText) && !(await composer.isVisible().catch(() => false)),
         `Transactions → WhatsApp: the bill goes to 91 98220 12345 with its items and total (Hindi on one click): "${(waBillJob.text || '').split('\n')[0]}"`);
 
-      // Over an open bill: Esc closes the WhatsApp window, the bill stays.
+      // v4.187.0: the bill window has no "Send bill on WhatsApp" button any more (the linked WhatsApp sends
+      // bills; WhatsApp not linked = nothing there). The Transactions row button above still opens WhatsApp.
       await page.locator('[data-whatsapp="bill"]').first().evaluate((el) => el.parentElement?.closest('.group')?.click());
       await page.locator('[role="dialog"]').first().waitFor({ timeout: 10000 });
-      await page.locator('[role="dialog"] [data-whatsapp="bill"]').first().click();
-      await composer.waitFor({ timeout: 10000 });
-      await page.keyboard.press('Escape');
-      await page.waitForTimeout(400);
-      const waBillStillOpen = await page.locator('[role="dialog"]').first().isVisible().catch(() => false);
-      const waComposerGone = !(await composer.isVisible().catch(() => false));
+      const waInBill = await page.locator('[role="dialog"] [data-whatsapp="bill"]').count();
+      const waNavOff = await page.locator('[data-wa-nav="off"]').count();
       await page.keyboard.press('Escape');
       await page.waitForTimeout(300);
-      check(waBillStillOpen && waComposerGone, 'Esc on the WhatsApp window over a bill closes only the WhatsApp window');
+      check(waInBill === 0 && waNavOff === 1, `Bill window: no "Send bill on WhatsApp" button; the top bar shows WhatsApp grey (not linked) (${JSON.stringify({ waInBill, waNavOff })})`);
 
       // Khata: the customer's reminder / message opens with their name.
       await page.evaluate(() => { window.location.href = '/khata/'; });
@@ -1966,7 +1963,7 @@ async function run() {
         const billWin = await textVisible(page, 'Bill paid', 20000);
         const whatsapp = await page.getByRole('button', { name: /Send bill on WhatsApp/i }).count();
         const pdf = await page.getByRole('button', { name: /Save PDF/i }).count();
-        check(billWin && whatsapp > 0 && pdf > 0, 'After paying, the bill window opens like the counter\'s: Print, Save PDF, Send bill on WhatsApp');
+        check(billWin && whatsapp === 0 && pdf > 0, 'After paying, the bill window opens like the counter\'s: Print, Save PDF, Send bill on WhatsApp');
         await page.getByRole('button', { name: /Back to Tables/i }).click();
         await page.waitForTimeout(800);
         check((await page.locator('[data-table="T1"]').getAttribute('data-table-state')) === 'free', 'After Settle the table is free again');

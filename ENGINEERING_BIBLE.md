@@ -1675,6 +1675,13 @@ Send again" (nothing when it never went this way). Electron E2E: `KAMAI_E2E_WA_F
 a fake worker writing sends to `<userData>/wa-fake-sent.json`. Suite 9 v4.185.0. **Not yet tried with a
 real phone** at the time of writing — the first real link must be a test number, not a shop's.
 
+**v4.187.0 (Rahul):** the link lives in the **top bar** — `WaNavButton` (Navbar, every vertical, WhatsApp
+switch on, desktop only): green ✓ = linked + open (`data-wa-nav="connected"`), grey = not linked (click →
+`WaLinkDialog`), linked → a panel with `WaLinkCard`. The bill window (`InvoiceModal`) has **no "Send bill on
+WhatsApp" button** — only `WaBillSendStatus` (Sent / Not sent · Send again; linked and never sent → a small
+"Send on WhatsApp" through the link; not linked → nothing). Every other WhatsApp place (khata, Transactions
+rows, Day Summary, supplier orders, CA) still uses the composer below.
+
 **Opening** — `kp:open-whatsapp` → `whatsapp.js` (main): WhatsApp Desktop installed
 (`app.getApplicationNameForProtocol('whatsapp://')`) → `whatsapp://send?phone=&text=`, else
 `https://wa.me/…` in the browser. Windows cannot open links over ~2081 characters

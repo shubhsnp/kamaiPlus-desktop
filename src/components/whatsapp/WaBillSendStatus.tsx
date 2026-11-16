@@ -4,6 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { CheckCircle2, Loader2, AlertTriangle } from 'lucide-react';
 import type { Business, Sale } from '@/types';
 import { sendBillByLink, WA_AUTO_SENT_EVENT, waSendRecord, WaSendRecord } from '@/lib/whatsapp/autoSendBill';
+import { useWaLink } from '@/lib/whatsapp/useWaLink';
+import { isEstimate } from '@/lib/sales/saleMath';
 import { tr } from '@/lib/i18n/core';
 
 /** Why the linked WhatsApp did not send — in shop words. */
@@ -26,6 +28,7 @@ export function waSendErrorText(error?: string): string {
 export function WaBillSendStatus({ sale, business }: { sale: Sale; business: Business | null | undefined }) {
   const [record, setRecord] = useState<WaSendRecord | undefined>(() => waSendRecord(sale.id));
   const [busy, setBusy] = useState(false);
+  const link = useWaLink();
 
   useEffect(() => {
     setRecord(waSendRecord(sale.id));
@@ -37,12 +40,21 @@ export function WaBillSendStatus({ sale, business }: { sale: Sale; business: Bus
     return () => window.removeEventListener(WA_AUTO_SENT_EVENT, onChange);
   }, [sale.id]);
 
-  if (!record) return null;
   const again = async () => {
     if (!business || busy) return;
     setBusy(true);
     try { await sendBillByLink(sale, business, true); } finally { setBusy(false); }
   };
+  // v4.187.0: never sent this way (an older bill, or sent before linking) — one small link, only when
+  // WhatsApp is linked and the bill has a customer to send to. Not linked = nothing here.
+  if (!record) {
+    if (!link.status.linked || isEstimate(sale) || !(sale.customer_phone || sale.customer_id)) return null;
+    return (
+      <button type="button" onClick={again} disabled={busy} className="text-[12px] font-bold text-emerald-700 underline cursor-pointer disabled:opacity-50 text-left" data-wa-send-now>
+        {busy ? tr('Sending on WhatsApp…') : tr('Send on WhatsApp')}
+      </button>
+    );
+  }
 
   return (
     <div className="flex flex-wrap items-center gap-2 text-[12px] font-bold" data-wa-send-status={record.state}>

@@ -1,8 +1,20 @@
 import { msg } from '@/lib/i18n/core';
 import type { Release } from '@/lib/whatsNew/changelog';
 
-/** "What's new" for 4.131.0 and older (moved out of changelog.ts to stay <= 400 lines, newest first). */
+/** "What's new" for 4.133.0 and older (moved out of changelog.ts to stay <= 400 lines, newest first). */
 export const OLDER_RELEASES: Release[] = [
+  {
+    version: '4.133.0',
+    items: [
+      msg('WhatsApp bill: the invoice PDF now goes with the message by default — it is copied for you, so just press Ctrl+V in the WhatsApp chat and Send.'),
+    ],
+  },
+  {
+    version: '4.132.0',
+    items: [
+      msg('WhatsApp buttons show the official WhatsApp logo, the same as the mobile app.'),
+    ],
+  },
   {
     version: '4.131.0',
     items: [
