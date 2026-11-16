@@ -29,12 +29,12 @@ export function PhonesLinkNotice() {
   }, []);
   if (on) return null;
   return (
-    <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 flex flex-wrap items-center gap-3" role="status" data-phones-link="off">
-      <Smartphone className="w-5 h-5 text-amber-700 shrink-0" />
-      <p className="flex-1 min-w-[200px] text-xs font-semibold text-amber-900 leading-snug">
+    <div className="rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-2 flex flex-wrap items-center gap-2.5 text-xs" role="status" data-phones-link="off">
+      <Smartphone className="w-4 h-4 text-amber-700 shrink-0" />
+      <p className="flex-1 min-w-[200px] font-semibold text-amber-900 leading-snug">
         {tr("Waiters' phones cannot see these tables: cloud sync is off on this computer. Turn it on with the same Google account as the phones.")}
       </p>
-      <Link href="/cloud-backup" className="h-9 px-3.5 inline-flex items-center rounded-xl bg-slate-900 text-white text-xs font-black shrink-0">
+      <Link href="/cloud-backup" className="h-7 px-3 inline-flex items-center rounded-lg bg-slate-900 text-white text-[11px] font-black shrink-0">
         {tr('Turn on sync')}
       </Link>
     </div>

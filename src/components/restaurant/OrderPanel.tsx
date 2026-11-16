@@ -117,41 +117,54 @@ export function OrderPanel({ order, settings, kotBusy, checkBusy, onBack, onQty,
           lines.map((l) => {
             const cancelled = l.qty === 0;
             const sent = !cancelled && l.kotQty === l.qty;
+            const hasNoteOrAddons = Boolean(l.note || (l.addOns && l.addOns.length > 0));
             return (
-              <div key={l.key} className={cn('px-3 py-2.5', cancelled && 'bg-rose-50/60')} data-order-line={l.productId}>
-                <div className="flex items-start gap-2">
+              <div key={l.key} className={cn('px-2.5 py-1.5 hover:bg-slate-50/80 transition-colors', cancelled && 'bg-rose-50/60')} data-order-line={l.productId}>
+                <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0 flex-1">
-                    <div className={cn('text-[13px] font-bold text-slate-900 leading-snug', cancelled && 'line-through text-slate-500')}>{lineTitle(l)}</div>
-                    {l.note && <div className="text-[11px] text-amber-800 font-semibold">“{l.note}”</div>}
-                    <div className="mt-0.5 flex items-center gap-2 text-[11px] font-semibold">
-                      <span className="text-slate-500 font-mono">{formatINR(lineUnitPaise(l))}</span>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className={cn('text-xs font-bold text-slate-900 truncate', cancelled && 'line-through text-slate-500')}>{lineTitle(l)}</span>
+                      {l.note && (
+                        <span className="text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-200 px-1.5 py-0.2 rounded truncate max-w-[120px]" title={l.note}>
+                          ✎ {l.note}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 text-[10.5px] font-semibold text-slate-500">
+                      <span className="font-mono">{formatINR(lineUnitPaise(l))}</span>
                       {cancelled ? (
-                        <span className="text-rose-600">{tr('Cancelled — goes on the next KOT')}</span>
+                        <span className="text-rose-600 font-bold">{tr('Cancelled — goes on the next KOT')}</span>
                       ) : sent ? (
-                        <span className="text-emerald-700 inline-flex items-center gap-0.5"><Check className="w-3 h-3" />{tr('In kitchen')}</span>
+                        <span className="text-emerald-700 inline-flex items-center gap-0.5 font-bold"><Check className="w-3 h-3" />{tr('In kitchen')}</span>
                       ) : (
-                        <span className="text-amber-700">{l.kotQty > 0 ? tr('{count} new', { count: l.qty - l.kotQty }) : tr('Not sent')}</span>
+                        <span className="text-amber-700 font-bold">{l.kotQty > 0 ? tr('{count} new', { count: l.qty - l.kotQty }) : tr('Not sent')}</span>
                       )}
                     </div>
                   </div>
-                  <div className="text-right shrink-0">
-                    <div className={cn('text-sm font-black font-mono', cancelled ? 'text-slate-400' : 'text-slate-900')}>{formatINR(Math.round(l.qty * lineUnitPaise(l)))}</div>
-                  </div>
-                </div>
-                <div className="mt-1.5 flex items-center justify-between gap-2">
-                  <button type="button" onClick={() => onAddOns(l)} disabled={cancelled} className="h-8 px-2.5 rounded-lg border border-slate-200 text-[11px] font-bold text-slate-600 hover:border-emerald-500 hover:text-emerald-700 flex items-center gap-1 cursor-pointer disabled:opacity-40" data-line-addons>
-                    <Sparkles className="w-3.5 h-3.5" /> {tr('Add-ons / note')}
-                  </button>
-                  <div className="flex items-center gap-1.5">
-                  <button type="button" onClick={() => onDelete(l.key)} disabled={cancelled} aria-label={tr('Remove {name}', { name: lineTitle(l) })} title={tr('Remove this dish')}
-                    className="w-9 h-9 rounded-xl border border-slate-200 text-slate-400 hover:border-rose-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed" data-line-delete>
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                  <div className="inline-flex items-center rounded-xl border border-slate-300 overflow-hidden bg-white">
-                    <button type="button" onClick={() => onQty(l.key, -1)} className="w-10 h-9 flex items-center justify-center hover:bg-slate-100 cursor-pointer" aria-label={tr('One less')} data-line-minus><Minus className="w-4 h-4" /></button>
-                    <span className="min-w-[36px] px-1 text-center text-sm font-black font-mono" data-line-qty>{l.qty}</span>
-                    <button type="button" onClick={() => onQty(l.key, 1)} className="w-10 h-9 flex items-center justify-center hover:bg-slate-100 cursor-pointer" aria-label={tr('One more')} data-line-plus><Plus className="w-4 h-4" /></button>
-                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button type="button" onClick={() => onAddOns(l)} disabled={cancelled} title={tr('Add-ons / note')} aria-label={tr('Add-ons / note')}
+                      className={cn('h-7 px-1.5 rounded-lg border text-[11px] font-bold flex items-center gap-1 cursor-pointer transition',
+                        hasNoteOrAddons ? 'border-amber-300 bg-amber-50 text-amber-800' : 'border-slate-200 text-slate-400 hover:border-emerald-500 hover:text-emerald-700 hover:bg-emerald-50/50')}
+                      data-line-addons>
+                      <Sparkles className="w-3 h-3" />
+                      <span className="hidden sm:inline text-[10px]">{tr('Note')}</span>
+                    </button>
+
+                    <div className="inline-flex items-center rounded-lg border border-slate-300 overflow-hidden bg-white text-xs">
+                      <button type="button" onClick={() => onQty(l.key, -1)} className="w-7 h-7 flex items-center justify-center hover:bg-slate-100 cursor-pointer text-slate-600 active:bg-slate-200" aria-label={tr('One less')} data-line-minus><Minus className="w-3.5 h-3.5" /></button>
+                      <span className="min-w-[24px] px-1 text-center font-black font-mono text-slate-900" data-line-qty>{l.qty}</span>
+                      <button type="button" onClick={() => onQty(l.key, 1)} className="w-7 h-7 flex items-center justify-center hover:bg-slate-100 cursor-pointer text-slate-600 active:bg-slate-200" aria-label={tr('One more')} data-line-plus><Plus className="w-3.5 h-3.5" /></button>
+                    </div>
+
+                    <div className={cn('text-xs font-black font-mono w-16 text-right', cancelled ? 'text-slate-400' : 'text-slate-900')}>
+                      {formatINR(Math.round(l.qty * lineUnitPaise(l)))}
+                    </div>
+
+                    <button type="button" onClick={() => onDelete(l.key)} disabled={cancelled} aria-label={tr('Remove {name}', { name: lineTitle(l) })} title={tr('Remove this dish')}
+                      className="w-7 h-7 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed" data-line-delete>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
               </div>
@@ -172,14 +185,17 @@ export function OrderPanel({ order, settings, kotBusy, checkBusy, onBack, onQty,
         </div>
         <div className="grid grid-cols-3 gap-1.5 pt-2">
           <Button type="button" size="lg" onClick={onKot} isLoading={kotBusy} disabled={!unsent}
-            className={cn('h-12 px-2 text-[13px]', unsent ? 'bg-amber-500 hover:bg-amber-600 border-amber-500 text-slate-950' : 'bg-slate-100 text-slate-400 border-slate-200')} data-order-kot>
-            <ChefHat className="w-4 h-4" /> {tr('Send KOT')}
+            className={cn('h-12 px-2 text-[12px] flex flex-col items-center justify-center leading-tight gap-0.5', unsent ? 'bg-amber-500 hover:bg-amber-600 border-amber-500 text-slate-950 font-black' : 'bg-slate-100 text-slate-400 border-slate-200')} data-order-kot>
+            <span className="flex items-center gap-1.5"><ChefHat className="w-4 h-4" /> {tr('Send KOT')}</span>
+            <kbd className={cn('text-[10px] font-mono rounded px-1.5 py-0.2', unsent ? 'bg-amber-900/20 text-slate-950 font-bold' : 'text-slate-400')}>F9</kbd>
           </Button>
-          <Button type="button" variant="outline" size="lg" onClick={onCheck} isLoading={checkBusy} disabled={pieces === 0} className="h-12 px-2 text-[13px]" title={tr('Print the bill for the table to check (not paid yet)')} data-order-check>
-            <FileText className="w-4 h-4" /> {tr('Print bill')}
+          <Button type="button" variant="outline" size="lg" onClick={onCheck} isLoading={checkBusy} disabled={pieces === 0} className="h-12 px-2 text-[12px] flex flex-col items-center justify-center leading-tight gap-0.5" title={tr('Print the bill for the table to check (not paid yet)')} data-order-check>
+            <span className="flex items-center gap-1.5"><FileText className="w-4 h-4" /> {tr('Print bill')}</span>
+            <kbd className="text-[10px] font-mono text-slate-400 bg-slate-100 rounded px-1.5 py-0.2">F8</kbd>
           </Button>
-          <Button type="button" variant="success" size="lg" onClick={onPay} disabled={pieces === 0} className="h-12 px-2 text-[13px]" data-order-pay>
-            <Receipt className="w-4 h-4" /> {tr('Bill & Pay')}
+          <Button type="button" variant="success" size="lg" onClick={onPay} disabled={pieces === 0} className="h-12 px-2 text-[12px] flex flex-col items-center justify-center leading-tight gap-0.5 shadow-sm" data-order-pay>
+            <span className="flex items-center gap-1.5"><Receipt className="w-4 h-4" /> {tr('Bill & Pay')}</span>
+            <kbd className="text-[10px] font-mono text-emerald-200 bg-white/20 rounded px-1.5 py-0.2 font-bold">F10</kbd>
           </Button>
         </div>
         {unsent && pieces > 0 && <p className="text-[11px] font-semibold text-amber-800 text-center pt-0.5">{tr('Some items are not sent to the kitchen yet.')}</p>}

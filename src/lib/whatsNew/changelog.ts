@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.188.0',
+    items: [
+      msg('Restaurant: compact order lines (up to 7 dishes visible without scrolling on a laptop), inline add-on / note badge, and F8 (Print bill) / F9 (Send KOT) / F10 (Bill & Pay) keyboard keys. Top bar: WhatsApp panel opens cleanly without cropping.'),
+    ],
+  },
+  {
     version: '4.187.0',
     items: [
       msg('WhatsApp in the top bar: green ✓ = your WhatsApp is connected and every bill with a mobile goes by itself; grey = click it and scan the QR to connect. The "Send bill on WhatsApp" button is gone from the bill window — it shows "Sent on WhatsApp" or "Not sent · Send again".'),

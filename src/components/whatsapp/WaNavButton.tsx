@@ -57,7 +57,7 @@ export function WaNavButton() {
         )}
       </button>
       {panel && (
-        <div className="absolute right-0 top-11 z-[70] w-[340px] text-xs bg-white border border-slate-200 rounded-2xl shadow-2xl p-2" data-wa-nav-panel>
+        <div className="absolute left-0 top-11 z-[80] w-[340px] max-w-[calc(100vw-24px)] text-xs bg-white border border-slate-200 rounded-2xl shadow-2xl p-2" data-wa-nav-panel>
           <WaLinkCard />
         </div>
       )}

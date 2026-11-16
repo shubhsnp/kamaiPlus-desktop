@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { Business, Sale } from '@/types';
 import { tr } from '@/lib/i18n/core';
-import { MenuPick, RestLine, RestOrder, addPiece, applyToOnePiece, cancelOrderChanges, changeQty, lineTitle, liveLines, markKotSent, moveOrderTo, removeLine, reprintKotLines, requestKot } from '@/lib/restaurant/model';
+import { MenuPick, RestLine, RestOrder, addPiece, applyToOnePiece, cancelOrderChanges, changeQty, hasUnsentItems, lineTitle, liveLines, markKotSent, moveOrderTo, removeLine, reprintKotLines, requestKot } from '@/lib/restaurant/model';
 import { cloudSendActive } from '@/lib/cloud/cloudPush';
 import type { RestAddOn, RestaurantSettings } from '@/lib/restaurant/settings';
 import type { RestState } from '@/lib/restaurant/store';
@@ -178,6 +178,15 @@ export function OrderScreen({ order, settings, update, business, freeTables, onB
         searchRef.current?.focus();
       } else if (e.key === 'Escape' && !typing) {
         onBack();
+      } else if (e.key === 'F10' && !typing) {
+        e.preventDefault();
+        if (liveLines(order).length > 0) setPayOpen(true);
+      } else if (e.key === 'F9' && !typing) {
+        e.preventDefault();
+        if (hasUnsentItems(order)) void sendKot();
+      } else if (e.key === 'F8' && !typing) {
+        e.preventDefault();
+        if (liveLines(order).length > 0) void check();
       }
     };
     window.addEventListener('keydown', onKey);

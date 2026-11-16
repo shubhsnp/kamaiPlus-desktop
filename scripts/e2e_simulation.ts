@@ -2093,7 +2093,7 @@ assert(readSource('app/billing/page.tsx').split('\n').length <= 401, `POS page s
     && /await import\('@\/lib\/invoices\/invoiceOutput'\)/.test(comp) && !/from '@\/lib\/invoices\/invoiceOutput'/.test(comp),
     'WhatsApp window sits above other windows, Esc closes only it, F1 / Ctrl+H stay off, the PDF engine loads only when a PDF is asked for');
   const places: [string, RegExp][] = [
-    ['components/invoices/InvoiceModal.tsx', /kind: 'bill'/], ['components/transactions/TransactionBillCard.tsx', /kind: 'bill'/],
+    ['components/invoices/InvoiceModal.tsx', /<WaBillSendStatus/], ['components/transactions/TransactionBillCard.tsx', /kind: 'bill'/],
     ['components/khata/KhataCustomerDetail.tsx', /kind: 'khata'/], ['components/khata/CustomerLedgerTimelineTab.tsx', /kind: 'slip'/],
     ['components/customers/CustomerCard.tsx', /kind: 'customer'/], ['components/customers/CustomerTableView.tsx', /kind: 'customer'/],
     ['components/suppliers/SupplierDetailPanel.tsx', /kind: 'supplier'/], ['components/billing/PosDialogs.tsx', /kind: 'payment'/],

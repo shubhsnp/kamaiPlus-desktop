@@ -197,11 +197,19 @@ export function MenuPanel({ onPick, inOrder, searchRef, resetKey }: {
                   </span>
                   {out && <span className="text-[10px] font-black uppercase text-rose-600" data-sold-out-badge>{tr('Sold out today')}</span>}
                   {empty && <span className="text-[10px] font-black uppercase text-rose-600" data-out-of-stock>{tr('Out of stock')}</span>}
-                  <span className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-black text-emerald-700 font-mono">{priceText(d)}</span>
-                    {d.sizes.length > 0 && <span className="text-[10px] font-bold text-slate-500 uppercase truncate">{d.sizes.map((s) => s.variant_label).filter(Boolean).slice(0, 2).join(' / ')}</span>}
-                    {left !== null && left > 0 && <span className={cn('text-[10px] font-bold truncate', left <= 5 ? 'text-amber-700' : 'text-slate-500')} data-stock-left>{tr('{count} left', { count: left })}</span>}
-                  </span>
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className="text-xs font-black text-emerald-700 font-mono leading-none">{priceText(d)}</span>
+                      {left !== null && left > 0 && <span className={cn('text-[10px] font-bold truncate', left <= 5 ? 'text-amber-700' : 'text-slate-500')} data-stock-left>{tr('{count} left', { count: left })}</span>}
+                    </div>
+                    {d.sizes.length > 0 && (
+                      <div className="text-[10px] font-bold text-slate-500 uppercase">
+                        <span className="inline-block bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 truncate max-w-full">
+                          {d.sizes.map((s) => s.variant_label).filter(Boolean).slice(0, 3).join(' · ')}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                   {n > 0 && (
                     <span className="absolute top-2 right-2 min-w-[22px] h-[22px] px-1 rounded-full bg-emerald-600 text-white text-[11px] font-black flex items-center justify-center shadow-xs">
                       {n}

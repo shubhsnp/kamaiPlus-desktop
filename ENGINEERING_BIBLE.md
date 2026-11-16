@@ -1682,6 +1682,8 @@ WhatsApp" button** — only `WaBillSendStatus` (Sent / Not sent · Send again; l
 "Send on WhatsApp" through the link; not linked → nothing). Every other WhatsApp place (khata, Transactions
 rows, Day Summary, supplier orders, CA) still uses the composer below.
 
+**v4.188.0 (Rahul):** Restaurant compact cart rows (`OrderPanel` / `FastCartPanel`: 44px single row with inline note/add-on badge and stepper, up to 7 dishes without scroll on 1366×700 laptop), F8/F9/F10 key accelerators, variant pill without text clipping, sleek tables header. WhatsApp nav button panel fixed to `left-0` (no cropping).
+
 **Opening** — `kp:open-whatsapp` → `whatsapp.js` (main): WhatsApp Desktop installed
 (`app.getApplicationNameForProtocol('whatsapp://')`) → `whatsapp://send?phone=&text=`, else
 `https://wa.me/…` in the browser. Windows cannot open links over ~2081 characters

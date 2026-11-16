@@ -54,11 +54,11 @@ export function TablesHome({ orders, settings, onOpenTable, onOpenOrder, onNewTa
 
   return (
     <div className="space-y-5 pb-6" data-restaurant-screen="tables">
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm px-4 py-3.5 flex flex-wrap items-center gap-3">
-        <div className="w-11 h-11 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm"><UtensilsCrossed className="w-5 h-5" /></div>
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm px-4 py-2.5 flex flex-wrap items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm"><UtensilsCrossed className="w-5 h-5" /></div>
         <div className="min-w-0 flex-1">
-          <h1 className="text-lg sm:text-xl font-black text-slate-900 leading-tight">{tr('Tables & Orders')}</h1>
-          <p className="text-xs text-slate-500 font-medium">{tr('Tap a table to take or add to an order. Leaving a table keeps its order.')}</p>
+          <h1 className="text-base sm:text-lg font-black text-slate-900 leading-tight">{tr('Tables & Orders')}</h1>
+          <p className="text-[11px] text-slate-500 font-medium">{tr('Tap a table to take or add to an order. Leaving a table keeps its order.')}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Stat label={tr('Running')} value={String(orders.length)} tone="text-amber-700" />
