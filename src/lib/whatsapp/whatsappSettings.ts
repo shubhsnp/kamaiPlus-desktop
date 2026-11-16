@@ -20,6 +20,8 @@ export interface WhatsAppSettings {
   attachPdf: boolean;
   ownerPhone: string;
   caPhone: string;
+  /** v4.185.0: with this PC's WhatsApp linked, every bill with a mobile goes by itself (off by default). */
+  autoSendBills: boolean;
 }
 
 export const WHATSAPP_SETTINGS_KEY = 'kamai_whatsapp_settings';
@@ -31,6 +33,7 @@ export const DEFAULT_WHATSAPP_SETTINGS: WhatsAppSettings = {
   attachPdf: true,
   ownerPhone: '',
   caPhone: '',
+  autoSendBills: false,
 };
 
 const LANGS: WaLang[] = ['en', 'hi', 'mr'];
@@ -47,6 +50,7 @@ export function parseWhatsAppSettings(raw: string | null | undefined): WhatsAppS
       attachPdf: typeof s.attachPdf === 'boolean' ? s.attachPdf : d.attachPdf,
       ownerPhone: typeof s.ownerPhone === 'string' ? s.ownerPhone : '',
       caPhone: typeof s.caPhone === 'string' ? s.caPhone : '',
+      autoSendBills: s.autoSendBills === true,
     };
   } catch {
     return { ...d };

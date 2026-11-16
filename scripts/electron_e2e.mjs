@@ -41,10 +41,12 @@ function check(ok, label) {
 async function launch(dataDir) {
   // KAMAI_E2E_GOOGLE_STUB: the test cannot sign in to Google — main.js answers kp:google-signin
   // with a stand-in (only in an unpackaged run — an installed app never).
-  const env = { ...process.env, KAMAI_E2E_DIR: dataDir, KAMAI_E2E_GOOGLE_STUB: '1' };
+  // KAMAI_E2E_WA_FAKE (v4.185.0): the linked WhatsApp uses a fake worker (waLink.js) — nothing reaches WhatsApp.
+  const env = { ...process.env, KAMAI_E2E_DIR: dataDir, KAMAI_E2E_GOOGLE_STUB: '1', KAMAI_E2E_WA_FAKE: '1' };
   // VS Code terminals set this; it makes electron.exe behave as plain Node.
   delete env.ELECTRON_RUN_AS_NODE;
-  const app = await electron.launch({ executablePath: electronPath, args: [APP_DIR], cwd: APP_DIR, env, timeout: 60000 });
+  // KAMAI_E2E_LAUNCH_MS: a longer launch wait on a PC with little free RAM (dev PC: ~400 MB free → 60 s was not enough).
+  const app = await electron.launch({ executablePath: electronPath, args: [APP_DIR], cwd: APP_DIR, env, timeout: Number(process.env.KAMAI_E2E_LAUNCH_MS) || 60000 });
   const page = await app.firstWindow();
   const pageErrors = [];
   page.on('pageerror', (err) => pageErrors.push(err.message));
@@ -1460,6 +1462,60 @@ async function run() {
       await page.waitForTimeout(300);
       check(/^Dear .+,|^नमस्ते .+ जी,|^नमस्कार .+,/.test(khataText) && /To/.test(khataName),
         `Khata → WhatsApp: the customer's message opens ready ("${khataText.split('\n')[0]}")`);
+
+      // v4.185.0 — the shop's WhatsApp as a linked device (fake worker, KAMAI_E2E_WA_FAKE): Settings →
+      // Connect (warning ticked, QR) → connected; a counter bill with a mobile goes by itself (PDF +
+      // message) and the bill window says so; a bill without a mobile does not; Disconnect.
+      step = 'whatsapp linked';
+      await page.evaluate(() => { window.location.href = '/settings/?tab=invoice'; });
+      const linkBtn = page.locator('[data-wa-link-connect]');
+      await linkBtn.waitFor({ timeout: 15000 });
+      await linkBtn.click();
+      const linkStart = page.locator('[data-wa-link-start]');
+      await linkStart.waitFor({ timeout: 10000 });
+      const startLocked = await linkStart.isDisabled();
+      await page.locator('[data-wa-link-agree]').check();
+      await linkStart.click();
+      const qrShown = await page.locator('[data-wa-link-qr="shown"] img').waitFor({ timeout: 10000 }).then(() => true).catch(() => false);
+      await page.locator('[data-wa-link-connected]').waitFor({ timeout: 15000 });
+      await page.locator('[data-wa-link-connected] button').click();
+      await page.waitForTimeout(500);
+      const linkCardOpen = await page.locator('[data-wa-link-card="open"]').isVisible().catch(() => false);
+      const autoSendOn = await page.locator('[data-wa-auto-send]').isChecked().catch(() => false);
+      check(startLocked && qrShown && linkCardOpen && autoSendOn,
+        `WhatsApp linked device: Connect needs the warning ticked, shows the QR, then "Connected" with "send every bill by itself" on (${JSON.stringify({ startLocked, qrShown, linkCardOpen, autoSendOn })})`);
+
+      const waFakeLog = path.join(dataDir, 'userData', 'wa-fake-sent.json');
+      const waFakeSent = () => (fs.existsSync(waFakeLog) ? JSON.parse(fs.readFileSync(waFakeLog, 'utf8')) : []);
+      await page.locator('aside a[href="/billing"]').first().click();
+      await page.waitForURL(/\/billing/, { waitUntil: 'commit', timeout: 10000 });
+      const waSearch = page.getByPlaceholder(/Search products/).first();
+      await waSearch.waitFor({ timeout: 10000 });
+      await waSearch.fill('E2E Unlimited Item'); await page.waitForTimeout(500); await waSearch.press('Enter'); await page.waitForTimeout(300);
+      await page.locator('input[data-pos-customer-name]').first().fill('Sunil Link');
+      await page.locator('input[data-pos-customer-phone]').first().fill('98220 54321');
+      await page.keyboard.press('F10');
+      let waSent = [];
+      for (let i = 0; i < 30 && !waSent.length; i++) { await page.waitForTimeout(500); waSent = waFakeSent(); }
+      const waOne = waSent[0] || {};
+      const waStatusSent = await page.locator('[data-wa-send-status="sent"]').waitFor({ timeout: 10000 }).then(() => true).catch(() => false);
+      check(waSent.length === 1 && waOne.phone === '919822054321' && /\.pdf$/i.test(waOne.file || '') && fs.existsSync(waOne.file || '') && /\*INVOICE #/.test(waOne.text || '') && waStatusSent,
+        `A counter bill with a mobile goes by itself through the linked WhatsApp (A4 PDF + message); the bill window says "Sent on WhatsApp" (${JSON.stringify({ n: waSent.length, phone: waOne.phone, file: waOne.file, status: waStatusSent })})`);
+      await page.getByRole('button', { name: /New Bill/i }).first().click(); await page.waitForTimeout(400);
+      await waSearch.fill('E2E Unlimited Item'); await page.waitForTimeout(500); await waSearch.press('Enter'); await page.waitForTimeout(300);
+      await page.keyboard.press('F10');
+      await page.waitForTimeout(4000);
+      check(waFakeSent().length === 1 && (await page.locator('[data-wa-send-status]').count()) === 0,
+        'A bill without a mobile is not sent, and its bill window shows no WhatsApp line');
+      await page.getByRole('button', { name: /New Bill/i }).first().click(); await page.waitForTimeout(400);
+      expectedSales = (await readStore(page, 'sales')).length; // the two bills above
+
+      await page.evaluate(() => { window.location.href = '/settings/?tab=invoice'; });
+      await page.locator('[data-wa-link-disconnect]').waitFor({ timeout: 15000 });
+      await page.locator('[data-wa-link-disconnect]').click();
+      await page.locator('[role="dialog"][aria-modal="true"] button.bg-rose-600').click();
+      const unlinked = await page.locator('[data-wa-link-card="none"]').waitFor({ timeout: 10000 }).then(() => true).catch(() => false);
+      check(unlinked && !fs.existsSync(path.join(dataDir, 'userData', 'wa-link', 'creds.json')), 'Disconnect unlinks this PC and deletes the WhatsApp session');
 
       step = 'errors';
       check(pageErrors.length === 0, `No uncaught page errors during the flow${pageErrors.length ? `: ${pageErrors.slice(0, 3).join(' | ')}` : ''}`);

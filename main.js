@@ -444,6 +444,16 @@ function insideDocuments(target) {
   return full.startsWith(documentsRoot());
 }
 
+// v4.185.0 (Rahul): bills go from the shop's own WhatsApp by themselves — a linked device in a
+// utility process (waLink.js → waWorker.js); only a PDF inside Documents\KamaiPlus is sent.
+const waLink = require('./waLink').createWaLink({
+  app,
+  utilityProcess: require('electron').utilityProcess,
+  getWindows: () => BrowserWindow.getAllWindows(),
+  isAllowedFile: (file) => insideDocuments(file) && /\.pdf$/i.test(String(file)) && fs.existsSync(path.normalize(file)),
+});
+waLink.register(ipcMain);
+
 ipcMain.handle('kp:open-path', async (_event, target) => {
   if (!insideDocuments(target)) return { ok: false, error: 'Path not allowed.' };
   const error = await shell.openPath(path.normalize(target));
@@ -931,6 +941,7 @@ if (!app.requestSingleInstanceLock()) {
       isHeld: () => adminLink.readControl(app.getPath('userData')).update_hold === true,
     });
     startLicenceWatch();
+    waLink.startIfLinked();
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });

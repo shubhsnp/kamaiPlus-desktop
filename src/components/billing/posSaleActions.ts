@@ -369,6 +369,7 @@ export function createSaleActions(deps: CreateSaleActionsDeps) {
 
       // 6. "Sale completed", or straight to the bill printer in the background (BillPrintQueue).
       setActiveSaleForInvoice(newSale);
+      void import('@/lib/whatsapp/autoSendBill').then((m) => m.autoSendBill(newSale, currentBiz)); // v4.185.0: the linked WhatsApp sends it by itself — never awaited
       setCompletedSaleDetails({
         invoiceNumber,
         customerName: targetCustomer?.name,

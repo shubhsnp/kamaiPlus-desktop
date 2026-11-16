@@ -115,6 +115,11 @@ Defined in `main.js` (`ipcMain.handle`), exposed in `preload.js`, typed in
 | `kp:open-path` | `openPath(target)` | Opens a saved file — **only inside `Documents/KamaiPlus`** |
 | `kp:show-in-folder` | `showItemInFolder(target)` | Same path restriction |
 | `kp:copy-file` | `copyFileToClipboard(target)` | v4.133.0: a bill PDF inside Documents\KamaiPlus onto the Windows clipboard as a file (PowerShell `Set-Clipboard -LiteralPath`, path passed in an env var) — the WhatsApp composer copies it so Ctrl+V in the chat attaches the bill (§9.11) |
+| `kp:wa-link-status` | `waLinkStatus()` | v4.185.0: this PC's WhatsApp linked device (`waLink.js`) → `{state, me, qr, error, linked}` (§9.11) |
+| `kp:wa-link-connect` / `kp:wa-link-cancel` | `waLinkConnect()` / `waLinkCancel()` | v4.185.0: start the worker (QR until scanned) / stop it when nothing was linked |
+| `kp:wa-link-logout` | `waLinkLogout()` | v4.185.0: unlink on WhatsApp and delete `<userData>/wa-link` |
+| `kp:wa-link-send` | `waLinkSend({phone, text, file?, fileName?})` | v4.185.0: one bill to one customer through the queue (gap, 60 / hour); file only a PDF inside Documents\KamaiPlus → `{ok, error?}` |
+| _event_ `kp:wa-link-event` | `onWaLinkEvent(cb)` | v4.185.0: main → page on every state change (qr, open, closed, loggedOut…) |
 | `kp:app-info` | `getAppInfo()` | `{version, documentsDir}` |
 | `kp:licence-status` | `getLicenceStatus()` | Offline licence check (§2.1) → `{state:'active',…, validUntil, daysLeft}`, `{state:'expired',…, validUntil}` (v4.85.0) or `{state:'required', machineName, reason?}` |
 | `kp:licence-refresh` | `refreshLicence()` | v4.85.0: online check-in now ("Check again" on the licence-ended screen) → `{ok, offline?, stopped?, status}` (§2.1). The main process also checks in by itself (installed app, every hour since v4.98.0, was 6 h) and sends `kp:licence-changed` (`onLicenceChanged`) when the state, end date or days left change (v4.98.0: a renewal too). Since v4.98.0 the answer may carry `messages` (§2.1b). |
@@ -1646,6 +1651,28 @@ preview left unsent stays in that chat (per chat — never another customer's), 
 PDF only brings the chat up, and the window warns (`billPreparedRecently`, `kamai_wa_prepared`,
 24 h) when that number got a PDF before. No UI Automation: WhatsApp's WebView2 shows Windows 8
 elements only. Suite 9 v4.181.0 block.
+
+**Bills by themselves — WhatsApp linked device (v4.185.0, Rahul 2026-11-15, "like Vyapar")** — the
+shop's own number sends every bill with a mobile, PDF + message, no WhatsApp window, no Send press.
+Settings → Invoice & Bill Rules → WhatsApp → `WaLinkCard` → **Connect WhatsApp** → `WaLinkDialog`
+(warning ticked first: a WhatsApp Web "linked device", **not an official WhatsApp API** — WhatsApp can
+restrict a number that spams) → QR (`qrcode`) scanned in WhatsApp → Linked devices → `autoSendBills`
+on (`kamai_whatsapp_settings`, per PC; the card's checkbox turns it off; Disconnect = logout + session
+deleted). Main: `waLink.js` (`createWaLink`, IPC `kp:wa-link-*`, started at launch only when
+`<userData>/wa-link/creds.json` exists) forks `waWorker.js` in a **utility process** — Baileys
+`@whiskeysockets/baileys` **7.0.0-rc14, pinned exact** (ESM, loaded with `import()`; its WebAssembly is
+inlined, nothing to unpack from the asar); `markOnlineOnConnect: false` (the phone keeps its
+notifications), no history sync; `onWhatsApp` before each send (`not-on-whatsapp`). Queue: one at a
+time, `MIN_GAP_MS` 5 s + up to 3 s, `MAX_PER_HOUR` 60; waits up to 90 s for a reconnect; only a PDF
+inside Documents\KamaiPlus. Page: `lib/whatsapp/autoSendBill.ts` — `autoSendBill(sale, business)` is
+called by the counter's `completeSale` and the restaurant's `onSettled` as `void import(…)` (**never
+awaited**, §6.1), starts after `AUTO_SEND_DELAY_MS` so the bill's own print goes first; skips an
+estimate / no mobile / switch off / not linked (`autoSendSkip`); A4 PDF via `saveInvoicePdf` + `billMessage`
+(the window's language / pay link / last line); result per bill in localStorage `kamai_wa_auto_sent`
+(last 300) → `WaBillSendStatus` in the bill window: "Sent on WhatsApp to … ✓" / "Not sent: <reason> ·
+Send again" (nothing when it never went this way). Electron E2E: `KAMAI_E2E_WA_FAKE=1` (not packaged) =
+a fake worker writing sends to `<userData>/wa-fake-sent.json`. Suite 9 v4.185.0. **Not yet tried with a
+real phone** at the time of writing — the first real link must be a test number, not a shop's.
 
 **Opening** — `kp:open-whatsapp` → `whatsapp.js` (main): WhatsApp Desktop installed
 (`app.getApplicationNameForProtocol('whatsapp://')`) → `whatsapp://send?phone=&text=`, else

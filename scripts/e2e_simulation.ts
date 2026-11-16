@@ -5612,6 +5612,66 @@ pendingAsyncChecks.push((async () => {
     'Restaurant: Inventory header says "Manage Menu" (inventory is on for a restaurant since v4.165.0)');
 }
 
+// v4.185.0 — Rahul 2026-11-15 (Vyapar-like): this PC's WhatsApp as a linked device sends every bill with a
+// mobile by itself (A4 PDF + message, the shop's own number) — never awaited by the counter / Settle, one
+// message at a time with a gap, only a PDF inside Documents\KamaiPlus, the shop ticks the warning first.
+pendingAsyncChecks.push((async () => {
+  const wl = require('../waLink.js');
+  assert(wl.waNumber('98765 43210') === '919876543210' && wl.waNumber('+91 98765-43210') === '919876543210' && wl.waNumber('09876543210') === '919876543210'
+    && wl.waNumber('12345') === '' && wl.waNumber('5876543210') === '' && wl.waNumber('') === '' && wl.waNumber('971501234567') === '971501234567',
+    'Linked WhatsApp: a bill mobile becomes 91 + 10 digits (+91 / 0 / spaces cleaned); a short or wrong Indian number is refused');
+  const now = 10_000_000;
+  const hourFull = Array.from({ length: wl.MAX_PER_HOUR }, (_, i) => now - 3_000_000 + i * 1000);
+  assert(wl.sendDelay([], now) === 0 && wl.sendDelay([now - 1000], now, () => 0) === wl.MIN_GAP_MS - 1000
+    && wl.sendDelay([now - 60_000], now, () => 0) === 0 && wl.sendDelay([now], now, () => 0.999) < wl.MIN_GAP_MS + wl.GAP_JITTER_MS
+    && wl.sendDelay(hourFull, now, () => 0) === hourFull[0] + 3_600_000 - now && wl.MAX_PER_HOUR === 60,
+    'Linked WhatsApp: one message at a time with a 5–8 s gap, at most 60 an hour (never bulk)');
+  const as = await import('../src/lib/whatsapp/autoSendBill');
+  const bill = { status: 'completed', invoice_number: 'INV-012' } as any;
+  assert(as.autoSendSkip(bill, { autoSend: false, linked: true, phone: '9876543210' }) === 'off'
+    && as.autoSendSkip(bill, { autoSend: true, linked: false, phone: '9876543210' }) === 'not-linked'
+    && as.autoSendSkip({ status: 'draft', invoice_number: 'EST-3' } as any, { autoSend: true, linked: true, phone: '9876543210' }) === 'estimate'
+    && as.autoSendSkip(bill, { autoSend: true, linked: true, phone: '' }) === 'no-mobile'
+    && as.autoSendSkip(bill, { autoSend: true, linked: true, phone: '98765 43210' }) === '',
+    'Auto-send: only with the switch on, WhatsApp linked, a real bill (not an estimate) and a mobile');
+  const log: any = Object.fromEntries(Array.from({ length: 305 }, (_, i) => [`s${i}`, { state: 'sent', phone: '1', at: new Date(now + i * 1000).toISOString() }]));
+  const kept = as.trimSendLog(log);
+  assert(Object.keys(kept).length === 300 && 's304' in kept && !('s0' in kept) && as.AUTO_SEND_DELAY_MS >= 1000,
+    'Auto-send log keeps the newest 300 bills; sending starts a moment after the bill (its own print goes first)');
+  assert(parseWhatsAppSettings(null).autoSendBills === false && parseWhatsAppSettings('{"autoSendBills":true}').autoSendBills === true
+    && parseWhatsAppSettings('{"autoSendBills":"yes"}').autoSendBills === false,
+    'Auto-send is off until the shop links its WhatsApp (linking turns it on; Settings can turn it off)');
+  const pos = readSource('components/billing/posSaleActions.ts');
+  const rest = readSource('components/restaurant/RestaurantPage.tsx');
+  const auto = readSource('lib/whatsapp/autoSendBill.ts');
+  assert(pos.includes("void import('@/lib/whatsapp/autoSendBill').then((m) => m.autoSendBill(newSale, currentBiz))")
+    && rest.includes("void import('@/lib/whatsapp/autoSendBill').then((m) => m.autoSendBill(sale, business))")
+    && !/await import\('@\/lib\/whatsapp\/autoSendBill'\)/.test(pos + rest) && auto.includes('setTimeout(() => { void sendBillByLink(sale, business); }, AUTO_SEND_DELAY_MS)')
+    && !/from 'firebase/.test(auto),
+    'Counter Complete Sale and restaurant Settle hand the saved bill to the linked WhatsApp without waiting (offline-first, Bible §6.1)');
+  const worker = fs.readFileSync(path.join(__dirname, '..', 'waWorker.js'), 'utf8');
+  const link = fs.readFileSync(path.join(__dirname, '..', 'waLink.js'), 'utf8');
+  const mainJs = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+  const preload = fs.readFileSync(path.join(__dirname, '..', 'preload.js'), 'utf8');
+  assert(worker.includes('markOnlineOnConnect: false') && worker.includes('syncFullHistory: false') && worker.includes('shouldSyncHistoryMessage: () => false')
+    && worker.includes("throw new Error('not-on-whatsapp')") && !worker.includes("require('electron')")
+    && link.includes("utilityProcess.fork(path.join(__dirname, 'waWorker.js')") && link.includes("process.env.KAMAI_E2E_WA_FAKE === '1' && !app.isPackaged")
+    && link.includes('r.file && isAllowedFile(r.file)') && link.includes('sendDelay(sentTimes, Date.now())')
+    // Baileys writes creds.json as soon as a QR shows — only a scanned session (creds.me) counts as linked.
+    && link.includes("JSON.parse(fs.readFileSync(path.join(authDir, 'creds.json'), 'utf8')).me?.id") && worker.includes('!(auth.creds && auth.creds.me)')
+    // A long bill message is not cut by the ~1,024-character caption limit; a send waits for a reconnect.
+    && worker.includes('const inCaption = body.length <= CAPTION_MAX') && link.includes("status = { ...status, state: 'connecting', error: '' }")
+    && mainJs.includes("isAllowedFile: (file) => insideDocuments(file) && /\\.pdf$/i.test(String(file))") && mainJs.includes('waLink.startIfLinked();')
+    && preload.includes("waLinkSend: (request) => ipcRenderer.invoke('kp:wa-link-send', request)"),
+    'Linked WhatsApp runs in a utility process (no history, phone keeps notifications), checks the number is on WhatsApp, sends only a PDF inside Documents\\KamaiPlus');
+  assert(pkgJson.dependencies?.['@whiskeysockets/baileys'] === '7.0.0-rc14' && (pkgJson.build?.files || []).includes('waLink.js') && (pkgJson.build?.files || []).includes('waWorker.js'),
+    'Baileys is pinned to one exact version and the two WhatsApp files are packed into the installer');
+  const dialog = readSource('components/whatsapp/WaLinkDialog.tsx');
+  assert(dialog.includes('disabled={!agreed}') && dialog.includes('It is not an official WhatsApp service') && readSource('components/settings/WhatsAppSettingsCard.tsx').includes('<WaLinkCard />')
+    && readSource('components/invoices/InvoiceModal.tsx').includes('<WaBillSendStatus sale={sale} business={business} />'),
+    'Linking needs the shop to tick the warning (not an official WhatsApp service); the bill window shows Sent ✓ / Not sent + Send again');
+})());
+
 // v4.184.0 — Restaurant (Rahul 2026-11-15): the bill on WhatsApp speaks a restaurant's words —
 // "Guest" and "Thank you for dining with us" — in English / हिंदी / मराठी; other shops unchanged.
 {

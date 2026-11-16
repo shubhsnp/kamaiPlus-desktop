@@ -13,6 +13,17 @@ contextBridge.exposeInMainWorld('kamaiDesktop', {
   openPath: (target) => ipcRenderer.invoke('kp:open-path', target),
   showItemInFolder: (target) => ipcRenderer.invoke('kp:show-in-folder', target),
   copyFileToClipboard: (target) => ipcRenderer.invoke('kp:copy-file', target),
+  // v4.185.0 — the shop's WhatsApp as a linked device: bills go by themselves (waLink.js).
+  waLinkStatus: () => ipcRenderer.invoke('kp:wa-link-status'),
+  waLinkConnect: () => ipcRenderer.invoke('kp:wa-link-connect'),
+  waLinkCancel: () => ipcRenderer.invoke('kp:wa-link-cancel'),
+  waLinkLogout: () => ipcRenderer.invoke('kp:wa-link-logout'),
+  waLinkSend: (request) => ipcRenderer.invoke('kp:wa-link-send', request),
+  onWaLinkEvent: (callback) => {
+    const listener = (_event, status) => callback(status);
+    ipcRenderer.on('kp:wa-link-event', listener);
+    return () => ipcRenderer.removeListener('kp:wa-link-event', listener);
+  },
   getAppInfo: () => ipcRenderer.invoke('kp:app-info'),
   getLicenceStatus: () => ipcRenderer.invoke('kp:licence-status'),
   activateLicence: (key) => ipcRenderer.invoke('kp:licence-activate', key),

@@ -32,6 +32,7 @@ import { gstAllowed } from '@/lib/business/verticalProfile';
 import { EditInvoiceModal } from '@/components/invoices/EditInvoiceModal';
 import { InvoicePreview } from '@/components/invoices/InvoicePreview';
 import { WhatsAppButton } from '@/components/whatsapp/WhatsAppButton';
+import { WaBillSendStatus } from '@/components/whatsapp/WaBillSendStatus';
 import { msg, tr } from '@/lib/i18n/core';
 import { useFeatureSwitches } from '@/lib/features/featureSwitches';
 
@@ -287,6 +288,7 @@ export function InvoiceModal({
 
           {/* v4.79.0: the bill as a WhatsApp message (+ pay link for what is due), like the Android app. */}
           <WhatsAppButton variant="block" request={{ kind: 'bill', sale }} label={tr('Send bill on WhatsApp')} />
+          <WaBillSendStatus sale={sale} business={business} />
 
           <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
             {format !== 'a4' && (

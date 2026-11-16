@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Card } from '@/components/ui/Card';
 import { WhatsAppIcon } from '@/components/whatsapp/WhatsAppButton';
 import { LANG_CHIPS } from '@/components/whatsapp/WhatsAppComposerParts';
+import { WaLinkCard } from '@/components/whatsapp/WaLinkCard';
 import { getWhatsAppSettings, saveWhatsAppSettings, WhatsAppSettings } from '@/lib/whatsapp/whatsappSettings';
 import { toWhatsAppNumber } from '@/lib/whatsapp/whatsappLinks';
 import { cn } from '@/lib/utils';
@@ -31,6 +32,7 @@ export function WhatsAppSettingsCard() {
       </div>
 
       <div className="text-xs space-y-3">
+        <WaLinkCard />
         <div>
           <span className="font-bold text-slate-700">{tr('Language of customer messages')}</span>
           <div className="flex flex-wrap gap-1.5 mt-1">

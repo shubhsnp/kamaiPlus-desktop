@@ -124,6 +124,18 @@ export interface BackupWriteResult {
   extra?: { ok: boolean; error?: string } | null;
 }
 
+/** v4.185.0 — WhatsApp linked device. state: idle | connecting | qr | open | closed | loggedOut | qrTimeout | replaced. */
+export interface WaLinkStatus {
+  state: string;
+  /** The linked number, e.g. 919525512020 (only when open). */
+  me: string;
+  /** The QR text to show while linking. */
+  qr: string;
+  error: string;
+  /** A session is saved on this PC. */
+  linked?: boolean;
+}
+
 export interface KamaiDesktopApi {
   isDesktop: true;
   printToPdf(opts: { html: string; fileName: string; folder: 'Invoices' | 'Reports' | 'Statements' }): Promise<DesktopResult>;
@@ -141,6 +153,13 @@ export interface KamaiDesktopApi {
   showItemInFolder(path: string): Promise<DesktopResult>;
   /** A bill PDF (in Documents\KamaiPlus) onto the clipboard as a file — Ctrl+V in WhatsApp attaches it (v4.133.0). */
   copyFileToClipboard?(path: string): Promise<DesktopResult>;
+  /** v4.185.0 — the shop's WhatsApp as a linked device (waLink.js): bills go by themselves. */
+  waLinkStatus?(): Promise<WaLinkStatus>;
+  waLinkConnect?(): Promise<WaLinkStatus>;
+  waLinkCancel?(): Promise<WaLinkStatus>;
+  waLinkLogout?(): Promise<WaLinkStatus>;
+  waLinkSend?(request: { phone: string; text: string; file?: string; fileName?: string }): Promise<{ ok: boolean; error?: string }>;
+  onWaLinkEvent?(callback: (status: WaLinkStatus) => void): () => void;
   getAppInfo(): Promise<{ version: string; documentsDir: string }>;
   getLicenceStatus(): Promise<LicenceStatus>;
   activateLicence(key: string): Promise<LicenceActivationResult>;

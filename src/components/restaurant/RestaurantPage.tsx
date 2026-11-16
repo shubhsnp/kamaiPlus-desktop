@@ -121,6 +121,8 @@ export function RestaurantPage() {
   // otherwise — or with no printer to send it to (a browser) — the bill window opens.
   const onSettled = (sale: Sale, printNow: boolean) => {
     setSelectedId(null);
+    // v4.185.0: the linked WhatsApp sends the bill to the guest's mobile by itself — never awaited.
+    void import('@/lib/whatsapp/autoSendBill').then((m) => m.autoSendBill(sale, business));
     if (printNow && business && getDesktopApi()) {
       billPrint.print({ sale, business });
       notify(tr('Bill {number} saved — printing.', { number: sale.invoice_number }), 'success', sale);

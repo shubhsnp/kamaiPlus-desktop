@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.185.0',
+    items: [
+      msg("WhatsApp bills by themselves: Settings → Invoice & Bill Rules → WhatsApp → Connect WhatsApp, scan the QR with your phone — every bill with a mobile number then goes from your own WhatsApp number (PDF + message), no WhatsApp window, no Send press. The bill window shows \"Sent on WhatsApp\"."),
+    ],
+  },
+  {
     version: '4.184.0',
     items: [
       msg("Restaurant: the bill on WhatsApp now says \"Guest\" and \"Thank you for dining with us\" — in English, Hindi and Marathi."),
