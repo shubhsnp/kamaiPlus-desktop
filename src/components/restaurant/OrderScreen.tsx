@@ -40,6 +40,8 @@ export function OrderScreen({ order, settings, update, business, freeTables, onB
   notify: (text: string, tone?: 'success' | 'error' | 'info') => void;
 }) {
   const searchRef = useRef<HTMLInputElement>(null);
+  const orderRef = useRef(order);
+  orderRef.current = order;
   const [addOnsFor, setAddOnsFor] = useState<RestLine | null>(null);
   const [payOpen, setPayOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -180,13 +182,13 @@ export function OrderScreen({ order, settings, update, business, freeTables, onB
         onBack();
       } else if (e.key === 'F10' && !typing) {
         e.preventDefault();
-        if (liveLines(order).length > 0) setPayOpen(true);
+        if (liveLines(orderRef.current).length > 0) setPayOpen(true);
       } else if (e.key === 'F9' && !typing) {
         e.preventDefault();
-        if (hasUnsentItems(order)) void sendKot();
+        if (hasUnsentItems(orderRef.current)) void sendKot();
       } else if (e.key === 'F8' && !typing) {
         e.preventDefault();
-        if (liveLines(order).length > 0) void check();
+        if (liveLines(orderRef.current).length > 0) void check();
       }
     };
     window.addEventListener('keydown', onKey);
