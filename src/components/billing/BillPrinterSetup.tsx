@@ -4,6 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { Printer, RefreshCw } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { BillPrinterWarning } from '@/components/printers/BillPrinterWarning';
+import { KotPrinterRow } from '@/components/printers/KotPrinterRow';
+import { useRestaurantMode } from '@/lib/features/featureSwitches';
 import { Business } from '@/types';
 import { DesktopPrinter, getDesktopApi, PaperFormat } from '@/lib/desktop/desktopBridge';
 import { getPrintSettings, PrintSettings, printerForFormat, savePrintSettings } from '@/lib/hardware/printSettings';
@@ -42,6 +44,7 @@ export function BillPrinterSetup({ onClose, business, autoPrint, onAutoPrintChan
   const [loading, setLoading] = useState(false);
   const [note, setNote] = useState('');
   const desktop = getDesktopApi();
+  const restaurant = useRestaurantMode();
   const fmt = settings.defaultFormat;
   const printer = printerForFormat(settings, fmt);
 
@@ -122,6 +125,9 @@ export function BillPrinterSetup({ onClose, business, autoPrint, onAutoPrintChan
             <span className="block text-emerald-800">{tr('No "Sale completed" window: Enter / F10 saves the bill, prints it on this printer and the next customer can be scanned.')}</span>
           </span>
         </label>
+
+        {/* v4.186.0: a restaurant's kitchen printer for KOTs (default: the same printer as the bill). */}
+        {restaurant && <KotPrinterRow settings={settings} printers={printers} onChange={update} shopName={business?.name} />}
 
         {children}
 

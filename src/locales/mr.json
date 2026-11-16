@@ -3604,5 +3604,14 @@
   "Sent on WhatsApp to {phone}": "{phone} ला WhatsApp वर पाठवले",
   "Not sent on WhatsApp: {reason}": "WhatsApp वर गेले नाही: {reason}",
   "Send again": "पुन्हा पाठवा",
-  "WhatsApp bills by themselves: Settings → Invoice & Bill Rules → WhatsApp → Connect WhatsApp, scan the QR with your phone — every bill with a mobile number then goes from your own WhatsApp number (PDF + message), no WhatsApp window, no Send press. The bill window shows \"Sent on WhatsApp\".": "WhatsApp वर बिल आपोआप: Settings → Invoice & Bill Rules → WhatsApp → Connect WhatsApp, फोनने QR स्कॅन करा — मग मोबाइल नंबर असलेले प्रत्येक बिल तुमच्या स्वतःच्या WhatsApp नंबरवरून जाईल (PDF + मेसेज), WhatsApp उघडणार नाही, Send दाबावे लागणार नाही. बिलच्या विंडोत \"WhatsApp वर पाठवले\" दिसेल."
+  "WhatsApp bills by themselves: Settings → Invoice & Bill Rules → WhatsApp → Connect WhatsApp, scan the QR with your phone — every bill with a mobile number then goes from your own WhatsApp number (PDF + message), no WhatsApp window, no Send press. The bill window shows \"Sent on WhatsApp\".": "WhatsApp वर बिल आपोआप: Settings → Invoice & Bill Rules → WhatsApp → Connect WhatsApp, फोनने QR स्कॅन करा — मग मोबाइल नंबर असलेले प्रत्येक बिल तुमच्या स्वतःच्या WhatsApp नंबरवरून जाईल (PDF + मेसेज), WhatsApp उघडणार नाही, Send दाबावे लागणार नाही. बिलच्या विंडोत \"WhatsApp वर पाठवले\" दिसेल.",
+  "KOT printer (kitchen)": "KOT प्रिंटर (किचन)",
+  "Same as the bill printer": "बिलाचाच प्रिंटर",
+  "KOT size": "KOT साइज",
+  "Test KOT": "टेस्ट KOT",
+  "Printing a test KOT…": "टेस्ट KOT छापत आहे…",
+  "Test KOT sent. Check it came out in the kitchen.": "टेस्ट KOT पाठवला. किचनमध्ये निघाला का ते पहा.",
+  "Print the bill straight away after Settle": "Settle नंतर बिल थेट प्रिंट करा",
+  "No bill window after Settle: the bill goes straight to the bill printer (open it again from Today's bills).": "Settle नंतर बिलची विंडो नाही: बिल थेट बिल प्रिंटरवर जाईल (आजच्या बिलांमधून पुन्हा उघडता येईल).",
+  "Printers are set once: the bill window no longer asks A4 / 80mm / 58mm, and Print Bill goes straight to your printer. Restaurant: choose a separate KOT printer for the kitchen (Printer setup); \"print straight away after Settle\" is set there too. No barcode label printer settings in shops without labels.": "प्रिंटर एकदाच सेट होतात: बिलची विंडो आता A4 / 80mm / 58mm विचारत नाही, आणि Print Bill थेट तुमच्या प्रिंटरवर जाते. रेस्टॉरंट: किचनसाठी वेगळा KOT प्रिंटर निवडा (Printer setup); \"Settle नंतर थेट प्रिंट\" पण तिथेच सेट होते. ज्या दुकानांत लेबल नाहीत, तिथे बारकोड लेबल प्रिंटरची सेटिंग दिसत नाही."
 }

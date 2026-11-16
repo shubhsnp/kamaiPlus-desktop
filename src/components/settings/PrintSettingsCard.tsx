@@ -5,7 +5,11 @@ import { Printer, RefreshCw } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { BillPrinterWarning } from '@/components/printers/BillPrinterWarning';
 import { DesktopPrinter, getDesktopApi, PaperFormat } from '@/lib/desktop/desktopBridge';
-import { getPrintSettings, PrintSettings, savePrintSettings } from '@/lib/hardware/printSettings';
+import { KotPrinterRow } from '@/components/printers/KotPrinterRow';
+import { useBusiness } from '@/components/layout/BusinessProvider';
+import { getPrintSettings, PrintSettings, printerForFormat, savePrintSettings } from '@/lib/hardware/printSettings';
+import { readSilentPrint, saveSilentPrint } from '@/lib/hardware/printerWatch';
+import { useRestaurantMode } from '@/lib/features/featureSwitches';
 import { cn } from '@/lib/utils';
 import { msg, tr } from '@/lib/i18n/core';
 
@@ -17,14 +21,18 @@ const FORMATS: { id: PaperFormat; label: string; hint: string }[] = [
 
 /**
  * Printer setup for this computer: which format the one "Print Bill" button
- * uses, which Windows printer gets A4 and which gets thermal slips, and whether
- * bills print silently / automatically after every sale. Saved immediately.
+ * uses and its printer, whether bills print straight away / automatically after every sale,
+ * and (v4.186.0, Restaurant mode) the kitchen's KOT printer. Saved immediately.
  */
 export function PrintSettingsCard() {
   const [settings, setSettings] = useState<PrintSettings>(getPrintSettings());
   const [printers, setPrinters] = useState<DesktopPrinter[]>([]);
   const [loading, setLoading] = useState(false);
   const desktop = getDesktopApi();
+  const restaurant = useRestaurantMode();
+  const business = useBusiness();
+  // The counter's / restaurant's "print straight away" switch (same as the Printers window).
+  const [straightAway, setStraightAway] = useState(readSilentPrint);
 
   const loadPrinters = async () => {
     if (!desktop) return;
@@ -98,24 +106,21 @@ export function PrintSettingsCard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <label className="text-xs font-bold text-slate-700">
-          {tr('A4 printer')}
-          {printerSelect(settings.a4Printer, (v) => update({ a4Printer: v }))}
-          <BillPrinterWarning name={settings.a4Printer} format="a4" />
-        </label>
-        <label className="text-xs font-bold text-slate-700">
-          {tr('Thermal receipt printer')}
-          {printerSelect(settings.thermalPrinter, (v) => update({ thermalPrinter: v }))}
-          <BillPrinterWarning name={settings.thermalPrinter} format="thermal-80" />
-        </label>
-      </div>
+      {/* v4.186.0 (Rahul: set once, never asked): one printer — the one for the chosen bill size; a printer
+          chosen = "Print Bill" goes straight to it (no Windows dialog, printBillSilently). */}
+      <label className="block text-xs font-bold text-slate-700">
+        {tr('Bill printer')}
+        {printerSelect(printerForFormat(settings, settings.defaultFormat), (v) => update(settings.defaultFormat === 'a4' ? { a4Printer: v } : { thermalPrinter: v }))}
+        <BillPrinterWarning name={printerForFormat(settings, settings.defaultFormat)} format={settings.defaultFormat} />
+      </label>
+
+      {restaurant && <KotPrinterRow settings={settings} printers={printers} onChange={update} shopName={business?.name} />}
 
       <div className="space-y-2">
         <label className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer">
-          <input type="checkbox" checked={settings.silent} disabled={!desktop} onChange={(e) => update({ silent: e.target.checked })} className="mt-0.5" />
+          <input type="checkbox" checked={straightAway} onChange={(e) => { setStraightAway(e.target.checked); saveSilentPrint(e.target.checked); }} className="mt-0.5" data-settings-straight-print />
           <span>
-            <b>{tr('Print directly')}</b> {tr('to the selected printer without showing the print dialog')}
+            <b>{tr('Enter prints the bill straight away')}</b> {tr('No "Sale completed" window: Enter / F10 saves the bill, prints it on this printer and the next customer can be scanned.')}
           </span>
         </label>
         <label className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer">

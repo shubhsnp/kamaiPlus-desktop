@@ -7,6 +7,7 @@ import { useBusiness } from '@/components/layout/BusinessProvider';
 import { getDesktopApi, PaperFormat } from '@/lib/desktop/desktopBridge';
 import { getPrintSettings, savePrintSettings } from '@/lib/hardware/printSettings';
 import { getLabelSettings, saveLabelSettings } from '@/lib/labels/labelSettings';
+import { isFeatureOn } from '@/lib/features/featureSwitches';
 import { KNOWN_PRINTERS_KEY, parseKnownPrinters, PrinterFacts, printerKind, reviewPrinters, thermalFormat } from '@/lib/hardware/printerDetect';
 import { loadPrinterFacts, OPEN_PRINTERS_EVENT, publishPrinters } from '@/lib/hardware/printerWatch';
 import { renderInvoiceHtml } from '@/lib/invoices/invoiceOutput';
@@ -83,10 +84,12 @@ export function PrinterWatcher() {
           localStorage.setItem(KNOWN_PRINTERS_KEY, JSON.stringify(review.known));
         } catch {}
         if (review.bill) setBillPrinter(review.bill.name, review.bill.format);
-        if (review.label) saveLabelSettings({ ...getLabelSettings(), printer: review.label });
-        if (review.bill || review.label) {
+        // v4.186.0: a shop without barcode labels (Barcode Studio off — restaurant, kirana…) never hears about a label printer.
+        const label = isFeatureOn('barcode_studio') ? review.label : undefined;
+        if (label) saveLabelSettings({ ...getLabelSettings(), printer: label });
+        if (review.bill || label) {
           setNote('');
-          setNotice({ kind: 'picked', bill: review.bill, label: review.label });
+          setNotice({ kind: 'picked', bill: review.bill, label });
         } else if (review.fresh.length) {
           setNote('');
           setNotice({ kind: 'fresh', printer: review.fresh[0] });

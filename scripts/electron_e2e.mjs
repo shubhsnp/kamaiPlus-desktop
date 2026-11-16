@@ -1946,11 +1946,11 @@ async function run() {
         await page.waitForTimeout(80);
         billBoxes.add(await billBox());
         await page.getByLabel('Discount', { exact: true }).fill('');
-        await page.locator('[data-pay-after="show"]').click();
-        billBoxes.add(await billBox());
-        await page.locator('[data-pay-after="print"]').click();
         billBoxes.add(await billBox());
         check(billBoxes.size === 1, `Bill window: same size and place for Cash, UPI, Card, Cash + UPI, Udhar, change, short, discount, a bad mobile (${[...billBoxes].join(' | ')})`);
+        // v4.186.0: "After paying" is set once in Printer setup — the Bill & Pay window no longer asks.
+        check((await page.locator('[data-pay-after]').count()) === 0 && /Settle & Show Bill/.test(await page.locator('[data-pay-settle]').innerText()),
+          'Bill & Pay asks nothing about printing; Settle says what Printer setup chose (here: show the bill)');
 
         const payTotal = parseFloat((await page.locator('[data-pay-total]').innerText()).replace(/[^\d.]/g, ''));
         await page.locator('[data-pay-method="upi"]').click();
@@ -1960,7 +1960,6 @@ async function run() {
         check((await page.locator('[data-pay-change]').count()) === 1, 'Cash received above the total shows the change to give back');
         await page.locator('[data-pay-guest-name]').fill('Ramesh');
         await page.locator('[data-pay-guest-phone]').fill('98765 43210');
-        await page.locator('[data-pay-after="show"]').click();
         await page.locator('[data-pay-settle]').click();
         await tables.waitFor({ timeout: 25000 });
         step = 'bill window';
@@ -2001,7 +2000,6 @@ async function run() {
         }));
         await page.locator('[data-pay-method="credit"]').click();
         const udharNote = await page.locator('[data-pay-udhar]').count();
-        await page.locator('[data-pay-after="show"]').click();
         await page.locator('[data-pay-settle]').click();
         await tables.waitFor({ timeout: 25000 });
         await page.getByRole('button', { name: /Back to Tables/i }).click({ timeout: 15000 }).catch(() => {});
@@ -2118,6 +2116,19 @@ async function run() {
         step = 'bill in history';
         await page.evaluate(() => { window.location.href = '/transactions/'; });
         check(await textVisible(page, 'Table T1', 20000), 'The paid table bill is in Transactions as "Table T1"');
+
+        // v4.186.0 — Printer setup in a restaurant: a KOT printer row (kitchen), no barcode label printer;
+        // the bill window has no A4 / 80mm / 58mm tabs (the size is set once).
+        step = 'printer setup';
+        await page.locator('[data-restaurant-bill], tr, [role="row"]').filter({ hasText: 'Table T1' }).first().click().catch(() => {});
+        const tabsInBill = await page.locator('[role="dialog"] button', { hasText: /^(A4 Bill|80mm|58mm)$/ }).count();
+        await page.keyboard.press('Escape');
+        await page.evaluate(() => { window.location.href = '/settings/?tab=invoice'; });
+        const kotRow = await page.locator('[data-kot-printer-row]').first().waitFor({ timeout: 15000 }).then(() => true, () => false);
+        const kotSelectFirst = kotRow ? await page.locator('select[data-kot-printer] option').first().innerText() : '';
+        const labelCard = await page.getByText('Barcode label printer (this computer)').count();
+        check(kotRow && /Same as the bill printer/.test(kotSelectFirst) && labelCard === 0 && tabsInBill === 0,
+          `Restaurant Printer setup: KOT printer row (default "Same as the bill printer"), no barcode label printer, no size tabs in the bill window (${JSON.stringify({ kotRow, kotSelectFirst, labelCard, tabsInBill })})`);
         const fatal = pageErrors.filter((m) => !/ResizeObserver|Failed to fetch|NetworkError|firestore|net::ERR/i.test(m));
         check(fatal.length === 0, `No page errors in Restaurant mode${fatal.length ? ': ' + fatal[0] : ''}`);
       } catch (err) {

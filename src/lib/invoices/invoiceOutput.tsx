@@ -15,7 +15,7 @@ import {
   saveHtmlAsPdf,
 } from '@/lib/print/printDocument';
 import type { PaperFormat } from '@/lib/desktop/desktopBridge';
-import { getPrintSettings, printerForFormat } from '@/lib/hardware/printSettings';
+import { getPrintSettings, printBillSilently, printerForFormat } from '@/lib/hardware/printSettings';
 
 export interface InvoiceRenderInput {
   sale: Sale;
@@ -66,7 +66,8 @@ export async function printInvoice(input: InvoiceRenderInput, format?: PaperForm
   const settings = getPrintSettings();
   const fmt = format || settings.defaultFormat;
   const html = await renderInvoiceHtml(input, fmt);
-  return printHtml(html, fmt, { deviceName: printerForFormat(settings, fmt), silent: settings.silent });
+  // v4.186.0: a printer chosen for this size = straight to it, no Windows dialog (set once, never asked).
+  return printHtml(html, fmt, { deviceName: printerForFormat(settings, fmt), silent: printBillSilently(settings, fmt) });
 }
 
 /** Digital copies are always the full A4 Tax Invoice, whatever the counter printer is (Android invariant). */

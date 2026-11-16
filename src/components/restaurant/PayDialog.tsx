@@ -6,7 +6,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { cn, formatINR } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
-import { readSilentPrint, saveSilentPrint } from '@/lib/hardware/printerWatch';
+import { readSilentPrint } from '@/lib/hardware/printerWatch';
 import { DiscountInput, RestOrder, orderRef, orderTotals, piecesText } from '@/lib/restaurant/model';
 import type { RestaurantSettings } from '@/lib/restaurant/settings';
 import { RestPayMethod, cleanGuestPhone } from '@/lib/restaurant/settle';
@@ -116,11 +116,6 @@ export function PayDialog({ order, settings, business, open, busy, onClose, onSe
     if (!open || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     paneRef.current?.animate?.([{ opacity: 0 }, { opacity: 1 }], { duration: 140, easing: 'ease-out' });
   }, [method, open]);
-
-  const choosePrint = (on: boolean) => {
-    setPrintNow(on);
-    saveSilentPrint(on);
-  };
 
   return (
     <Modal isOpen={open} onClose={onClose} title={tr('Bill — {name}', { name: who })} description={piecesText(totals.pieces)} size="lg" className="max-w-[780px]">
@@ -250,14 +245,8 @@ export function PayDialog({ order, settings, business, open, busy, onClose, onSe
               )}
             </div>
           </div>
-
-          <div>
-            <span className="text-[11px] font-black uppercase tracking-wide text-slate-500 block mb-1.5">{tr('After paying')}</span>
-            <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label={tr('After paying')}>
-              <AfterChoice active={printNow} onClick={() => choosePrint(true)} icon={Printer} title={tr('Print straight away')} hint={tr('Bill goes to the printer')} data="print" />
-              <AfterChoice active={!printNow} onClick={() => choosePrint(false)} icon={FileText} title={tr('Show the bill')} hint={tr('Print, PDF or WhatsApp')} data="show" />
-            </div>
-          </div>
+          {/* v4.186.0 (Rahul): "After paying" (print straight away / show the bill) is set once in Printer setup —
+              the Settle button says which it will do. */}
         </div>
       </div>
 
@@ -270,16 +259,6 @@ export function PayDialog({ order, settings, business, open, busy, onClose, onSe
       </div>
       </div>
     </Modal>
-  );
-}
-
-function AfterChoice({ active, onClick, icon: Icon, title, hint, data }: { active: boolean; onClick: () => void; icon: typeof Printer; title: string; hint: string; data: string }) {
-  return (
-    <button type="button" role="radio" aria-checked={active} onClick={onClick} data-pay-after={data}
-      className={cn('text-left rounded-xl border-2 px-3 py-2 cursor-pointer transition-colors', active ? 'border-emerald-600 bg-emerald-50' : 'border-slate-200 bg-white hover:border-slate-400')}>
-      <span className={cn('flex items-center gap-1.5 text-xs font-black', active ? 'text-emerald-800' : 'text-slate-800')}><Icon className="w-4 h-4" /> {title}</span>
-      <span className="block text-[10.5px] text-slate-500 mt-0.5">{hint}</span>
-    </button>
   );
 }
 

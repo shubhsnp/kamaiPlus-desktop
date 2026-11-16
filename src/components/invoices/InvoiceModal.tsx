@@ -33,7 +33,7 @@ import { EditInvoiceModal } from '@/components/invoices/EditInvoiceModal';
 import { InvoicePreview } from '@/components/invoices/InvoicePreview';
 import { WhatsAppButton } from '@/components/whatsapp/WhatsAppButton';
 import { WaBillSendStatus } from '@/components/whatsapp/WaBillSendStatus';
-import { msg, tr } from '@/lib/i18n/core';
+import { tr } from '@/lib/i18n/core';
 import { useFeatureSwitches } from '@/lib/features/featureSwitches';
 
 export type InvoiceFormat = PaperFormat;
@@ -55,17 +55,13 @@ export interface InvoiceModalProps {
 
 type Notice = { tone: 'success' | 'error'; text: string; pdfPath?: string } | null;
 
-const FORMAT_TABS: { id: InvoiceFormat; label: string }[] = [
-  { id: 'a4', label: msg('A4 Bill') },
-  { id: 'thermal-80', label: '80mm' },
-  { id: 'thermal-58', label: '58mm' },
-];
-
 /**
  * Invoice / sale detail — desktop port of the Android SaleDetailModal and
  * SaleCompletedModal: live preview of the exact printed bill, one Print Bill
  * button (format and printer from Print Settings), A4 PDF saved to
  * Documents\KamaiPlus\Invoices, Edit, Return and Theme shortcuts.
+ * v4.186.0 (Rahul: "set once, don't ask while billing"): no A4 / 80mm / 58mm tabs here any more —
+ * the bill shows and prints in the Printer setup size; Save PDF is always the A4 bill.
  */
 export function InvoiceModal({
   isOpen,
@@ -225,22 +221,7 @@ export function InvoiceModal({
 
           <SummaryStrip sale={sale} pay={pay} estimate={estimate} />
 
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200">
-              {FORMAT_TABS.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setFormat(t.id)}
-                  className={cn(
-                    'px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer',
-                    format === t.id ? 'bg-white text-slate-950 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-                  )}
-                >
-                  {tr(t.label)}
-                </button>
-              ))}
-            </div>
+          <div className="flex flex-wrap items-center justify-end gap-2 empty:hidden">
             {upiOptions.length > 1 && (
               <select
                 value={upiIndex}

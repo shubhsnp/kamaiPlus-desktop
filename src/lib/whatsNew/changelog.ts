@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.186.0',
+    items: [
+      msg('Printers are set once: the bill window no longer asks A4 / 80mm / 58mm, and Print Bill goes straight to your printer. Restaurant: choose a separate KOT printer for the kitchen (Printer setup); "print straight away after Settle" is set there too. No barcode label printer settings in shops without labels.'),
+    ],
+  },
+  {
     version: '4.185.0',
     items: [
       msg("WhatsApp bills by themselves: Settings → Invoice & Bill Rules → WhatsApp → Connect WhatsApp, scan the QR with your phone — every bill with a mobile number then goes from your own WhatsApp number (PDF + message), no WhatsApp window, no Send press. The bill window shows \"Sent on WhatsApp\"."),

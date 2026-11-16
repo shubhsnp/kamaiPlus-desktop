@@ -212,7 +212,8 @@ export const InvoiceSettingsTab: React.FC<InvoiceSettingsTabProps> = ({
       {/* 3. Printer Setup (per computer) */}
       <PrintSettingsCard />
 
-      <LabelPrinterCard />
+      {/* v4.186.0: the label printer only in a shop that prints barcode labels (not a restaurant, kirana…). */}
+      {switches.barcode_studio && <LabelPrinterCard />}
 
       {switches.whatsapp && <WhatsAppSettingsCard />}
     </div>

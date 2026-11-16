@@ -1,13 +1,14 @@
 import { buildPrintHtml, printHtml } from '@/lib/print/printDocument';
 import { getDesktopApi } from '@/lib/desktop/desktopBridge';
 import { tr } from '@/lib/i18n/core';
-import { getPrintSettings, printerForFormat } from '@/lib/hardware/printSettings';
+import { getPrintSettings, kotTarget } from '@/lib/hardware/printSettings';
 import type { PaperFormat } from '@/lib/desktop/desktopBridge';
 import { KotLine, RestOrder, kotChanges } from '@/lib/restaurant/model';
 
 /*
  * The kitchen slip (KOT — Kitchen Order Ticket), v4.106.0. Big, plain, black on white: table, time,
- * what to cook (ADD) and what to stop (CANCEL). Printed on the counter's thermal printer.
+ * what to cook (ADD) and what to stop (CANCEL). Printed on the counter's thermal printer — or, since
+ * v4.186.0, on the kitchen's own printer when Printer setup has one (kotTarget).
  */
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
@@ -67,14 +68,29 @@ export function kotPaper(): PaperFormat {
 export async function printKot(input: KotInput, given?: KotLine[]): Promise<{ ok: boolean; empty?: boolean; noPrinter?: boolean; error?: string }> {
   const changes = given || kotChanges(input.order);
   if (changes.length === 0) return { ok: false, empty: true };
-  const paper = kotPaper();
-  const settings = getPrintSettings();
+  // v4.186.0: the kitchen's own printer + paper when one is set (Printer setup → KOT printer), else the
+  // bill's thermal printer and size as before.
+  const { paper, deviceName } = kotTarget(getPrintSettings());
   // v4.123.0 (AU-31): no printer chosen for the slip = it is NOT sent anywhere. Before, a silent job with
   // no printer name went to whatever Windows picked (a label printer, or nowhere) and the order said
   // "In kitchen". The caller asks the waiter instead.
-  if (getDesktopApi() && !printerForFormat(settings, paper)) return { ok: false, noPrinter: true, error: tr('no kitchen printer chosen') };
+  if (getDesktopApi() && !deviceName) return { ok: false, noPrinter: true, error: tr('no kitchen printer chosen') };
   const html = buildPrintHtml(buildKotBody(input, changes), `KOT ${input.order.label}`, paper, KOT_CSS);
   // Silent: a kitchen slip must never open a print window in the waiter's face (the browser fallback ignores it).
-  const res = await printHtml(html, paper, { deviceName: printerForFormat(settings, paper) || undefined, silent: true });
+  const res = await printHtml(html, paper, { deviceName: deviceName || undefined, silent: true });
+  return res.ok ? { ok: true } : { ok: false, error: res.error };
+}
+
+/** v4.186.0 — Printer setup "Test print" for the KOT printer: a small sample slip where KOTs will go. */
+export async function printTestKot(shopName?: string): Promise<{ ok: boolean; error?: string }> {
+  const { paper, deviceName } = kotTarget(getPrintSettings());
+  const body = `<div class="kot">
+<div class="shop">${esc(shopName || 'Kitchen')} · KOT</div>
+<div class="big">TEST</div>
+<div class="sec">ADD</div>
+<div class="row"><span class="q">1 ×</span><span>Test dish</span></div>
+<div class="end">— KamaiPlus · kitchen printer —</div>
+</div>`;
+  const res = await printHtml(buildPrintHtml(body, 'KOT test', paper, KOT_CSS), paper, { deviceName: deviceName || undefined, silent: Boolean(deviceName) });
   return res.ok ? { ok: true } : { ok: false, error: res.error };
 }

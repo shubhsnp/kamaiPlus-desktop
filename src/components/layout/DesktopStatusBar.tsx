@@ -109,7 +109,8 @@ export const DesktopStatusBar: React.FC = () => {
           : tr('A4 bills go to {name}, a receipt printer. Click to choose an A4 printer or another bill size.', { name: billTarget.name }),
       }
     : billLine;
-  const labelLine = printers && chosen.label ? printerLine(chosen.label, printers) : null;
+  // v4.186.0: no label printer in the status bar of a shop without barcode labels (Barcode Studio off).
+  const labelLine = printers && chosen.label && switches.barcode_studio ? printerLine(chosen.label, printers) : null;
 
   useEffect(() => {
     const updateClock = () => {

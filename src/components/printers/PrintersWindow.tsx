@@ -6,6 +6,7 @@ import { Business } from '@/types';
 import { BillPrinterSetup } from '@/components/billing/BillPrinterSetup';
 import { LabelSetupPanel } from '@/components/labels/LabelSetupPanel';
 import { readSilentPrint, saveSilentPrint, SILENT_PRINT_EVENT } from '@/lib/hardware/printerWatch';
+import { useFeatureSwitches } from '@/lib/features/featureSwitches';
 import { cn } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
 
@@ -25,9 +26,12 @@ export function PrintersWindow({ onClose, business, openLabel = false }: { onClo
     return () => window.removeEventListener(SILENT_PRINT_EVENT, on);
   }, []);
 
+  // v4.186.0: no barcode labels in this shop (Barcode Studio off — a restaurant, kirana…) = no label printer here.
+  const labelsOn = useFeatureSwitches().barcode_studio;
+
   return (
     <BillPrinterSetup title={tr('Printers')} onClose={onClose} business={business} autoPrint={autoPrint} onAutoPrintChange={saveSilentPrint}>
-      <div className="rounded-xl border border-slate-200">
+      {labelsOn && <div className="rounded-xl border border-slate-200">
         <button
           type="button"
           onClick={() => setLabelOpen((o) => !o)}
@@ -47,7 +51,7 @@ export function PrintersWindow({ onClose, business, openLabel = false }: { onClo
             <LabelSetupPanel shopName={business?.name || ''} />
           </div>
         )}
-      </div>
+      </div>}
     </BillPrinterSetup>
   );
 }

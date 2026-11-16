@@ -1960,7 +1960,10 @@ assert(readSource('app/billing/page.tsx').split('\n').length <= 401, `POS page s
   const billSetupSrc = readSource('components/billing/BillPrinterSetup.tsx');
   const statusSrc = readSource('components/layout/DesktopStatusBar.tsx');
   assert(/<BillPrinterWarning name=\{printer \|\| printers\.find\(\(p\) => p\.isDefault\)\?\.name \|\| ''\} format=\{fmt\} \/>/.test(billSetupSrc)
-    && (readSource('components/settings/PrintSettingsCard.tsx').match(/<BillPrinterWarning /g) || []).length === 2
+    // v4.186.0: Settings has one bill printer (for the bill size) — its warning — and the KOT printer row has its own.
+    && (readSource('components/settings/PrintSettingsCard.tsx').match(/<BillPrinterWarning /g) || []).length === 1
+    && readSource('components/settings/PrintSettingsCard.tsx').includes('format={settings.defaultFormat} />')
+    && readSource('components/printers/KotPrinterRow.tsx').includes('<BillPrinterWarning name={settings.kotPrinter}')
     && /billPrinterMismatch\(billTarget, chosen\.format\)/.test(statusSrc) && /tone: 'warn' as Tone/.test(statusSrc) && /d\.isDefault/.test(statusSrc),
     'The warning shows under the bill printer in the Printers window and Settings (A4 and receipt), and turns the status bar amber — also when bills go to the Windows default');
   // v4.80.0: "Calibrate printer" — a new roll printed ~2–3 mm high on the TSC TE244 until the printer
@@ -4416,7 +4419,8 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
   const pay2 = readSource('components/restaurant/PayDialog.tsx');
   assert(/if \(printNow && business && getDesktopApi\(\)\) \{\s*billPrint\.print\(\{ sale, business \}\);/.test(page2) && page2.includes('setSaleToShow({ sale, justPaid: true })')
     && page2.includes('isPostSaleSuccess={saleToShow.justPaid} initialPhone={saleToShow.sale.customer_phone}') && page2.includes('data-toast-open-bill')
-    && pay2.includes('setPrintNow(readSilentPrint())') && pay2.includes('saveSilentPrint(on)') && pay2.includes('<RestUpiQr'),
+    // v4.186.0: the choice is set once in Printer setup (saveSilentPrint there), Bill & Pay only reads it.
+    && pay2.includes('setPrintNow(readSilentPrint())') && !pay2.includes('saveSilentPrint') && pay2.includes('<RestUpiQr'),
     'Restaurant pay: "Print straight away" (the counter\'s own setting) or the bill window with Print, PDF and WhatsApp; a printed bill can still be opened from the message; UPI shows the QR');
   assert(isRestaurantBill({ notes: 'Table T1', status: 'completed' }) && isRestaurantBill({ notes: 'Takeaway TA-02', status: 'completed' })
     && !isRestaurantBill({ notes: 'Table T1', status: 'draft' }) && !isRestaurantBill({ notes: 'Walk-in', status: 'completed' }) && !isRestaurantBill({ notes: undefined, status: 'completed' }),
@@ -4754,7 +4758,8 @@ assert(localStorageFlags['kamai_products_manually_cleared'] === 'true', 'Clean p
 {
   const kot = readSource('lib/restaurant/kot.ts');
   const screen = readSource('components/restaurant/OrderScreen.tsx');
-  assert(kot.includes('if (getDesktopApi() && !printerForFormat(settings, paper)) return { ok: false, noPrinter: true')
+  // v4.186.0: the printer comes from kotTarget (the kitchen printer, else the bill's thermal printer).
+  assert(kot.includes('if (getDesktopApi() && !deviceName) return { ok: false, noPrinter: true')
     && kot.indexOf('noPrinter: true') < kot.indexOf('await printHtml('),
     'printKot: no KOT printer chosen = nothing is printed and the answer says so');
   assert(/res\.noPrinter\) \{[\s\S]{0,700}showConfirm\([\s\S]{0,500}if \(told\) \{[\s\S]{0,200}markKotSent/.test(screen),
@@ -5612,6 +5617,47 @@ pendingAsyncChecks.push((async () => {
     'Restaurant: Inventory header says "Manage Menu" (inventory is on for a restaurant since v4.165.0)');
 }
 
+// v4.186.0 — Rahul 2026-11-16: a restaurant's KOT goes to its own kitchen printer (set once in Printer setup,
+// default = the bill printer as before); no printer / size question while billing; no label printer settings
+// in a shop without barcode labels.
+pendingAsyncChecks.push((async () => {
+  const ps = await import('../src/lib/hardware/printSettings');
+  const base = { ...ps.DEFAULT_PRINT_SETTINGS, thermalPrinter: 'EPSON TM-T83III', a4Printer: 'HP LaserJet' };
+  const same80 = ps.kotTarget({ ...base, defaultFormat: 'thermal-80' });
+  const same58 = ps.kotTarget({ ...base, defaultFormat: 'thermal-58' });
+  const fromA4 = ps.kotTarget({ ...base, defaultFormat: 'a4' });
+  const kitchen = ps.kotTarget({ ...base, defaultFormat: 'a4', kotPrinter: 'Kitchen TVS', kotFormat: 'thermal-58' });
+  assert(ps.DEFAULT_PRINT_SETTINGS.kotPrinter === '' && ps.DEFAULT_PRINT_SETTINGS.kotFormat === ''
+    && same80.paper === 'thermal-80' && same80.deviceName === 'EPSON TM-T83III' && !same80.ownPrinter
+    && same58.paper === 'thermal-58' && fromA4.paper === 'thermal-80' && fromA4.deviceName === 'EPSON TM-T83III'
+    && kitchen.deviceName === 'Kitchen TVS' && kitchen.paper === 'thermal-58' && kitchen.ownPrinter,
+    'KOT printer: nothing set = the bill\'s thermal printer and size (as before); a kitchen printer + its own size when set');
+  assert(ps.printBillSilently({ ...ps.DEFAULT_PRINT_SETTINGS, thermalPrinter: 'EPSON', defaultFormat: 'thermal-80' }, 'thermal-80')
+    && !ps.printBillSilently({ ...ps.DEFAULT_PRINT_SETTINGS, defaultFormat: 'a4' }, 'a4')
+    && ps.printBillSilently({ ...ps.DEFAULT_PRINT_SETTINGS, silent: true }, 'a4'),
+    '"Print Bill" goes straight to the chosen printer (no Windows dialog); the dialog only when no printer is chosen');
+  const kot = readSource('lib/restaurant/kot.ts');
+  assert(kot.includes('const { paper, deviceName } = kotTarget(getPrintSettings());') && kot.includes("if (getDesktopApi() && !deviceName) return { ok: false, noPrinter: true")
+    && kot.includes('export async function printTestKot(') && readSource('lib/invoices/invoiceOutput.tsx').includes('silent: printBillSilently(settings, fmt)'),
+    'KOT, cancel slip and reprint use the KOT printer; no printer = still asked, never "sent" to nowhere (AU-31)');
+  const modal = readSource('components/invoices/InvoiceModal.tsx');
+  const pay = readSource('components/restaurant/PayDialog.tsx');
+  assert(!modal.includes('FORMAT_TABS') && !modal.includes("msg('A4 Bill')") && !pay.includes('data-pay-after') && !pay.includes("tr('After paying')")
+    && pay.includes('setPrintNow(readSilentPrint())'),
+    'While billing nothing asks about printers: no A4 / 80mm / 58mm tabs in the bill window, no "After paying" in Bill & Pay (both set once)');
+  const setup = readSource('components/billing/BillPrinterSetup.tsx');
+  const card = readSource('components/settings/PrintSettingsCard.tsx');
+  assert(setup.includes('{restaurant && <KotPrinterRow') && card.includes('{restaurant && <KotPrinterRow') && card.includes('saveSilentPrint(e.target.checked)')
+    && !card.includes("tr('A4 printer')") && !card.includes("tr('Print directly')")
+    && RESTAURANT_WORDS['Enter prints the bill straight away'] === 'Print the bill straight away after Settle',
+    'Printer setup (Settings + Printers window): one bill printer for the bill size, the KOT printer row in Restaurant mode, "print straight away" in both');
+  assert(readSource('components/settings/InvoiceSettingsTab.tsx').includes('{switches.barcode_studio && <LabelPrinterCard />}')
+    && readSource('components/printers/PrintersWindow.tsx').includes('{labelsOn && <div')
+    && readSource('components/printers/PrinterWatcher.tsx').includes("const label = isFeatureOn('barcode_studio') ? review.label : undefined;")
+    && readSource('components/layout/DesktopStatusBar.tsx').includes('chosen.label && switches.barcode_studio'),
+    'No barcode label printer settings, auto-pick or status-bar line in a shop without barcode labels (restaurant, kirana…)');
+})());
+
 // v4.185.0 — Rahul 2026-11-15 (Vyapar-like): this PC's WhatsApp as a linked device sends every bill with a
 // mobile by itself (A4 PDF + message, the shop's own number) — never awaited by the counter / Settle, one
 // message at a time with a gap, only a PDF inside Documents\KamaiPlus, the shop ticks the warning first.
@@ -5743,12 +5789,13 @@ pendingAsyncChecks.push((async () => {
 
   const payDialog = readSource('components/restaurant/PayDialog.tsx');
   const paneAt = payDialog.indexOf('data-pay-pane={method}');
-  const afterAt = payDialog.indexOf("tr('After paying')");
+  // v4.186.0: "After paying" left the window — the pane ends before the Settle button.
+  const afterAt = payDialog.indexOf('data-pay-settle');
   const inPane = ["{method === 'cash' && (", "{method === 'upi' && ", "{method === 'split' && (", "{method === 'credit' && (", "{method === 'card' && ("].every((m) => { const i = payDialog.indexOf(m); return i > paneAt && i < afterAt; });
   assert(paneAt > 0 && inPane && payDialog.includes('h-[176px]') && !payDialog.includes('totals.discountTotal > 0 && <Row') && payDialog.includes('min-h-[28px] line-clamp-2') && payDialog.includes('whitespace-nowrap'),
     'Bill window: every method fits one fixed box and every message has its line kept free, so the window never changes size or moves when the method changes');
   const payFoot = payDialog.indexOf('data-pay-settle');
-  assert(payFoot > afterAt && payDialog.includes('min-w-[250px]') && readSource('components/restaurant/RestUpiQr.tsx').includes('qrOnly'), 'Bill window: Settle stays in one place, whichever text it shows');
+  assert(payFoot > paneAt && payDialog.includes('min-w-[250px]') && readSource('components/restaurant/RestUpiQr.tsx').includes('qrOnly'), 'Bill window: Settle stays in one place, whichever text it shows');
   assert(/className\?: string;/.test(readSource('components/ui/Modal.tsx')) && /sizeClasses\[size\],\s*className/.test(readSource('components/ui/Modal.tsx')), 'Modal: an optional width class, nothing changes for the other windows');
   const ghNotes = fs.readFileSync(path.join(__dirname, 'publish_github_release.mjs'), 'utf8');
   assert(ghNotes.includes('fs.statSync(f.path).size / 1024') && ghNotes.includes('kamaiplus.com/download') && !ghNotes.includes('kamaiplus.com/desktop'), 'GitHub release notes: the real file size (they said NaN MB) and a download link that exists (/desktop was a 404)');
