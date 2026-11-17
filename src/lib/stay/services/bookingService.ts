@@ -12,6 +12,7 @@ import { bookingRepository } from '@/lib/stay/repositories/bookingRepository';
 import { roomRepository } from '@/lib/stay/repositories/roomRepository';
 import { folioRepository } from '@/lib/stay/repositories/folioRepository';
 import { hasOverlappingBooking, calculateNights } from '@/lib/stay/services/availabilityService';
+import { postRoomCharge } from '@/lib/stay/services/financialService';
 import type { Booking, BookingStatus, Folio, StayRecord } from '@/lib/stay/types';
 
 // ---------------------------------------------------------------------------
@@ -78,7 +79,7 @@ export async function createReservation(input: CreateReservationInput): Promise<
   } = input;
 
   // Validate nights
-  calculateNights(checkInDate, checkOutDate); // throws if invalid
+  const nights = calculateNights(checkInDate, checkOutDate); // throws if invalid
 
   // Local availability check
   if (roomId) {
@@ -131,6 +132,18 @@ export async function createReservation(input: CreateReservationInput): Promise<
     sync_status: 'pending',
   };
   await folioRepository.create(folio);
+
+  // Automatically post scheduled room charge to the folio
+  if (agreedRatePaise > 0 && nights > 0) {
+    await postRoomCharge({
+      businessId,
+      folioId: folio.id,
+      chargeDate: checkInDate,
+      ratePaise: agreedRatePaise,
+      nights,
+      postedBy: 'system',
+    });
+  }
 
   return booking;
 }
@@ -286,18 +299,29 @@ export async function checkIn(input: CheckInInput): Promise<StayRecord> {
 export interface CheckOutInput {
   bookingId: string;
   checkedOutBy?: string;
+  allowCredit?: boolean;
+  creditDetails?: {
+    debtorName: string;
+    debtorPhone: string;
+    dueDate?: string;
+    notes?: string;
+    authorizedBy?: string;
+  };
 }
 
 /**
  * Perform guest check-out.
  *  1. Validates booking is checked_in.
- *  2. Closes the folio.
+ *  2. Checks folio balance:
+ *     - If balance == 0, closes folio.
+ *     - If balance > 0 and allowCredit is true, marks folio as credit_ledger with debtor details.
+ *     - If balance > 0 and allowCredit is false, throws an error requiring settlement.
  *  3. Updates the StayRecord with actual checkout time.
  *  4. Updates booking to `checked_out`.
- *  5. Sets room to `cleaning` for housekeeping.
+ *  5. Sets room to `cleaning` for housekeeping turnover.
  */
 export async function checkOut(input: CheckOutInput): Promise<void> {
-  const { bookingId, checkedOutBy } = input;
+  const { bookingId, checkedOutBy, allowCredit, creditDetails } = input;
 
   const booking = await bookingRepository.findById(bookingId);
   if (!booking) throw new Error(`Booking ${bookingId} not found`);
@@ -306,6 +330,29 @@ export async function checkOut(input: CheckOutInput): Promise<void> {
     throw new Error(
       `Cannot check out booking with status '${booking.status}'. Must be checked_in.`
     );
+  }
+
+  // Find open folio for this booking
+  const folio = await folioRepository.findOpenFolio(booking.business_id, bookingId);
+  if (folio) {
+    if (folio.balance_paise > 0) {
+      if (!allowCredit || !creditDetails?.debtorName?.trim()) {
+        throw new Error(
+          `Cannot check out with outstanding balance of ₹${(folio.balance_paise / 100).toFixed(2)} without full settlement or explicit authorized credit approval.`
+        );
+      }
+
+      await folioRepository.authorizeCredit(folio.id, {
+        creditAmountPaise: folio.balance_paise,
+        debtorName: creditDetails.debtorName.trim(),
+        debtorPhone: creditDetails.debtorPhone.trim(),
+        dueDate: creditDetails.dueDate,
+        notes: creditDetails.notes,
+        authorizedBy: creditDetails.authorizedBy || checkedOutBy,
+      });
+    } else {
+      await folioRepository.close(folio.id);
+    }
   }
 
   const now = new Date().toISOString();
@@ -324,12 +371,6 @@ export async function checkOut(input: CheckOutInput): Promise<void> {
       checked_out_by: checkedOutBy,
       updated_at: now,
     });
-  }
-
-  // Close open folio
-  const folio = await folioRepository.findOpenFolio(booking.business_id, bookingId);
-  if (folio) {
-    await folioRepository.close(folio.id);
   }
 
   // Update booking

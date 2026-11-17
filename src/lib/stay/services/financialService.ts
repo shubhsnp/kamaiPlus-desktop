@@ -339,7 +339,22 @@ export async function generateFinalBillSummary(
   const booking = await bookingRepository.findById(folio.booking_id);
   if (!booking) throw new Error(`Booking ${folio.booking_id} not found.`);
 
-  const entries = await folioRepository.getEntries(businessId, folioId);
+  let entries = await folioRepository.getEntries(businessId, folioId);
+
+  // Self-Healing: If no room charge entry exists on the folio, auto-post based on agreed rate
+  const hasRoomCharge = entries.some((e) => e.entry_type === 'room_charge');
+  if (!hasRoomCharge && booking.agreed_rate_paise > 0) {
+    const nights = calculateNights(booking.check_in_date, booking.check_out_date);
+    await postRoomCharge({
+      businessId,
+      folioId,
+      chargeDate: booking.check_in_date,
+      ratePaise: booking.agreed_rate_paise,
+      nights,
+      postedBy: 'system',
+    });
+    entries = await folioRepository.getEntries(businessId, folioId);
+  }
 
   const lines: BillSummaryLine[] = [];
   let subtotal = 0;

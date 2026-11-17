@@ -36,6 +36,8 @@ export type PaymentMethod =
   | 'card'
   | 'bank_transfer'
   | 'ota_collect'   // Online Travel Agent collects on behalf of property
+  | 'credit'        // Authorized credit / debtor account
+  | 'split'         // Multi-tender split payment
   | 'other';
 
 export type FolioEntryType =
@@ -61,7 +63,7 @@ export type HousekeepingTaskStatus =
   | 'done'
   | 'skipped';
 
-export type FolioStatus = 'open' | 'closed' | 'settled';
+export type FolioStatus = 'open' | 'closed' | 'settled' | 'credit_ledger';
 
 export type SyncStatus = 'pending' | 'synced' | 'conflict';
 
@@ -217,6 +219,14 @@ export interface Folio {
   total_paid_paise: number;
   /** total_charges_paise - total_paid_paise */
   balance_paise: number;
+
+  /** Authorized credit details if checked out with unpaid balance */
+  credit_authorized_paise?: number;
+  debtor_name?: string;
+  debtor_phone?: string;
+  credit_due_date?: string;
+  credit_notes?: string;
+  credit_authorized_by?: string;
 
   closed_at?: string;
   created_at: string;

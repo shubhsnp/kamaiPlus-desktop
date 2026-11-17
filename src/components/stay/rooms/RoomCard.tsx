@@ -114,7 +114,17 @@ export const RoomCard: React.FC<RoomCardProps> = ({
           <div className="flex items-center gap-1">
             <select
               value={room.status}
-              onChange={(e) => onStatusChange(room.id, e.target.value as RoomStatus)}
+              onChange={(e) => {
+                const nextStatus = e.target.value as RoomStatus;
+                if (room.status === 'occupied' && nextStatus !== 'occupied') {
+                  if (onQuickCheckOut) {
+                    onQuickCheckOut(room);
+                    return;
+                  }
+                }
+                onStatusChange(room.id, nextStatus);
+              }}
+              title={room.status === 'occupied' ? (isMarathi ? 'व्यापलेली खोली चेक-आउट करण्यासाठी बिल/चेक-आऊट वापरा' : 'Occupied rooms must be checked out via Bill/Check-out') : undefined}
               className={`text-[11px] font-black rounded-lg border px-2 py-1 cursor-pointer focus:outline-none transition ${statusConfig.badgeBg}`}
             >
               <option value="available">{isMarathi ? 'उपलब्ध (Available)' : 'Available'}</option>

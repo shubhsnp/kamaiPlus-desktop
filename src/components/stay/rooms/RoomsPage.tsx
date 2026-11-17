@@ -84,6 +84,13 @@ export const RoomsPage: React.FC = () => {
   }, [loadData]);
 
   const handleStatusChange = async (roomId: string, newStatus: RoomStatus) => {
+    // Intercept: Prevent silent status release of occupied rooms without settlement
+    const activeBooking = activeBookings.find((b) => b.room_id === roomId);
+    if (activeBooking && newStatus !== 'occupied') {
+      setCheckOutBooking(activeBooking);
+      return;
+    }
+
     try {
       await roomRepository.updateStatus(roomId, newStatus);
       setRooms((prev) =>

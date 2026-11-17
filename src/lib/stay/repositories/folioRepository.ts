@@ -40,14 +40,14 @@ export const folioRepository = {
   },
 
   /**
-   * Find the open folio for a booking (there should normally be only one).
+   * Find the open folio for a booking (status 'open' or 'credit_ledger').
    */
   async findOpenFolio(businessId: string, bookingId: string): Promise<Folio | undefined> {
     try {
       return await db.stay_folios
         .where('booking_id')
         .equals(bookingId)
-        .and((f) => f.business_id === businessId && f.status === 'open')
+        .and((f) => f.business_id === businessId && (f.status === 'open' || f.status === 'credit_ledger'))
         .first();
     } catch (err) {
       console.error('[folioRepository.findOpenFolio]', err);
@@ -110,6 +110,37 @@ export const folioRepository = {
       });
     } catch (err) {
       console.error('[folioRepository.close]', err);
+      throw err;
+    }
+  },
+
+  /**
+   * Authorize credit for a folio with outstanding balance.
+   */
+  async authorizeCredit(
+    id: string,
+    details: {
+      creditAmountPaise: number;
+      debtorName: string;
+      debtorPhone: string;
+      dueDate?: string;
+      notes?: string;
+      authorizedBy?: string;
+    }
+  ): Promise<void> {
+    try {
+      await folioRepository.update(id, {
+        status: 'credit_ledger',
+        credit_authorized_paise: details.creditAmountPaise,
+        debtor_name: details.debtorName,
+        debtor_phone: details.debtorPhone,
+        credit_due_date: details.dueDate,
+        credit_notes: details.notes,
+        credit_authorized_by: details.authorizedBy,
+        closed_at: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.error('[folioRepository.authorizeCredit]', err);
       throw err;
     }
   },
