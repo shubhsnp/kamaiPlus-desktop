@@ -12,7 +12,9 @@ import { db } from '@/lib/db';
 import { roomTypeRepository } from '@/lib/stay/repositories/roomTypeRepository';
 import type { StaySettings, RoomType } from '@/lib/stay/types';
 import { showAlert } from '@/lib/ui/dialogs';
-import { Building2, Plus, Edit2, Save, RefreshCw, Check, Clock, Sparkles } from 'lucide-react';
+import { Building2, Plus, Edit2, Save, RefreshCw, Check, Clock, Sparkles, BarChart3 } from 'lucide-react';
+import { HousekeepingBoard } from '../housekeeping/HousekeepingBoard';
+import { StayReportsPage } from '../reports/StayReportsPage';
 
 export const StaySettingsPage: React.FC = () => {
   const { t, language } = useTranslation();
@@ -23,6 +25,9 @@ export const StaySettingsPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  // Sub-section tab switcher
+  const [activeSection, setActiveSection] = useState<'settings' | 'housekeeping' | 'reports'>('settings');
 
   // Lodge Settings state
   const [propertyName, setPropertyName] = useState('Kamai Plus Stay');
@@ -204,8 +209,54 @@ export const StaySettingsPage: React.FC = () => {
         )}
       </div>
 
-      {/* Property Details & Policies Form */}
-      <form onSubmit={handleSaveSettings}>
+      {/* Sub-Tabs: General Settings, Housekeeping Board, Stay Reports */}
+      <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-xl max-w-md">
+        <button
+          type="button"
+          onClick={() => setActiveSection('settings')}
+          className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
+            activeSection === 'settings'
+              ? 'bg-white text-slate-900 shadow-2xs font-black'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <Building2 className="w-3.5 h-3.5" />
+          <span>{isMarathi ? 'माहिती व दर' : 'General & Rates'}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveSection('housekeeping')}
+          className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
+            activeSection === 'housekeeping'
+              ? 'bg-white text-slate-900 shadow-2xs font-black'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>{isMarathi ? 'हाउसकीपिंग' : 'Housekeeping'}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveSection('reports')}
+          className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
+            activeSection === 'reports'
+              ? 'bg-white text-slate-900 shadow-2xs font-black'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <BarChart3 className="w-3.5 h-3.5" />
+          <span>{isMarathi ? 'अहवाल' : 'Reports'}</span>
+        </button>
+      </div>
+
+      {activeSection === 'housekeeping' && <HousekeepingBoard />}
+      {activeSection === 'reports' && <StayReportsPage />}
+      {activeSection === 'settings' && (
+        <>
+          {/* Property Details & Policies Form */}
+          <form onSubmit={handleSaveSettings}>
         <Card className="p-4 sm:p-5 border-slate-200 dark:border-slate-800 space-y-4">
           <h2 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-wider">
             {isMarathi ? 'लॉज माहिती आणि वेळेची धोरणे' : 'Lodge Information & Policy Timings'}
@@ -326,6 +377,8 @@ export const StaySettingsPage: React.FC = () => {
           </div>
         )}
       </Card>
+      </>
+      )}
 
       {/* Category Modal */}
       {isCategoryModalOpen && (

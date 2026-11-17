@@ -26,6 +26,7 @@ import {
   UtensilsCrossed,
   UserCheck,
   BedDouble,
+  Hotel,
   CalendarCheck,
   DoorOpen,
   ClipboardList,
@@ -149,13 +150,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         title: tr('Stay & Lodging'),
         dotColor: 'bg-violet-500',
         items: [
-          { href: '/stay', label: tr('Lodge Dashboard'), icon: BedDouble, iconBg: 'bg-violet-100 text-violet-800', activeIcon: 'text-violet-300' },
-          { href: '/stay/rooms', label: tr('Rooms'), icon: ClipboardList, iconBg: 'bg-violet-100 text-violet-700', activeIcon: 'text-violet-300' },
+          { href: '/stay', label: tr('Home'), icon: Hotel, iconBg: 'bg-violet-100 text-violet-800', activeIcon: 'text-violet-300' },
           { href: '/stay/bookings', label: tr('Bookings'), icon: CalendarCheck, iconBg: 'bg-blue-100 text-blue-800', activeIcon: 'text-blue-300' },
-          { href: '/stay/checkin', label: tr('Check-in'), icon: DoorOpen, iconBg: 'bg-emerald-100 text-emerald-800', activeIcon: 'text-emerald-300' },
-          { href: '/stay/checkout', label: tr('Check-out'), icon: LogOut, iconBg: 'bg-rose-100 text-rose-800', activeIcon: 'text-rose-300' },
-          { href: '/stay/housekeeping', label: tr('Housekeeping'), icon: Sparkles, iconBg: 'bg-amber-100 text-amber-800', activeIcon: 'text-amber-300' },
-          { href: '/stay/reports', label: tr('Stay Reports'), icon: BarChart3, iconBg: 'bg-indigo-100 text-indigo-800', activeIcon: 'text-indigo-300' },
+          { href: '/stay/rooms', label: tr('Rooms'), icon: BedDouble, iconBg: 'bg-emerald-100 text-emerald-800', activeIcon: 'text-emerald-300' },
+          { href: '/stay/payments', label: tr('Payments'), icon: Receipt, iconBg: 'bg-amber-100 text-amber-800', activeIcon: 'text-amber-300' },
         ],
       });
     }
@@ -223,7 +221,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   ? isStaffTab
                   : item.href === '/settings'
                   ? onSettings && !isStaffTab
-                  : pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
+                  : item.href === '/stay'
+                  ? pathname === '/stay'
+                  : item.href === '/'
+                  ? pathname === '/'
+                  : pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href + '/'));
 
                 return (
                   <Link

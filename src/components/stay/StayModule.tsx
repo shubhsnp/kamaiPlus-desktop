@@ -7,27 +7,23 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { RoomsPage } from './rooms/RoomsPage';
 import { BookingsPage } from './bookings/BookingsPage';
-import { CheckInPage } from './checkin/CheckInPage';
-import { CheckOutPage } from './checkout/CheckOutPage';
-import { HousekeepingBoard } from './housekeeping/HousekeepingBoard';
-import { StayReportsPage } from './reports/StayReportsPage';
+import { PaymentsPage } from './payments/PaymentsPage';
 import { StaySettingsPage } from './settings/StaySettingsPage';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   BedDouble,
   CalendarCheck,
-  DoorOpen,
-  LogOut,
-  Sparkles,
-  BarChart3,
+  Receipt,
   Settings,
   Hotel,
   AlertTriangle,
 } from 'lucide-react';
 
 export type StayTab =
+  | 'home'
   | 'rooms'
   | 'bookings'
+  | 'payments'
   | 'checkin'
   | 'checkout'
   | 'housekeeping'
@@ -49,12 +45,10 @@ export const StayModule: React.FC<StayModuleProps> = ({ currentTab, children }) 
   const getTabFromPath = (): StayTab => {
     if (currentTab) return currentTab;
     if (pathname.includes('/stay/bookings')) return 'bookings';
-    if (pathname.includes('/stay/checkin')) return 'checkin';
-    if (pathname.includes('/stay/checkout')) return 'checkout';
-    if (pathname.includes('/stay/housekeeping')) return 'housekeeping';
-    if (pathname.includes('/stay/reports')) return 'reports';
-    if (pathname.includes('/stay/settings')) return 'settings';
-    return 'rooms';
+    if (pathname.includes('/stay/rooms')) return 'rooms';
+    if (pathname.includes('/stay/payments') || pathname.includes('/stay/checkout')) return 'payments';
+    if (pathname.includes('/stay/settings') || pathname.includes('/stay/housekeeping') || pathname.includes('/stay/reports')) return 'settings';
+    return 'home';
   };
 
   const [activeTab, setActiveTab] = useState<StayTab>(getTabFromPath());
@@ -65,8 +59,9 @@ export const StayModule: React.FC<StayModuleProps> = ({ currentTab, children }) 
 
   const handleTabChange = (tab: StayTab) => {
     setActiveTab(tab);
-    // If not on stay pages, push to matching sub-route
-    if (pathname.startsWith('/stay')) {
+    if (tab === 'home') {
+      router.push('/stay');
+    } else {
       router.push(`/stay/${tab}`);
     }
   };
@@ -106,13 +101,11 @@ export const StayModule: React.FC<StayModuleProps> = ({ currentTab, children }) 
   }
 
   const TABS = [
-    { id: 'rooms' as StayTab, label: t('Rooms'), icon: BedDouble },
+    { id: 'home' as StayTab, label: t('Home'), icon: Hotel },
     { id: 'bookings' as StayTab, label: t('Bookings'), icon: CalendarCheck },
-    { id: 'checkin' as StayTab, label: t('Check-in'), icon: DoorOpen },
-    { id: 'checkout' as StayTab, label: t('Check-out'), icon: LogOut },
-    { id: 'housekeeping' as StayTab, label: t('Housekeeping'), icon: Sparkles },
-    { id: 'reports' as StayTab, label: t('Stay Reports'), icon: BarChart3 },
-    { id: 'settings' as StayTab, label: t('Lodge Settings'), icon: Settings },
+    { id: 'rooms' as StayTab, label: t('Rooms'), icon: BedDouble },
+    { id: 'payments' as StayTab, label: t('Payments'), icon: Receipt },
+    { id: 'settings' as StayTab, label: t('Settings'), icon: Settings },
   ];
 
   return (
@@ -122,7 +115,7 @@ export const StayModule: React.FC<StayModuleProps> = ({ currentTab, children }) 
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between h-14">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold shadow-xs">
+              <div className="w-8 h-8 rounded-lg bg-violet-600 text-white flex items-center justify-center font-bold shadow-xs">
                 <Hotel className="w-4 h-4" />
               </div>
               <div className="leading-tight">
@@ -130,7 +123,7 @@ export const StayModule: React.FC<StayModuleProps> = ({ currentTab, children }) 
                   {t('Stay & Lodging')}
                 </span>
                 <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">
-                  Kamai Plus Stay
+                  Kamai Stay
                 </span>
               </div>
             </div>
@@ -145,7 +138,7 @@ export const StayModule: React.FC<StayModuleProps> = ({ currentTab, children }) 
                     key={tab.id}
                     type="button"
                     onClick={() => handleTabChange(tab.id)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                       isActive
                         ? 'bg-slate-900 text-white shadow-xs'
                         : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -169,10 +162,7 @@ export const StayModule: React.FC<StayModuleProps> = ({ currentTab, children }) 
           <>
             {activeTab === 'rooms' && <RoomsPage />}
             {activeTab === 'bookings' && <BookingsPage />}
-            {activeTab === 'checkin' && <CheckInPage />}
-            {activeTab === 'checkout' && <CheckOutPage />}
-            {activeTab === 'housekeeping' && <HousekeepingBoard />}
-            {activeTab === 'reports' && <StayReportsPage />}
+            {activeTab === 'payments' && <PaymentsPage />}
             {activeTab === 'settings' && <StaySettingsPage />}
           </>
         )}
