@@ -1,12 +1,11 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Banknote, BookOpen, CreditCard, FileText, Printer, QrCode, Smartphone, UserRound, Wallet } from 'lucide-react';
+import { Banknote, BookOpen, CreditCard, Printer, QrCode, Smartphone, UserRound, Wallet } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { cn, formatINR } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
-import { readSilentPrint } from '@/lib/hardware/printerWatch';
 import { DiscountInput, RestOrder, orderRef, orderTotals, piecesText } from '@/lib/restaurant/model';
 import type { RestaurantSettings } from '@/lib/restaurant/settings';
 import { RestPayMethod, cleanGuestPhone } from '@/lib/restaurant/settle';
@@ -29,16 +28,13 @@ const METHODS: { id: RestPayMethod; label: string; icon: typeof Banknote }[] = [
 export interface SettleExtras {
   guestName: string;
   guestPhone: string;
-  /** true = print at once (no bill window); false = show the bill: Print, PDF, WhatsApp. */
-  printNow: boolean;
 }
 
 /**
  * Bill and payment (v4.106.0, v4.107.0): the GST breakup, an optional discount, how it was paid (cash
  * shows the change, UPI shows the shop's QR for the exact amount), the guest's name / mobile for the
- * WhatsApp bill, and what happens after paying — print straight away, or the bill window with Print,
- * PDF and WhatsApp (the same "print straight away" setting as the counter). The bill number comes
- * from the shop's normal series.
+ * WhatsApp bill. v4.190.0 (Rahul): Settle always prints the final bill straight away — no bill window
+ * after paying (the message still has "Open bill"). The bill number comes from the shop's normal series.
  */
 export function PayDialog({ order, settings, business, open, busy, onClose, onSettle }: {
   order: RestOrder;
@@ -55,7 +51,6 @@ export function PayDialog({ order, settings, business, open, busy, onClose, onSe
   const [discValue, setDiscValue] = useState('');
   const [guestName, setGuestName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
-  const [printNow, setPrintNow] = useState(false);
   const [splitCash, setSplitCash] = useState('');
   // v4.175.0: the saved customer with this mobile — fills the name, shows their udhar (guestCustomer.ts).
   const [known, setKnown] = useState<Customer | null>(null);
@@ -71,7 +66,6 @@ export function PayDialog({ order, settings, business, open, busy, onClose, onSe
       // A takeaway / delivery guest typed when the order was opened (v4.139.0).
       setGuestName(order.guest?.name || '');
       setGuestPhone(order.guest?.phone || '');
-      setPrintNow(readSilentPrint());
       setSplitCash('');
     }
   }, [open]);
@@ -161,7 +155,7 @@ export function PayDialog({ order, settings, business, open, busy, onClose, onSe
             <p className={cn('text-[10.5px] leading-[14px] min-h-[28px] line-clamp-2', phoneBad ? 'text-rose-600 font-bold' : 'text-slate-500')}>
               {phoneBad ? tr('Enter a 10-digit mobile number, or leave it empty.') : known
                 ? tr('Saved customer {name} · udhar {amount}', { name: known.name, amount: formatINR(known.current_balance || 0) })
-                : tr('A mobile saves the guest as a customer and fills WhatsApp when you send the bill.')}
+                : tr('A mobile saves the guest as a customer; with WhatsApp linked, the bill goes to this mobile by itself.')}
             </p>
           </div>
         </div>
@@ -245,16 +239,14 @@ export function PayDialog({ order, settings, business, open, busy, onClose, onSe
               )}
             </div>
           </div>
-          {/* v4.186.0 (Rahul): "After paying" (print straight away / show the bill) is set once in Printer setup —
-              the Settle button says which it will do. */}
         </div>
       </div>
 
       <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
         <Button type="button" variant="outline" onClick={onClose} disabled={busy}>{tr('Back')}</Button>
         <Button type="button" variant="success" size="lg" isLoading={busy} disabled={short || phoneBad || splitBad || udharNoGuest || totals.grandTotal <= 0} className="min-w-[250px]"
-          onClick={() => onSettle(method, method === 'split' ? splitCashPaise : receivedPaise, discount, { guestName, guestPhone, printNow })} data-pay-settle>
-          {printNow ? <Printer className="w-4 h-4" /> : <FileText className="w-4 h-4" />} {printNow ? tr('Settle & Print Bill') : tr('Settle & Show Bill')}
+          onClick={() => onSettle(method, method === 'split' ? splitCashPaise : receivedPaise, discount, { guestName, guestPhone })} data-pay-settle>
+          <Printer className="w-4 h-4" /> {tr('Settle & Print Bill')}
         </Button>
       </div>
       </div>

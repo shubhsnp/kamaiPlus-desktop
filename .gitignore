@@ -1,51 +1,63 @@
-# dependencies
+# ==============================================================================
+# Kamai Plus Desktop — Production .gitignore
+# ==============================================================================
+
+# Node dependencies
 /node_modules
 /.pnp
 .pnp.js
 
-# testing
-/coverage
-
-# next.js
+# Next.js Build Outputs & Cache
 /.next/
 /out/
 
-# production
+# Electron Packaging & Release Outputs
+/dist/
+/release/
 /build/*
-# ...except the Windows installer icon electron-builder uses (package.json → build.win.icon)
 !/build/icon.ico
 
-# misc
-.DS_Store
-*.pem
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# local env files
-.env*.local
-.env
-SESSION_HANDOVER.md
-*.secret.md
-
-# typescript
+# TypeScript Build Cache & Generated Types
 *.tsbuildinfo
 next-env.d.ts
 
-# repomix
-repomix-output.*
+# Testing & Coverage
+/coverage
 
-
-.vercel
+# Environment & Local Secrets
+.env
+.env*.local
 .env*
-.vscode/
-.firebase/
-*.log
-*.apk
-/dist/
+!.env.example
+SESSION_HANDOVER.md
+*.secret.md
 
-# Auto-update files published to kamaiplus-desktop.web.app (scripts/prepare_release.js)
-/release/
+# Logs & Debug Dumps
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+firestore-debug.log*
+hs_err_pid*.log
+
+# Operating System & IDE Files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Cloud / Hosting Metadata
+.vercel
+.firebase/
+
+# Ad-hoc & Binary Files
+*.apk
+*.pem
+*.pfx
+*.key
 *.xlsx
+*.xls
+repomix-output.*

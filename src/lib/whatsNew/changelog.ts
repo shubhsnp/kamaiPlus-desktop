@@ -16,6 +16,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.190.0',
+    items: [
+      msg('Restaurant: Settle & Print Bill prints the final bill straight away and goes back to the tables — no bill window after paying (the message has "Open bill"). Keys on a table: F8 Send KOT, F9 Print bill, F10 Bill & Pay — they always use the dishes on screen.'),
+    ],
+  },
+  {
     version: '4.189.0',
     items: [
       msg('Typography upgrade: bundled Plus Jakarta Sans font for ultra-clean modern UI and JetBrains Mono for crisp prices and numbers.'),
@@ -350,12 +356,6 @@ export const CHANGELOG: Release[] = [
     version: '4.136.0',
     items: [
       msg('Sales Return: for a bill that still has udhar on it, the refund now comes off the customer\'s khata by default (Credit Balance −) instead of cash. You can still pick Cash or UPI.'),
-    ],
-  },
-  {
-    version: '4.135.0',
-    items: [
-      msg('Mobile + PC: khata entries, expenses, cash shifts, suppliers, returns, stock history and purchase orders made on the phone now come to this PC (and this PC\'s go to the phone). A khata entry, expense or purchase order deleted on the phone is removed here too.'),
     ],
   },
   ...OLDER_RELEASES,

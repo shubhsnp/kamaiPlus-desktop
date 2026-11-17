@@ -118,13 +118,14 @@ export function BillPrinterSetup({ onClose, business, autoPrint, onAutoPrintChan
           <BillPrinterWarning name={printer || printers.find((p) => p.isDefault)?.name || ''} format={fmt} />
         </label>
 
-        <label className="flex items-start gap-2 p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 cursor-pointer">
+        {/* v4.190.0: a restaurant always prints the bill straight after Settle — nothing to choose. */}
+        {!restaurant && <label className="flex items-start gap-2 p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 cursor-pointer">
           <input type="checkbox" checked={autoPrint} onChange={(e) => onAutoPrintChange(e.target.checked)} className="mt-0.5" data-bill-autoprint />
           <span>
             <span className="block font-black text-emerald-900">{tr('Enter prints the bill straight away')}</span>
             <span className="block text-emerald-800">{tr('No "Sale completed" window: Enter / F10 saves the bill, prints it on this printer and the next customer can be scanned.')}</span>
           </span>
-        </label>
+        </label>}
 
         {/* v4.186.0: a restaurant's kitchen printer for KOTs (default: the same printer as the bill). */}
         {restaurant && <KotPrinterRow settings={settings} printers={printers} onChange={update} shopName={business?.name} />}

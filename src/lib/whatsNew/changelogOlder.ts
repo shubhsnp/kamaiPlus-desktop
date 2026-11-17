@@ -4,6 +4,12 @@ import type { Release } from '@/lib/whatsNew/changelog';
 /** "What's new" for 4.133.0 and older (moved out of changelog.ts to stay <= 400 lines, newest first). */
 export const OLDER_RELEASES: Release[] = [
   {
+    version: '4.135.0',
+    items: [
+      msg('Mobile + PC: khata entries, expenses, cash shifts, suppliers, returns, stock history and purchase orders made on the phone now come to this PC (and this PC\'s go to the phone). A khata entry, expense or purchase order deleted on the phone is removed here too.'),
+    ],
+  },
+  {
     version: '4.134.0',
     items: [
       msg('Mobile + PC on one Google account: store setup now finds the phone\'s shop reliably and restores it with its category and GSTIN; after the restore this PC syncs with the phone by itself. Phone items marked unlimited stay unlimited here.'),

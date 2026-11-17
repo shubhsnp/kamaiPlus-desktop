@@ -16,6 +16,19 @@ import {
   PurchaseBill,
   BusinessType,
 } from '@/types';
+import {
+  RoomType,
+  Room,
+  Guest,
+  Booking,
+  StayRecord,
+  Folio,
+  FolioEntry,
+  StayPayment,
+  HousekeepingTask,
+  StaySettings,
+  StayAuditLog,
+} from '@/lib/stay/types';
 import { STARTER_CATEGORY } from '@/lib/constants/storeProfiles';
 import { readVerticalProfile } from '@/lib/business/verticalProfile';
 import { seedCategoryDefaultProducts } from '@/lib/constants/defaultProducts';
@@ -37,6 +50,19 @@ export class VyaparSetuDatabase extends Dexie {
   marketing_templates!: Table<MarketingTemplate, string>;
   audit_logs!: Table<AuditLog, string>;
   purchase_bills!: Table<PurchaseBill, string>;
+
+  // ── Stay / Hospitality module tables ──────────────────────────────────────
+  room_types!: Table<RoomType, string>;
+  rooms!: Table<Room, string>;
+  stay_guests!: Table<Guest, string>;
+  stay_bookings!: Table<Booking, string>;
+  stay_records!: Table<StayRecord, string>;
+  stay_folios!: Table<Folio, string>;
+  stay_folio_entries!: Table<FolioEntry, string>;
+  stay_payments!: Table<StayPayment, string>;
+  stay_housekeeping!: Table<HousekeepingTask, string>;
+  stay_settings!: Table<StaySettings, string>;
+  stay_audit_logs!: Table<StayAuditLog, string>;
 
   constructor() {
     super('VyaparSetuDB');
@@ -93,6 +119,39 @@ export class VyaparSetuDatabase extends Dexie {
       purchase_bills: 'id, business_id, supplier_id, status, created_at, updated_at',
     }).upgrade(() => {
       // High-speed compound indexes upgrade, non-destructive
+    });
+
+    // ── Version 5: Stay / Hospitality module ────────────────────────────────
+    this.version(5).stores({
+      // Carry all existing tables forward unchanged
+      businesses: 'id, name, business_type, phone, created_at, updated_at',
+      categories: 'id, business_id, name, created_at, updated_at',
+      products: 'id, business_id, name, barcode, category_id, is_active, is_favorite, current_stock, min_stock_level, updated_at, [business_id+is_active], [business_id+category_id], [business_id+barcode]',
+      customers: 'id, business_id, name, phone, current_balance, customer_type, last_visit_date, updated_at, [business_id+phone]',
+      suppliers: 'id, business_id, name, phone, current_balance, updated_at',
+      sales: 'id, business_id, invoice_number, customer_id, payment_method, status, created_at, updated_at, [business_id+created_at], [business_id+customer_id]',
+      inventory_movements: 'id, business_id, product_id, movement_type, reference_id, created_at, updated_at, [business_id+created_at], [product_id+created_at]',
+      ledger_transactions: 'id, business_id, party_type, party_id, transaction_type, created_at, updated_at, [business_id+created_at], [party_id+created_at]',
+      cash_registers: 'id, business_id, status, opened_at, closed_at, updated_at',
+      cash_expenses: 'id, business_id, category, payment_mode, created_at, updated_at, [business_id+created_at]',
+      sales_returns: 'id, business_id, return_number, original_sale_id, original_invoice_number, customer_id, created_at, updated_at',
+      marketing_templates: 'id, category, language, is_custom, updated_at',
+      audit_logs: 'id, business_id, action, entity_type, entity_id, created_at, updated_at',
+      purchase_bills: 'id, business_id, supplier_id, status, created_at, updated_at',
+      // ── NEW: Stay tables ──
+      room_types: 'id, business_id, name, code, is_active',
+      rooms: 'id, business_id, room_type_id, number, floor, status, is_active',
+      stay_guests: 'id, business_id, name, phone, created_at',
+      stay_bookings: 'id, business_id, booking_reference, room_id, room_type_id, primary_guest_id, status, check_in_date, check_out_date, created_at',
+      stay_records: 'id, business_id, booking_id, room_id, status, created_at',
+      stay_folios: 'id, business_id, booking_id, stay_record_id, status',
+      stay_folio_entries: 'id, business_id, folio_id, entry_type, entry_date, created_at',
+      stay_payments: 'id, business_id, folio_id, booking_id, paid_at, is_advance, is_refund',
+      stay_housekeeping: 'id, business_id, room_id, task_type, status, created_at',
+      stay_settings: 'id, business_id',
+      stay_audit_logs: 'id, business_id, entity_type, entity_id, created_at',
+    }).upgrade(() => {
+      // Non-destructive: adds new Stay tables only, existing data untouched
     });
   }
 }

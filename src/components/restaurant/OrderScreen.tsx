@@ -36,12 +36,10 @@ export function OrderScreen({ order, settings, update, business, freeTables, onB
   /** Tables with no order — where this one can be moved. */
   freeTables: string[];
   onBack: () => void;
-  onSettled: (sale: Sale, printNow: boolean) => void;
+  onSettled: (sale: Sale) => void;
   notify: (text: string, tone?: 'success' | 'error' | 'info') => void;
 }) {
   const searchRef = useRef<HTMLInputElement>(null);
-  const orderRef = useRef(order);
-  orderRef.current = order;
   const [addOnsFor, setAddOnsFor] = useState<RestLine | null>(null);
   const [payOpen, setPayOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -161,7 +159,7 @@ export function OrderScreen({ order, settings, update, business, freeTables, onB
       // The bill is saved: only now does the table become free.
       update((s) => ({ ...s, orders: s.orders.filter((o) => o.id !== order.id) }));
       setPayOpen(false);
-      onSettled(sale, extras.printNow);
+      onSettled(sale);
     } catch (e) {
       console.error('Restaurant bill not saved:', e);
       notify(tr('Could not save the bill. Please try again.'), 'error');
@@ -171,6 +169,9 @@ export function OrderScreen({ order, settings, update, business, freeTables, onB
   };
 
   // Esc = back to the Tables (unless a window is open or you are typing in the search box), "/" = search.
+  // v4.190.0 (Rahul): F8 = Send KOT, F9 = Print bill, F10 = Bill & Pay. Set again on every render (as in
+  // Fast POS): a listener set once kept the first order, so F8 printed old dishes and then marked the
+  // new ones "In kitchen".
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (document.querySelector('[aria-modal="true"]')) return;
@@ -180,20 +181,20 @@ export function OrderScreen({ order, settings, update, business, freeTables, onB
         searchRef.current?.focus();
       } else if (e.key === 'Escape' && !typing) {
         onBack();
-      } else if (e.key === 'F10' && !typing) {
+      } else if (e.key === 'F8') {
         e.preventDefault();
-        if (liveLines(orderRef.current).length > 0) setPayOpen(true);
-      } else if (e.key === 'F9' && !typing) {
+        if (hasUnsentItems(order)) void sendKot();
+      } else if (e.key === 'F9') {
         e.preventDefault();
-        if (hasUnsentItems(orderRef.current)) void sendKot();
-      } else if (e.key === 'F8' && !typing) {
+        if (liveLines(order).length > 0) void check();
+      } else if (e.key === 'F10') {
         e.preventDefault();
-        if (liveLines(orderRef.current).length > 0) void check();
+        if (liveLines(order).length > 0) setPayOpen(true);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onBack]);
+  });
 
   const inOrder = new Map<string, number>();
   for (const l of liveLines(order)) inOrder.set(l.productId, (inOrder.get(l.productId) || 0) + l.qty);

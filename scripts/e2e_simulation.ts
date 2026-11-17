@@ -4414,14 +4414,13 @@ assert(EscPosEncoder.toPrinterText('₹499 • Dettol — ठीक') === 'Rs.49
   assert(settle2.includes('...(phone ? { customer_phone: phone } : {})') && settle2.includes("notes: address ? `${billLabel(order)} · ${address}` : billLabel(order)"),
     'The guest\'s mobile goes on the bill (customer_phone) so WhatsApp opens with it; the note stays the table name (Today\'s bills, reports)');
 
-  // After paying: like the counter — "Print straight away" (same setting) or the bill window.
+  // After paying: v4.190.0 (Rahul) always straight to the printer — the bill window only in a browser.
   const page2 = readSource('components/restaurant/RestaurantPage.tsx');
   const pay2 = readSource('components/restaurant/PayDialog.tsx');
-  assert(/if \(printNow && business && getDesktopApi\(\)\) \{\s*billPrint\.print\(\{ sale, business \}\);/.test(page2) && page2.includes('setSaleToShow({ sale, justPaid: true })')
+  assert(/if \(business && getDesktopApi\(\)\) \{\s*billPrint\.print\(\{ sale, business \}\);/.test(page2) && page2.includes('setSaleToShow({ sale, justPaid: true })')
     && page2.includes('isPostSaleSuccess={saleToShow.justPaid} initialPhone={saleToShow.sale.customer_phone}') && page2.includes('data-toast-open-bill')
-    // v4.186.0: the choice is set once in Printer setup (saveSilentPrint there), Bill & Pay only reads it.
-    && pay2.includes('setPrintNow(readSilentPrint())') && !pay2.includes('saveSilentPrint') && pay2.includes('<RestUpiQr'),
-    'Restaurant pay: "Print straight away" (the counter\'s own setting) or the bill window with Print, PDF and WhatsApp; a printed bill can still be opened from the message; UPI shows the QR');
+    && !pay2.includes('readSilentPrint') && !pay2.includes('saveSilentPrint') && pay2.includes('<RestUpiQr'),
+    'Restaurant pay: the bill prints straight away on the desktop (the bill window only in a browser); a printed bill can still be opened from the message; UPI shows the QR');
   assert(isRestaurantBill({ notes: 'Table T1', status: 'completed' }) && isRestaurantBill({ notes: 'Takeaway TA-02', status: 'completed' })
     && !isRestaurantBill({ notes: 'Table T1', status: 'draft' }) && !isRestaurantBill({ notes: 'Walk-in', status: 'completed' }) && !isRestaurantBill({ notes: undefined, status: 'completed' }),
     "Today's bills lists only restaurant bills (table / takeaway), never an estimate");
@@ -5617,6 +5616,29 @@ pendingAsyncChecks.push((async () => {
     'Restaurant: Inventory header says "Manage Menu" (inventory is on for a restaurant since v4.165.0)');
 }
 
+// v4.190.0 — Rahul 2026-11-16: restaurant keys F8 Send KOT / F9 Print bill / F10 Bill & Pay; Settle prints the
+// final bill straight away (no "Bill paid" window). Bug fixed: the key listener was set once, so F9 (then KOT)
+// printed the dishes of the moment the table opened and marked the newer ones "In kitchen" unsent.
+{
+  const screen = readSource('components/restaurant/OrderScreen.tsx');
+  const panel = readSource('components/restaurant/OrderPanel.tsx');
+  const pay = readSource('components/restaurant/PayDialog.tsx');
+  const page = readSource('components/restaurant/RestaurantPage.tsx');
+  const fast = readSource('components/restaurant/FastPosScreen.tsx');
+  const keys = screen.slice(screen.indexOf("e.key === 'F8'"), screen.indexOf('window.addEventListener(\'keydown\', onKey)'));
+  assert(/e\.key === 'F8'\) \{\s*e\.preventDefault\(\);\s*if \(hasUnsentItems\(order\)\) void sendKot\(\);/.test(keys)
+    && /e\.key === 'F9'\) \{\s*e\.preventDefault\(\);\s*if \(liveLines\(order\)\.length > 0\) void check\(\);/.test(keys)
+    && /e\.key === 'F10'\) \{\s*e\.preventDefault\(\);\s*if \(liveLines\(order\)\.length > 0\) setPayOpen\(true\);/.test(keys)
+    && /return \(\) => window\.removeEventListener\('keydown', onKey\);\s*\}\);\s*const inOrder/.test(screen) && !screen.includes('orderRef'),
+    'Restaurant keys: F8 = Send KOT, F9 = Print bill, F10 = Bill & Pay; the listener is set again every render, so a key always uses the order on screen (no stale KOT)');
+  assert(/data-order-kot>[\s\S]*?data-order-key="kot">F8</.test(panel) && /data-order-check>[\s\S]*?data-order-key="check">F9</.test(panel) && /data-order-pay>[\s\S]*?>F10</.test(panel),
+    'Order panel: Send KOT shows F8, Print bill F9, Bill & Pay F10 — the same keys as the keyboard');
+  assert(pay.includes("{tr('Settle & Print Bill')}") && !pay.includes('Settle & Show Bill') && !pay.includes('printNow')
+    && /const onSettled = \(sale: Sale\) => \{[\s\S]*?if \(business && getDesktopApi\(\)\) \{\s*billPrint\.print/.test(page)
+    && fast.includes('onSettled(sale);') && screen.includes('onSettled(sale);'),
+    'Restaurant Settle (tables and Fast POS): always "Settle & Print Bill" — the final bill prints at once, no bill window after paying');
+}
+
 // v4.186.0 — Rahul 2026-11-16: a restaurant's KOT goes to its own kitchen printer (set once in Printer setup,
 // default = the bill printer as before); no printer / size question while billing; no label printer settings
 // in a shop without barcode labels.
@@ -5643,14 +5665,16 @@ pendingAsyncChecks.push((async () => {
   const modal = readSource('components/invoices/InvoiceModal.tsx');
   const pay = readSource('components/restaurant/PayDialog.tsx');
   assert(!modal.includes('FORMAT_TABS') && !modal.includes("msg('A4 Bill')") && !pay.includes('data-pay-after') && !pay.includes("tr('After paying')")
-    && pay.includes('setPrintNow(readSilentPrint())'),
+    && !pay.includes('readSilentPrint'),
     'While billing nothing asks about printers: no A4 / 80mm / 58mm tabs in the bill window, no "After paying" in Bill & Pay (both set once)');
   const setup = readSource('components/billing/BillPrinterSetup.tsx');
   const card = readSource('components/settings/PrintSettingsCard.tsx');
+  // v4.190.0: a restaurant always prints after Settle, so its Printer setup has no "print straight away" switch.
   assert(setup.includes('{restaurant && <KotPrinterRow') && card.includes('{restaurant && <KotPrinterRow') && card.includes('saveSilentPrint(e.target.checked)')
     && !card.includes("tr('A4 printer')") && !card.includes("tr('Print directly')")
-    && RESTAURANT_WORDS['Enter prints the bill straight away'] === 'Print the bill straight away after Settle',
-    'Printer setup (Settings + Printers window): one bill printer for the bill size, the KOT printer row in Restaurant mode, "print straight away" in both');
+    && card.includes('{!restaurant && <label') && setup.includes('{!restaurant && <label')
+    && !('Enter prints the bill straight away' in RESTAURANT_WORDS),
+    'Printer setup (Settings + Printers window): one bill printer for the bill size, the KOT printer row in Restaurant mode, "print straight away" only for the counter');
   assert(readSource('components/settings/InvoiceSettingsTab.tsx').includes('{switches.barcode_studio && <LabelPrinterCard />}')
     && readSource('components/printers/PrintersWindow.tsx').includes('{labelsOn && <div')
     && readSource('components/printers/PrinterWatcher.tsx').includes("const label = isFeatureOn('barcode_studio') ? review.label : undefined;")

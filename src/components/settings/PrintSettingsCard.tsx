@@ -117,12 +117,13 @@ export function PrintSettingsCard() {
       {restaurant && <KotPrinterRow settings={settings} printers={printers} onChange={update} shopName={business?.name} />}
 
       <div className="space-y-2">
-        <label className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer">
+        {/* v4.190.0: a restaurant always prints the bill straight after Settle — nothing to choose. */}
+        {!restaurant && <label className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer">
           <input type="checkbox" checked={straightAway} onChange={(e) => { setStraightAway(e.target.checked); saveSilentPrint(e.target.checked); }} className="mt-0.5" data-settings-straight-print />
           <span>
             <b>{tr('Enter prints the bill straight away')}</b> {tr('No "Sale completed" window: Enter / F10 saves the bill, prints it on this printer and the next customer can be scanned.')}
           </span>
-        </label>
+        </label>}
         <label className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer">
           <input type="checkbox" checked={settings.autoPrintAfterSale} onChange={(e) => update({ autoPrintAfterSale: e.target.checked })} className="mt-0.5" />
           <span>

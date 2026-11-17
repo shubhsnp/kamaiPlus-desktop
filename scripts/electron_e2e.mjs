@@ -1945,9 +1945,9 @@ async function run() {
         await page.getByLabel('Discount', { exact: true }).fill('');
         billBoxes.add(await billBox());
         check(billBoxes.size === 1, `Bill window: same size and place for Cash, UPI, Card, Cash + UPI, Udhar, change, short, discount, a bad mobile (${[...billBoxes].join(' | ')})`);
-        // v4.186.0: "After paying" is set once in Printer setup — the Bill & Pay window no longer asks.
-        check((await page.locator('[data-pay-after]').count()) === 0 && /Settle & Show Bill/.test(await page.locator('[data-pay-settle]').innerText()),
-          'Bill & Pay asks nothing about printing; Settle says what Printer setup chose (here: show the bill)');
+        // v4.190.0 (Rahul): Bill & Pay asks nothing about printing — Settle always prints the final bill.
+        check((await page.locator('[data-pay-after]').count()) === 0 && /Settle & Print Bill/.test(await page.locator('[data-pay-settle]').innerText()),
+          'Bill & Pay asks nothing about printing; the one button is "Settle & Print Bill"');
 
         const payTotal = parseFloat((await page.locator('[data-pay-total]').innerText()).replace(/[^\d.]/g, ''));
         await page.locator('[data-pay-method="upi"]').click();
@@ -1959,12 +1959,11 @@ async function run() {
         await page.locator('[data-pay-guest-phone]').fill('98765 43210');
         await page.locator('[data-pay-settle]').click();
         await tables.waitFor({ timeout: 25000 });
-        step = 'bill window';
-        const billWin = await textVisible(page, 'Bill paid', 20000);
-        const whatsapp = await page.getByRole('button', { name: /Send bill on WhatsApp/i }).count();
-        const pdf = await page.getByRole('button', { name: /Save PDF/i }).count();
-        check(billWin && whatsapp === 0 && pdf > 0, 'After paying, the bill window opens like the counter\'s: Print, Save PDF, Send bill on WhatsApp');
-        await page.getByRole('button', { name: /Back to Tables/i }).click();
+        step = 'printed straight away';
+        // v4.190.0: no "Bill paid" window — the bill goes to the printer; the message (or the red bar) can open it.
+        const said = await page.locator('[data-restaurant-toast], [data-print-failed]').first().waitFor({ timeout: 20000 }).then(() => true, () => false);
+        const billWin = await textVisible(page, 'Bill paid', 2500);
+        check(said && !billWin, 'After paying, the final bill prints straight away and the Tables come back — no "Bill paid" window (the message has "Open bill")');
         await page.waitForTimeout(800);
         check((await page.locator('[data-table="T1"]').getAttribute('data-table-state')) === 'free', 'After Settle the table is free again');
 
@@ -1999,7 +1998,6 @@ async function run() {
         const udharNote = await page.locator('[data-pay-udhar]').count();
         await page.locator('[data-pay-settle]').click();
         await tables.waitFor({ timeout: 25000 });
-        await page.getByRole('button', { name: /Back to Tables/i }).click({ timeout: 15000 }).catch(() => {});
         await page.waitForTimeout(800);
         const owing = (await readStore(page, 'customers')).find((c) => c.phone === '9876543210');
         const credit = (await readStore(page, 'ledger_transactions')).filter((l) => owing && l.party_id === owing.id && l.transaction_type === 'CREDIT_SALE');

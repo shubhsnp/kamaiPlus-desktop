@@ -25,11 +25,19 @@ import {
   PanelLeftOpen,
   UtensilsCrossed,
   UserCheck,
+  BedDouble,
+  CalendarCheck,
+  DoorOpen,
+  ClipboardList,
+  BarChart3,
+  LogOut,
+  Sparkles,
 } from 'lucide-react';
 import { APP_VERSION } from '@/lib/constants/version';
 import { cn } from '@/lib/utils';
 import { tr } from '@/lib/i18n/core';
 import { isPathEnabled, useFeatureSwitches, useRestaurantMode } from '@/lib/features/featureSwitches';
+import { useStayEnabled } from '@/lib/stay/stayActivation';
 
 interface SidebarProps {
   isCollapsed?: boolean;
@@ -46,6 +54,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const switches = useFeatureSwitches();
   // v4.106.0: Restaurant mode (set from the Admin Console) swaps the counter for Tables & Orders.
   const restaurant = useRestaurantMode();
+  // Stay module (dev-only flag): adds lodge/hospitality nav section.
+  const stayEnabled = useStayEnabled();
 
   const [internalCollapsed, setInternalCollapsed] = useState<boolean>(false);
 
@@ -87,52 +97,73 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleToggle]);
 
-  const sections = useMemo(() => [
-    {
-      title: tr('POS & Counter'),
-      dotColor: 'bg-emerald-500',
-      items: [
-        { href: '/', label: tr('Home'), icon: Home, iconBg: 'bg-slate-100 text-slate-700', activeIcon: 'text-white' },
-        restaurant
-          ? { href: '/restaurant', label: tr('Tables & Orders'), icon: UtensilsCrossed, iconBg: 'bg-emerald-100 text-emerald-800', activeIcon: 'text-emerald-300' }
-          : { href: '/billing', label: tr('Billing POS'), icon: Receipt, iconBg: 'bg-emerald-100 text-emerald-800', activeIcon: 'text-emerald-300' },
-        { href: '/cash-register', label: tr('Cash Register'), icon: Calculator, iconBg: 'bg-amber-100 text-amber-900', activeIcon: 'text-amber-300' },
-        { href: '/barcode-generator', label: tr('Barcode Studio'), icon: Barcode, iconBg: 'bg-purple-100 text-purple-800', activeIcon: 'text-purple-300' },
-        { href: '/transactions', label: tr('Transactions'), icon: ShieldCheck, iconBg: 'bg-teal-100 text-teal-800', activeIcon: 'text-teal-300' },
-        { href: '/reports', label: tr('Sales Analytics'), icon: LineChart, iconBg: 'bg-indigo-100 text-indigo-800', activeIcon: 'text-indigo-300' },
-      ],
-    },
-    {
-      title: tr('Stock & Sourcing'),
-      dotColor: 'bg-blue-500',
-      items: [
-        { href: '/products', label: tr('Products'), icon: Package, iconBg: 'bg-blue-100 text-blue-800', activeIcon: 'text-blue-300' },
-        { href: '/inventory', label: tr('Inventory & Stock'), icon: Boxes, iconBg: 'bg-cyan-100 text-cyan-800', activeIcon: 'text-cyan-300' },
-        { href: '/purchases', label: tr('Purchases & Bills'), icon: ShoppingBag, iconBg: 'bg-amber-100 text-amber-800', activeIcon: 'text-amber-300' },
-        { href: '/suppliers', label: tr('Suppliers'), icon: Truck, iconBg: 'bg-orange-100 text-orange-800', activeIcon: 'text-orange-300' },
-      ],
-    },
-    {
-      title: tr('Ledger & Customers'),
-      dotColor: 'bg-amber-500',
-      items: [
-        { href: '/khata', label: tr('Khata Ledger'), icon: BookOpen, iconBg: 'bg-amber-100 text-amber-800', activeIcon: 'text-amber-300' },
-        { href: '/customers', label: tr('Customers'), icon: Users, iconBg: 'bg-sky-100 text-sky-800', activeIcon: 'text-sky-300' },
-        { href: '/settings?tab=staff', label: tr('Staff'), icon: UserCheck, iconBg: 'bg-indigo-100 text-indigo-800', activeIcon: 'text-indigo-300' },
-      ],
-    },
-    {
-      title: tr('Tax & Settings'),
-      dotColor: 'bg-purple-500',
-      items: [
-        { href: '/gst-reports', label: tr('GST & Accounting'), icon: FileSpreadsheet, iconBg: 'bg-indigo-100 text-indigo-800', activeIcon: 'text-indigo-300' },
-        { href: '/invoice-designer', label: tr('Invoice Themes'), icon: Palette, iconBg: 'bg-amber-100 text-amber-800', activeIcon: 'text-amber-300' },
-        { href: '/cloud-backup', label: tr('Backup & Restore'), icon: HardDrive, iconBg: 'bg-sky-100 text-sky-800', activeIcon: 'text-sky-300' },
-        { href: '/settings', label: tr('Settings'), icon: Settings, iconBg: 'bg-slate-100 text-slate-700', activeIcon: 'text-slate-300' },
-      ],
-    },
-  ].map((sec) => ({ ...sec, items: sec.items.filter((item) => isPathEnabled(item.href, switches)) }))
-    .filter((sec) => sec.items.length > 0), [t, switches, restaurant]);
+  const sections = useMemo(() => {
+    const base = [
+      {
+        title: tr('POS & Counter'),
+        dotColor: 'bg-emerald-500',
+        items: [
+          { href: '/', label: tr('Home'), icon: Home, iconBg: 'bg-slate-100 text-slate-700', activeIcon: 'text-white' },
+          restaurant
+            ? { href: '/restaurant', label: tr('Tables & Orders'), icon: UtensilsCrossed, iconBg: 'bg-emerald-100 text-emerald-800', activeIcon: 'text-emerald-300' }
+            : { href: '/billing', label: tr('Billing POS'), icon: Receipt, iconBg: 'bg-emerald-100 text-emerald-800', activeIcon: 'text-emerald-300' },
+          { href: '/cash-register', label: tr('Cash Register'), icon: Calculator, iconBg: 'bg-amber-100 text-amber-900', activeIcon: 'text-amber-300' },
+          { href: '/barcode-generator', label: tr('Barcode Studio'), icon: Barcode, iconBg: 'bg-purple-100 text-purple-800', activeIcon: 'text-purple-300' },
+          { href: '/transactions', label: tr('Transactions'), icon: ShieldCheck, iconBg: 'bg-teal-100 text-teal-800', activeIcon: 'text-teal-300' },
+          { href: '/reports', label: tr('Sales Analytics'), icon: LineChart, iconBg: 'bg-indigo-100 text-indigo-800', activeIcon: 'text-indigo-300' },
+        ],
+      },
+      {
+        title: tr('Stock & Sourcing'),
+        dotColor: 'bg-blue-500',
+        items: [
+          { href: '/products', label: tr('Products'), icon: Package, iconBg: 'bg-blue-100 text-blue-800', activeIcon: 'text-blue-300' },
+          { href: '/inventory', label: tr('Inventory & Stock'), icon: Boxes, iconBg: 'bg-cyan-100 text-cyan-800', activeIcon: 'text-cyan-300' },
+          { href: '/purchases', label: tr('Purchases & Bills'), icon: ShoppingBag, iconBg: 'bg-amber-100 text-amber-800', activeIcon: 'text-amber-300' },
+          { href: '/suppliers', label: tr('Suppliers'), icon: Truck, iconBg: 'bg-orange-100 text-orange-800', activeIcon: 'text-orange-300' },
+        ],
+      },
+      {
+        title: tr('Ledger & Customers'),
+        dotColor: 'bg-amber-500',
+        items: [
+          { href: '/khata', label: tr('Khata Ledger'), icon: BookOpen, iconBg: 'bg-amber-100 text-amber-800', activeIcon: 'text-amber-300' },
+          { href: '/customers', label: tr('Customers'), icon: Users, iconBg: 'bg-sky-100 text-sky-800', activeIcon: 'text-sky-300' },
+          { href: '/settings?tab=staff', label: tr('Staff'), icon: UserCheck, iconBg: 'bg-indigo-100 text-indigo-800', activeIcon: 'text-indigo-300' },
+        ],
+      },
+      {
+        title: tr('Tax & Settings'),
+        dotColor: 'bg-purple-500',
+        items: [
+          { href: '/gst-reports', label: tr('GST & Accounting'), icon: FileSpreadsheet, iconBg: 'bg-indigo-100 text-indigo-800', activeIcon: 'text-indigo-300' },
+          { href: '/invoice-designer', label: tr('Invoice Themes'), icon: Palette, iconBg: 'bg-amber-100 text-amber-800', activeIcon: 'text-amber-300' },
+          { href: '/cloud-backup', label: tr('Backup & Restore'), icon: HardDrive, iconBg: 'bg-sky-100 text-sky-800', activeIcon: 'text-sky-300' },
+          { href: '/settings', label: tr('Settings'), icon: Settings, iconBg: 'bg-slate-100 text-slate-700', activeIcon: 'text-slate-300' },
+        ],
+      },
+    ];
+
+    if (stayEnabled) {
+      base.splice(1, 0, {
+        title: tr('Stay & Lodging'),
+        dotColor: 'bg-violet-500',
+        items: [
+          { href: '/stay', label: tr('Lodge Dashboard'), icon: BedDouble, iconBg: 'bg-violet-100 text-violet-800', activeIcon: 'text-violet-300' },
+          { href: '/stay/rooms', label: tr('Rooms'), icon: ClipboardList, iconBg: 'bg-violet-100 text-violet-700', activeIcon: 'text-violet-300' },
+          { href: '/stay/bookings', label: tr('Bookings'), icon: CalendarCheck, iconBg: 'bg-blue-100 text-blue-800', activeIcon: 'text-blue-300' },
+          { href: '/stay/checkin', label: tr('Check-in'), icon: DoorOpen, iconBg: 'bg-emerald-100 text-emerald-800', activeIcon: 'text-emerald-300' },
+          { href: '/stay/checkout', label: tr('Check-out'), icon: LogOut, iconBg: 'bg-rose-100 text-rose-800', activeIcon: 'text-rose-300' },
+          { href: '/stay/housekeeping', label: tr('Housekeeping'), icon: Sparkles, iconBg: 'bg-amber-100 text-amber-800', activeIcon: 'text-amber-300' },
+          { href: '/stay/reports', label: tr('Stay Reports'), icon: BarChart3, iconBg: 'bg-indigo-100 text-indigo-800', activeIcon: 'text-indigo-300' },
+        ],
+      });
+    }
+
+    return base
+      .map((sec) => ({ ...sec, items: sec.items.filter((item) => isPathEnabled(item.href, switches)) }))
+      .filter((sec) => sec.items.length > 0);
+  }, [t, switches, restaurant, stayEnabled]);
 
   return (
     <aside 

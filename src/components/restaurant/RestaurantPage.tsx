@@ -117,13 +117,14 @@ export function RestaurantPage() {
     newTakeaway();
   };
 
-  // Like the counter: "Print straight away" sends it to the printer (the toast can still open it);
-  // otherwise — or with no printer to send it to (a browser) — the bill window opens.
-  const onSettled = (sale: Sale, printNow: boolean) => {
+  // v4.190.0 (Rahul: fewer steps): the final bill always goes straight to the bill printer — no bill
+  // window after paying; the toast can still open it, a failed print stays in the red bar (Retry / Open).
+  // Only with no printer to send it to (a browser) does the bill window open.
+  const onSettled = (sale: Sale) => {
     setSelectedId(null);
     // v4.185.0: the linked WhatsApp sends the bill to the guest's mobile by itself — never awaited.
     void import('@/lib/whatsapp/autoSendBill').then((m) => m.autoSendBill(sale, business));
-    if (printNow && business && getDesktopApi()) {
+    if (business && getDesktopApi()) {
       billPrint.print({ sale, business });
       notify(tr('Bill {number} saved — printing.', { number: sale.invoice_number }), 'success', sale);
     } else {

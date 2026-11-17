@@ -187,11 +187,11 @@ export function OrderPanel({ order, settings, kotBusy, checkBusy, onBack, onQty,
           <Button type="button" size="lg" onClick={onKot} isLoading={kotBusy} disabled={!unsent}
             className={cn('h-12 px-2 text-[12px] flex flex-col items-center justify-center leading-tight gap-0.5', unsent ? 'bg-amber-500 hover:bg-amber-600 border-amber-500 text-slate-950 font-black' : 'bg-slate-100 text-slate-400 border-slate-200')} data-order-kot>
             <span className="flex items-center gap-1.5"><ChefHat className="w-4 h-4" /> {tr('Send KOT')}</span>
-            <kbd className={cn('text-[10px] font-mono rounded px-1.5 py-0.2', unsent ? 'bg-amber-900/20 text-slate-950 font-bold' : 'text-slate-400')}>F9</kbd>
+            <kbd className={cn('text-[10px] font-mono rounded px-1.5 py-0.2', unsent ? 'bg-amber-900/20 text-slate-950 font-bold' : 'text-slate-400')} data-order-key="kot">F8</kbd>
           </Button>
           <Button type="button" variant="outline" size="lg" onClick={onCheck} isLoading={checkBusy} disabled={pieces === 0} className="h-12 px-2 text-[12px] flex flex-col items-center justify-center leading-tight gap-0.5" title={tr('Print the bill for the table to check (not paid yet)')} data-order-check>
             <span className="flex items-center gap-1.5"><FileText className="w-4 h-4" /> {tr('Print bill')}</span>
-            <kbd className="text-[10px] font-mono text-slate-400 bg-slate-100 rounded px-1.5 py-0.2">F8</kbd>
+            <kbd className="text-[10px] font-mono text-slate-400 bg-slate-100 rounded px-1.5 py-0.2" data-order-key="check">F9</kbd>
           </Button>
           <Button type="button" variant="success" size="lg" onClick={onPay} disabled={pieces === 0} className="h-12 px-2 text-[12px] flex flex-col items-center justify-center leading-tight gap-0.5 shadow-sm" data-order-pay>
             <span className="flex items-center gap-1.5"><Receipt className="w-4 h-4" /> {tr('Bill & Pay')}</span>

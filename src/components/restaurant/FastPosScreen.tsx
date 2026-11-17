@@ -58,7 +58,7 @@ export function FastPosScreen({ state, settings, update, business, onTables, onS
   business?: Business | null;
   onTables: () => void;
   onSetup: () => void;
-  onSettled: (sale: Sale, printNow: boolean) => void;
+  onSettled: (sale: Sale) => void;
   /** Today's bills strip: open one again (print, PDF, WhatsApp). */
   onOpenBill: (sale: Sale) => void;
   notify: (text: string, tone?: 'success' | 'error' | 'info') => void;
@@ -125,7 +125,7 @@ export function FastPosScreen({ state, settings, update, business, onTables, onS
       const sale = await settleOrder({ order, settings, business, method, receivedPaise, discount, guestName: extras.guestName, guestPhone: extras.guestPhone });
       setPayOpen(false);
       freshCart(Boolean(order.fast?.dineIn));
-      onSettled(sale, extras.printNow);
+      onSettled(sale);
       if (settings.fastKot) {
         // The kitchen slip with the token — only when a kitchen printer is chosen (no printer = just the bill).
         try {

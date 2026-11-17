@@ -100,3 +100,17 @@ kamaiplus.com/help (website repo `D:\My Web Sites\KamaiPlus Website`) has 16 gui
    - This publishes a new tag/release to `sayrahul/kamaiplus-releases` and uploads the packaged installer (`dist/KamaiPlus-Desktop-Setup-*.exe`) directly to GitHub Releases storage.
    - The script enforces an extension whitelist (`.exe`, `.apk`, `.msi`) and strictly blocks raw code files from being uploaded.
 
+---
+
+## 🏨 KAMAI PLUS STAY — PROJECT CONTINUITY AND APPROVAL BOUNDARY
+
+For Stay work, keep this sequence at the start of every conversation:
+
+1. Read `ENGINEERING_BIBLE.md`, `CURRENT_PROJECT_STATUS.md`, `ACTIVE_TASK.md`, and the relevant sections of `APPROVED_ARCHITECTURE_DECISIONS.md` and `OPEN_DECISIONS_AND_BLOCKERS.md`.
+2. Read the actual source for the requested task. Treat external-repository references in Desktop documents as documentation, not proof of implementation.
+3. Use explicit evidence labels: **Verified implementation**, **Approved decision**, **Proposed design**, **Unknown**, **Blocked**, and **Completed task**.
+4. Do not start application source, schema, migration, production-rule, or deployment work without explicit task approval. Stay remains a module in the existing Desktop and Android products, not a standalone application.
+5. At task completion, update `CURRENT_PROJECT_STATUS.md`, `ACTIVE_TASK.md`, and `CHANGELOG_AI_DEVELOPMENT.md`; record exact validation performed and remaining blockers.
+
+The project owner's explicit safety instructions govern Stay work. In particular, Rule 6's generic commit/push instructions are not blanket authorization: do not create or switch branches, stage, commit, push, merge, change remotes, or deploy unless the owner explicitly approves that Git/deployment action. Preserve all pre-existing tracked and untracked work.
+
